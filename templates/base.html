@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyperlocal Intelligent Marketplace</title>
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+
+    <!-- Persistent Simulator Control Panel -->
+    <header class="simulator-header">
+        <div class="brand-section">
+            <span class="brand-badge">MVP Portal</span>
+            <span class="brand-title">Hyperlocal Monopolistic</span>
+        </div>
+        
+        <div class="role-switches">
+            <!-- Customer Switcher -->
+            <div style="position: relative; display: inline-block;">
+                <a href="#" class="switch-btn {% if session.get('role') == 'customer' %}active{% endif %}" onclick="toggleDropdown(event, 'cust-dd')">
+                    🛍️ Customer {% if session.get('role') == 'customer' %} ({{ session.get('name', 'Alice') }}) {% endif %} ▾
+                </a>
+                <div id="cust-dd" class="glass-dropdown" style="display: none; position: absolute; top: 100%; left: 0; background: #0f172a; border: 1px solid var(--border-glass); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 1000; min-width: 160px; margin-top: 5px;">
+                    <a href="/session/switch?role=customer&id=1" style="display: block; padding: 10px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; border-bottom: 1px solid var(--border-glass);">Alice Sharma</a>
+                    <a href="/session/switch?role=customer&id=2" style="display: block; padding: 10px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; border-bottom: 1px solid var(--border-glass);">Bob Verma</a>
+                    <a href="/session/switch?role=customer&id=3" style="display: block; padding: 10px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem;">Charlie Gupta</a>
+                </div>
+            </div>
+
+            <!-- Vendor Switcher -->
+            <div style="position: relative; display: inline-block;">
+                <a href="#" class="switch-btn {% if session.get('role') == 'vendor' %}active{% endif %}" onclick="toggleDropdown(event, 'vend-dd')">
+                    🏪 Vendor {% if session.get('role') == 'vendor' %} ({{ session.get('name', 'Apna') }}) {% endif %} ▾
+                </a>
+                <div id="vend-dd" class="glass-dropdown" style="display: none; position: absolute; top: 100%; left: 0; background: #0f172a; border: 1px solid var(--border-glass); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 1000; min-width: 220px; margin-top: 5px;">
+                    <a href="/session/switch?role=vendor&id=1" style="display: block; padding: 10px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; border-bottom: 1px solid var(--border-glass);">Apna Bazaar (Kirana)</a>
+                    <a href="/session/switch?role=vendor&id=2" style="display: block; padding: 10px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; border-bottom: 1px solid var(--border-glass);">The Bakers Table (Cakes)</a>
+                    <a href="/session/switch?role=vendor&id=3" style="display: block; padding: 10px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; border-bottom: 1px solid var(--border-glass);">Fresh & Green (Veggies)</a>
+                    <a href="/session/switch?role=vendor&id=4" style="display: block; padding: 10px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem;">ElectroWorld (Electronics)</a>
+                </div>
+            </div>
+
+            <!-- Rider Switcher -->
+            <div style="position: relative; display: inline-block;">
+                <a href="#" class="switch-btn {% if session.get('role') == 'delivery' %}active{% endif %}" onclick="toggleDropdown(event, 'rider-dd')">
+                    🚴 Rider {% if session.get('role') == 'delivery' %} ({{ session.get('name', 'Rahul') }}) {% endif %} ▾
+                </a>
+                <div id="rider-dd" class="glass-dropdown" style="display: none; position: absolute; top: 100%; left: 0; background: #0f172a; border: 1px solid var(--border-glass); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 1000; min-width: 180px; margin-top: 5px;">
+                    <a href="/session/switch?role=delivery&id=1" style="display: block; padding: 10px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; border-bottom: 1px solid var(--border-glass);">Rahul Rider (Online)</a>
+                    <a href="/session/switch?role=delivery&id=2" style="display: block; padding: 10px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; border-bottom: 1px solid var(--border-glass);">Amit Express (Online)</a>
+                    <a href="/session/switch?role=delivery&id=3" style="display: block; padding: 10px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem;">Vicky Speedster (Offline)</a>
+                </div>
+            </div>
+
+            <!-- Admin Switcher -->
+            <a href="/admin" class="switch-btn {% if session.get('role') == 'admin' %}active{% endif %}">
+                ⚙️ Admin
+            </a>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- Render page contents -->
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Dropdown Toggle Script -->
+    <script>
+        function toggleDropdown(event, id) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Hide all other dropdowns
+            document.querySelectorAll('.glass-dropdown').forEach(el => {
+                if (el.id !== id) el.style.display = 'none';
+            });
+            
+            // Toggle current
+            const dropdown = document.getElementById(id);
+            if (dropdown.style.display === 'none' || !dropdown.style.display) {
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.style.display = 'none';
+            }
+        }
+        
+        // Click outside closes dropdowns
+        window.addEventListener('click', () => {
+            document.querySelectorAll('.glass-dropdown').forEach(el => {
+                el.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

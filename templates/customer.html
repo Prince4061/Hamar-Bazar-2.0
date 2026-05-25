@@ -1,0 +1,701 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex-between mb-sm">
+    <div>
+        <h1 class="screen-title">Welcome back, {{ session.get('name', 'Alice Sharma') }}!</h1>
+        <p class="screen-subtitle">Browse exclusive shops in your area for 30-minute delivery.</p>
+    </div>
+    <!-- Quick Expense Insights Toggle -->
+    <div>
+        <button class="btn btn-secondary" onclick="toggleExpensesModal()">📊 Expense Insights</button>
+    </div>
+</div>
+
+<!-- VOICE CART SECTION (INT-005) -->
+<div class="voice-banner">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <button id="mic-btn" class="voice-mic-btn" onclick="startVoiceInput()">🎤</button>
+        <div>
+            <h4 style="font-weight: 600; margin-bottom: 2px;">Voice Ordering (BETA)</h4>
+            <p id="voice-status" style="font-size: 0.8rem; color: var(--text-secondary);">Tap mic and say "Add 2 Milk and 1 Bread" or "Add Chocolate Cake"</p>
+        </div>
+    </div>
+</div>
+
+<!-- ACTIVE ORDER TRACKER TIMELINE (CUST-004) -->
+<div id="active-order-container" class="glass-card" style="display: none;">
+    <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">
+        <span style="font-weight: 600;">📦 Active Order Tracking (<span id="tracking-order-id" class="text-accent">#--</span>)</span>
+        <span id="tracking-order-status" class="badge">PENDING</span>
+    </div>
+    
+    <!-- Timeline -->
+    <div class="timeline">
+        <div id="step-pending" class="timeline-step">
+            <div class="timeline-dot"></div>
+            <div class="timeline-title">Order Placed</div>
+            <div class="timeline-time">Waiting for shop acceptance</div>
+        </div>
+        <div id="step-accepted" class="timeline-step">
+            <div class="timeline-dot"></div>
+            <div class="timeline-title">Accepted by Shop</div>
+            <div class="timeline-time">Vendor preparing items</div>
+        </div>
+        <div id="step-ready" class="timeline-step">
+            <div class="timeline-dot"></div>
+            <div class="timeline-title">Packed & Ready</div>
+            <div class="timeline-time">Awaiting delivery partner pickup</div>
+        </div>
+        <div id="step-out" class="timeline-step">
+            <div class="timeline-dot"></div>
+            <div class="timeline-title">Out for Delivery</div>
+            <div class="timeline-time">Rider carrying your parcel</div>
+        </div>
+        <div id="step-delivered" class="timeline-step">
+            <div class="timeline-dot"></div>
+            <div class="timeline-title">Delivered</div>
+            <div class="timeline-time">Enjoy your fresh purchase!</div>
+        </div>
+    </div>
+    
+    <div id="delivery-info-section" style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed var(--border-glass); display: none;">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;">
+            🏍️ <strong>Rider Assigned:</strong> <span id="rider-name" class="text-accent"> राहुल</span> (<span id="rider-phone">9000000001</span>)
+        </p>
+        <p style="font-size: 0.95rem; color: var(--emerald-green); font-weight: 600;">
+            🔑 <strong>Delivery Verification OTP:</strong> <span id="delivery-otp-display" style="background: rgba(16, 185, 129, 0.15); padding: 2px 6px; border-radius: 4px;">----</span>
+        </p>
+    </div>
+</div>
+
+<!-- CATEGORY SECTION (CUST-001) -->
+<h3 style="margin-bottom: 12px; font-weight: 600;">Select Category</h3>
+<div class="category-grid">
+    <div class="category-card" onclick="selectCategory('KIRANA', 1)">
+        <span class="category-icon">🛒</span>
+        <span class="category-name">Kirana & Grocery</span>
+        <span class="category-desc">Apna Bazaar Exclusive</span>
+    </div>
+    <div class="category-card" onclick="selectCategory('CAKES', 2)">
+        <span class="category-icon">🎂</span>
+        <span class="category-name">Premium Cakes</span>
+        <span class="category-desc">The Bakers Table Exclusive</span>
+    </div>
+    <div class="category-card" onclick="selectCategory('VEGGIES', 3)">
+        <span class="category-icon">🥦</span>
+        <span class="category-name">Fresh Veggies</span>
+        <span class="category-desc">Fresh & Green Exclusive</span>
+    </div>
+    <div class="category-card" onclick="selectCategory('ELECTRONICS', 4)">
+        <span class="category-icon">⚡</span>
+        <span class="category-name">Electronics</span>
+        <span class="category-desc">ElectroWorld Exclusive</span>
+    </div>
+</div>
+
+<!-- SHOP & PRODUCT LIST + CART WORKSPACE -->
+<div class="shop-section">
+    <!-- Products Panel -->
+    <div class="glass-card" id="shop-products-panel" style="display: none;">
+        <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-glass); padding-bottom: 10px; margin-bottom: 16px;">
+            <h3 id="current-shop-name">Shop Name</h3>
+            <span id="current-shop-badge" class="badge badge-normal">Exclusive Partner</span>
+        </div>
+        <div class="products-grid" id="products-container">
+            <!-- Loaded dynamically via JS -->
+        </div>
+    </div>
+    
+    <!-- Empty State for Shop selection -->
+    <div class="glass-card" id="shop-placeholder" style="text-align: center; padding: 60px 20px;">
+        <span style="font-size: 3rem; display: block; margin-bottom: 10px;">👈</span>
+        <h4>Select a category above to browse inventory</h4>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 4px;">You will be routed to the single monopolistic vendor assigned for that category.</p>
+    </div>
+
+    <!-- Cart Drawer -->
+    <div class="glass-card" style="height: fit-content;">
+        <h3 style="margin-bottom: 16px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">🛒 Shopping Cart</h3>
+        
+        <div id="cart-items-container" style="margin-bottom: 16px;">
+            <!-- Cart items render here -->
+            <p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 20px 0;">Cart is empty. Add some goods!</p>
+        </div>
+        
+        <!-- SMART RECOMMENDATION BOX (INT-001) -->
+        <div id="recommendation-box" class="glass-card" style="display: none; background: rgba(0, 242, 254, 0.03); border: 1px dashed rgba(0, 242, 254, 0.3); padding: 12px; margin-bottom: 16px; border-radius: 8px;">
+            <span style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 6px;">💡 AI Smart Suggestion</span>
+            <div class="flex-between">
+                <div>
+                    <span id="rec-item-name" style="font-weight: 500; font-size: 0.85rem;">Butter</span>
+                    <span id="rec-item-price" style="font-size: 0.8rem; color: var(--text-secondary); display: block;">₹60.0</span>
+                </div>
+                <button class="btn btn-primary" id="rec-add-btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">+ Add Suggestion</button>
+            </div>
+        </div>
+
+        <div id="cart-summary-section" style="display: none; border-top: 1px solid var(--border-glass); padding-top: 16px;">
+            <div class="flex-between mb-sm" style="font-size: 0.9rem;">
+                <span>Subtotal:</span>
+                <span id="cart-subtotal">₹0.00</span>
+            </div>
+            <div class="flex-between mb-sm" style="font-size: 0.85rem; color: var(--text-secondary);">
+                <span>GST (18% Dynamic):</span>
+                <span id="cart-gst">₹0.00</span>
+            </div>
+            <div class="flex-between mb-sm" style="font-size: 1.1rem; font-weight: 700; border-top: 1px dashed var(--border-glass); padding-top: 8px;">
+                <span>Grand Total:</span>
+                <span id="cart-grandtotal" class="text-accent">₹0.00</span>
+            </div>
+            
+            <!-- Checkout forms -->
+            <div class="form-group mt-md">
+                <label class="form-label">Delivery Priority (INT-002)</label>
+                <div style="display: flex; gap: 10px;">
+                    <label style="flex: 1; text-align: center; border: 1px solid var(--border-glass); padding: 8px; border-radius: 6px; cursor: pointer; display: block;">
+                        <input type="radio" name="priority" value="NORMAL" checked style="margin-right: 4px;"> Normal
+                    </label>
+                    <label style="flex: 1; text-align: center; border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px; border-radius: 6px; cursor: pointer; display: block; color: var(--ruby-danger);">
+                        <input type="radio" name="priority" value="URGENT" style="margin-right: 4px;"> 🚨 Urgent
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Delivery Address</label>
+                <input type="text" id="address-input" class="form-input" placeholder="Flat number, Street area, Landmark">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Payment Mode</label>
+                <select id="payment-input" class="form-input">
+                    <option value="COD">Cash On Delivery (COD)</option>
+                    <option value="ONLINE">Simulated Online Payment</option>
+                </select>
+            </div>
+            
+            <button class="btn btn-primary mt-md w-full" onclick="checkoutOrder()">Confirm & Place Order</button>
+        </div>
+    </div>
+</div>
+
+<!-- MONTHLY EXPENSE INSIGHTS MODAL (INT-009) -->
+<div id="expense-modal" class="overlay-modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">Monthly Expense Insights</div>
+        <div class="modal-body">
+            <p style="margin-bottom: 12px; font-size: 0.85rem;">Spending breakdown by category for verified delivered orders.</p>
+            <div id="expense-stats" style="text-align: left; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                <!-- Loaded dynamically -->
+            </div>
+            <button class="btn btn-secondary" onclick="toggleExpensesModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts for Client actions -->
+<script>
+    const customerId = {{ active_user_id }};
+    let currentShopId = null;
+    let productsList = [];
+    let cart = {}; // product_id -> {name, price, quantity}
+    let trackingInterval = null;
+
+    // Load active order if exists in localStorage
+    document.addEventListener("DOMContentLoaded", () => {
+        const cachedOrder = localStorage.getItem(`active_order_${customerId}`);
+        if (cachedOrder) {
+            startTracking(JSON.parse(cachedOrder).order_id);
+        }
+        
+        // Auto fill address
+        {% for u in users %}
+            {% if u.id == active_user_id %}
+                document.getElementById("address-input").value = "{{ u.address }}";
+            {% endif %}
+        {% endfor %}
+    });
+
+    // Rule-based Recommendation Mapping (INT-001)
+    const recRules = {
+        'milk': { id: 3, name: 'Amul Butter 100g', price: 60.0 },
+        'bread': { id: 3, name: 'Amul Butter 100g', price: 60.0 },
+        'cake': { id: 8, name: 'Sparkling Candles Pack', price: 35.0 },
+        'battery': { id: 15, name: 'Fast USB-C Cable 1.5m', price: 150.0 }
+    };
+
+    function selectCategory(category, shopId) {
+        // Toggle selected category card
+        document.querySelectorAll(".category-card").forEach((card, index) => {
+            if (index + 1 === shopId) card.classList.add("selected");
+            else card.classList.remove("selected");
+        });
+
+        currentShopId = shopId;
+        document.getElementById("shop-placeholder").style.display = "none";
+        document.getElementById("shop-products-panel").style.display = "block";
+        
+        // Fetch products
+        fetch(`/api/shops/${shopId}/products`)
+            .then(res => res.json())
+            .then(data => {
+                productsList = data;
+                renderProducts();
+            });
+            
+        // Render Shop Title
+        const shopNames = {
+            1: "Apna Bazaar (Kirana & General)",
+            2: "The Bakers Table (Premium Cakes)",
+            3: "Fresh & Green Vegetables",
+            4: "ElectroWorld Solutions"
+        };
+        document.getElementById("current-shop-name").innerText = shopNames[shopId];
+    }
+
+    function renderProducts() {
+        const container = document.getElementById("products-container");
+        container.innerHTML = "";
+        
+        productsList.forEach(prod => {
+            const card = document.createElement("div");
+            card.className = "product-card";
+            
+            const qty = cart[prod.id] ? cart[prod.id].quantity : 0;
+            
+            card.innerHTML = `
+                <div>
+                    <h5 class="product-name">${prod.name}</h5>
+                    <div class="product-price">₹${prod.price.toFixed(2)}</div>
+                </div>
+                <div class="product-qty-controls">
+                    ${qty === 0 ? 
+                        `<button class="btn btn-secondary w-full" onclick="addToCart(${prod.id}, 1)">Add to Cart</button>` :
+                        `<button class="btn-circle" onclick="changeQty(${prod.id}, -1)">-</button>
+                         <span style="font-weight:600; min-width:20px; text-align:center;">${qty}</span>
+                         <button class="btn-circle" onclick="changeQty(${prod.id}, 1)">+</button>`
+                    }
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function addToCart(prodId, qty) {
+        const prod = productsList.find(p => p.id === prodId);
+        if (!prod) return;
+        
+        cart[prodId] = {
+            id: prodId,
+            name: prod.name,
+            price: prod.price,
+            quantity: qty
+        };
+        
+        updateCartUI();
+    }
+
+    function changeQty(prodId, delta) {
+        if (!cart[prodId]) return;
+        cart[prodId].quantity += delta;
+        if (cart[prodId].quantity <= 0) {
+            delete cart[prodId];
+        }
+        updateCartUI();
+    }
+
+    function updateCartUI() {
+        renderProducts();
+        
+        const container = document.getElementById("cart-items-container");
+        container.innerHTML = "";
+        
+        const keys = Object.keys(cart);
+        if (keys.length === 0) {
+            container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 20px 0;">Cart is empty. Add some goods!</p>`;
+            document.getElementById("cart-summary-section").style.display = "none";
+            document.getElementById("recommendation-box").style.display = "none";
+            return;
+        }
+        
+        document.getElementById("cart-summary-section").style.display = "block";
+        
+        let subtotal = 0;
+        keys.forEach(key => {
+            const item = cart[key];
+            subtotal += item.price * item.quantity;
+            
+            const itemRow = document.createElement("div");
+            itemRow.className = "flex-between mb-sm";
+            itemRow.style.fontSize = "0.85rem";
+            itemRow.innerHTML = `
+                <div>
+                    <strong>${item.name}</strong> <span class="text-muted">x${item.quantity}</span>
+                </div>
+                <div>₹${(item.price * item.quantity).toFixed(2)}</div>
+            `;
+            container.appendChild(itemRow);
+        });
+        
+        // Smart recommendation matching
+        let recFound = null;
+        for (let key in cart) {
+            const item_name_lower = cart[key].name.toLowerCase();
+            for (let word in recRules) {
+                if (item_name_lower.includes(word)) {
+                    // Check if recommendation item is not already in cart
+                    const recProd = recRules[word];
+                    if (!cart[recProd.id]) {
+                        recFound = recProd;
+                        break;
+                    }
+                }
+            }
+            if (recFound) break;
+        }
+        
+        const recBox = document.getElementById("recommendation-box");
+        if (recFound) {
+            recBox.style.display = "block";
+            document.getElementById("rec-item-name").innerText = recFound.name;
+            document.getElementById("rec-item-price").innerText = `₹${recFound.price.toFixed(2)}`;
+            document.getElementById("rec-add-btn").onclick = () => {
+                // If it is in productsList, add, else pull it from the category list
+                const inList = productsList.find(p => p.id === recFound.id);
+                if (inList) {
+                    addToCart(recFound.id, 1);
+                } else {
+                    // Force inject recommendation item to cart
+                    cart[recFound.id] = {
+                        id: recFound.id,
+                        name: recFound.name,
+                        price: recFound.price,
+                        quantity: 1
+                    };
+                    updateCartUI();
+                }
+            };
+        } else {
+            recBox.style.display = "none";
+        }
+        
+        const gst = subtotal * 0.18;
+        const grand = subtotal + gst;
+        
+        document.getElementById("cart-subtotal").innerText = `₹${subtotal.toFixed(2)}`;
+        document.getElementById("cart-gst").innerText = `₹${gst.toFixed(2)}`;
+        document.getElementById("cart-grandtotal").innerText = `₹${grand.toFixed(2)}`;
+    }
+
+    function checkoutOrder() {
+        const address = document.getElementById("address-input").value.trim();
+        if (!address) {
+            alert("Please enter a delivery address.");
+            return;
+        }
+        
+        const itemsList = Object.keys(cart).map(k => ({
+            product_id: parseInt(k),
+            quantity: cart[k].quantity
+        }));
+        
+        const priority = document.querySelector('input[name="priority"]:checked').value;
+        const paymentMode = document.getElementById("payment-input").value;
+        
+        const checkoutPayload = {
+            customer_id: customerId,
+            shop_id: currentShopId,
+            items: itemsList,
+            priority_type: priority
+        };
+        
+        if (paymentMode === "ONLINE") {
+            alert("Redirecting to simulated payment screen... Processing transaction.");
+            setTimeout(() => {
+                sendCheckoutRequest(checkoutPayload);
+            }, 1500);
+        } else {
+            sendCheckoutRequest(checkoutPayload);
+        }
+    }
+
+    function sendCheckoutRequest(payload) {
+        fetch("/api/orders/place", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.message);
+                // Clear cart
+                cart = {};
+                updateCartUI();
+                // Cache active order ID
+                localStorage.setItem(`active_order_${customerId}`, JSON.stringify({ order_id: data.order_id }));
+                startTracking(data.order_id);
+            }
+        });
+    }
+
+    // Timeline Live Tracking (CUST-004)
+    function startTracking(orderId) {
+        document.getElementById("active-order-container").style.display = "block";
+        document.getElementById("tracking-order-id").innerText = `#${orderId}`;
+        
+        if (trackingInterval) clearInterval(trackingInterval);
+        
+        const poll = () => {
+            fetch(`/api/orders/${orderId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        clearInterval(trackingInterval);
+                        return;
+                    }
+                    
+                    const status = data.status;
+                    document.getElementById("tracking-order-status").innerText = status;
+                    
+                    // Reset classes
+                    const steps = ["step-pending", "step-accepted", "step-ready", "step-out", "step-delivered"];
+                    steps.forEach(s => {
+                        document.getElementById(s).classList.remove("active", "completed");
+                    });
+                    
+                    if (status === "PENDING") {
+                        document.getElementById("step-pending").classList.add("active");
+                    } else if (status === "ACCEPTED") {
+                        document.getElementById("step-pending").classList.add("completed");
+                        document.getElementById("step-accepted").classList.add("active");
+                    } else if (status === "READY_FOR_PICKUP") {
+                        document.getElementById("step-pending").classList.add("completed");
+                        document.getElementById("step-accepted").classList.add("completed");
+                        document.getElementById("step-ready").classList.add("active");
+                    } else if (status === "OUT_FOR_DELIVERY") {
+                        document.getElementById("step-pending").classList.add("completed");
+                        document.getElementById("step-accepted").classList.add("completed");
+                        document.getElementById("step-ready").classList.add("completed");
+                        document.getElementById("step-out").classList.add("active");
+                    } else if (status === "DELIVERED") {
+                        document.getElementById("step-pending").classList.add("completed");
+                        document.getElementById("step-accepted").classList.add("completed");
+                        document.getElementById("step-ready").classList.add("completed");
+                        document.getElementById("step-out").classList.add("completed");
+                        document.getElementById("step-delivered").classList.add("completed");
+                        
+                        // Clear active order cache
+                        localStorage.removeItem(`active_order_${customerId}`);
+                        clearInterval(trackingInterval);
+                    }
+                    
+                    // Display OTP & Delivery Partner detail (INT-008)
+                    const devSec = document.getElementById("delivery-info-section");
+                    if (data.delivery_boy_id) {
+                        devSec.style.display = "block";
+                        document.getElementById("rider-name").innerText = data.rider_name || "Rahul Rider";
+                        document.getElementById("rider-phone").innerText = data.rider_phone_masked || data.rider_phone || "9000xxxx01";
+                        document.getElementById("delivery-otp-display").innerText = data.delivery_otp;
+                    } else {
+                        devSec.style.display = "none";
+                    }
+                });
+        };
+        
+        poll();
+        trackingInterval = setInterval(poll, 10000); // Poll every 10 seconds (PRD requirement)
+    }
+
+    // Monthly Expense Tracker Modal (INT-009)
+    function toggleExpensesModal() {
+        const modal = document.getElementById("expense-modal");
+        if (modal.style.display === "none") {
+            modal.style.display = "flex";
+            loadExpenses();
+        } else {
+            modal.style.display = "none";
+        }
+    }
+
+    function loadExpenses() {
+        const container = document.getElementById("expense-stats");
+        container.innerHTML = "Loading aggregate statistics...";
+        
+        fetch(`/api/customer/${customerId}/expenses`)
+            .then(res => res.json())
+            .then(data => {
+                container.innerHTML = "";
+                const categories = data.categories;
+                const keys = Object.keys(categories);
+                if (keys.length === 0) {
+                    container.innerHTML = `<p style="text-align:center; color:var(--text-muted);">No delivered orders yet this month.</p>`;
+                    return;
+                }
+                
+                let barsHtml = `<h4 style="margin-bottom:10px;">Total Spent: <span class="text-accent">₹${data.total_spent_overall.toFixed(2)}</span></h4>`;
+                
+                keys.forEach(k => {
+                    const c = categories[k];
+                    const pct = Math.min(100, (c.spent / data.total_spent_overall * 100).toFixed(0));
+                    barsHtml += `
+                        <div style="margin-bottom:12px;">
+                            <div class="flex-between" style="font-size:0.8rem; margin-bottom:4px;">
+                                <span>${k} (${c.count} orders)</span>
+                                <strong>₹${c.spent.toFixed(2)}</strong>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.05); height:8px; border-radius:4px; overflow:hidden;">
+                                <div style="background:var(--accent-glow); height:100%; width:${pct}%;"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = barsHtml;
+            });
+    }
+
+    // Speech recognition parser (INT-005)
+    let recognition = null;
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRec();
+        recognition.continuous = false;
+        recognition.lang = 'en-IN';
+        
+        recognition.onstart = () => {
+            document.getElementById("mic-btn").classList.add("listening");
+            document.getElementById("voice-status").innerText = "Listening... Speak now.";
+        };
+        
+        recognition.onend = () => {
+            document.getElementById("mic-btn").classList.remove("listening");
+        };
+        
+        recognition.onresult = (event) => {
+            const speechResult = event.results[0][0].transcript.toLowerCase();
+            document.getElementById("voice-status").innerText = `Recognized: "${speechResult}"`;
+            parseVoiceCommand(speechResult);
+        };
+        
+        recognition.onerror = (e) => {
+            document.getElementById("voice-status").innerText = "Speech error. Please try again.";
+            console.error(e);
+        };
+    }
+
+    function startVoiceInput() {
+        if (!recognition) {
+            alert("Speech recognition is not supported in this browser.");
+            return;
+        }
+        // Force routing to Kirana (Shop 1) to fetch products list first if not chosen
+        if (!currentShopId) {
+            selectCategory('KIRANA', 1);
+        }
+        
+        recognition.start();
+    }
+
+    function parseVoiceCommand(text) {
+        // Voice Parser supporting phrases like:
+        // "add 2 milk and 1 bread"
+        // "add bread"
+        // "add red velvet cake"
+        
+        // Define dictionary keywords for products seeded
+        const vocabulary = {
+            'milk': 1,
+            'bread': 2,
+            'butter': 3,
+            'sugar': 4,
+            'tea': 5,
+            'chocolate': 6,
+            'truffle': 6,
+            'red velvet': 7,
+            'velvet': 7,
+            'candle': 8,
+            'candles': 8,
+            'cap': 9,
+            'potato': 10,
+            'tomato': 11,
+            'onion': 12,
+            'coriander': 13,
+            'lemon': 14,
+            'cable': 15,
+            'usb': 15,
+            'earphone': 16,
+            'earphones': 16,
+            'battery': 17,
+            'duracell': 17,
+            'plug': 18
+        };
+        
+        // Split by "and" or commas to check multiple additions
+        const segments = text.split(/and|,/);
+        let itemsAdded = [];
+        
+        segments.forEach(seg => {
+            seg = seg.trim();
+            // Match numbers
+            const numMatch = seg.match(/\d+/);
+            const qty = numMatch ? parseInt(numMatch[0]) : 1;
+            
+            // Remove quantity number words
+            let cleanSeg = seg.replace(/\d+/g, '').trim();
+            
+            // Search vocabulary matches
+            let foundProdId = null;
+            for (let keyword in vocabulary) {
+                if (cleanSeg.includes(keyword)) {
+                    foundProdId = vocabulary[keyword];
+                    break;
+                }
+            }
+            
+            if (foundProdId) {
+                // Determine shop ID of product
+                // Products 1-5 = Kirana (Shop 1)
+                // Products 6-9 = Cakes (Shop 2)
+                // Products 10-14 = Veggies (Shop 3)
+                // Products 15-18 = Electronics (Shop 4)
+                let itemShop = 1;
+                if (foundProdId >= 6 && foundProdId <= 9) itemShop = 2;
+                else if (foundProdId >= 10 && foundProdId <= 14) itemShop = 3;
+                else if (foundProdId >= 15) itemShop = 4;
+                
+                // Switch category if required
+                if (currentShopId !== itemShop) {
+                    selectCategory(itemShop === 1 ? 'KIRANA' : itemShop === 2 ? 'CAKES' : itemShop === 3 ? 'VEGGIES' : 'ELECTRONICS', itemShop);
+                }
+                
+                // Fetch the product item representation
+                setTimeout(() => {
+                    const matchedProd = productsList.find(p => p.id === foundProdId);
+                    if (matchedProd) {
+                        addToCart(foundProdId, qty);
+                        itemsAdded.push(`${qty}x ${matchedProd.name}`);
+                        document.getElementById("voice-status").innerText = `Added: ${itemsAdded.join(", ")}`;
+                    } else {
+                        // Direct addition if product array hasn't completed loading
+                        fetch(`/api/shops/${itemShop}/products`)
+                            .then(res => res.json())
+                            .then(prods => {
+                                productsList = prods;
+                                const p = productsList.find(x => x.id === foundProdId);
+                                if (p) addToCart(foundProdId, qty);
+                            });
+                    }
+                }, 300);
+            }
+        });
+        
+        if (itemsAdded.length === 0) {
+            document.getElementById("voice-status").innerText = "Could not map speech to any shop items. Try saying 'Add 2 Milk'.";
+        }
+    }
+</script>
+{% endblock %}

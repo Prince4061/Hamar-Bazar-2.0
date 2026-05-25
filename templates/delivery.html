@@ -1,0 +1,349 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex-between mb-sm">
+    <div>
+        <h1 class="screen-title">Delivery Dashboard: {{ session.get('name', 'Rahul Rider') }}</h1>
+        <p class="screen-subtitle">Browse ready-for-pickup orders, claim jobs, and input OTP verification codes.</p>
+    </div>
+    <!-- Reset Cooldown simulation tool -->
+    <div>
+        <button class="btn btn-secondary" onclick="resetRiderState()" style="font-size:0.8rem; padding: 6px 12px; width:auto;">🔄 Reset Cooldown</button>
+    </div>
+</div>
+
+<!-- COOLDOWN STATUS INDICATOR (ADMIN-003) -->
+<div id="cooldown-banner" class="glass-card" style="display: none; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3);">
+    <div class="flex-between">
+        <div>
+            <h4 style="color: var(--ruby-danger); font-weight:600; margin-bottom: 2px;">⏳ Active Claim Cooldown Mode</h4>
+            <p style="font-size:0.8rem; color:var(--text-secondary);">You claimed a delivery recently. Cooldown prevents order hoarding.</p>
+        </div>
+        <div id="cooldown-timer" style="font-size: 1.5rem; font-weight:700; color: var(--ruby-danger);">10:00</div>
+    </div>
+</div>
+
+<div class="shop-section">
+    <!-- Active Claimed Order Interface -->
+    <div>
+        <div class="glass-card">
+            <h3 style="margin-bottom: 16px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">🚴 Your Active Delivery Job</h3>
+            
+            <div id="active-job-container">
+                <!-- Loaded dynamically -->
+            </div>
+            
+            <div id="empty-job-placeholder" style="text-align: center; padding: 40px 10px; color: var(--text-muted);">
+                <span style="font-size: 2.5rem; display: block; margin-bottom: 8px;">📦</span>
+                <p style="font-size: 0.9rem;">You don't have an active job right now. Claim a ready order from the pool below!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Job Pool -->
+    <div class="glass-card" style="height: fit-content;">
+        <h3 style="margin-bottom: 12px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">🌐 Available Jobs Pool</h3>
+        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 16px;">Orders ready for pickup in the area. Sorted by priority.</p>
+        
+        <div id="job-pool-container" style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- Loaded dynamically -->
+        </div>
+        
+        <div id="empty-pool-placeholder" style="text-align: center; padding: 20px 0; color: var(--text-muted); display: none;">
+            <p style="font-size: 0.85rem;">No new orders are waiting in the pickup pool.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const riderId = {{ active_rider_id }};
+    let activeJob = null;
+    let pollInterval = null;
+    let cooldownTimerInterval = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadDashboard();
+        
+        // Polling dashboard metrics and status every 10 seconds
+        pollInterval = setInterval(loadDashboard, 10000);
+    });
+
+    function loadDashboard() {
+        // Load claimed / active jobs
+        fetch(`/api/delivery/pool`)
+            .then(res => res.json())
+            .then(poolData => {
+                renderJobPool(poolData);
+                
+                // Fetch our own rider details (cooldown check)
+                fetch(`/api/orders/1`) // Helper query to probe current order status list or custom rider endpoint
+                // Instead, we fetch all active orders to see if any is assigned to this rider
+                // Let's probe the active list on server
+                checkRiderActiveJob();
+            });
+    }
+
+    function checkRiderActiveJob() {
+        // Fetch recent orders or custom check for rider active status
+        fetch('/api/admin/analytics')
+            .then(res => res.json())
+            .then(data => {
+                const recent = data.recent_orders || [];
+                // Look for order assigned to us that is NOT DELIVERED or FAILED
+                // Let's call /api/orders/<id> for verification
+                let foundActive = null;
+                
+                // Inspect recent orders in dashboard payload to search for rider mapping
+                const match = recent.find(o => o.status !== 'DELIVERED' && o.status !== 'FAILED');
+                
+                if (match) {
+                    // Fetch full details of matching order to see if it is assigned to this rider
+                    fetch(`/api/orders/${match.id}`)
+                        .then(res => res.json())
+                        .then(fullDetails => {
+                            if (fullDetails.delivery_boy_id === riderId && fullDetails.status !== 'DELIVERED') {
+                                activeJob = fullDetails;
+                                renderActiveJob();
+                            } else {
+                                // Not ours
+                                if (!activeJob || activeJob.id === match.id) {
+                                    activeJob = null;
+                                    document.getElementById("active-job-container").innerHTML = "";
+                                    document.getElementById("empty-job-placeholder").style.display = "block";
+                                }
+                            }
+                        });
+                } else {
+                    activeJob = null;
+                    document.getElementById("active-job-container").innerHTML = "";
+                    document.getElementById("empty-job-placeholder").style.display = "block";
+                }
+                
+                // Fetch rider details to check cooldown
+                checkRiderCooldown();
+            });
+    }
+
+    function checkRiderCooldown() {
+        // Fetch rider cooldown timestamp by requesting our own details or status
+        // Since we can switch sessions, we read active rider's cooldown using active orders API or mock analytics
+        // Let's inspect the active_orders or cooldown_until status from the list
+        fetch(`/api/delivery/pool`)
+            .then(res => {
+                // To fetch rider cooldown, we can trigger a simulated check
+                // We'll read it from a helper route if needed, or check if activeJob cooldown is present.
+                // We will look up rider list from domestic selector
+                {% for r in riders %}
+                    {% if r.id == active_rider_id %}
+                        const cooldownUntilStr = "{{ r.cooldown_until }}";
+                        if (cooldownUntilStr && cooldownUntilStr !== "None") {
+                            startCooldownCountdown(cooldownUntilStr);
+                        }
+                    {% endif %}
+                {% endfor %}
+            });
+    }
+
+    function startCooldownCountdown(cooldownStr) {
+        if (cooldownTimerInterval) clearInterval(cooldownTimerInterval);
+        
+        const banner = document.getElementById("cooldown-banner");
+        const timerText = document.getElementById("cooldown-timer");
+        
+        // Parse SQLite timestamp
+        // SQLite timestamps can be formatted as: 'YYYY-MM-DD HH:MM:SS' or with milliseconds
+        // Let's parse securely
+        const targetDate = new Date(cooldownStr.replace(/-/g, '/'));
+        
+        const updateTimer = () => {
+            const now = new Date();
+            const diff = targetDate - now;
+            
+            if (diff <= 0) {
+                banner.style.display = "none";
+                clearInterval(cooldownTimerInterval);
+                return;
+            }
+            
+            banner.style.display = "block";
+            const mins = Math.floor(diff / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            timerText.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        };
+        
+        updateTimer();
+        cooldownTimerInterval = setInterval(updateTimer, 1000);
+    }
+
+    function claimJob(orderId) {
+        fetch(`/api/orders/${orderId}/claim`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ delivery_boy_id: riderId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.message);
+                // Trigger countdown immediately
+                if (data.cooldown_until) {
+                    startCooldownCountdown(data.cooldown_until);
+                }
+                loadDashboard();
+            }
+        });
+    }
+
+    function verifyPickupOTP(orderId) {
+        const otp = document.getElementById(`pickup-otp-input-${orderId}`).value.trim();
+        if (!otp) {
+            alert("Please enter the 4-digit Pickup OTP.");
+            return;
+        }
+        
+        fetch(`/api/orders/${orderId}/verify-pickup`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ otp: otp, delivery_boy_id: riderId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.message);
+                loadDashboard();
+            }
+        });
+    }
+
+    function verifyDeliveryOTP(orderId) {
+        const otp = document.getElementById(`delivery-otp-input-${orderId}`).value.trim();
+        if (!otp) {
+            alert("Please enter the 4-digit Delivery OTP.");
+            return;
+        }
+        
+        fetch(`/api/orders/${orderId}/verify-delivery`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ otp: otp, delivery_boy_id: riderId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.message);
+                loadDashboard();
+            }
+        });
+    }
+
+    function resetRiderState() {
+        fetch(`/api/delivery/rider/${riderId}/reset-cooldown`, { method: "POST" })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                document.getElementById("cooldown-banner").style.display = "none";
+                if (cooldownTimerInterval) clearInterval(cooldownTimerInterval);
+                loadDashboard();
+            });
+    }
+
+    function renderActiveJob() {
+        const container = document.getElementById("active-job-container");
+        document.getElementById("empty-job-placeholder").style.display = "none";
+        
+        const o = activeJob;
+        let otpForm = "";
+        
+        if (o.status === 'READY_FOR_PICKUP') {
+            otpForm = `
+                <div style="margin-top: 15px; padding: 12px; border: 1px dashed var(--border-glass); border-radius: 8px;">
+                    <label class="form-label">🔑 Step 1: Verify Pickup OTP (Ask Shop Vendor)</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="pickup-otp-input-${o.id}" class="form-input" placeholder="4 Digits" maxlength="4" style="text-align:center; font-weight:700; font-size:1.1rem; letter-spacing:4px;">
+                        <button class="btn btn-primary" onclick="verifyPickupOTP(${o.id})" style="width:auto; padding: 0 20px;">Verify</button>
+                    </div>
+                </div>
+            `;
+        } else if (o.status === 'OUT_FOR_DELIVERY') {
+            otpForm = `
+                <div style="margin-top: 15px; padding: 12px; border: 1px dashed var(--emerald-green); border-radius: 8px; background: rgba(16, 185, 129, 0.02);">
+                    <label class="form-label" style="color:var(--emerald-green);">🔑 Step 2: Verify Delivery OTP (Ask Customer)</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="delivery-otp-input-${o.id}" class="form-input" placeholder="4 Digits" maxlength="4" style="text-align:center; font-weight:700; font-size:1.1rem; letter-spacing:4px;">
+                        <button class="btn btn-primary" onclick="verifyDeliveryOTP(${o.id})" style="width:auto; padding: 0 20px; background: var(--emerald-green); box-shadow: 0 4px 14px rgba(16,185,129,0.3);">Deliver</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Fetch order items to list them for delivery boy
+        let itemsHtml = o.items.map(item => `<li>${item.quantity}x ${item.product_name}</li>`).join("");
+
+        container.innerHTML = `
+            <div class="glass-card" style="margin-bottom:0; background:rgba(255,255,255,0.02);">
+                <div class="flex-between mb-sm" style="border-bottom:1px solid var(--border-glass); padding-bottom:6px;">
+                    <span style="font-weight:700; font-size:1.1rem;">Order #${o.id}</span>
+                    <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}">${o.priority_type}</span>
+                </div>
+                
+                <div style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:12px;">
+                    <div>🏪 <strong>Pickup From:</strong> ${o.shop_name} (${o.category})</div>
+                    <div class="mt-sm">📍 <strong>Deliver To:</strong> ${o.customer_name}</div>
+                    <div style="margin-left: 18px; font-size:0.85rem; color:var(--text-muted);">${o.customer_address}</div>
+                    <div>📞 <strong>Phone:</strong> ${o.customer_phone}</div>
+                </div>
+                
+                <div style="font-size:0.85rem; margin-bottom:12px;">
+                    <strong>Items to Carry:</strong>
+                    <ul style="padding-left:20px; margin-top:4px;">
+                        ${itemsHtml}
+                    </ul>
+                </div>
+
+                <div style="font-size:0.95rem; font-weight:700; color:var(--accent-cyan);">
+                    Collect Cash (if COD): ₹${o.total_amount.toFixed(2)}
+                </div>
+                
+                ${otpForm}
+            </div>
+        `;
+    }
+
+    function renderJobPool(orders) {
+        const container = document.getElementById("job-pool-container");
+        container.innerHTML = "";
+        
+        if (orders.length === 0) {
+            document.getElementById("empty-pool-placeholder").style.display = "block";
+            return;
+        }
+        
+        document.getElementById("empty-pool-placeholder").style.display = "none";
+        
+        orders.forEach(o => {
+            const card = document.createElement("div");
+            card.className = "product-card";
+            card.style.background = "rgba(255, 255, 255, 0.02)";
+            
+            card.innerHTML = `
+                <div class="flex-between mb-sm">
+                    <strong style="font-size: 0.95rem;">Order #${o.id}</strong>
+                    <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}">${o.priority_type}</span>
+                </div>
+                <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:10px;">
+                    <div>🏪 <strong>Shop:</strong> ${o.shop_name}</div>
+                    <div>📍 <strong>Address:</strong> ${o.customer_address}</div>
+                </div>
+                <button class="btn btn-secondary text-accent" onclick="claimJob(${o.id})">Claim Delivery Job</button>
+            `;
+            container.appendChild(card);
+        });
+    }
+</script>
+{% endblock %}

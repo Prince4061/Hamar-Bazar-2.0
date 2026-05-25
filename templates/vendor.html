@@ -1,0 +1,350 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex-between mb-sm">
+    <div>
+        <h1 class="screen-title">Vendor Dashboard: {{ session.get('name', 'Apna Bazaar') }}</h1>
+        <p class="screen-subtitle">Manage customer orders, toggle items in stock, and dispatch ready packages.</p>
+    </div>
+    <!-- Status indicator -->
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--emerald-green); display: inline-block; box-shadow: 0 0 8px var(--emerald-green);"></span>
+        <span style="font-size: 0.85rem; font-weight: 500;">Live Feed Active</span>
+    </div>
+</div>
+
+<div class="shop-section">
+    <!-- Orders Board -->
+    <div>
+        <!-- Low Stock Prediction Warnings Banner (INT-004) -->
+        <div id="low-stock-alert-banner" style="display: none; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 8px; color: var(--amber-warning); font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">
+                ⚠️ Low Stock Prediction Alert
+            </div>
+            <ul id="low-stock-predictions-list" style="font-size: 0.8rem; color: var(--text-secondary); padding-left: 20px;">
+                <!-- Filled dynamically -->
+            </ul>
+        </div>
+
+        <div class="glass-card">
+            <h3 style="margin-bottom: 16px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">📋 Active Incoming Orders</h3>
+            
+            <div class="order-queue-grid" id="orders-queue-container">
+                <!-- Loaded dynamically -->
+            </div>
+            
+            <div id="empty-orders-placeholder" style="text-align: center; padding: 40px 10px; color: var(--text-muted);">
+                <span style="font-size: 2.5rem; display: block; margin-bottom: 8px;">😴</span>
+                <p style="font-size: 0.9rem;">No active orders right now. Incoming requests will alert you.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Stock Controller Drawer (VEND-002) -->
+    <div class="glass-card" style="height: fit-content;">
+        <h3 style="margin-bottom: 12px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;">📦 Inventory Stock Control</h3>
+        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px;">Quickly hide or display items on the customer app in real-time.</p>
+        
+        <div id="inventory-list-container" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Loaded dynamically -->
+        </div>
+    </div>
+</div>
+
+<!-- NEW ORDER POPUP MODAL (VEND-001) -->
+<div id="new-order-modal" class="overlay-modal" style="display: none;">
+    <div class="modal-content" style="border-color: var(--accent-cyan); box-shadow: 0 0 30px rgba(0, 242, 254, 0.3);">
+        <div class="modal-header">🔔 New Order Received!</div>
+        <div class="modal-body">
+            <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;" id="modal-customer-details">Customer: --</p>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 14px;" id="modal-items-summary">Items: --</p>
+            <div id="modal-priority-badge" style="margin-bottom: 16px;"></div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" id="modal-accept-btn" style="flex: 1;">Accept Order</button>
+                <button class="btn btn-secondary" onclick="dismissNewOrderAlert()" style="flex: 1;">Mute Alarm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const shopId = {{ active_shop_id }};
+    let ordersList = [];
+    let knownOrderIds = new Set();
+    let pollInterval = null;
+    let audioInterval = null;
+    let audioContext = null;
+    let alarmActive = false;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        // First load
+        loadOrders();
+        loadInventory();
+        loadStockPredictions();
+        
+        // Setup polling (every 10 seconds)
+        pollInterval = setInterval(() => {
+            loadOrders();
+            loadInventory();
+            loadStockPredictions();
+        }, 10000);
+    });
+
+    // Web Audio Synthesizer for Loud Beep alerts (VEND-001)
+    function triggerBeep(frequency = 880, duration = 0.3) {
+        try {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(frequency, audioContext.currentTime);
+            gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+            
+            osc.start();
+            osc.stop(audioContext.currentTime + duration);
+        } catch (e) {
+            console.error("Audio generation failed: ", e);
+        }
+    }
+
+    function startLoudAlarm(isUrgent = false) {
+        if (alarmActive) return;
+        alarmActive = true;
+        
+        const beepFunc = () => {
+            if (isUrgent) {
+                // Two rapid high-pitched beeps for Urgent order (INT-002)
+                triggerBeep(1200, 0.15);
+                setTimeout(() => triggerBeep(1200, 0.15), 200);
+            } else {
+                // Normal warning beep
+                triggerBeep(880, 0.4);
+            }
+        };
+        
+        beepFunc();
+        audioInterval = setInterval(beepFunc, 1500);
+    }
+
+    function stopLoudAlarm() {
+        if (audioInterval) {
+            clearInterval(audioInterval);
+            audioInterval = null;
+        }
+        alarmActive = false;
+    }
+
+    function loadOrders() {
+        fetch(`/api/vendor/orders/${shopId}`)
+            .then(res => res.json())
+            .then(data => {
+                ordersList = data;
+                renderOrders();
+                
+                // Identify new incoming PENDING orders to trigger alarm
+                const newPendingOrders = data.filter(o => o.status === 'PENDING' && !knownOrderIds.has(o.id));
+                
+                if (newPendingOrders.length > 0) {
+                    const latest = newPendingOrders[0];
+                    // Display popup modal
+                    showNewOrderAlert(latest);
+                    
+                    // Add all to known set to prevent re-triggering
+                    newPendingOrders.forEach(o => knownOrderIds.add(o.id));
+                }
+                
+                // Fill known set for first load to avoid false alarms
+                if (knownOrderIds.size === 0) {
+                    data.forEach(o => knownOrderIds.add(o.id));
+                }
+            });
+    }
+
+    function showNewOrderAlert(order) {
+        document.getElementById("modal-customer-details").innerText = `Customer: ${order.customer_name}`;
+        
+        // Fetch order details for list summary
+        fetch(`/api/orders/${order.id}`)
+            .then(res => res.json())
+            .then(details => {
+                const itemsText = details.items.map(item => `${item.quantity}x ${item.product_name}`).join(", ");
+                document.getElementById("modal-items-summary").innerText = `Items: ${itemsText}`;
+            });
+
+        const badgeBox = document.getElementById("modal-priority-badge");
+        if (order.priority_type === 'URGENT') {
+            badgeBox.innerHTML = `<span class="badge badge-urgent">🚨 URGENT DELIVERY CHOSEN</span>`;
+            startLoudAlarm(true); // Urgent fast alarm sound
+        } else {
+            badgeBox.innerHTML = `<span class="badge badge-normal">Normal Delivery</span>`;
+            startLoudAlarm(false); // Normal alarm sound
+        }
+        
+        document.getElementById("modal-accept-btn").onclick = () => {
+            acceptIncomingOrder(order.id);
+            dismissNewOrderAlert();
+        };
+        
+        document.getElementById("new-order-modal").style.display = "flex";
+    }
+
+    function dismissNewOrderAlert() {
+        document.getElementById("new-order-modal").style.display = "none";
+        stopLoudAlarm();
+    }
+
+    function acceptIncomingOrder(orderId) {
+        fetch(`/api/orders/${orderId}/accept`, { method: "POST" })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message || "Order accepted.");
+                loadOrders();
+            });
+    }
+
+    function markOrderReady(orderId) {
+        fetch(`/api/orders/${orderId}/ready`, { method: "POST" })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    alert(`Order marked Ready! Share this OTP with the Delivery Rider:\n👉 Pickup OTP: ${data.pickup_otp}`);
+                    loadOrders();
+                }
+            });
+    }
+
+    function renderOrders() {
+        const container = document.getElementById("orders-queue-container");
+        container.innerHTML = "";
+        
+        const activeOrders = ordersList.filter(o => o.status !== 'DELIVERED' && o.status !== 'FAILED');
+        
+        if (activeOrders.length === 0) {
+            document.getElementById("empty-orders-placeholder").style.display = "block";
+            return;
+        }
+        
+        document.getElementById("empty-orders-placeholder").style.display = "none";
+        
+        activeOrders.forEach(o => {
+            const card = document.createElement("div");
+            card.className = `vendor-order-card ${o.priority_type === 'URGENT' ? 'urgent-border' : ''}`;
+            
+            let statusText = o.status;
+            let actionBtn = "";
+            let otpDisplay = "";
+            
+            if (o.status === 'PENDING') {
+                actionBtn = `<button class="btn btn-primary" onclick="acceptIncomingOrder(${o.id})">Accept Order</button>`;
+            } else if (o.status === 'ACCEPTED') {
+                actionBtn = `<button class="btn btn-secondary text-accent" onclick="markOrderReady(${o.id})">Mark as Ready & Ready OTP</button>`;
+            } else if (o.status === 'READY_FOR_PICKUP') {
+                actionBtn = `<button class="btn btn-secondary w-full" disabled>Waiting for Pickup...</button>`;
+                otpDisplay = `<div style="margin-top:10px; padding:6px; background:rgba(0,242,254,0.06); border:1px solid rgba(0,242,254,0.2); border-radius:6px; font-weight:600; text-align:center; font-size:0.9rem;">
+                                🔑 Pickup OTP: <span class="text-accent">${o.pickup_otp}</span>
+                              </div>`;
+            } else if (o.status === 'OUT_FOR_DELIVERY') {
+                actionBtn = `<button class="btn btn-secondary w-full" disabled>Out for Delivery</button>`;
+            }
+            
+            card.innerHTML = `
+                <div>
+                    <div class="flex-between mb-sm">
+                        <span style="font-weight:600; font-size:1.05rem;">Order #${o.id}</span>
+                        <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}">${o.priority_type}</span>
+                    </div>
+                    
+                    <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">
+                        <div>👤 <strong>Name:</strong> ${o.customer_name}</div>
+                        <div>📍 <strong>Address:</strong> ${o.customer_address}</div>
+                        <div>📞 <strong>Phone:</strong> ${o.customer_phone}</div>
+                    </div>
+                    
+                    <div style="font-size:0.9rem; font-weight:600; color:var(--accent-cyan); margin-bottom:12px;">
+                        Total Amount: ₹${o.total_amount.toFixed(2)}
+                    </div>
+                </div>
+                <div>
+                    ${actionBtn}
+                    ${otpDisplay}
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // Stock Control List Loader (VEND-002)
+    function loadInventory() {
+        fetch(`/api/shops/${shopId}/products?view_type=vendor`)
+            .then(res => res.json())
+            .then(products => {
+                const container = document.getElementById("inventory-list-container");
+                container.innerHTML = "";
+                
+                products.forEach(prod => {
+                    const row = document.createElement("div");
+                    row.className = "flex-between";
+                    row.style.padding = "8px 0";
+                    row.style.borderBottom = "1px solid var(--border-glass)";
+                    
+                    row.innerHTML = `
+                        <span style="font-size:0.9rem; font-weight:500; text-decoration: ${prod.is_available ? 'none' : 'line-through'}; color: ${prod.is_available ? 'var(--text-primary)' : 'var(--text-muted)'}">${prod.name}</span>
+                        <label style="position: relative; display: inline-block; width: 36px; height: 20px;">
+                            <input type="checkbox" ${prod.is_available ? 'checked' : ''} onchange="toggleStock(${prod.id}, this.checked)" style="opacity: 0; width: 0; height: 0; margin:0;" id="stock-check-${prod.id}">
+                            <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: ${prod.is_available ? 'var(--emerald-green)' : '#4b5563'}; transition: .3s; border-radius: 20px;"></span>
+                        </label>
+                    `;
+                    container.appendChild(row);
+                });
+            });
+    }
+
+    function toggleStock(prodId, isAvailable) {
+        fetch("/api/vendor/products/toggle", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ product_id: prodId, is_available: isAvailable ? 1 : 0 })
+        })
+        .then(res => res.json())
+        .then(data => {
+            loadInventory();
+        });
+    }
+
+    // Low stock warnings calculations (INT-004)
+    function loadStockPredictions() {
+        fetch(`/api/vendor/low-stock-prediction/${shopId}`)
+            .then(res => res.json())
+            .then(predictions => {
+                const banner = document.getElementById("low-stock-alert-banner");
+                const list = document.getElementById("low-stock-predictions-list");
+                list.innerHTML = "";
+                
+                if (predictions.length === 0) {
+                    banner.style.display = "none";
+                    return;
+                }
+                
+                banner.style.display = "block";
+                predictions.forEach(p => {
+                    const li = document.createElement("li");
+                    li.style.marginBottom = "4px";
+                    li.innerHTML = `<strong>${p.name}</strong>: ${p.message}`;
+                    list.appendChild(li);
+                });
+            });
+    }
+</script>
+{% endblock %}

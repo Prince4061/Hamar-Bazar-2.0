@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex-between mb-sm">
+    <div>
+        <h1 class="screen-title">Super Admin Operations Center</h1>
+        <p class="screen-subtitle">Track platform analytics, audit delivery logs, adjust tax values, and manage product catalogs.</p>
+    </div>
+</div>
+
+<!-- ANALYTICS CARDS (ADMIN-001) -->
+<div class="admin-stats-grid">
+    <div class="glass-card" style="margin-bottom:0;">
+        <div style="font-size:0.8rem; color:var(--text-secondary);">Successful Deliveries</div>
+        <div class="stat-number" id="stats-delivered">0</div>
+        <div style="font-size:0.75rem; color:var(--emerald-green);">↑ Active orders closed</div>
+    </div>
+    <div class="glass-card" style="margin-bottom:0;">
+        <div style="font-size:0.8rem; color:var(--text-secondary);">Total GMV Revenue</div>
+        <div class="stat-number" id="stats-revenue">₹0.00</div>
+        <div style="font-size:0.75rem; color:var(--text-secondary);">Gross merchandise value</div>
+    </div>
+    <div class="glass-card" style="margin-bottom:0;">
+        <div style="font-size:0.8rem; color:var(--text-secondary);">Platform Commission</div>
+        <div class="stat-number" id="stats-commission" style="color: #c084fc;">₹0.00</div>
+        <div style="font-size:0.75rem; color:var(--text-secondary);">Aggregated shop cuts</div>
+    </div>
+    <div class="glass-card" style="margin-bottom:0;">
+        <div style="font-size:0.8rem; color:var(--text-secondary);">Order Issues</div>
+        <div class="stat-number" id="stats-failed" style="color: var(--ruby-danger);">0</div>
+        <div style="font-size:0.75rem; color:var(--text-secondary);">Cancelled/undelivered</div>
+    </div>
+</div>
+
+<!-- CHARTS ROW (INT-006) -->
+<div class="shop-section mt-md">
+    <!-- Peak Ordering Hours Bar Chart -->
+    <div class="glass-card">
+        <h3 style="margin-bottom: 12px; font-weight:600;">📊 Peak Ordering Hours</h3>
+        <div class="chart-container">
+            <canvas id="hoursChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Top Selling Categories Doughnut Chart -->
+    <div class="glass-card">
+        <h3 style="margin-bottom: 12px; font-weight:600;">🍰 Shop Share of Revenue</h3>
+        <div class="chart-container">
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- VENDOR REPUTATION & STORES (INT-010, ADMIN-001) -->
+<div class="glass-card mt-md">
+    <h3 style="margin-bottom: 12px; font-weight:600;">🏪 Monopolistic Shop Status & Performance Scores</h3>
+    <div style="overflow-x: auto;">
+        <table class="vendor-score-table">
+            <thead>
+                <tr>
+                    <th>Shop Name</th>
+                    <th>Category</th>
+                    <th>Platform Comm. %</th>
+                    <th>Total Orders</th>
+                    <th>Gross Sales</th>
+                    <th>Acceptance Rate</th>
+                    <th>Reputation Score</th>
+                </tr>
+            </thead>
+            <tbody id="vendor-performance-rows">
+                <!-- Loaded dynamically -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- PRODUCT CONTROL CRUD SECTION (ADMIN-002) -->
+<div class="shop-section mt-md">
+    <!-- Product Catalog List -->
+    <div class="glass-card">
+        <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-glass); padding-bottom: 8px; margin-bottom: 12px;">
+            <h3 style="font-weight:600;">📦 Product Directory CRUD</h3>
+            <select id="crud-shop-filter" class="form-input" style="width: auto; padding: 4px 8px; font-size:0.85rem;" onchange="loadCrudProducts()">
+                <option value="1">Apna Bazaar (Kirana)</option>
+                <option value="2">The Bakers Table (Cakes)</option>
+                <option value="3">Fresh & Green (Veggies)</option>
+                <option value="4">ElectroWorld (Electronics)</option>
+            </select>
+        </div>
+        
+        <div style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;" id="crud-products-list">
+            <!-- Loaded dynamically -->
+        </div>
+    </div>
+
+    <!-- Product Form -->
+    <div class="glass-card" style="height: fit-content;">
+        <h3 style="margin-bottom: 12px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px;" id="form-action-title">➕ Add New Product</h3>
+        
+        <input type="hidden" id="edit-prod-id">
+        
+        <div class="form-group">
+            <label class="form-label">Product Name</label>
+            <input type="text" id="form-prod-name" class="form-input" placeholder="e.g. Fresh Tomatoes 1kg">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Price (INR)</label>
+            <input type="number" id="form-prod-price" class="form-input" placeholder="e.g. 45" step="0.01">
+        </div>
+
+        <div class="form-group" id="form-shop-select-group">
+            <label class="form-label">Shop Category</label>
+            <select id="form-prod-shop" class="form-input">
+                <option value="1">Apna Bazaar (Kirana)</option>
+                <option value="2">The Bakers Table (Cakes)</option>
+                <option value="3">Fresh & Green (Veggies)</option>
+                <option value="4">ElectroWorld (Electronics)</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="form-available-group" style="display: none;">
+            <label class="form-label">Availability status</label>
+            <select id="form-prod-avail" class="form-input">
+                <option value="1">In Stock</option>
+                <option value="0">Out Of Stock</option>
+            </select>
+        </div>
+        
+        <div style="display:flex; gap:10px;" class="mt-md">
+            <button class="btn btn-primary" id="form-save-btn" onclick="saveProduct()">Save Product</button>
+            <button class="btn btn-secondary" id="form-cancel-btn" onclick="resetProductForm()" style="display: none;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- AUDIT LOGS (ADMIN-001) -->
+<div class="glass-card mt-md">
+    <h3 style="margin-bottom: 12px; font-weight:600;">📑 System Order Audits & Timestamps</h3>
+    <div style="overflow-x: auto;">
+        <table class="vendor-score-table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Date & Time</th>
+                    <th>Customer Name</th>
+                    <th>Vendor Shop</th>
+                    <th>Total Amount</th>
+                    <th>Order Priority</th>
+                    <th>Tracking Status</th>
+                    <th>System Logs / Issue</th>
+                </tr>
+            </thead>
+            <tbody id="audit-order-rows">
+                <!-- Loaded dynamically -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    let hoursChart = null;
+    let categoryChart = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadAnalytics();
+        loadCrudProducts();
+        
+        // Polling dashboard analytics every 10 seconds
+        setInterval(() => {
+            loadAnalytics();
+        }, 10000);
+    });
+
+    function loadAnalytics() {
+        fetch('/api/admin/analytics')
+            .then(res => res.json())
+            .then(data => {
+                // Set high level counts
+                document.getElementById("stats-delivered").innerText = data.overview.delivered_count;
+                document.getElementById("stats-revenue").innerText = `₹${data.overview.total_revenue.toFixed(2)}`;
+                document.getElementById("stats-commission").innerText = `₹${data.overview.total_commission.toFixed(2)}`;
+                document.getElementById("stats-failed").innerText = data.overview.failed_count;
+                
+                // Vendor scores table
+                const vBody = document.getElementById("vendor-performance-rows");
+                vBody.innerHTML = "";
+                
+                data.shops_performance.forEach(s => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td><strong>${s.shop_name}</strong></td>
+                        <td><span class="badge badge-normal">${s.category}</span></td>
+                        <td>${s.commission_pct}%</td>
+                        <td>${s.total_orders}</td>
+                        <td>₹${(s.sales || 0).toFixed(2)}</td>
+                        <td>${s.acceptance_rate}%</td>
+                        <td style="font-weight:700; color:var(--accent-cyan);">⭐️ ${s.avg_rating} / 5.0</td>
+                    `;
+                    vBody.appendChild(row);
+                });
+                
+                // Audit trail logs table
+                const aBody = document.getElementById("audit-order-rows");
+                aBody.innerHTML = "";
+                
+                data.recent_orders.forEach(o => {
+                    const row = document.createElement("tr");
+                    let statusBadge = "";
+                    if (o.status === 'DELIVERED') statusBadge = '<span class="badge badge-status-delivered">Delivered</span>';
+                    else if (o.status === 'PENDING') statusBadge = '<span class="badge badge-status-pending">Pending</span>';
+                    else if (o.status === 'READY_FOR_PICKUP') statusBadge = '<span class="badge badge-status-ready">Ready</span>';
+                    else statusBadge = `<span class="badge badge-normal">${o.status}</span>`;
+                    
+                    const issue = o.failure_reason ? `<span class="text-danger">⚠️ ${o.failure_reason}</span>` : '<span class="text-emerald">✓ Stable transaction</span>';
+                    
+                    row.innerHTML = `
+                        <td>#${o.id}</td>
+                        <td style="font-size:0.8rem; color:var(--text-secondary);">${o.created_at}</td>
+                        <td>${o.customer_name}</td>
+                        <td>${o.shop_name}</td>
+                        <td>₹${o.total_amount.toFixed(2)}</td>
+                        <td><span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}">${o.priority_type}</span></td>
+                        <td>${statusBadge}</td>
+                        <td>${issue}</td>
+                    `;
+                    aBody.appendChild(row);
+                });
+                
+                // Render Charts
+                renderCharts(data);
+            });
+    }
+
+    function renderCharts(data) {
+        // 1. Peak Ordering Hours
+        const hrsData = data.peak_times;
+        const labels = Object.keys(hrsData).map(h => `${h}:00`);
+        const counts = Object.values(hrsData);
+        
+        if (hoursChart) {
+            hoursChart.data.labels = labels;
+            hoursChart.data.datasets[0].data = counts;
+            hoursChart.update();
+        } else {
+            const ctx = document.getElementById('hoursChart').getContext('2d');
+            hoursChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Orders volume',
+                        data: counts,
+                        backgroundColor: 'rgba(0, 242, 254, 0.4)',
+                        borderColor: '#00f2fe',
+                        borderWidth: 1.5,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#9ca3af' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#9ca3af' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+        
+        // 2. Shop Categories Doughnut Share
+        const shopLabels = data.shops_performance.map(s => s.shop_name.split(" (")[0]);
+        const shopSales = data.shops_performance.map(s => s.sales || 0);
+        
+        if (categoryChart) {
+            categoryChart.data.labels = shopLabels;
+            categoryChart.data.datasets[0].data = shopSales;
+            categoryChart.update();
+        } else {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            categoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: shopLabels,
+                    datasets: [{
+                        data: shopSales,
+                        backgroundColor: [
+                            'rgba(0, 242, 254, 0.6)',
+                            'rgba(79, 172, 254, 0.6)',
+                            'rgba(16, 185, 129, 0.6)',
+                            'rgba(192, 132, 252, 0.6)'
+                        ],
+                        borderColor: 'rgba(11, 15, 25, 0.9)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: '#f3f4f6', font: { family: 'Outfit' } }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    // Product CRUD Management (ADMIN-002)
+    function loadCrudProducts() {
+        const sFilter = document.getElementById("crud-shop-filter").value;
+        const container = document.getElementById("crud-products-list");
+        container.innerHTML = "Loading product inventory...";
+        
+        fetch(`/api/shops/${sFilter}/products?view_type=vendor`)
+            .then(res => res.json())
+            .then(products => {
+                container.innerHTML = "";
+                if (products.length === 0) {
+                    container.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding: 20px;">No items inside catalog.</p>`;
+                    return;
+                }
+                
+                products.forEach(p => {
+                    const row = document.createElement("div");
+                    row.className = "flex-between";
+                    row.style.padding = "10px";
+                    row.style.background = "rgba(255,255,255,0.02)";
+                    row.style.border = "1px solid var(--border-glass)";
+                    row.style.borderRadius = "8px";
+                    
+                    row.innerHTML = `
+                        <div>
+                            <strong>${p.name}</strong> 
+                            <span class="text-accent" style="margin-left:8px;">₹${p.price.toFixed(2)}</span>
+                            <span style="font-size:0.75rem; margin-left:8px;" class="${p.is_available ? 'text-emerald' : 'text-danger'}">
+                                ${p.is_available ? '• In Stock' : '• Out of Stock'}
+                            </span>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-secondary" onclick="editProduct(${p.id}, '${p.name}', ${p.price}, ${p.is_available})" style="width:auto; padding:4px 8px; font-size:0.75rem;">Edit</button>
+                            <button class="btn btn-danger" onclick="deleteProduct(${p.id})" style="width:auto; padding:4px 8px; font-size:0.75rem;">Delete</button>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+            });
+    }
+
+    function saveProduct() {
+        const id = document.getElementById("edit-prod-id").value;
+        const name = document.getElementById("form-prod-name").value.trim();
+        const price = document.getElementById("form-prod-price").value;
+        const shopId = document.getElementById("form-prod-shop").value;
+        
+        if (!name || !price) {
+            alert("Please complete the product name and pricing details.");
+            return;
+        }
+        
+        if (id) {
+            // Update operation
+            const isAvail = document.getElementById("form-prod-avail").value;
+            fetch(`/api/admin/products/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: name, price: price, is_available: isAvail })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                resetProductForm();
+                loadCrudProducts();
+                loadAnalytics();
+            });
+        } else {
+            // Create operation
+            fetch(`/api/admin/products`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ shop_id: shopId, name: name, price: price })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                resetProductForm();
+                loadCrudProducts();
+                loadAnalytics();
+            });
+        }
+    }
+
+    function editProduct(id, name, price, isAvailable) {
+        document.getElementById("edit-prod-id").value = id;
+        document.getElementById("form-prod-name").value = name;
+        document.getElementById("form-prod-price").value = price;
+        
+        // Show availability control and hide shop category select (can't move shops)
+        document.getElementById("form-available-group").style.display = "block";
+        document.getElementById("form-shop-select-group").style.display = "none";
+        document.getElementById("form-prod-avail").value = isAvailable ? "1" : "0";
+        
+        document.getElementById("form-action-title").innerText = "✏️ Edit Product Details";
+        document.getElementById("form-cancel-btn").style.display = "block";
+    }
+
+    function deleteProduct(id) {
+        if (!confirm("Are you sure you want to remove this product from the inventory?")) return;
+        
+        fetch(`/api/admin/products/${id}`, { method: "DELETE" })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                loadCrudProducts();
+                loadAnalytics();
+            });
+    }
+
+    function resetProductForm() {
+        document.getElementById("edit-prod-id").value = "";
+        document.getElementById("form-prod-name").value = "";
+        document.getElementById("form-prod-price").value = "";
+        
+        document.getElementById("form-available-group").style.display = "none";
+        document.getElementById("form-shop-select-group").style.display = "block";
+        
+        document.getElementById("form-action-title").innerText = "➕ Add New Product";
+        document.getElementById("form-cancel-btn").style.display = "none";
+    }
+</script>
+{% endblock %}
