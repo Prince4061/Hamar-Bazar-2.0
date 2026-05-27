@@ -23,7 +23,7 @@
         <!-- Low Stock Prediction Warnings Banner (INT-004) -->
         <div id="low-stock-alert-banner" class="fade-in-up" style="display: none; background: rgba(245, 158, 11, 0.08); border: 2px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-md); padding: 16px 20px; margin-bottom: 24px;">
             <div style="display: flex; align-items: center; gap: 10px; color: var(--amber-warning); font-weight: 800; font-size: 1.05rem; margin-bottom: 12px;">
-                ⚠️ Stock Depletion Warning
+                <i data-lucide="alert-triangle" style="width: 20px; height: 20px; color: var(--amber-warning);"></i> Stock Depletion Warning
             </div>
             <ul id="low-stock-predictions-list" style="font-size: 0.9rem; color: var(--text-secondary); padding-left: 28px; line-height: 1.6; font-weight: 500;">
                 <!-- Filled dynamically -->
@@ -32,8 +32,8 @@
 
         <div class="glass-card">
             <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px;">
-                <h3 style="font-size: 1.25rem; font-weight: 800;">📋 Incoming Orders</h3>
-                <button class="btn-circle" onclick="loadOrders()" title="Refresh Orders" style="font-size: 1rem;">🔄</button>
+                <h3 style="font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 8px;"><i data-lucide="clipboard-list" class="icon-inline" style="margin: 0;"></i> Incoming Orders</h3>
+                <button class="btn-circle" onclick="loadOrders()" title="Refresh Orders" style="font-size: 1rem; display: flex; align-items: center; justify-content: center;"><i data-lucide="rotate-cw" style="width: 16px; height: 16px;"></i></button>
             </div>
             
             <div class="order-queue-grid" id="orders-queue-container">
@@ -41,7 +41,7 @@
             </div>
             
             <div id="empty-orders-placeholder" style="text-align: center; padding: 60px 10px; color: var(--text-muted);">
-                <span style="font-size: 3.5rem; display: block; margin-bottom: 16px;">🎧</span>
+                <i data-lucide="check-circle" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 16px; display: inline-block;"></i>
                 <h4 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">All caught up!</h4>
                 <p style="font-size: 1rem;">No active orders right now. We'll alert you when a request arrives.</p>
             </div>
@@ -51,7 +51,7 @@
     <!-- Inventory Stock Controller Drawer (VEND-002) -->
     <div style="position: sticky; top: 100px;">
         <div class="glass-card">
-            <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">📦 Stock Control</h3>
+            <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; display: flex; align-items: center; gap: 8px;"><i data-lucide="package" class="icon-inline" style="margin: 0;"></i> Stock Control</h3>
             <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">Instantly hide items on the customer app if they run out.</p>
             
             <div id="inventory-list-container" style="display: flex; flex-direction: column; gap: 12px;">
@@ -64,10 +64,10 @@
 <!-- NEW ORDER POPUP MODAL (VEND-001) -->
 <div id="new-order-modal" class="overlay-modal" style="display: none;">
     <div class="modal-content" style="border: 2px solid var(--primary-accent); box-shadow: var(--shadow-float);">
-        <div class="modal-header">🔔 New Request</div>
+        <div class="modal-header" style="display: flex; align-items: center; justify-content: center; gap: 8px;"><i data-lucide="bell" style="width: 22px; height: 22px; color: var(--primary-accent);"></i> New Request</div>
         <div class="modal-body">
             <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 24px;">
-                <div style="width: 64px; height: 64px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 12px;">👤</div>
+                <div style="width: 64px; height: 64px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: var(--primary-accent); margin-bottom: 12px;"><i data-lucide="user" style="width: 32px; height: 32px;"></i></div>
                 <p style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary);" id="modal-customer-details">Customer: --</p>
             </div>
             
@@ -79,7 +79,7 @@
             <div id="modal-priority-badge" style="margin-bottom: 32px;"></div>
             
             <div style="display: flex; gap: 16px;">
-                <button class="btn btn-secondary" onclick="muteCurrentOrder()" style="flex: 1; padding: 16px; font-size: 1rem;">🔇 Mute</button>
+                <button class="btn btn-secondary" onclick="muteCurrentOrder()" style="flex: 1; padding: 16px; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 6px;"><i data-lucide="volume-x" class="icon-inline" style="margin: 0;"></i> Mute</button>
                 <button class="btn btn-primary" id="modal-accept-btn" style="flex: 2; padding: 16px; font-size: 1.1rem;">Accept Now</button>
             </div>
         </div>
@@ -230,12 +230,13 @@
 
         const badgeBox = document.getElementById("modal-priority-badge");
         if (order.priority_type === 'URGENT') {
-            badgeBox.innerHTML = `<span class="badge badge-urgent" style="font-size: 1rem; padding: 8px 16px;">🚨 URGENT PRIORITY ORDER</span>`;
+            badgeBox.innerHTML = `<span class="badge badge-urgent" style="font-size: 1rem; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;"><i data-lucide="zap" style="width: 14px; height: 14px; color: white;"></i> URGENT PRIORITY ORDER</span>`;
             startLoudAlarm(true); // Urgent fast alarm sound
         } else {
             badgeBox.innerHTML = `<span class="badge badge-normal" style="font-size: 1rem; padding: 8px 16px;">Standard Priority</span>`;
             startLoudAlarm(false); // Normal alarm sound
         }
+        refreshIcons();
         
         document.getElementById("modal-accept-btn").onclick = () => {
             acceptIncomingOrder(order.id);
@@ -322,21 +323,21 @@
                     <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
                         <span style="font-weight:800; font-size:1.15rem; font-family: 'Outfit', sans-serif;">#${o.id}</span>
                         <div style="display: flex; gap: 8px;">
-                            ${o.priority_type === 'URGENT' ? '<span class="badge badge-urgent">URGENT</span>' : ''}
+                            ${o.priority_type === 'URGENT' ? '<span class="badge badge-urgent" style="display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="zap" style="width: 12px; height: 12px; color: white;"></i> URGENT</span>' : ''}
                             ${statusBadge}
                         </div>
                     </div>
                     
                     <div style="display: flex; align-items: center; gap: 12px; margin-top: 16px; margin-bottom: 16px;">
-                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">👤</div>
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; color: var(--primary-accent);"><i data-lucide="user" style="width: 18px; height: 18px;"></i></div>
                         <div>
                             <div style="font-weight: 700; font-size: 1rem; color: var(--text-primary);">${o.customer_name}</div>
                             <div style="font-size: 0.85rem; color: var(--text-secondary);">${o.customer_phone}</div>
                         </div>
                     </div>
                     
-                    <div style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:20px; background: #f8fafc; padding: 12px; border-radius: var(--radius-sm);">
-                        📍 <strong>Address:</strong> ${o.customer_address}
+                    <div style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:20px; background: #f8fafc; padding: 12px; border-radius: var(--radius-sm); display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="map-pin" class="icon-inline" style="margin: 0; width: 14px; height: 14px;"></i> <strong>Address:</strong> ${o.customer_address}
                     </div>
                     
                     <div style="font-size:1.2rem; font-weight:800; color:var(--primary-accent); margin-bottom:20px; text-align: right;">
@@ -350,6 +351,7 @@
             `;
             container.appendChild(card);
         });
+        refreshIcons();
     }
 
     // Stock Control List Loader (VEND-002)
@@ -371,7 +373,9 @@
                     row.innerHTML = `
                         <div>
                             <span style="font-size:1rem; font-weight:700; display: block; text-decoration: ${prod.is_available ? 'none' : 'line-through'}; color: ${prod.is_available ? 'var(--text-primary)' : 'var(--text-muted)'}">${prod.name}</span>
-                            <span style="font-size:0.85rem; color:var(--text-secondary);">${prod.is_available ? '🟢 In Stock' : '🔴 Out of Stock'}</span>
+                            <span style="font-size:0.85rem; color:var(--text-secondary); display: flex; align-items: center; gap: 4px;">
+                                ${prod.is_available ? '<i data-lucide="check-circle" class="icon-inline" style="color: var(--emerald-green); width: 14px; height: 14px; margin: 0;"></i> In Stock' : '<i data-lucide="x-circle" class="icon-inline" style="color: var(--ruby-danger); width: 14px; height: 14px; margin: 0;"></i> Out of Stock'}
+                            </span>
                         </div>
                         <label class="ios-toggle">
                             <input type="checkbox" ${prod.is_available ? 'checked' : ''} onchange="toggleStock(${prod.id}, this.checked)" id="stock-check-${prod.id}">
@@ -380,6 +384,7 @@
                     `;
                     container.appendChild(row);
                 });
+                refreshIcons();
             });
     }
 

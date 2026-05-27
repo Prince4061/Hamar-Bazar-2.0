@@ -6,6 +6,8 @@
     <title>Mor Bazaar - Hyperlocal Delivery</title>
     <!-- Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="theme-{% if session.get('role') == 'vendor' %}vendor{% elif session.get('role') == 'delivery' %}delivery{% elif session.get('role') == 'admin' %}admin{% else %}customer{% endif %} fade-in-up">
 
@@ -16,11 +18,11 @@
             <span class="brand-badge">MOR</span>
             <span class="brand-title">Mor Bazaar</span>
         </div>
-        <div style="font-weight: 600; color: var(--text-secondary); font-size: 0.9rem;">
-            {% if session.get('role') == 'customer' %}🏠 Customer Mode{% endif %}
-            {% if session.get('role') == 'vendor' %}🏬 Vendor Mode{% endif %}
-            {% if session.get('role') == 'delivery' %}🛵 Delivery Mode{% endif %}
-            {% if session.get('role') == 'admin' %}🛡️ Admin Mode{% endif %}
+        <div style="font-weight: 600; color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+            {% if session.get('role') == 'customer' %}<i data-lucide="user" class="icon-inline"></i> Customer Mode{% endif %}
+            {% if session.get('role') == 'vendor' %}<i data-lucide="store" class="icon-inline"></i> Vendor Mode{% endif %}
+            {% if session.get('role') == 'delivery' %}<i data-lucide="bike" class="icon-inline"></i> Delivery Mode{% endif %}
+            {% if session.get('role') == 'admin' %}<i data-lucide="shield" class="icon-inline"></i> Admin Mode{% endif %}
         </div>
     </div>
     {% endif %}
@@ -34,21 +36,21 @@
     {% if session.get('role') %}
     <div class="mobile-bottom-nav">
         {% if session.get('role') == 'customer' %}
-            <a href="#" class="nav-item active"><span class="nav-icon">🏠</span>Home</a>
-            <a href="#" class="nav-item" onclick="document.getElementById('cart-items-container').scrollIntoView();"><span class="nav-icon">🛒</span>Cart</a>
-            <a href="#" class="nav-item" onclick="toggleExpensesModal()"><span class="nav-icon">📈</span>Stats</a>
+            <a href="#" class="nav-item active"><span class="nav-icon"><i data-lucide="home"></i></span>Home</a>
+            <a href="#" class="nav-item" onclick="document.getElementById('cart-items-container').scrollIntoView();"><span class="nav-icon"><i data-lucide="shopping-cart"></i></span>Cart</a>
+            <a href="#" class="nav-item" onclick="toggleExpensesModal()"><span class="nav-icon"><i data-lucide="trending-up"></i></span>Stats</a>
         {% elif session.get('role') == 'vendor' %}
-            <a href="#" class="nav-item active"><span class="nav-icon">📋</span>Orders</a>
-            <a href="#" class="nav-item" onclick="document.getElementById('inventory-list-container').scrollIntoView();"><span class="nav-icon">📦</span>Stock</a>
+            <a href="#" class="nav-item active"><span class="nav-icon"><i data-lucide="clipboard-list"></i></span>Orders</a>
+            <a href="#" class="nav-item" onclick="document.getElementById('inventory-list-container').scrollIntoView();"><span class="nav-icon"><i data-lucide="package"></i></span>Stock</a>
         {% elif session.get('role') == 'delivery' %}
-            <a href="#" class="nav-item active"><span class="nav-icon">🛵</span>Tasks</a>
-            <a href="#" class="nav-item"><span class="nav-icon">💳</span>Earnings</a>
+            <a href="#" class="nav-item active"><span class="nav-icon"><i data-lucide="bike"></i></span>Tasks</a>
+            <a href="#" class="nav-item"><span class="nav-icon"><i data-lucide="credit-card"></i></span>Earnings</a>
         {% endif %}
-        <a href="/session/logout" class="nav-item"><span class="nav-icon">🚪</span>Exit</a>
+        <a href="/session/logout" class="nav-item"><span class="nav-icon"><i data-lucide="log-out"></i></span>Exit</a>
     </div>
     {% endif %}
 
-    <!-- Dropdown Toggle Script -->
+    <!-- Dropdown Toggle & Lucide Script -->
     <script>
         function toggleDropdown(event, id) {
             event.preventDefault();
@@ -70,6 +72,17 @@
             document.querySelectorAll('.glass-dropdown').forEach(el => {
                 el.style.display = 'none';
             });
+        });
+
+        function refreshIcons() {
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        }
+
+        // Initialize icons on DOMContentLoaded
+        document.addEventListener("DOMContentLoaded", () => {
+            refreshIcons();
         });
     </script>
 </body>

@@ -4,14 +4,14 @@
 <div class="glass-card fade-in-up" style="background: linear-gradient(135deg, var(--primary-light) 0%, rgba(255,255,255,1) 100%); margin-bottom: 32px;">
     <div class="flex-between">
         <div style="display: flex; align-items: center; gap: 16px;">
-            <div style="width: 64px; height: 64px; border-radius: 50%; background: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: var(--shadow-soft);">🏍️</div>
+            <div style="width: 64px; height: 64px; border-radius: 50%; background: #ffffff; display: flex; align-items: center; justify-content: center; color: var(--primary-accent); box-shadow: var(--shadow-soft);"><i data-lucide="bike" style="width: 28px; height: 28px;"></i></div>
             <div>
                 <h1 class="screen-title">{{ session.get('name', 'Delivery Partner') }}</h1>
-                <p class="screen-subtitle">Active Status: <span style="color: var(--emerald-green); font-weight: 700;">🟢 Online</span></p>
+                <p class="screen-subtitle">Active Status: <span style="color: var(--emerald-green); font-weight: 700; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="check-circle" class="icon-inline" style="color: var(--emerald-green); width: 14px; height: 14px; margin: 0;"></i> Online</span></p>
             </div>
         </div>
         <div style="display: flex; gap: 12px;">
-            <button class="btn-circle" onclick="resetRiderState()" title="Reset Cooldown">🔄</button>
+            <button class="btn-circle" onclick="resetRiderState()" title="Reset Cooldown" style="display: flex; align-items: center; justify-content: center;"><i data-lucide="rotate-cw" style="width: 16px; height: 16px;"></i></button>
         </div>
     </div>
 </div>
@@ -20,7 +20,7 @@
 <div id="cooldown-banner" class="glass-card fade-in-up" style="display: none; background: rgba(239, 68, 68, 0.05); border: 2px solid rgba(239, 68, 68, 0.2); margin-bottom: 24px;">
     <div class="flex-between">
         <div>
-            <h4 style="color: var(--ruby-danger); font-weight:800; font-size: 1.15rem; margin-bottom: 4px;">⏳ Active Claim Cooldown</h4>
+            <h4 style="color: var(--ruby-danger); font-weight:800; font-size: 1.15rem; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;"><i data-lucide="clock" style="width: 20px; height: 20px; color: var(--ruby-danger);"></i> Active Claim Cooldown</h4>
             <p style="font-size:0.9rem; color:var(--text-secondary); font-weight: 500;">Please wait before claiming another delivery.</p>
         </div>
         <div id="cooldown-timer" style="font-size: 2.5rem; font-family: 'Outfit', sans-serif; font-weight:800; color: var(--ruby-danger); letter-spacing: -1px;">10:00</div>
@@ -34,14 +34,14 @@
     <!-- Active Claimed Order Interface -->
     <div>
         <div class="glass-card">
-            <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">🚴 Current Mission</h3>
+            <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; align-items: center; gap: 8px;"><i data-lucide="navigation" class="icon-inline" style="margin: 0;"></i> Current Mission</h3>
             
             <div id="active-job-container">
                 <!-- Loaded dynamically -->
             </div>
             
             <div id="empty-job-placeholder" style="text-align: center; padding: 60px 10px; color: var(--text-muted);">
-                <span style="font-size: 3.5rem; display: block; margin-bottom: 16px;">🗺️</span>
+                <i data-lucide="map" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 16px; display: inline-block;"></i>
                 <h4 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">No active mission</h4>
                 <p style="font-size: 0.95rem;">Claim a delivery job from the pool below to get started.</p>
             </div>
@@ -51,7 +51,7 @@
     <!-- Job Pool -->
     <div style="position: sticky; top: 100px;">
         <div class="glass-card" style="height: fit-content; background: #f8fafc;">
-            <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">🌐 Available Jobs Pool</h3>
+            <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; align-items: center; gap: 8px;"><i data-lucide="globe" class="icon-inline" style="margin: 0;"></i> Available Jobs Pool</h3>
             <p style="font-size:0.9rem; color:var(--text-secondary); margin-bottom: 24px; font-weight: 500;">Orders ready for pickup in the area. Sorted by priority.</p>
             
             <div id="job-pool-container" style="display: flex; flex-direction: column; gap: 16px;">
@@ -59,7 +59,7 @@
             </div>
             
             <div id="empty-pool-placeholder" style="text-align: center; padding: 40px 0; color: var(--text-muted); display: none;">
-                <span style="font-size: 2.5rem; display: block; margin-bottom: 12px;">☕</span>
+                <i data-lucide="smile" style="width: 40px; height: 40px; color: var(--text-muted); margin-bottom: 12px; display: inline-block;"></i>
                 <h4 style="font-size: 1.1rem; font-weight: 700;">Take a breather</h4>
                 <p style="font-size: 0.9rem;">No new orders are waiting in the pickup pool.</p>
             </div>
@@ -241,7 +241,7 @@
         if (o.status === 'READY_FOR_PICKUP') {
             otpForm = `
                 <div style="margin-top: 24px; padding: 20px; border: 2px dashed var(--primary-accent); border-radius: var(--radius-md); background: var(--primary-light);">
-                    <label class="form-label" style="color: var(--primary-accent);">🔑 Step 1: Verify Pickup OTP (Ask Vendor)</label>
+                    <label class="form-label" style="color: var(--primary-accent); display: flex; align-items: center; gap: 6px;"><i data-lucide="key" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--primary-accent);"></i> Step 1: Verify Pickup OTP (Ask Vendor)</label>
                     <div style="display:flex; gap:12px; margin-top: 12px;">
                         <input type="text" id="pickup-otp-input-${o.id}" class="form-input" placeholder="4 Digits" maxlength="4" style="text-align:center; font-family: 'Outfit', sans-serif; font-weight:800; font-size:1.5rem; letter-spacing:8px; padding: 16px;">
                         <button class="btn btn-primary" onclick="verifyPickupOTP(${o.id})" style="width:auto; padding: 0 32px; font-size: 1.1rem;">Verify</button>
@@ -251,7 +251,7 @@
         } else if (o.status === 'OUT_FOR_DELIVERY') {
             otpForm = `
                 <div style="margin-top: 24px; padding: 20px; border: 2px dashed var(--emerald-green); border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.05);">
-                    <label class="form-label" style="color:var(--emerald-green);">🔑 Step 2: Verify Delivery OTP (Ask Customer)</label>
+                    <label class="form-label" style="color:var(--emerald-green); display: flex; align-items: center; gap: 6px;"><i data-lucide="key" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--emerald-green);"></i> Step 2: Verify Delivery OTP (Ask Customer)</label>
                     <div style="display:flex; gap:12px; margin-top: 12px;">
                         <input type="text" id="delivery-otp-input-${o.id}" class="form-input" placeholder="4 Digits" maxlength="4" style="text-align:center; font-family: 'Outfit', sans-serif; font-weight:800; font-size:1.5rem; letter-spacing:8px; padding: 16px; border-color: #a7f3d0;">
                         <button class="btn btn-primary" onclick="verifyDeliveryOTP(${o.id})" style="width:auto; padding: 0 32px; font-size: 1.1rem; background: var(--emerald-green); box-shadow: 0 8px 20px rgba(16,185,129,0.25);">Deliver</button>
@@ -261,7 +261,7 @@
         }
         
         let itemsHtml = o.items.map(item => `<li style="margin-bottom: 6px;"><span style="font-weight: 700;">${item.quantity}x</span> ${item.product_name}</li>`).join("");
-
+ 
         container.innerHTML = `
             <div class="fade-in-up" style="background:#ffffff; border-radius: var(--radius-md);">
                 <div class="flex-between mb-sm" style="border-bottom:1px solid var(--border-color); padding-bottom:16px;">
@@ -273,20 +273,20 @@
                     <!-- Map Placeholder -->
                     <div style="width: 100%; height: 120px; background: #e2e8f0; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
                         <div style="position: absolute; width: 200%; height: 200%; background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.5) 10px, rgba(255,255,255,0.5) 20px);"></div>
-                        <span style="font-size: 2rem; position: relative; z-index: 1;">🗺️ Route Visualization</span>
+                        <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; position: relative; z-index: 1;"><i data-lucide="map" style="width: 20px; height: 20px; color: var(--text-secondary);"></i> Route Visualization</span>
                     </div>
                 </div>
                 
                 <div style="font-size:0.95rem; color:var(--text-secondary); margin-bottom:24px; display: flex; flex-direction: column; gap: 16px;">
                     <div style="display: flex; gap: 12px; align-items: start;">
-                        <div style="background: #f1f5f9; padding: 10px; border-radius: 50%; font-size: 1.2rem;">🏪</div>
+                        <div style="background: #f1f5f9; padding: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);"><i data-lucide="store" style="width: 18px; height: 18px;"></i></div>
                         <div>
                             <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">Pickup: ${o.shop_name}</strong>
                             <span style="font-size: 0.85rem;">${o.category}</span>
                         </div>
                     </div>
                     <div style="display: flex; gap: 12px; align-items: start;">
-                        <div style="background: var(--primary-light); padding: 10px; border-radius: 50%; font-size: 1.2rem; color: var(--primary-accent);">📍</div>
+                        <div style="background: var(--primary-light); padding: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary-accent);"><i data-lucide="map-pin" style="width: 18px; height: 18px;"></i></div>
                         <div>
                             <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">Deliver To: ${o.customer_name}</strong>
                             <span style="font-size: 0.85rem; display: block;">${o.customer_address}</span>
@@ -301,7 +301,7 @@
                         ${itemsHtml}
                     </ul>
                 </div>
-
+ 
                 <div class="flex-between" style="font-size:1.1rem; font-weight:800; color:var(--text-primary); border-top: 2px dashed var(--border-color); padding-top: 16px;">
                     <span>Collect Cash (if COD)</span>
                     <span style="color: var(--emerald-green); font-size: 1.5rem; font-family: 'Outfit', sans-serif;">₹${o.total_amount.toFixed(2)}</span>
@@ -310,6 +310,7 @@
                 ${otpForm}
             </div>
         `;
+        refreshIcons();
     }
 
     function renderJobPool(orders) {
@@ -333,13 +334,14 @@
                     <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}">${o.priority_type}</span>
                 </div>
                 <div style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:20px; display: flex; flex-direction: column; gap: 8px;">
-                    <div style="display: flex; gap: 8px;"><span style="font-size: 1.1rem;">🏪</span> <span style="font-weight: 500;">${o.shop_name}</span></div>
-                    <div style="display: flex; gap: 8px;"><span style="font-size: 1.1rem;">📍</span> <span>${o.customer_address}</span></div>
+                    <div style="display: flex; gap: 8px; align-items: center;"><i data-lucide="store" style="width: 16px; height: 16px; color: var(--text-secondary);"></i> <span style="font-weight: 500;">${o.shop_name}</span></div>
+                    <div style="display: flex; gap: 8px; align-items: center;"><i data-lucide="map-pin" style="width: 16px; height: 16px; color: var(--text-secondary);"></i> <span>${o.customer_address}</span></div>
                 </div>
                 <button class="btn btn-primary" onclick="claimJob(${o.id})" style="padding: 12px;">Claim Delivery</button>
             `;
             container.appendChild(card);
         });
+        refreshIcons();
     }
 </script>
 {% endblock %}

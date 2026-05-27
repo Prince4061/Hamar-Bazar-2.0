@@ -12,7 +12,7 @@
             <p class="screen-subtitle">Track analytics, manage inventory, and audit system health.</p>
         </div>
         <div>
-            <button class="btn btn-secondary" onclick="loadAnalytics()" title="Refresh Data">🔄 Refresh</button>
+            <button class="btn btn-secondary" onclick="loadAnalytics()" title="Refresh Data" style="display: flex; align-items: center; gap: 6px;"><i data-lucide="refresh-cw" class="icon-inline" style="margin: 0; width: 14px; height: 14px;"></i> Refresh</button>
         </div>
     </div>
 </div>
@@ -22,7 +22,7 @@
     <div class="glass-card" style="margin-bottom:0; display: flex; flex-direction: column; justify-content: space-between;">
         <div style="font-size:0.9rem; color:var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Deliveries</div>
         <div class="stat-number" id="stats-delivered" style="color: var(--emerald-green);">0</div>
-        <div style="font-size:0.85rem; color:var(--emerald-green); font-weight: 600;">✓ Active orders closed</div>
+        <div style="font-size:0.85rem; color:var(--emerald-green); font-weight: 600; display: flex; align-items: center; gap: 4px;"><i data-lucide="check-circle" class="icon-inline" style="color: var(--emerald-green); width: 12px; height: 12px; margin: 0;"></i> Active orders closed</div>
     </div>
     <div class="glass-card" style="margin-bottom:0; display: flex; flex-direction: column; justify-content: space-between;">
         <div style="font-size:0.9rem; color:var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total GMV</div>
@@ -45,7 +45,7 @@
 <div class="shop-section mt-md fade-in-up">
     <!-- Peak Ordering Hours Bar Chart -->
     <div class="glass-card">
-        <h3 style="margin-bottom: 24px; font-weight:800; font-size: 1.25rem;">📊 Peak Ordering Hours</h3>
+        <h3 style="margin-bottom: 24px; font-weight:800; font-size: 1.25rem; display: flex; align-items: center; gap: 8px;"><i data-lucide="bar-chart-2" class="icon-inline" style="margin: 0;"></i> Peak Ordering Hours</h3>
         <div class="chart-container">
             <canvas id="hoursChart"></canvas>
         </div>
@@ -53,7 +53,7 @@
     
     <!-- Top Selling Categories Doughnut Chart -->
     <div class="glass-card">
-        <h3 style="margin-bottom: 24px; font-weight:800; font-size: 1.25rem;">🍰 Shop Revenue Share</h3>
+        <h3 style="margin-bottom: 24px; font-weight:800; font-size: 1.25rem; display: flex; align-items: center; gap: 8px;"><i data-lucide="pie-chart" class="icon-inline" style="margin: 0;"></i> Shop Revenue Share</h3>
         <div class="chart-container">
             <canvas id="categoryChart"></canvas>
         </div>
@@ -62,7 +62,7 @@
 
 <!-- VENDOR REPUTATION & STORES (INT-010, ADMIN-001) -->
 <div class="glass-card mt-md fade-in-up">
-    <h3 style="margin-bottom: 20px; font-weight:800; font-size: 1.25rem;">🏪 Partner Shop Performance</h3>
+    <h3 style="margin-bottom: 20px; font-weight:800; font-size: 1.25rem; display: flex; align-items: center; gap: 8px;"><i data-lucide="store" class="icon-inline" style="margin: 0;"></i> Partner Shop Performance</h3>
     <div style="overflow-x: auto; background: #ffffff; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
         <table class="vendor-score-table">
             <thead>
@@ -88,7 +88,7 @@
     <!-- Product Catalog List -->
     <div class="glass-card">
         <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 20px;">
-            <h3 style="font-weight:800; font-size: 1.25rem;">📦 Inventory CRUD</h3>
+            <h3 style="font-weight:800; font-size: 1.25rem; display: flex; align-items: center; gap: 8px;"><i data-lucide="package" class="icon-inline" style="margin: 0;"></i> Inventory CRUD</h3>
             <select id="crud-shop-filter" class="form-input" style="width: auto; padding: 8px 12px; font-size:0.9rem;" onchange="loadCrudProducts()">
                 <option value="1">Apna Bazaar (Grocery)</option>
                 <option value="2">Bakers Table (Cakes)</option>
@@ -104,7 +104,7 @@
 
     <!-- Product Form -->
     <div class="glass-card" style="height: fit-content; background: #f8fafc;">
-        <h3 style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; font-weight: 800; font-size: 1.25rem;" id="form-action-title">➕ Add New Product</h3>
+        <h3 style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; font-weight: 800; font-size: 1.25rem; display: flex; align-items: center; gap: 8px;" id="form-action-title"><i data-lucide="plus" class="icon-inline" style="margin: 0;"></i> Add New Product</h3>
         
         <input type="hidden" id="edit-prod-id">
         
@@ -131,8 +131,8 @@
         <div class="form-group" id="form-available-group" style="display: none;">
             <label class="form-label">Availability status</label>
             <select id="form-prod-avail" class="form-input">
-                <option value="1">🟢 In Stock</option>
-                <option value="0">🔴 Out Of Stock</option>
+                <option value="1">In Stock</option>
+                <option value="0">Out Of Stock</option>
             </select>
         </div>
         
@@ -145,7 +145,7 @@
 
 <!-- AUDIT LOGS (ADMIN-001) -->
 <div class="glass-card mt-md fade-in-up" style="margin-bottom: 40px;">
-    <h3 style="margin-bottom: 20px; font-weight:800; font-size: 1.25rem;">📑 System Order Audits</h3>
+    <h3 style="margin-bottom: 20px; font-weight:800; font-size: 1.25rem; display: flex; align-items: center; gap: 8px;"><i data-lucide="file-text" class="icon-inline" style="margin: 0;"></i> System Order Audits</h3>
     <div style="overflow-x: auto; background: #ffffff; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
         <table class="vendor-score-table">
             <thead>
@@ -204,7 +204,9 @@
                         <td>${s.total_orders}</td>
                         <td style="font-weight: 700; color: var(--primary-accent);">₹${(s.sales || 0).toFixed(2)}</td>
                         <td>${s.acceptance_rate}%</td>
-                        <td style="font-weight:800; color:var(--amber-warning); font-size: 1.05rem;">⭐️ ${s.avg_rating}</td>
+                        <td style="font-weight:800; color:var(--amber-warning); font-size: 1.05rem; display: flex; align-items: center; gap: 4px;">
+                            <i data-lucide="star" style="width: 14px; height: 14px; color: var(--amber-warning); fill: var(--amber-warning); margin: 0;"></i> ${s.avg_rating}
+                        </td>
                     `;
                     vBody.appendChild(row);
                 });
@@ -220,7 +222,7 @@
                     else if (o.status === 'READY_FOR_PICKUP') statusBadge = '<span class="badge badge-status-ready">Ready</span>';
                     else statusBadge = `<span class="badge badge-normal">${o.status}</span>`;
                     
-                    const issue = o.failure_reason ? `<span style="color: var(--ruby-danger); font-weight: 600;">⚠️ ${o.failure_reason}</span>` : '<span style="color: var(--emerald-green); font-weight: 600;">✓ Stable transaction</span>';
+                    const issue = o.failure_reason ? `<span style="color: var(--ruby-danger); font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="alert-triangle" style="width: 12px; height: 12px; color: var(--ruby-danger); margin: 0;"></i> ${o.failure_reason}</span>` : '<span style="color: var(--emerald-green); font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="check-circle" style="width: 12px; height: 12px; color: var(--emerald-green); margin: 0;"></i> Stable transaction</span>';
                     
                     row.innerHTML = `
                         <td style="font-weight: 700; font-family: 'Outfit', sans-serif;">#${o.id}</td>
@@ -236,6 +238,7 @@
                 });
                 
                 renderCharts(data);
+                refreshIcons();
             });
     }
 
@@ -357,8 +360,8 @@
                             <strong style="font-size: 1.05rem; display: block; margin-bottom: 4px;">${p.name}</strong> 
                             <div style="display: flex; gap: 12px; align-items: center;">
                                 <span class="text-accent" style="font-weight: 800;">₹${p.price.toFixed(2)}</span>
-                                <span style="font-size:0.8rem; font-weight: 600;" class="${p.is_available ? 'text-emerald' : 'text-danger'}">
-                                    ${p.is_available ? '🟢 In Stock' : '🔴 Out of Stock'}
+                                <span style="font-size:0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" class="${p.is_available ? 'text-emerald' : 'text-danger'}">
+                                    ${p.is_available ? '<i data-lucide="check-circle" class="icon-inline" style="width: 12px; height: 12px; color: var(--emerald-green); margin: 0;"></i> In Stock' : '<i data-lucide="x-circle" class="icon-inline" style="width: 12px; height: 12px; color: var(--ruby-danger); margin: 0;"></i> Out of Stock'}
                                 </span>
                             </div>
                         </div>
@@ -369,6 +372,7 @@
                     `;
                     container.appendChild(row);
                 });
+                refreshIcons();
             });
     }
 
@@ -418,11 +422,12 @@
         document.getElementById("form-shop-select-group").style.display = "none";
         document.getElementById("form-prod-avail").value = isAvailable ? "1" : "0";
         
-        document.getElementById("form-action-title").innerText = "✏️ Edit Product";
+        document.getElementById("form-action-title").innerHTML = `<i data-lucide="edit-3" class="icon-inline" style="margin: 0; width: 16px; height: 16px; color: var(--primary-accent);"></i> Edit Product`;
         document.getElementById("form-cancel-btn").style.display = "block";
         
         // Scroll to form
         document.getElementById("form-action-title").scrollIntoView({ behavior: 'smooth' });
+        refreshIcons();
     }
 
     function deleteProduct(id) {
@@ -443,8 +448,9 @@
         document.getElementById("form-available-group").style.display = "none";
         document.getElementById("form-shop-select-group").style.display = "block";
         
-        document.getElementById("form-action-title").innerText = "➕ Add New Product";
+        document.getElementById("form-action-title").innerHTML = `<i data-lucide="plus" class="icon-inline" style="margin: 0; width: 16px; height: 16px; color: var(--primary-accent);"></i> Add New Product`;
         document.getElementById("form-cancel-btn").style.display = "none";
+        refreshIcons();
     }
 </script>
 {% endblock %}

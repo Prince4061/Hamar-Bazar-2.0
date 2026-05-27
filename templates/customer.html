@@ -5,32 +5,32 @@
 <div class="glass-card" style="background: linear-gradient(135deg, var(--primary-light) 0%, rgba(255,255,255,1) 100%); margin-bottom: 32px; display: flex; flex-direction: column; gap: 16px;">
     <div class="flex-between">
         <div>
-            <h1 class="screen-title">Hey, {{ session.get('name', 'Alice') }} 👋</h1>
+            <h1 class="screen-title">Hey, {{ session.get('name', 'Alice') }}!</h1>
             <p class="screen-subtitle">Everything you need, delivered in 10 minutes.</p>
         </div>
         <div style="display: flex; gap: 12px;">
-            <button class="btn btn-secondary" onclick="toggleExpensesModal()" style="width: auto; padding: 10px 16px;">📈 Insights</button>
+            <button class="btn btn-secondary" onclick="toggleExpensesModal()" style="width: auto; padding: 10px 16px; display: flex; align-items: center; gap: 6px;"><i data-lucide="trending-up" class="icon-inline" style="margin: 0;"></i> Insights</button>
         </div>
     </div>
     <div style="display: flex; align-items: center; gap: 12px;">
-        <span class="badge badge-status-delivered" style="font-size: 0.85rem;">⚡ Delivery: 10-15 mins</span>
-        <span class="badge badge-normal" style="font-size: 0.85rem;">📍 {{ session.get('address', 'Your Location') }}</span>
+        <span class="badge badge-status-delivered" style="font-size: 0.85rem; display: flex; align-items: center; gap: 4px;"><i data-lucide="zap" class="icon-inline" style="margin: 0; width: 14px; height: 14px;"></i> Delivery: 10-15 mins</span>
+        <span class="badge badge-normal" style="font-size: 0.85rem; display: flex; align-items: center; gap: 4px;"><i data-lucide="map-pin" class="icon-inline" style="margin: 0; width: 14px; height: 14px;"></i> {{ session.get('address', 'Your Location') }}</span>
     </div>
 </div>
 
 <!-- VOICE CART SECTION (INT-005) -->
 <div class="voice-banner">
     <div>
-        <h4 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 4px;">Smart Voice Ordering <span class="badge badge-normal" style="font-size: 0.65rem;">BETA</span></h4>
+        <h4 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">Smart Voice Ordering <span class="badge badge-normal" style="font-size: 0.65rem;">BETA</span></h4>
         <p id="voice-status" style="font-size: 0.95rem; color: var(--text-secondary);">Tap the mic and say "Add 2 Milk and 1 Bread"</p>
     </div>
-    <button id="mic-btn" class="voice-mic-btn" onclick="startVoiceInput()">🎤</button>
+    <button id="mic-btn" class="voice-mic-btn" onclick="startVoiceInput()"><i data-lucide="mic" style="width: 22px; height: 22px;"></i></button>
 </div>
 
 <!-- ACTIVE ORDER TRACKER TIMELINE (CUST-004) -->
 <div id="active-order-container" class="glass-card" style="display: none; border: 2px solid var(--primary-accent); box-shadow: var(--shadow-float);">
-    <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
-        <span style="font-size: 1.15rem; font-weight: 800;">📦 Active Order <span id="tracking-order-id" class="text-accent">#--</span></span>
+    <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; display: flex; align-items: center;">
+        <span style="font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 6px;"><i data-lucide="package" class="icon-inline" style="margin: 0;"></i> Active Order <span id="tracking-order-id" class="text-accent">#--</span></span>
         <span id="tracking-order-status" class="badge badge-status-pending">PENDING</span>
     </div>
     
@@ -65,7 +65,7 @@
     
     <div id="delivery-info-section" style="margin-top: 24px; padding-top: 20px; border-top: 2px dashed var(--border-color); display: none; background: #f8fafc; border-radius: var(--radius-md); padding: 16px;">
         <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
-            <div style="width: 48px; height: 48px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">🏍️</div>
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; color: var(--primary-accent);"><i data-lucide="bike" style="width: 24px; height: 24px;"></i></div>
             <div>
                 <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 2px;">Delivery Partner Assigned</p>
                 <p style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary);"><span id="rider-name">राहुल</span> • <span id="rider-phone" style="color: var(--primary-accent);">9000000001</span></p>
@@ -84,22 +84,22 @@
 </div>
 <div class="category-grid">
     <div class="category-card" onclick="selectCategory('KIRANA', 1)">
-        <span class="category-icon">🛒</span>
+        <i data-lucide="shopping-basket" class="category-icon-lucide"></i>
         <span class="category-name">Grocery</span>
         <span class="category-desc">Apna Bazaar</span>
     </div>
     <div class="category-card" onclick="selectCategory('CAKES', 2)">
-        <span class="category-icon">🎂</span>
+        <i data-lucide="cake" class="category-icon-lucide"></i>
         <span class="category-name">Cakes</span>
         <span class="category-desc">Bakers Table</span>
     </div>
     <div class="category-card" onclick="selectCategory('VEGGIES', 3)">
-        <span class="category-icon">🥦</span>
+        <i data-lucide="leaf" class="category-icon-lucide"></i>
         <span class="category-name">Veggies</span>
         <span class="category-desc">Fresh & Green</span>
     </div>
     <div class="category-card" onclick="selectCategory('ELECTRONICS', 4)">
-        <span class="category-icon">⚡</span>
+        <i data-lucide="cpu" class="category-icon-lucide"></i>
         <span class="category-name">Electronics</span>
         <span class="category-desc">ElectroWorld</span>
     </div>
@@ -120,8 +120,8 @@
         </div>
         
         <!-- Empty State for Shop selection -->
-        <div class="glass-card" id="shop-placeholder" style="text-align: center; padding: 80px 20px; border: 2px dashed var(--border-color);">
-            <span style="font-size: 4rem; display: block; margin-bottom: 16px;">☝️</span>
+        <div class="glass-card" id="shop-placeholder" style="text-align: center; padding: 80px 20px; border: 2px dashed var(--border-color); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <i data-lucide="compass" style="width: 48px; height: 48px; stroke-width: 1.5; color: var(--primary-accent); margin-bottom: 16px;"></i>
             <h4 style="font-size: 1.25rem; font-weight: 800;">Select a category to browse</h4>
             <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 8px;">Enjoy 10-minute delivery from our premium monopolistic partners.</p>
         </div>
@@ -130,20 +130,20 @@
     <!-- Cart Drawer (Sticky on Desktop) -->
     <div style="position: sticky; top: 100px;">
         <div class="glass-card">
-            <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">🛍️ Your Cart</h3>
+            <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; align-items: center; gap: 8px;"><i data-lucide="shopping-bag" class="icon-inline" style="margin: 0;"></i> Your Cart</h3>
             
             <div id="cart-items-container" style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
                 <!-- Cart items render here -->
                 <div style="text-align: center; padding: 40px 0;">
-                    <span style="font-size: 2.5rem; margin-bottom: 12px; display: block;">🛒</span>
+                    <i data-lucide="shopping-cart" style="width: 40px; height: 40px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 12px; display: inline-block;"></i>
                     <p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">Your cart is empty.</p>
                 </div>
             </div>
             
             <!-- SMART RECOMMENDATION BOX (INT-001) -->
             <div id="recommendation-box" style="display: none; background: #faf5ff; border: 1px solid #d8b4fe; padding: 16px; margin-bottom: 24px; border-radius: var(--radius-md);">
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <span style="font-size: 1rem;">✨</span>
+                <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+                    <i data-lucide="sparkles" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--primary-accent);"></i>
                     <span style="font-size: 0.8rem; color: var(--primary-accent); font-weight: 800; text-transform: uppercase;">AI Suggestion</span>
                 </div>
                 <div class="flex-between">
@@ -177,11 +177,11 @@
                 <div class="form-group mt-md">
                     <label class="form-label">Delivery Speed (INT-002)</label>
                     <div style="display: flex; gap: 12px;">
-                        <label style="flex: 1; text-align: center; border: 2px solid var(--primary-accent); background: var(--primary-light); padding: 12px; border-radius: var(--radius-md); cursor: pointer; display: block; font-weight: 700;">
-                            <input type="radio" name="priority" value="NORMAL" checked style="margin-right: 6px;"> Standard
+                        <label style="flex: 1; text-align: center; border: 2px solid var(--primary-accent); background: var(--primary-light); padding: 12px; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.95rem;">
+                            <input type="radio" name="priority" value="NORMAL" checked style="margin: 0;"> Standard
                         </label>
-                        <label style="flex: 1; text-align: center; border: 2px solid #fecaca; background: var(--ruby-light); padding: 12px; border-radius: var(--radius-md); cursor: pointer; display: block; color: var(--ruby-danger); font-weight: 700;">
-                            <input type="radio" name="priority" value="URGENT" style="margin-right: 6px;"> 🚨 Priority
+                        <label style="flex: 1; text-align: center; border: 2px solid #fecaca; background: var(--ruby-light); padding: 12px; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--ruby-danger); font-weight: 700; font-size: 0.95rem;">
+                            <input type="radio" name="priority" value="URGENT" style="margin: 0;"> <i data-lucide="zap" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--ruby-danger);"></i> Priority
                         </label>
                     </div>
                 </div>
@@ -297,7 +297,7 @@
             card.innerHTML = `
                 <div>
                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                        <span style="font-size: 2rem; background: #f1f5f9; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm);">📦</span>
+                        <span style="background: #f1f5f9; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--primary-accent);"><i data-lucide="package" style="width: 24px; height: 24px;"></i></span>
                         ${stockBadge}
                     </div>
                     <h5 class="product-name">${prod.name}</h5>
@@ -316,6 +316,7 @@
             `;
             container.appendChild(card);
         });
+        refreshIcons();
     }
 
     function addToCart(prodId, qty) {
@@ -349,9 +350,10 @@
         
         const keys = Object.keys(cart);
         if (keys.length === 0) {
-            container.innerHTML = `<div style="text-align: center; padding: 40px 0;"><span style="font-size: 2.5rem; margin-bottom: 12px; display: block;">🛒</span><p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">Your cart is empty.</p></div>`;
+            container.innerHTML = `<div style="text-align: center; padding: 40px 0;"><i data-lucide="shopping-cart" style="width: 40px; height: 40px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 12px; display: inline-block;"></i><p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">Your cart is empty.</p></div>`;
             document.getElementById("cart-summary-section").style.display = "none";
             document.getElementById("recommendation-box").style.display = "none";
+            refreshIcons();
             return;
         }
         
@@ -426,6 +428,7 @@
         document.getElementById("cart-subtotal").innerText = `₹${subtotal.toFixed(2)}`;
         document.getElementById("cart-gst").innerText = `₹${gst.toFixed(2)}`;
         document.getElementById("cart-grandtotal").innerText = `₹${grand.toFixed(2)}`;
+        refreshIcons();
     }
 
     function checkoutOrder() {

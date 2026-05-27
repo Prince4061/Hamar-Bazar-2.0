@@ -35,7 +35,7 @@
                 <!-- Admin -->
                 <div class="staff-desc-item purple-border">
                     <div class="staff-desc-icon-wrapper bg-purple">
-                        <span class="staff-icon">🛡️</span>
+                        <i data-lucide="shield" style="width: 20px; height: 20px; color: #6f2cf4;"></i>
                     </div>
                     <div class="staff-desc-text">
                         <h4>Admin</h4>
@@ -45,7 +45,7 @@
                 <!-- Vendor -->
                 <div class="staff-desc-item green-border">
                     <div class="staff-desc-icon-wrapper bg-green">
-                        <span class="staff-icon">🏪</span>
+                        <i data-lucide="store" style="width: 20px; height: 20px; color: #009c62;"></i>
                     </div>
                     <div class="staff-desc-text">
                         <h4>Vendor</h4>
@@ -55,7 +55,7 @@
                 <!-- Delivery Boy -->
                 <div class="staff-desc-item orange-border">
                     <div class="staff-desc-icon-wrapper bg-orange">
-                        <span class="staff-icon">🛵</span>
+                        <i data-lucide="bike" style="width: 20px; height: 20px; color: #f97316;"></i>
                     </div>
                     <div class="staff-desc-text">
                         <h4>Delivery Boy</h4>
@@ -66,7 +66,7 @@
 
             <div class="support-contact-container">
                 <button class="btn-support-contact" onclick="alert('Support channel is simulated. Please email support@morbazar.com')">
-                    <span style="font-size: 1.1rem; margin-right: 8px;">🎧</span> Need Help? Contact Support
+                    <i data-lucide="headset" class="icon-inline" style="margin-right: 8px;"></i> Need Help? Contact Support
                 </button>
             </div>
         </div>
@@ -88,13 +88,13 @@
                             <input type="hidden" name="role" id="selected-role" value="admin">
                             
                             <button type="button" class="role-selector-btn role-admin active" onclick="setRole('admin')">
-                                <span class="role-btn-icon">🛡️</span> Admin
+                                <span class="role-btn-icon"><i data-lucide="shield" style="width: 18px; height: 18px;"></i></span> Admin
                             </button>
                             <button type="button" class="role-selector-btn role-vendor" onclick="setRole('vendor')">
-                                <span class="role-btn-icon">🏪</span> Vendor
+                                <span class="role-btn-icon"><i data-lucide="store" style="width: 18px; height: 18px;"></i></span> Vendor
                             </button>
                             <button type="button" class="role-selector-btn role-delivery" onclick="setRole('delivery')">
-                                <span class="role-btn-icon">🛵</span> Delivery Boy
+                                <span class="role-btn-icon"><i data-lucide="bike" style="width: 18px; height: 18px;"></i></span> Delivery Boy
                             </button>
                         </div>
                     </div>
@@ -102,11 +102,13 @@
                     <div class="form-group staff-field-group">
                         <input type="text" id="staff-identifier" class="form-input-staff" placeholder="Enter ID / Email" required>
                     </div>
-                    <div id="staff-help-text" style="font-size: 0.825rem; color: var(--text-secondary); margin-top: -8px; margin-bottom: 12px; font-weight: 500; text-align: left; padding: 2px 4px; border-radius: 4px; background: rgba(0,0,0,0.02);"></div>
+                    <div id="staff-help-text" style="font-size: 0.825rem; color: var(--text-secondary); margin-top: -8px; margin-bottom: 12px; font-weight: 500; text-align: left; padding: 2px 4px; border-radius: 4px; background: rgba(0,0,0,0.02); display: flex; align-items: center; gap: 4px;"></div>
 
                     <div class="form-group staff-field-group" style="position: relative;">
                         <input type="password" id="staff-password" class="form-input-staff" placeholder="Password" required>
-                        <span class="password-toggle-eye" onclick="togglePasswordVisibility()">👁️</span>
+                        <span class="password-toggle-eye" onclick="togglePasswordVisibility()">
+                            <i data-lucide="eye" style="width: 18px; height: 18px;"></i>
+                        </span>
                     </div>
 
                     <div class="remember-forgot-row">
@@ -158,14 +160,15 @@
         const helpText = document.getElementById("staff-help-text");
         if (role === 'admin') {
             idInput.placeholder = "Enter ID / Email (e.g. admin)";
-            helpText.innerHTML = "💡 Pre-configured admin username: <code>admin</code>";
+            helpText.innerHTML = `<i data-lucide="lightbulb" class="icon-inline" style="width: 14px; height: 14px; color: var(--primary-accent); margin-right: 4px;"></i> Pre-configured admin username: <code>admin</code>`;
         } else if (role === 'vendor') {
             idInput.placeholder = "Enter ID / Email (e.g. kirana, cakes, veggies)";
-            helpText.innerHTML = "💡 Exclusive shops: <code>kirana</code>, <code>cakes</code>, <code>veggies</code>, <code>electronics</code>";
+            helpText.innerHTML = `<i data-lucide="lightbulb" class="icon-inline" style="width: 14px; height: 14px; color: var(--primary-accent); margin-right: 4px;"></i> Exclusive shops: <code>kirana</code>, <code>cakes</code>, <code>veggies</code>, <code>electronics</code>`;
         } else {
             idInput.placeholder = "Enter ID / Email (e.g. rahul, amit)";
-            helpText.innerHTML = "💡 Seed riders: <code>rahul</code>, <code>amit</code>, <code>vicky</code>";
+            helpText.innerHTML = `<i data-lucide="lightbulb" class="icon-inline" style="width: 14px; height: 14px; color: var(--primary-accent); margin-right: 4px;"></i> Seed riders: <code>rahul</code>, <code>amit</code>, <code>vicky</code>`;
         }
+        refreshIcons();
     }
 
     function togglePasswordVisibility() {

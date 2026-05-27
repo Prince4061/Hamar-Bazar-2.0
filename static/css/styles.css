@@ -1499,3 +1499,30 @@ body {
 .mt-md { margin-top: 24px; }
 .mb-sm { margin-bottom: 12px; }
 .w-full { width: 100%; }
+
+/* Lucide Icons Custom Sizing */
+.nav-icon i {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2.5;
+}
+.icon-inline {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+    stroke-width: 2.5;
+}
+.category-icon-lucide {
+    width: 48px;
+    height: 48px;
+    stroke-width: 2;
+    color: var(--primary-accent);
+    margin-bottom: 16px;
+    transition: var(--transition-bounce);
+}
+.category-card:hover .category-icon-lucide {
+    transform: scale(1.15) rotate(-5deg);
+    color: var(--primary-accent-hover);
+}
