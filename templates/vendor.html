@@ -139,7 +139,9 @@
         document.addEventListener('keydown', resumeAudio);
     });
 
-    // Web Audio Synthesizer for Loud Beep alerts (VEND-001)
+    let alarmAudio = null;
+
+    // Web Audio Synthesizer for Loud Beep alerts (VEND-001) - Fallback
     function triggerBeep(frequency = 880, duration = 0.3) {
         try {
             if (!audioContext) {
@@ -169,6 +171,25 @@
         if (alarmActive) return;
         alarmActive = true;
         
+        try {
+            if (!alarmAudio) {
+                alarmAudio = new Audio("https://res.cloudinary.com/dres0aek3/video/upload/20260528_123713_lvqapz.mp3");
+                alarmAudio.loop = true;
+            }
+            // If urgent, speed up the notification sound slightly (INT-002)
+            alarmAudio.playbackRate = isUrgent ? 1.4 : 1.0;
+            
+            alarmAudio.play().catch(e => {
+                console.warn("Custom notification sound playback failed, falling back to synthesizer beep:", e);
+                startBeepFallbackAlarm(isUrgent);
+            });
+        } catch (err) {
+            console.warn("Failed to instantiate Audio, falling back to synthesizer beep:", err);
+            startBeepFallbackAlarm(isUrgent);
+        }
+    }
+
+    function startBeepFallbackAlarm(isUrgent) {
         const beepFunc = () => {
             if (isUrgent) {
                 // Two rapid high-pitched beeps for Urgent order (INT-002)
@@ -179,12 +200,15 @@
                 triggerBeep(880, 0.4);
             }
         };
-        
         beepFunc();
         audioInterval = setInterval(beepFunc, 1500);
     }
 
     function stopLoudAlarm() {
+        if (alarmAudio) {
+            alarmAudio.pause();
+            alarmAudio.currentTime = 0;
+        }
         if (audioInterval) {
             clearInterval(audioInterval);
             audioInterval = null;
