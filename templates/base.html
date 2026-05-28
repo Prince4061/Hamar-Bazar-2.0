@@ -26,7 +26,7 @@
     </div>
     {% endif %}
 
-    <div class="app-container">
+    <div class="{% if request.path in ['/login', '/staff-login'] %}login-container-wrapper{% else %}app-container{% endif %}">
         <!-- Render page contents -->
         {% block content %}{% endblock %}
     </div>

@@ -9,7 +9,7 @@
             <rect x="4" y="8" width="16" height="13" rx="3.5"/>
             <path d="M8 16V13C8 12.4477 8.4477 12 9 12C9.5523 12 10 12.4477 10 13V16M10 13C10 12.4477 10.4477 12 11 12C11.5523 12 12 12.4477 12 13V16" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span><span style="color: var(--primary-accent)">Hamar</span><span style="color: var(--text-primary)">Bazaar</span></span>
+        <span class="hamar-logo-text"><span style="color: var(--primary-accent)">Hamar</span><span style="color: var(--text-primary)">Bazaar</span></span>
     </a>
     
     <!-- Location Selector Widget -->
@@ -19,7 +19,7 @@
         </div>
         <div class="location-text">
             <span class="location-lbl">Delivery in</span>
-            <span class="location-val">Model Town, Delhi <i data-lucide="chevron-down" style="width: 14px; height: 14px; stroke-width: 3;"></i></span>
+            <span class="location-val"><span class="location-name-text">Model Town, Delhi</span> <i data-lucide="chevron-down" style="width: 14px; height: 14px; stroke-width: 3;"></i></span>
         </div>
     </div>
     
@@ -47,9 +47,11 @@
         
         <!-- Profile Dropdown -->
         <div class="hamar-nav-profile" onclick="toggleDropdown(event, 'profile-dropdown')">
-            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80" alt="Profile" class="profile-avatar">
-            <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 4px;">{{ session.get('name', 'Alice') }} <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: var(--text-secondary);"></i></span>
-            <div class="glass-dropdown" id="profile-dropdown" style="display: none; right: 32px; top: 60px;">
+            <img src="{% if session.get('profile_pic') %}{{ session.get('profile_pic') }}{% else %}https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80{% endif %}" alt="Profile" class="profile-avatar" id="navbar-profile-avatar" style="object-fit: cover;">
+            <span class="hamar-profile-name" style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 4px;"><span id="customer-navbar-name">{{ session.get('name', 'Alice') }}</span> <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: var(--text-secondary);"></i></span>
+            <div class="glass-dropdown" id="profile-dropdown" style="display: none; right: 32px; top: 60px;" onclick="event.stopPropagation();">
+                <a href="#" onclick="toggleProfileModal(event)"><i data-lucide="user" class="icon-inline"></i> Profile</a>
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 6px 0;">
                 <a href="/session/logout" style="color: var(--ruby-danger);"><i data-lucide="log-out" class="icon-inline"></i> Logout</a>
             </div>
         </div>
@@ -70,10 +72,10 @@
 </div>
 
 <!-- Page Main Grid -->
-<div class="shop-section" style="grid-template-columns: 1.3fr 0.7fr; gap: 32px; padding-top: 24px;">
+<div class="shop-section" style="padding-top: 24px;">
     
     <!-- Left Column: Banner, Categories, Recommended -->
-    <div>
+    <div class="shop-left-col">
         <!-- ACTIVE ORDER TRACKER TIMELINE (CUST-004) -->
         <div id="active-order-container" class="glass-card mb-md" style="display: none; border: 2px solid var(--primary-accent); box-shadow: var(--shadow-float);">
             <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; display: flex; align-items: center;">
@@ -124,6 +126,19 @@
             </div>
         </div>
 
+        <!-- MOBILE SEARCH BAR (Visible only on mobile/tablet) -->
+        <div class="mobile-search-wrapper" style="display: none; margin-bottom: 24px; width: 100%;">
+            <div class="search-bar-container" style="display: flex; max-width: 100%; width: 100%; background: #ffffff; box-shadow: var(--shadow-soft);">
+                <input type="text" id="search-input-mobile" class="search-bar-input" placeholder="Search for products..." oninput="handleSearch(this.value)" onkeydown="if(event.key === 'Enter') triggerSearch()">
+                <button class="voice-mic-btn-inline" id="mic-btn-mobile" onclick="startVoiceInput()" title="Smart Voice Ordering" style="border: none; background: transparent; cursor: pointer; color: var(--text-secondary); margin-right: 10px; display: flex; align-items: center; transition: var(--transition-bounce);">
+                    <i data-lucide="mic" style="width: 18px; height: 18px;"></i>
+                </button>
+                <button class="search-bar-button" onclick="triggerSearch()">
+                    <i data-lucide="search" style="width: 18px; height: 18px;"></i>
+                </button>
+            </div>
+        </div>
+
         <!-- HERO BANNER -->
         <div class="hamar-hero-banner mb-md">
             <div class="hamar-hero-left">
@@ -153,7 +168,7 @@
             <div class="hamar-hero-right">
                 <img src="{{ url_for('static', filename='images/delivery_scooter.png') }}" class="hamar-hero-rider-img" alt="Rider">
                 <!-- Phone Frame Decor -->
-                <div style="position: absolute; right: 20px; top: -15px; width: 130px; height: 230px; background: #ffffff; border: 4px solid #1e293b; border-radius: 20px; z-index: 1; box-shadow: var(--shadow-premium); padding: 8px; display: flex; flex-direction: column; justify-content: space-between; text-align: left;">
+                <div class="hero-phone-decor">
                     <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
                         <span style="font-size:0.65rem; font-weight:800; color:var(--primary-accent);">ETA</span>
                         <span style="font-size:0.65rem; font-weight:800; color: var(--text-secondary);">30-45 min</span>
@@ -175,7 +190,7 @@
             <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary);">Shop by Category</h3>
             <a class="cart-edit-link" onclick="alert('Viewing all categories simulated.')" style="font-size: 0.9rem; display: flex; align-items: center; gap: 4px;">View all shops <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i></a>
         </div>
-        <div class="category-grid" style="grid-template-columns: repeat(4, 1fr); gap: 16px;">
+        <div class="category-grid">
             <div class="hamar-category-card category-card-kirana" onclick="selectCategory('KIRANA', 1)">
                 <div>
                     <div class="hamar-category-title">Kirana</div>
@@ -242,7 +257,7 @@
         </div>
         <div class="hamar-carousel-wrapper">
             <button class="carousel-btn-arrow carousel-btn-left" onclick="slideCarousel(-1)"><i data-lucide="chevron-left" style="width: 18px; height: 18px;"></i></button>
-            <div id="recommended-products-container" class="products-grid" style="width: 100%; overflow-x: auto; scroll-behavior: smooth; display: grid; grid-auto-flow: column; grid-auto-columns: calc(25% - 12px); gap: 16px; padding: 4px 4px 16px 4px; scrollbar-width: none;">
+            <div id="recommended-products-container" class="products-grid" style="width: 100%; overflow-x: auto; scroll-behavior: smooth; display: grid; grid-auto-flow: column; grid-auto-columns: 200px; gap: 16px; padding: 4px 4px 16px 4px; scrollbar-width: none;">
                 <!-- Preloaded dynamically on DOMContentLoaded -->
             </div>
             <button class="carousel-btn-arrow carousel-btn-right" onclick="slideCarousel(1)"><i data-lucide="chevron-right" style="width: 18px; height: 18px;"></i></button>
@@ -290,7 +305,7 @@
     </div>
     
     <!-- Right Column: Cart, Delivering Address, Payment -->
-    <div style="position: sticky; top: 100px; height: fit-content; display: flex; flex-direction: column; gap: 20px;">
+    <div class="hamar-sidebar">
         <!-- CART CARD -->
         <div class="glass-card" style="padding: 24px; text-align: left;" id="cart-card-workspace">
             <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
@@ -388,9 +403,63 @@
     </div>
 </div>
 
+<!-- PROFILE MODAL -->
+<div id="profile-modal" class="overlay-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header" style="display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="user" style="color: var(--primary-accent);"></i>
+            Edit Profile
+        </div>
+        <div class="modal-body" style="text-align: left;">
+            <div id="profile-error-msg" class="login-error-alert" style="display: none; margin-bottom: 16px;"></div>
+            
+            <!-- Avatar Section -->
+            <div class="profile-modal-avatar-container" style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px; background: #f8fafc; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                <div style="position: relative; width: 80px; height: 80px; border-radius: 50%; overflow: hidden; border: 2px solid var(--primary-accent); box-shadow: var(--shadow-soft);">
+                    <img id="profile-avatar-preview" src="" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">Profile Picture</span>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="file" id="avatar-file-input" accept="image/*" style="display: none;" onchange="handleAvatarUpload(this)">
+                        <label for="avatar-file-input" class="btn btn-secondary" style="font-size: 0.75rem; padding: 6px 12px; width: auto; margin: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; border-radius: 20px;">
+                            <i data-lucide="upload" style="width: 12px; height: 12px;"></i> Upload
+                        </label>
+                        <button type="button" class="btn" id="btn-remove-avatar" style="font-size: 0.75rem; padding: 6px 12px; width: auto; margin: 0; color: var(--ruby-danger); background: transparent; border: 1px solid var(--ruby-light); border-radius: 20px;" onclick="removeAvatar()">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label" style="font-weight: 700; margin-bottom: 6px; display: block; font-size: 0.85rem; color: var(--text-secondary);">Full Name</label>
+                <input type="text" id="profile-name-input" class="form-input-staff" style="width: 100%;" placeholder="Enter your name" required>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label" style="font-weight: 700; margin-bottom: 6px; display: block; font-size: 0.85rem; color: var(--text-secondary);">Mobile Number (Not Editable)</label>
+                <input type="text" id="profile-phone-input" class="form-input-staff" style="width: 100%; background: #f1f5f9; cursor: not-allowed;" readonly>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label class="form-label" style="font-weight: 700; margin-bottom: 6px; display: block; font-size: 0.85rem; color: var(--text-secondary);">Delivery Address</label>
+                <textarea id="profile-address-input" class="form-input-staff" style="width: 100%; height: 80px; resize: none; padding: 12px; font-family: inherit;" placeholder="Enter delivery address" required></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-secondary" style="flex: 1;" onclick="toggleProfileModal(event)">Cancel</button>
+                <button class="btn btn-primary" style="flex: 2;" onclick="saveProfile()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Client Actions Javascript Logic -->
 <script>
     const customerId = {{ active_user_id }};
+    let customerPhone = "";
+    let customerProfilePic = "{{ session.get('profile_pic') or '' }}";
     let currentShopId = null;
     let productsList = [];
     let cart = {}; // product_id -> {name, price, quantity}
@@ -409,6 +478,7 @@
             {% if u.id == active_user_id %}
                 document.getElementById("address-input").value = "{{ u.address }}";
                 document.getElementById("sidebar-address-display").innerText = "{{ u.address }}";
+                customerPhone = "{{ u.phone }}";
             {% endif %}
         {% endfor %}
         
@@ -918,6 +988,173 @@
             });
     }
 
+    // Profile Edit Modal Controls
+    function toggleProfileModal(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        // Hide profile dropdown if open
+        const dropdown = document.getElementById("profile-dropdown");
+        if (dropdown) dropdown.style.display = "none";
+        
+        const modal = document.getElementById("profile-modal");
+        const errorDiv = document.getElementById("profile-error-msg");
+        errorDiv.style.display = "none";
+        
+        if (modal.style.display === "none" || !modal.style.display) {
+            modal.style.display = "flex";
+            modal.classList.add("fade-in-up");
+            
+            // Populate inputs
+            document.getElementById("profile-name-input").value = document.getElementById("customer-navbar-name").innerText.trim();
+            document.getElementById("profile-phone-input").value = customerPhone;
+            document.getElementById("profile-address-input").value = document.getElementById("sidebar-address-display").innerText.trim();
+            
+            // Populate avatar details
+            const defaultAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80";
+            const previewImg = document.getElementById("profile-avatar-preview");
+            const removeBtn = document.getElementById("btn-remove-avatar");
+            
+            if (customerProfilePic) {
+                previewImg.src = customerProfilePic;
+                removeBtn.style.display = "inline-block";
+            } else {
+                previewImg.src = defaultAvatar;
+                removeBtn.style.display = "none";
+            }
+        } else {
+            modal.style.display = "none";
+        }
+    }
+
+    function handleAvatarUpload(input) {
+        if (!input.files || !input.files[0]) return;
+        
+        const file = input.files[0];
+        const errorDiv = document.getElementById("profile-error-msg");
+        errorDiv.style.display = "none";
+        
+        const formData = new FormData();
+        formData.append("avatar", file);
+        
+        fetch("/api/customer/profile/upload_avatar", {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                customerProfilePic = data.profile_pic;
+                
+                // Update avatar previews
+                document.getElementById("profile-avatar-preview").src = customerProfilePic;
+                document.getElementById("navbar-profile-avatar").src = customerProfilePic;
+                
+                // Show remove button
+                document.getElementById("btn-remove-avatar").style.display = "inline-block";
+                alert("Profile picture uploaded successfully!");
+                refreshIcons();
+            } else {
+                errorDiv.innerText = data.error || "Failed to upload avatar.";
+                errorDiv.style.display = "block";
+            }
+        })
+        .catch(err => {
+            console.error("Avatar upload error:", err);
+            errorDiv.innerText = "Connection error. Please try again.";
+            errorDiv.style.display = "block";
+        });
+        
+        // Reset file input value
+        input.value = "";
+    }
+
+    function removeAvatar() {
+        if (!confirm("Are you sure you want to remove your profile picture?")) return;
+        
+        const errorDiv = document.getElementById("profile-error-msg");
+        errorDiv.style.display = "none";
+        
+        fetch("/api/customer/profile/remove_avatar", {
+            method: "POST"
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                customerProfilePic = "";
+                
+                const defaultAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80";
+                document.getElementById("profile-avatar-preview").src = defaultAvatar;
+                document.getElementById("navbar-profile-avatar").src = defaultAvatar;
+                
+                // Hide remove button
+                document.getElementById("btn-remove-avatar").style.display = "none";
+                alert("Profile picture removed successfully!");
+                refreshIcons();
+            } else {
+                errorDiv.innerText = data.error || "Failed to remove profile picture.";
+                errorDiv.style.display = "block";
+            }
+        })
+        .catch(err => {
+            console.error("Avatar remove error:", err);
+            errorDiv.innerText = "Connection error. Please try again.";
+            errorDiv.style.display = "block";
+        });
+    }
+
+    function saveProfile() {
+        const nameInput = document.getElementById("profile-name-input").value.trim();
+        const addressInput = document.getElementById("profile-address-input").value.trim();
+        const errorDiv = document.getElementById("profile-error-msg");
+        
+        errorDiv.style.display = "none";
+        
+        if (!nameInput || !addressInput) {
+            errorDiv.innerText = "Name and Address are required.";
+            errorDiv.style.display = "block";
+            return;
+        }
+        
+        fetch("/api/customer/profile/update", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                customer_id: customerId,
+                name: nameInput,
+                address: addressInput
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // Update frontend navbar name
+                document.getElementById("customer-navbar-name").innerText = nameInput;
+                
+                // Update active checkout address display and input
+                document.getElementById("sidebar-address-display").innerText = addressInput;
+                document.getElementById("address-input").value = addressInput;
+                
+                // Close modal
+                document.getElementById("profile-modal").style.display = "none";
+                alert("Profile updated successfully!");
+                refreshIcons();
+            } else {
+                errorDiv.innerText = data.error || "Failed to update profile.";
+                errorDiv.style.display = "block";
+            }
+        })
+        .catch(err => {
+            console.error("Profile save error:", err);
+            errorDiv.innerText = "Connection error. Please try again.";
+            errorDiv.style.display = "block";
+        });
+    }
+
     // Speech ordering API integration
     let recognition = null;
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -927,13 +1164,19 @@
         recognition.lang = 'en-IN';
         
         recognition.onstart = () => {
-            document.getElementById("mic-btn").style.color = "var(--ruby-danger)";
+            const btn = document.getElementById("mic-btn");
+            const btnMob = document.getElementById("mic-btn-mobile");
+            if (btn) btn.style.color = "var(--ruby-danger)";
+            if (btnMob) btnMob.style.color = "var(--ruby-danger)";
             document.getElementById("voice-status-toast").style.display = "flex";
             document.getElementById("voice-status-text").innerText = "Listening... Speak your order.";
         };
         
         recognition.onend = () => {
-            document.getElementById("mic-btn").style.color = "var(--text-secondary)";
+            const btn = document.getElementById("mic-btn");
+            const btnMob = document.getElementById("mic-btn-mobile");
+            if (btn) btn.style.color = "var(--text-secondary)";
+            if (btnMob) btnMob.style.color = "var(--text-secondary)";
             setTimeout(() => {
                 document.getElementById("voice-status-toast").style.display = "none";
             }, 2500);
@@ -1032,7 +1275,15 @@
     }
     
     function triggerSearch() {
-        const query = document.getElementById("search-input").value;
+        const desktopInput = document.getElementById("search-input");
+        const mobileInput = document.getElementById("search-input-mobile");
+        
+        let query = "";
+        if (desktopInput && window.getComputedStyle(desktopInput.parentElement).display !== 'none') {
+            query = desktopInput.value;
+        } else if (mobileInput) {
+            query = mobileInput.value;
+        }
         handleSearch(query);
     }
     

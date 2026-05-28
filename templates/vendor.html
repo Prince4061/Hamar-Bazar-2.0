@@ -1394,6 +1394,67 @@
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
             }
         }
+
+        /* ==========================================================================
+           Responsive Layout Overrides for Mobile and Tablet
+           ========================================================================== */
+        @media (max-width: 1024px) {
+            body {
+                flex-direction: column !important;
+            }
+            .sidebar {
+                display: none !important;
+            }
+            .main-panel {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 24px 16px !important;
+                gap: 24px !important;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 16px !important;
+            }
+            .dashboard-row {
+                grid-template-columns: 1fr !important;
+                gap: 24px !important;
+            }
+            .main-header {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 16px !important;
+            }
+            .header-actions {
+                width: 100% !important;
+                justify-content: space-between !important;
+                flex-wrap: wrap !important;
+                gap: 12px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .welcome-title {
+                font-size: 1.4rem !important;
+            }
+            .stats-card {
+                padding: 16px !important;
+                gap: 12px !important;
+            }
+            .stats-icon-box {
+                width: 40px !important;
+                height: 40px !important;
+            }
+            .stats-value {
+                font-size: 1.25rem !important;
+            }
+            .card-header {
+                flex-wrap: wrap !important;
+                gap: 12px !important;
+            }
+        }
     </style>
 </head>
 <body>

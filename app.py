@@ -8,6 +8,13 @@ app = Flask(__name__)
 app.secret_key = 'hyperlocal_monopolistic_secret_key_12345'
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'marketplace.db')
 
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'profile_pics')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -36,9 +43,10 @@ def switch_session():
     db = get_db()
     cursor = db.cursor()
     if role == 'customer':
-        cursor.execute("SELECT name FROM users WHERE id = ?", (role_id,))
+        cursor.execute("SELECT name, profile_pic FROM users WHERE id = ?", (role_id,))
         row = cursor.fetchone()
         session['name'] = row['name'] if row else 'Customer'
+        session['profile_pic'] = row['profile_pic'] if row else None
     elif role == 'vendor':
         cursor.execute("SELECT shop_name FROM shops WHERE id = ?", (role_id,))
         row = cursor.fetchone()
@@ -89,20 +97,24 @@ def login():
             
         db = get_db()
         cursor = db.cursor()
-        cursor.execute("SELECT * FROM users WHERE phone LIKE ? OR name LIKE ?", (f"%{phone}%", f"%{username}%"))
+        cursor.execute("SELECT * FROM users WHERE phone = ?", (phone,))
         user = cursor.fetchone()
         
         if user:
+            # Enforce password verification
+            if user['password'] and user['password'] != password:
+                return jsonify({'success': False, 'error': 'Incorrect password for this account.'})
             session['role'] = 'customer'
             session['role_id'] = user['id']
             session['name'] = user['name']
+            session['profile_pic'] = user['profile_pic']
             return jsonify({'success': True, 'redirect': '/customer'})
         else:
             # Dynamically register/create a new customer if phone number doesn't exist
             # This implements "anyone can login by their credentials"
             new_address = "Sector 4, Local Area"
             try:
-                cursor.execute("INSERT INTO users (name, phone, address) VALUES (?, ?, ?)", (username, phone, new_address))
+                cursor.execute("INSERT INTO users (name, phone, address, password) VALUES (?, ?, ?, ?)", (username, phone, new_address, password))
                 db.commit()
                 # Get the newly created user
                 cursor.execute("SELECT * FROM users WHERE id = ?", (cursor.lastrowid,))
@@ -110,6 +122,7 @@ def login():
                 session['role'] = 'customer'
                 session['role_id'] = user['id']
                 session['name'] = user['name']
+                session['profile_pic'] = user['profile_pic']
                 return jsonify({'success': True, 'redirect': '/customer'})
             except Exception as e:
                 return jsonify({'success': False, 'error': f'Failed to create user: {str(e)}'})
@@ -426,6 +439,115 @@ def get_customer_expenses(customer_id):
         'categories': categories,
         'total_spent_overall': round(total_all, 2)
     })
+
+@app.route('/api/customer/profile/update', methods=['POST'])
+def update_profile():
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Please login as customer.'}), 403
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+    customer_id = data.get('customer_id')
+    name = data.get('name', '').strip()
+    address = data.get('address', '').strip()
+    
+    if not customer_id or not name or not address:
+        return jsonify({'error': 'Name, Address and Customer ID are required.'}), 400
+        
+    if int(customer_id) != session.get('role_id'):
+        return jsonify({'error': 'Unauthorized. Customer ID does not match session.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("UPDATE users SET name = ?, address = ? WHERE id = ?", (name, address, int(customer_id)))
+        db.commit()
+        session['name'] = name
+        return jsonify({'success': True, 'message': 'Profile updated successfully.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to update profile: {str(e)}'}), 500
+
+@app.route('/api/customer/profile/upload_avatar', methods=['POST'])
+def upload_avatar():
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Please login as customer.'}), 403
+        
+    if 'avatar' not in request.files:
+        return jsonify({'error': 'No file part in the request.'}), 400
+        
+    file = request.files['avatar']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file.'}), 400
+        
+    if file and allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        customer_id = session.get('role_id')
+        filename = f"profile_{customer_id}.{ext}"
+        
+        # Ensure upload folder exists
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        
+        # Remove any other profile avatar files of this user with different extensions to avoid duplicate files
+        for allowed_ext in ALLOWED_EXTENSIONS:
+            old_filename = f"profile_{customer_id}.{allowed_ext}"
+            old_path = os.path.join(UPLOAD_FOLDER, old_filename)
+            if os.path.exists(old_path):
+                try:
+                    os.remove(old_path)
+                except Exception:
+                    pass
+                    
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(file_path)
+        
+        # Path relative to static/
+        relative_path = f"/static/uploads/profile_pics/{filename}"
+        
+        db = get_db()
+        cursor = db.cursor()
+        try:
+            cursor.execute("UPDATE users SET profile_pic = ? WHERE id = ?", (relative_path, customer_id))
+            db.commit()
+            session['profile_pic'] = relative_path
+            return jsonify({'success': True, 'profile_pic': relative_path, 'message': 'Profile picture uploaded successfully.'})
+        except Exception as e:
+            return jsonify({'error': f'Database update failed: {str(e)}'}), 500
+    else:
+        return jsonify({'error': 'File type not allowed. Allowed types are png, jpg, jpeg, webp, gif.'}), 400
+
+@app.route('/api/customer/profile/remove_avatar', methods=['POST'])
+def remove_avatar():
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Please login as customer.'}), 403
+        
+    customer_id = session.get('role_id')
+    db = get_db()
+    cursor = db.cursor()
+    
+    try:
+        # Get current path to delete file
+        cursor.execute("SELECT profile_pic FROM users WHERE id = ?", (customer_id,))
+        row = cursor.fetchone()
+        if row and row['profile_pic']:
+            relative_path = row['profile_pic']
+            # Convert static path back to OS path
+            static_prefix = "/static/"
+            if relative_path.startswith(static_prefix):
+                file_rel = relative_path[len(static_prefix):]
+                abs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', file_rel.replace('/', os.sep))
+                if os.path.exists(abs_path):
+                    try:
+                        os.remove(abs_path)
+                    except Exception:
+                        pass
+                        
+        cursor.execute("UPDATE users SET profile_pic = NULL WHERE id = ?", (customer_id,))
+        db.commit()
+        session['profile_pic'] = None
+        return jsonify({'success': True, 'message': 'Profile picture removed successfully.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to remove profile picture: {str(e)}'}), 500
 
 # --- Vendor APIs ---
 

@@ -18,9 +18,22 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         phone TEXT UNIQUE NOT NULL,
-        address TEXT NOT NULL
+        address TEXT NOT NULL,
+        profile_pic TEXT,
+        password TEXT
     )
     ''')
+    
+    # Migration helpers for existing databases
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN profile_pic TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+        
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN password TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
     
     # 2. Shops Table
     cursor.execute('''
@@ -104,15 +117,16 @@ def seed_db():
     
     # Seed Users
     users_data = [
-        ('Alice Sharma', '9876543210', 'Flat 101, Sunshine Apartments, Sector 4'),
-        ('Bob Verma', '8765432109', 'House 23, Green Valley Colony, Road 2'),
-        ('Charlie Gupta', '7654321098', 'Penthouse B, Skyline Heights, Main Road')
+        ('Alice Sharma', '9876543210', 'Flat 101, Sunshine Apartments, Sector 4', 'password123'),
+        ('Bob Verma', '8765432109', 'House 23, Green Valley Colony, Road 2', 'password123'),
+        ('Charlie Gupta', '7654321098', 'Penthouse B, Skyline Heights, Main Road', 'password123')
     ]
     for user in users_data:
         try:
-            cursor.execute('INSERT INTO users (name, phone, address) VALUES (?, ?, ?)', user)
+            cursor.execute('INSERT INTO users (name, phone, address, password) VALUES (?, ?, ?, ?)', user)
         except sqlite3.IntegrityError:
-            pass # Already exists
+            # Update password for existing users to ensure they have the default password
+            cursor.execute('UPDATE users SET password = ? WHERE phone = ?', ('password123', user[1]))
             
     # Seed Shops
     shops_data = [
