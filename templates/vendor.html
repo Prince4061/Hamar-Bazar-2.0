@@ -1,451 +1,2692 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ session.get('name', 'Apna Bazaar') }} - Vendor Dashboard</title>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Plus Jakarta Sans Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #009c62;
+            --primary-hover: #007f50;
+            --primary-light: #ecfdf5;
+            --primary-glow: rgba(0, 156, 98, 0.1);
+            
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #f1f5f9;
+            --border-hover: #e2e8f0;
+            
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            
+            --orange: #f97316;
+            --orange-light: #fff7ed;
+            --blue: #2563eb;
+            --blue-light: #dbeafe;
+            --purple: #7c3aed;
+            --purple-light: #f3e8ff;
+            --red: #ef4444;
+            --red-light: #fef2f2;
+            
+            --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.02);
+            --shadow-md: 0 10px 30px -5px rgba(0, 0, 0, 0.04), 0 4px 10px -5px rgba(0, 0, 0, 0.01);
+            --shadow-card: 0 20px 40px -10px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.01);
+            --shadow-float: 0 30px 60px -15px rgba(0, 156, 98, 0.12);
+            
+            --radius-xl: 18px;
+            --radius-lg: 12px;
+            --radius-md: 8px;
+            --radius-sm: 6px;
+            
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
 
-{% block content %}
-<div class="glass-card fade-in-up" style="background: linear-gradient(135deg, var(--primary-light) 0%, rgba(255,255,255,1) 100%); margin-bottom: 32px;">
-    <div class="flex-between">
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar Styling (Desktop) */
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-card);
+            border-right: 1px solid var(--border-color);
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 32px 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: var(--transition);
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 40px;
+            padding-left: 8px;
+        }
+
+        .brand-logo {
+            width: 42px;
+            height: 42px;
+            background-color: var(--primary-light);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+
+        .brand-logo i {
+            width: 22px;
+            height: 22px;
+        }
+
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+        }
+
+        .brand-category {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: var(--radius-lg);
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .nav-link:hover {
+            background-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .nav-link.active {
+            background-color: var(--primary);
+            color: #ffffff;
+        }
+
+        .nav-link.active i {
+            color: #ffffff;
+        }
+
+        .nav-link i {
+            width: 20px;
+            height: 20px;
+            color: var(--text-muted);
+            transition: var(--transition);
+        }
+
+        .nav-link:hover i {
+            color: var(--text-secondary);
+        }
+
+        .logout-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            color: var(--red);
+            text-decoration: none;
+            border-radius: var(--radius-lg);
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: var(--transition);
+            margin-top: auto;
+        }
+
+        .logout-link:hover {
+            background-color: var(--red-light);
+        }
+
+        .logout-link i {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Main Content Styling */
+        .main-panel {
+            margin-left: 260px;
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            max-width: 1300px;
+            width: calc(100% - 260px);
+        }
+
+        /* Header Bar */
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .welcome-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+
+        .welcome-subtitle {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .notification-bell {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            position: relative;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .notification-bell:hover {
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+        }
+
+        .bell-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: var(--red);
+            color: #ffffff;
+            font-size: 0.65rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--bg-card);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 6px 16px 6px 6px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .user-profile:hover {
+            border-color: var(--border-hover);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+
+        .user-details {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        .user-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .user-role {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .user-chevron {
+            width: 14px;
+            height: 14px;
+            color: var(--text-muted);
+            margin-left: 4px;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            width: 100%;
+        }
+
+        .stats-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: var(--shadow-soft);
+            transition: var(--transition);
+        }
+
+        .stats-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--border-hover);
+        }
+
+        .stats-icon-box {
+            width: 52px;
+            height: 52px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stats-icon-box.green { background-color: var(--primary-light); color: var(--primary); }
+        .stats-icon-box.orange { background-color: var(--orange-light); color: var(--orange); }
+        .stats-icon-box.blue { background-color: var(--blue-light); color: var(--blue); }
+        .stats-icon-box.purple { background-color: var(--purple-light); color: var(--purple); }
+
+        .stats-icon-box i {
+            width: 24px;
+            height: 24px;
+        }
+
+        .stats-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .stats-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .stats-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
+        }
+
+        .stats-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .stats-sub.orange-text {
+            color: var(--orange);
+        }
+
+        /* Split Section: Orders & Detail Card */
+        .dashboard-row {
+            display: grid;
+            grid-template-columns: 1.8fr 1.2fr;
+            gap: 24px;
+            width: 100%;
+        }
+
+        .section-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 28px;
+            box-shadow: var(--shadow-soft);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title i {
+            width: 20px;
+            height: 20px;
+            color: var(--primary);
+        }
+
+        .card-action-link {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .card-action-link:hover {
+            color: var(--primary-hover);
+        }
+
+        /* Recent Orders Table */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .orders-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        .orders-table th {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .orders-table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            vertical-align: middle;
+        }
+
+        .orders-table tr {
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .orders-table tr:hover {
+            background-color: var(--bg-main);
+        }
+
+        .orders-table tr.selected-row {
+            background-color: var(--primary-light);
+        }
+
+        .orders-table tr.selected-row td {
+            color: var(--text-primary);
+        }
+
+        .order-id {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .customer-cell {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .items-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .items-count {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .items-list {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
+        }
+
+        .amount-cell {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .time-cell {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+
+        .status-badge.pending { background-color: var(--orange-light); color: var(--orange); }
+        .status-badge.accepted { background-color: var(--blue-light); color: var(--blue); }
+        .status-badge.ready { background-color: var(--purple-light); color: var(--purple); }
+        .status-badge.dispatched { background-color: #ccfbf1; color: #0d9488; }
+        .status-badge.delivered { background-color: var(--primary-light); color: var(--primary); }
+        .status-badge.failed { background-color: var(--red-light); color: var(--red); }
+
+        /* Order Details / OTP Panel (Right) */
+        .detail-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .otp-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .otp-card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .otp-card-title i {
+            color: var(--primary);
+            width: 18px;
+            height: 18px;
+        }
+
+        .otp-shield-icon {
+            color: var(--primary);
+            width: 20px;
+            height: 20px;
+        }
+
+        .otp-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .otp-digits-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 8px 0;
+        }
+
+        .otp-digit-box {
+            background-color: var(--primary-light);
+            border: 2px solid rgba(0, 156, 98, 0.2);
+            border-radius: var(--radius-lg);
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .otp-timer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .otp-timer i {
+            width: 14px;
+            height: 14px;
+            color: var(--text-muted);
+        }
+
+        .btn-green-action {
+            width: 100%;
+            background-color: var(--primary);
+            color: #ffffff;
+            border: none;
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .btn-green-action:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px var(--primary-glow);
+        }
+
+        .btn-green-action i {
+            width: 18px;
+            height: 18px;
+        }
+
+        .otp-footer {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: center;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+
+        /* Order Details Fallback Layout */
+        .order-detail-summary {
+            background-color: var(--bg-main);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .detail-label {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .detail-value {
+            color: var(--text-primary);
+            font-weight: 700;
+            text-align: right;
+            max-width: 180px;
+            word-break: break-word;
+        }
+
+        .detail-value.address {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .items-detail-list {
+            margin-top: 4px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .item-detail-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .item-detail-name {
+            font-weight: 600;
+        }
+
+        .item-detail-qty {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Inventory Overview Section */
+        .inventory-section {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 28px;
+            box-shadow: var(--shadow-soft);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .search-box-container {
+            position: relative;
+            width: 280px;
+        }
+
+        .search-input {
+            width: 100%;
+            background-color: var(--bg-main);
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
+            padding: 10px 16px 10px 40px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            background-color: var(--bg-card);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .search-box-container i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            color: var(--text-muted);
+        }
+
+        /* Product Cards / Table */
+        .inventory-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        .inventory-table th {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .inventory-table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            vertical-align: middle;
+        }
+
+        .product-cell {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .product-image {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.35rem;
+            flex-shrink: 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+        }
+
+        .product-name {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stock-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .stock-badge.in-stock { background-color: var(--primary-light); color: var(--primary); }
+        .stock-badge.out-of-stock { background-color: var(--red-light); color: var(--red); }
+
+        /* iOS Switch Toggle */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Footer */
+        .footer {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-align: center;
+            font-weight: 600;
+            padding: 24px 0 0 0;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Alerts overlay modal */
+        .overlay-modal {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 24px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-content {
+            background-color: var(--bg-card);
+            border-radius: var(--radius-xl);
+            width: 100%;
+            max-width: 460px;
+            box-shadow: var(--shadow-float);
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            border: 1px solid var(--border-color);
+            animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal-header {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+        }
+
+        .modal-header i {
+            color: var(--primary);
+            width: 22px;
+            height: 22px;
+        }
+
+        .modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-customer-info {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background-color: var(--bg-main);
+            padding: 12px 16px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-customer-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-light);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-customer-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-customer-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .modal-customer-phone {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .modal-order-items {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+        }
+
+        .modal-items-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .modal-items-list {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .btn-modal-mute {
+            flex: 1;
+            background-color: var(--bg-main);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 14px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-modal-mute:hover {
+            background-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-modal-accept {
+            flex: 2;
+            background-color: var(--primary);
+            color: #ffffff;
+            border: none;
+            border-radius: var(--radius-lg);
+            padding: 14px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .btn-modal-accept:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .badge-urgent-flash {
+            background-color: var(--red-light);
+            color: var(--red);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 4px;
+            align-self: flex-start;
+        }
+
+        /* Mobile Header */
+        .mobile-header {
+            display: none;
+        }
+
+        /* Mobile Bottom Nav */
+        .mobile-bottom-nav {
+            display: none;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Responsive Layout Rules */
+        @media (max-width: 960px) {
+            .sidebar {
+                transform: translateX(-260px);
+                display: none;
+            }
+
+            body {
+                flex-direction: column;
+                padding-bottom: 80px;
+            }
+
+            .main-panel {
+                margin-left: 0;
+                width: 100%;
+                padding: 16px;
+                gap: 20px;
+                max-width: 100%;
+            }
+
+            .mobile-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background-color: var(--bg-card);
+                border-bottom: 1px solid var(--border-color);
+                padding: 12px 16px;
+                position: sticky;
+                top: 0;
+                z-index: 200;
+                width: 100%;
+            }
+
+            .mobile-header-left {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .mobile-menu-btn {
+                background: none;
+                border: none;
+                color: var(--text-secondary);
+                cursor: pointer;
+            }
+
+            .mobile-menu-btn i {
+                width: 24px;
+                height: 24px;
+            }
+
+            .mobile-brand-title {
+                font-family: 'Outfit', sans-serif;
+                font-size: 1rem;
+                font-weight: 800;
+                color: var(--text-primary);
+                letter-spacing: -0.3px;
+            }
+
+            .mobile-brand-category {
+                font-size: 0.7rem;
+                color: var(--text-muted);
+                font-weight: 600;
+            }
+
+            .mobile-header-right {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .mobile-header .notification-bell {
+                width: 36px;
+                height: 36px;
+            }
+
+            .mobile-header .bell-badge {
+                top: 6px;
+                right: 6px;
+            }
+
+            .mobile-header .user-avatar {
+                width: 32px;
+                height: 32px;
+            }
+
+            /* Welcome titles */
+            .welcome-title {
+                font-size: 1.35rem;
+            }
+
+            .welcome-subtitle {
+                font-size: 0.85rem;
+            }
+
+            /* Stats grid 2x2 */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            .stats-card {
+                padding: 16px;
+                gap: 12px;
+                border-radius: var(--radius-lg);
+            }
+
+            .stats-icon-box {
+                width: 44px;
+                height: 44px;
+                border-radius: var(--radius-md);
+            }
+
+            .stats-icon-box i {
+                width: 20px;
+                height: 20px;
+            }
+
+            .stats-value {
+                font-size: 1.15rem;
+            }
+
+            .stats-label {
+                font-size: 0.75rem;
+            }
+
+            /* Row grid stack */
+            .dashboard-row {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .section-card {
+                padding: 16px;
+                border-radius: var(--radius-lg);
+            }
+
+            .inventory-section {
+                padding: 16px;
+                border-radius: var(--radius-lg);
+            }
+
+            .search-box-container {
+                width: 100%;
+            }
+
+            /* Table layouts scroll */
+            .table-responsive {
+                border-radius: var(--radius-md);
+            }
+
+            .orders-table td, .orders-table th {
+                padding: 12px;
+            }
+
+            /* Bottom nav bar */
+            .mobile-bottom-nav {
+                display: flex;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 64px;
+                background-color: var(--bg-card);
+                border-top: 1px solid var(--border-color);
+                box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.03);
+                z-index: 500;
+                align-items: center;
+                justify-content: space-around;
+            }
+
+            .mobile-nav-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+                color: var(--text-secondary);
+                text-decoration: none;
+                font-size: 0.7rem;
+                font-weight: 700;
+                cursor: pointer;
+                transition: var(--transition);
+                flex: 1;
+                height: 100%;
+            }
+
+            .mobile-nav-item i {
+                width: 20px;
+                height: 20px;
+                color: var(--text-muted);
+                transition: var(--transition);
+            }
+
+            .mobile-nav-item.active {
+                color: var(--primary);
+            }
+
+            .mobile-nav-item.active i {
+                color: var(--primary);
+            }
+
+            .mobile-nav-item.logout {
+                color: var(--red);
+            }
+            
+            .mobile-nav-item.logout i {
+                color: var(--red);
+            }
+
+            /* Sidebar toggle styling for mobile side overlay */
+            .sidebar.mobile-open {
+                display: flex;
+                transform: translateX(0);
+                position: fixed;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                z-index: 1000;
+                box-shadow: 20px 0 40px rgba(0,0,0,0.1);
+            }
+
+            .main-header .notification-bell,
+            .main-header .user-profile {
+                display: none;
+            }
+        }
+
+        /* Test Alarm Sound Button */
+        .btn-test-sound {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--primary);
+            background-color: var(--primary-light);
+            border: 1px solid rgba(0, 156, 98, 0.15);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-test-sound:hover {
+            background-color: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 156, 98, 0.15);
+        }
+
+        .btn-test-sound i {
+            width: 18px;
+            height: 18px;
+        }
+
+        .btn-test-sound.testing {
+            background-color: var(--red-light);
+            color: var(--red);
+            border-color: rgba(239, 68, 68, 0.2);
+            animation: pulseTesting 1.5s infinite;
+        }
+
+        .btn-test-sound.testing:hover {
+            background-color: var(--red);
+            color: #ffffff;
+            border-color: var(--red);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+        }
+
+        @keyframes pulseTesting {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Jinja logic to resolve shop attributes -->
+    {% set active_shop = namespace(category='KIRANA', shop_name='Apna Bazaar') %}
+    {% for shop in shops %}
+        {% if shop.id|string == active_shop_id|string %}
+            {% set active_shop.category = shop.category %}
+            {% set active_shop.shop_name = shop.shop_name %}
+        {% endif %}
+    {% endfor %}
+
+    <!-- Mobile Header -->
+    <header class="mobile-header">
+        <div class="mobile-header-left">
+            <button class="mobile-menu-btn" onclick="toggleMobileSidebar(event)">
+                <i data-lucide="menu"></i>
+            </button>
+            <div>
+                <h1 class="mobile-brand-title">{{ active_shop.shop_name }}</h1>
+                <span class="mobile-brand-category" id="mobile-category-label">...</span>
+            </div>
+        </div>
+        <div class="mobile-header-right">
+            <div class="notification-bell">
+                <i data-lucide="bell"></i>
+                <div class="bell-badge" style="display:none;" id="mobile-bell-badge">0</div>
+            </div>
+            <div class="user-avatar" id="mobile-avatar-box">..</div>
+        </div>
+    </header>
+
+    <!-- Sidebar Panel (Desktop/Slideout) -->
+    <aside class="sidebar" id="sidebar-menu">
         <div>
-            <h1 class="screen-title">{{ session.get('name', 'Apna Bazaar') }} Dashboard</h1>
-            <p class="screen-subtitle">Manage operations, toggle stock, and dispatch ready orders.</p>
-        </div>
-        <!-- Status indicator -->
-        <div style="display: flex; align-items: center; gap: 16px;">
-            <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; padding: 10px 16px; border-radius: 30px; box-shadow: var(--shadow-soft);">
-                <span style="width: 12px; height: 12px; border-radius: 50%; background: var(--primary-accent); display: inline-block; box-shadow: 0 0 10px var(--primary-accent); animation: pulseRing 1.5s infinite;"></span>
-                <span style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">Live System Active</span>
+            <div class="brand-section">
+                <div class="brand-logo">
+                    <i data-lucide="store"></i>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-name" title="{{ active_shop.shop_name }}">{{ active_shop.shop_name }}</span>
+                    <span class="brand-category" id="sidebar-category-label">Loading...</span>
+                </div>
             </div>
+            
+            <nav class="nav-menu">
+                <a class="nav-link active" id="link-dashboard" onclick="switchTab('dashboard')">
+                    <i data-lucide="layout-dashboard"></i>
+                    Dashboard
+                </a>
+                <a class="nav-link" id="link-inventory" onclick="switchTab('inventory')">
+                    <i data-lucide="package"></i>
+                    Inventory
+                </a>
+            </nav>
         </div>
-    </div>
-</div>
+        
+        <a href="/session/logout" class="logout-link">
+            <i data-lucide="log-out"></i>
+            Logout
+        </a>
+    </aside>
 
-<div class="shop-section">
-    <!-- Orders Board -->
-    <div>
-        <!-- Low Stock Prediction Warnings Banner (INT-004) -->
-        <div id="low-stock-alert-banner" class="fade-in-up" style="display: none; background: rgba(245, 158, 11, 0.08); border: 2px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-md); padding: 16px 20px; margin-bottom: 24px;">
-            <div style="display: flex; align-items: center; gap: 10px; color: var(--amber-warning); font-weight: 800; font-size: 1.05rem; margin-bottom: 12px;">
-                <i data-lucide="alert-triangle" style="width: 20px; height: 20px; color: var(--amber-warning);"></i> Stock Depletion Warning
+    <!-- Main Working Panel -->
+    <main class="main-panel">
+        
+        <!-- Low Stock Warning Banner -->
+        <div id="low-stock-alert-banner" class="fade-in-up" style="display: none; background: var(--orange-light); border: 1px solid rgba(249, 115, 22, 0.2); border-radius: var(--radius-xl); padding: 16px 20px;">
+            <div style="display: flex; align-items: center; gap: 8px; color: var(--orange); font-weight: 800; font-size: 0.95rem; margin-bottom: 8px;">
+                <i data-lucide="alert-triangle" style="width: 18px; height: 18px; color: var(--orange);"></i> Stock Depletion Warnings
             </div>
-            <ul id="low-stock-predictions-list" style="font-size: 0.9rem; color: var(--text-secondary); padding-left: 28px; line-height: 1.6; font-weight: 500;">
+            <ul id="low-stock-predictions-list" style="font-size: 0.85rem; color: var(--text-secondary); padding-left: 20px; line-height: 1.6; font-weight: 500;">
                 <!-- Filled dynamically -->
             </ul>
         </div>
 
-        <div class="glass-card">
-            <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px;">
-                <h3 style="font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 8px;"><i data-lucide="clipboard-list" class="icon-inline" style="margin: 0;"></i> Incoming Orders</h3>
-                <button class="btn-circle" onclick="loadOrders()" title="Refresh Orders" style="font-size: 1rem; display: flex; align-items: center; justify-content: center;"><i data-lucide="rotate-cw" style="width: 16px; height: 16px;"></i></button>
+        <!-- Dashboard View (Tab content) -->
+        <div id="dashboard-tab-view" style="display: flex; flex-direction: column; gap: 32px; width: 100%;">
+            
+            <!-- Dashboard Main Header -->
+            <div class="main-header">
+                <div>
+                    <h2 class="welcome-title">Welcome back, <span id="welcome-owner-name">Owner</span> 👋</h2>
+                    <p class="welcome-subtitle">Here's what's happening in your store.</p>
+                </div>
+                <div class="header-actions">
+                    <button id="btn-test-sound" class="btn-test-sound" onclick="toggleTestSound(event)">
+                        <i data-lucide="volume-2"></i>
+                        <span>Test Alarm Sound</span>
+                    </button>
+                    <div class="notification-bell">
+                        <i data-lucide="bell"></i>
+                        <div class="bell-badge" style="display:none;" id="desktop-bell-badge">0</div>
+                    </div>
+                    <div class="user-profile">
+                        <div class="user-avatar" id="desktop-avatar-box">..</div>
+                        <div class="user-details">
+                            <span class="user-name" id="profile-owner-name">Owner Name</span>
+                            <span class="user-role">Store Owner</span>
+                        </div>
+                        <i data-lucide="chevron-down" class="user-chevron"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Cards Grid -->
+            <section class="stats-grid">
+                <!-- Total Orders -->
+                <div class="stats-card">
+                    <div class="stats-icon-box green">
+                        <i data-lucide="shopping-bag"></i>
+                    </div>
+                    <div class="stats-info">
+                        <span class="stats-label">Total Orders</span>
+                        <span class="stats-value" id="stats-total-orders">0</span>
+                        <span class="stats-sub">Today</span>
+                    </div>
+                </div>
+                <!-- Pending Orders -->
+                <div class="stats-card">
+                    <div class="stats-icon-box orange">
+                        <i data-lucide="clipboard-list"></i>
+                    </div>
+                    <div class="stats-info">
+                        <span class="stats-label">Pending Orders</span>
+                        <span class="stats-value" id="stats-pending-orders">0</span>
+                        <span class="stats-sub orange-text" id="stats-pending-sub">Needs Action</span>
+                    </div>
+                </div>
+                <!-- Revenue -->
+                <div class="stats-card">
+                    <div class="stats-icon-box blue">
+                        <i data-lucide="indian-rupee"></i>
+                    </div>
+                    <div class="stats-info">
+                        <span class="stats-label">Today's Revenue</span>
+                        <span class="stats-value" id="stats-revenue">₹0</span>
+                        <span class="stats-sub">Today</span>
+                    </div>
+                </div>
+                <!-- Avg Prep Time -->
+                <div class="stats-card">
+                    <div class="stats-icon-box purple">
+                        <i data-lucide="clock"></i>
+                    </div>
+                    <div class="stats-info">
+                        <span class="stats-label">Avg. Prep Time</span>
+                        <span class="stats-value" id="stats-prep-time">18 min</span>
+                        <span class="stats-sub">Today</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard Split Row -->
+            <div class="dashboard-row">
+                
+                <!-- Recent Orders Column -->
+                <div class="section-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i data-lucide="history"></i>
+                            Recent Orders
+                        </h3>
+                        <span class="card-action-link" onclick="loadOrders()">Refresh</span>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="orders-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Items</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-table-body">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="empty-orders-placeholder" style="display:none; text-align: center; padding: 40px 10px; color: var(--text-muted);">
+                        <i data-lucide="check-circle-2" style="width: 42px; height: 42px; color: var(--primary); opacity: 0.6; margin-bottom: 12px; display: inline-block;"></i>
+                        <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">All caught up!</h4>
+                        <p style="font-size: 0.85rem;">No active orders right now.</p>
+                    </div>
+                </div>
+
+                <!-- OTP / Action Detail Card Column -->
+                <div class="detail-panel">
+                    <div class="section-card" id="detail-card">
+                        <!-- Loaded dynamically based on selected order -->
+                        <div id="detail-card-placeholder" style="text-align:center; padding:60px 20px; color:var(--text-muted);">
+                            <i data-lucide="info" style="width: 40px; height: 40px; color: var(--text-muted); opacity:0.4; margin-bottom:12px; display:inline-block;"></i>
+                            <p style="font-size:0.85rem; font-weight: 600;">Select an order from the list to view details and action controls here.</p>
+                        </div>
+                    </div>
+                </div>
+                
             </div>
             
-            <div class="order-queue-grid" id="orders-queue-container">
-                <!-- Loaded dynamically -->
-            </div>
+        </div>
+
+        <!-- Inventory View (Tab content / bottom row) -->
+        <div id="inventory-tab-view" style="width: 100%; display: flex; flex-direction: column; gap: 32px;">
             
-            <div id="empty-orders-placeholder" style="text-align: center; padding: 60px 10px; color: var(--text-muted);">
-                <i data-lucide="check-circle" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 16px; display: inline-block;"></i>
-                <h4 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">All caught up!</h4>
-                <p style="font-size: 1rem;">No active orders right now. We'll alert you when a request arrives.</p>
+            <section class="inventory-section" id="inventory-overview-card">
+                <div class="card-header" style="flex-wrap: wrap; gap: 16px;">
+                    <h3 class="card-title">
+                        <i data-lucide="package-search"></i>
+                        Inventory Overview
+                    </h3>
+                    <div class="search-box-container">
+                        <i data-lucide="search"></i>
+                        <input type="text" class="search-input" placeholder="Search products..." id="inventory-search-input" onkeyup="filterInventory()">
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-table-body">
+                            <!-- Loaded dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            
+        </div>
+
+        <!-- Web Footer -->
+        <footer class="footer">
+            <p>© 2026 {{ active_shop.shop_name }} Vendor Panel. All rights reserved.</p>
+        </footer>
+
+    </main>
+
+    <!-- Mobile Bottom Navigation -->
+    <div class="mobile-bottom-nav">
+        <a class="mobile-nav-item active" id="m-link-dashboard" onclick="switchTab('dashboard')">
+            <i data-lucide="layout-dashboard"></i>
+            Dashboard
+        </a>
+        <a class="mobile-nav-item" id="m-link-inventory" onclick="switchTab('inventory')">
+            <i data-lucide="package"></i>
+            Inventory
+        </a>
+        <a href="/session/logout" class="mobile-nav-item logout">
+            <i data-lucide="log-out"></i>
+            Logout
+        </a>
+    </div>
+
+    <!-- NEW ORDER POPUP MODAL (VEND-001) -->
+    <div id="new-order-modal" class="overlay-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i data-lucide="bell-ring" class="icon-inline" style="animation: pulseRing 1.5s infinite;"></i>
+                New Order Request!
+            </div>
+            <div class="modal-body">
+                <div class="modal-customer-info">
+                    <div class="modal-customer-icon">
+                        <i data-lucide="user"></i>
+                    </div>
+                    <div class="modal-customer-text">
+                        <span class="modal-customer-name" id="modal-customer-name">Customer Name</span>
+                        <span class="modal-customer-phone" id="modal-customer-phone">9999999999</span>
+                    </div>
+                </div>
+                
+                <div class="modal-order-items">
+                    <div class="modal-items-title">Order Contents</div>
+                    <div class="modal-items-list" id="modal-items-summary">Item 1, Item 2 x 2</div>
+                </div>
+
+                <div id="modal-priority-container">
+                    <!-- Urgent badge placed here dynamically -->
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn-modal-mute" onclick="muteCurrentOrder()">
+                        <i data-lucide="volume-x"></i> Mute
+                    </button>
+                    <button class="btn-modal-accept" id="modal-accept-btn">
+                        Accept Order
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Inventory Stock Controller Drawer (VEND-002) -->
-    <div style="position: sticky; top: 100px;">
-        <div class="glass-card">
-            <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; display: flex; align-items: center; gap: 8px;"><i data-lucide="package" class="icon-inline" style="margin: 0;"></i> Stock Control</h3>
-            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">Instantly hide items on the customer app if they run out.</p>
-            
-            <div id="inventory-list-container" style="display: flex; flex-direction: column; gap: 12px;">
-                <!-- Loaded dynamically -->
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- NEW ORDER POPUP MODAL (VEND-001) -->
-<div id="new-order-modal" class="overlay-modal" style="display: none;">
-    <div class="modal-content" style="border: 2px solid var(--primary-accent); box-shadow: var(--shadow-float);">
-        <div class="modal-header" style="display: flex; align-items: center; justify-content: center; gap: 8px;"><i data-lucide="bell" style="width: 22px; height: 22px; color: var(--primary-accent);"></i> New Request</div>
-        <div class="modal-body">
-            <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 24px;">
-                <div style="width: 64px; height: 64px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: var(--primary-accent); margin-bottom: 12px;"><i data-lucide="user" style="width: 32px; height: 32px;"></i></div>
-                <p style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary);" id="modal-customer-details">Customer: --</p>
-            </div>
-            
-            <div style="background: #f8fafc; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); text-align: left; margin-bottom: 24px;">
-                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px; display: block;">Order Contents</span>
-                <p style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary);" id="modal-items-summary">Items: --</p>
-            </div>
-
-            <div id="modal-priority-badge" style="margin-bottom: 32px;"></div>
-            
-            <div style="display: flex; gap: 16px;">
-                <button class="btn btn-secondary" onclick="muteCurrentOrder()" style="flex: 1; padding: 16px; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 6px;"><i data-lucide="volume-x" class="icon-inline" style="margin: 0;"></i> Mute</button>
-                <button class="btn btn-primary" id="modal-accept-btn" style="flex: 2; padding: 16px; font-size: 1.1rem;">Accept Now</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    const shopId = {{ active_shop_id }};
-    let ordersList = [];
-    let currentAlertingOrderId = null;
-    let pollInterval = null;
-    let audioInterval = null;
-    let audioContext = null;
-    let alarmActive = false;
-
-    // Helper functions for muting order notifications (VEND-001)
-    function getMutedOrders() {
-        try {
-            return JSON.parse(localStorage.getItem(`muted_orders_${shopId}`)) || [];
-        } catch (e) {
-            return [];
-        }
-    }
-    
-    function muteOrder(orderId) {
-        let muted = getMutedOrders();
-        if (!muted.includes(orderId)) {
-            muted.push(orderId);
-            localStorage.setItem(`muted_orders_${shopId}`, JSON.stringify(muted));
-        }
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-        // First load
-        loadOrders();
-        loadInventory();
-        loadStockPredictions();
+    <script>
+        const shopId = {{ active_shop_id }};
+        const shopCategory = "{{ active_shop.category }}";
         
-        // Setup polling (every 10 seconds)
-        pollInterval = setInterval(() => {
+        let ordersList = [];
+        let inventoryList = [];
+        let selectedOrderId = null;
+        
+        let currentAlertingOrderId = null;
+        let pollInterval = null;
+        let audioInterval = null;
+        let audioContext = null;
+        let alarmActive = false;
+        let alarmAudio = null;
+        let testSoundActive = false;
+        let testSoundTimeout = null;
+
+        // Custom global refreshIcons definition to update Lucide icons without base.html
+        function refreshIcons() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
+        
+        // Timer intervals map
+        let countdownIntervals = {};
+
+        // Owner names and category label maps
+        const ownerMap = {
+            'KIRANA': 'Ravi Kumar',
+            'CAKES': 'Pooja Sharma',
+            'VEGGIES': 'Amit Patel',
+            'ELECTRONICS': 'Vikram Sen'
+        };
+
+        const categoryLabelMap = {
+            'KIRANA': 'Kirana Store',
+            'CAKES': 'Premium Bakery',
+            'VEGGIES': 'Organic Produce',
+            'ELECTRONICS': 'Electronics Outlet'
+        };
+
+        // Thumbnail icons matching product names
+        const emojiMap = {
+            'milk': { emoji: '🥛', color: '#e0f2fe' },
+            'bread': { emoji: '🍞', color: '#fef3c7' },
+            'lays': { emoji: '🍿', color: '#fee2e2' },
+            'chips': { emoji: '🍿', color: '#fee2e2' },
+            'butter': { emoji: '🧈', color: '#fef9c3' },
+            'toothpaste': { emoji: '🪥', color: '#e2e8f0' },
+            'colgate': { emoji: '🪥', color: '#e2e8f0' },
+            'cake': { emoji: '🍰', color: '#fce7f3' },
+            'truffle': { emoji: '🍰', color: '#fce7f3' },
+            'velvet': { emoji: '🍰', color: '#fce7f3' },
+            'candles': { emoji: '🕯️', color: '#f3e8ff' },
+            'candle': { emoji: '🕯️', color: '#f3e8ff' },
+            'cap': { emoji: '🥳', color: '#eefbf5' },
+            'birthday': { emoji: '🥳', color: '#eefbf5' },
+            'potato': { emoji: '🥔', color: '#fef3c7' },
+            'tomato': { emoji: '🍅', color: '#fee2e2' },
+            'onion': { emoji: '🧅', color: '#f1f5f9' },
+            'coriander': { emoji: '🌿', color: '#dcfce7' },
+            'lemon': { emoji: '🍋', color: '#fef9c3' },
+            'cable': { emoji: '🔌', color: '#f1f5f9' },
+            'usb': { emoji: '🔌', color: '#f1f5f9' },
+            'earphones': { emoji: '🎧', color: '#e0f2fe' },
+            'battery': { emoji: '🔋', color: '#dcfce7' },
+            'plug': { emoji: '🔌', color: '#f3e8ff' }
+        };
+
+        function getProductThumbnail(name) {
+            if (!name) return { emoji: '📦', color: '#f1f5f9' };
+            const lowerName = name.toLowerCase();
+            for (const key in emojiMap) {
+                if (lowerName.includes(key)) {
+                    return emojiMap[key];
+                }
+            }
+            return { emoji: '📦', color: '#f1f5f9' };
+        }
+
+        // Initialize display and styling
+        document.addEventListener("DOMContentLoaded", () => {
+            // Resolve Owner Name & Category labels
+            const ownerName = ownerMap[shopCategory] || 'Store Owner';
+            const categoryLabel = categoryLabelMap[shopCategory] || 'Local Merchant';
+            
+            const sidebarCategory = document.getElementById('sidebar-category-label');
+            if (sidebarCategory) sidebarCategory.innerText = categoryLabel;
+            
+            const mobileCategory = document.getElementById('mobile-category-label');
+            if (mobileCategory) mobileCategory.innerText = categoryLabel;
+            
+            const welcomeOwner = document.getElementById('welcome-owner-name');
+            if (welcomeOwner) welcomeOwner.innerText = ownerName;
+            
+            const profileOwner = document.getElementById('profile-owner-name');
+            if (profileOwner) profileOwner.innerText = ownerName;
+            
+            // Set initials for avatars
+            const initials = ownerName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            const desktopAvatar = document.getElementById('desktop-avatar-box');
+            if (desktopAvatar) desktopAvatar.innerText = initials;
+            
+            const mobileAvatar = document.getElementById('mobile-avatar-box');
+            if (mobileAvatar) mobileAvatar.innerText = initials;
+
+            // Load initial view
             loadOrders();
             loadInventory();
             loadStockPredictions();
-        }, 10000);
+            
+            // 10s Polls
+            pollInterval = setInterval(() => {
+                loadOrders();
+                loadInventory();
+                loadStockPredictions();
+            }, 10000);
 
-        // Resume AudioContext on first click or keydown (browser policy compliance)
-        const resumeAudio = () => {
-            if (audioContext && audioContext.state === 'suspended') {
-                audioContext.resume().then(() => {
-                    console.log("AudioContext active");
-                });
+            // Pre-initialize alarm audio element for user activation
+            try {
+                alarmAudio = new Audio("https://res.cloudinary.com/dres0aek3/video/upload/20260528_123713_lvqapz.mp3");
+                alarmAudio.loop = true;
+                alarmAudio.crossOrigin = "anonymous";
+            } catch (e) {
+                console.error("Failed to pre-initialize alarm audio:", e);
             }
-            document.removeEventListener('click', resumeAudio);
-            document.removeEventListener('keydown', resumeAudio);
-        };
-        document.addEventListener('click', resumeAudio);
-        document.addEventListener('keydown', resumeAudio);
-    });
 
-    let alarmAudio = null;
+            // Autoplay Browser Policy handler
+            const unlockAudio = () => {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume().then(() => {
+                        console.log("Web AudioContext enabled");
+                    });
+                }
+                // Pre-play and pause to unlock media autoplay restrictions
+                if (alarmAudio) {
+                    alarmAudio.play().then(() => {
+                        console.log("alarmAudio unlocked successfully");
+                        if (!alarmActive && !testSoundActive) {
+                            alarmAudio.pause();
+                            alarmAudio.currentTime = 0;
+                        }
+                    }).catch(e => {
+                        console.warn("Failed to unlock alarmAudio:", e);
+                    });
+                }
+                document.removeEventListener('click', unlockAudio);
+                document.removeEventListener('keydown', unlockAudio);
+            };
+            document.addEventListener('click', unlockAudio);
+            document.addEventListener('keydown', unlockAudio);
+            
+            refreshIcons();
+        });
 
-    // Web Audio Synthesizer for Loud Beep alerts (VEND-001) - Fallback
-    function triggerBeep(frequency = 880, duration = 0.3) {
-        try {
+        // Tab Switching Actions
+        function switchTab(tabId) {
+            // Hide sidebar overlay if mobile
+            const sidebar = document.getElementById('sidebar-menu');
+            if (sidebar) sidebar.classList.remove('mobile-open');
+            
+            // Reset active classes
+            const linkDashboard = document.getElementById('link-dashboard');
+            const linkInventory = document.getElementById('link-inventory');
+            const mLinkDashboard = document.getElementById('m-link-dashboard');
+            const mLinkInventory = document.getElementById('m-link-inventory');
+            
+            if (linkDashboard) linkDashboard.classList.remove('active');
+            if (linkInventory) linkInventory.classList.remove('active');
+            if (mLinkDashboard) mLinkDashboard.classList.remove('active');
+            if (mLinkInventory) mLinkInventory.classList.remove('active');
+            
+            if (tabId === 'dashboard') {
+                const dbTab = document.getElementById('dashboard-tab-view');
+                if (dbTab) dbTab.style.display = 'flex';
+                
+                const invTab = document.getElementById('inventory-tab-view');
+                if (invTab) {
+                    if (window.innerWidth <= 960) {
+                        invTab.style.display = 'none';
+                    } else {
+                        invTab.style.display = 'flex';
+                    }
+                }
+                
+                if (linkDashboard) linkDashboard.classList.add('active');
+                if (mLinkDashboard) mLinkDashboard.classList.add('active');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                const dbTab = document.getElementById('dashboard-tab-view');
+                if (dbTab && window.innerWidth <= 960) {
+                    dbTab.style.display = 'none';
+                }
+                
+                const invTab = document.getElementById('inventory-tab-view');
+                if (invTab) invTab.style.display = 'flex';
+                
+                if (linkInventory) linkInventory.classList.add('active');
+                if (mLinkInventory) mLinkInventory.classList.add('active');
+                
+                // Scroll to inventory section
+                const target = document.getElementById('inventory-overview-card');
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        }
+
+        // Toggle mobile sidebar menu drawer
+        function toggleMobileSidebar(event) {
+            if (event) event.stopPropagation();
+            const sidebar = document.getElementById('sidebar-menu');
+            if (sidebar) sidebar.classList.toggle('mobile-open');
+        }
+
+        // Close mobile drawer on outside click
+        window.addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar-menu');
+            if (sidebar) sidebar.classList.remove('mobile-open');
+        });
+
+        // Mute Notification settings helpers
+        function getMutedOrders() {
+            try {
+                const val = localStorage.getItem(`muted_orders_${shopId}`);
+                return val ? JSON.parse(val) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+        
+        function muteOrder(orderId) {
+            let muted = getMutedOrders();
+            if (!muted.includes(orderId)) {
+                muted.push(orderId);
+                localStorage.setItem(`muted_orders_${shopId}`, JSON.stringify(muted));
+            }
+        }
+
+        // Sound Notification Synthesizer Beeps (VEND-001) - Fallback
+        function triggerBeep(frequency = 880, duration = 0.3) {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+                
+                osc.start();
+                osc.stop(audioContext.currentTime + duration);
+            } catch (e) {
+                console.error("Failed to synthesise alert sound: ", e);
+            }
+        }
+
+        function startLoudAlarm(isUrgent = false) {
+            if (alarmActive) return;
+            alarmActive = true;
+            
+            try {
+                if (!alarmAudio) {
+                    alarmAudio = new Audio("https://res.cloudinary.com/dres0aek3/video/upload/20260528_123713_lvqapz.mp3");
+                    alarmAudio.loop = true;
+                    alarmAudio.crossOrigin = "anonymous";
+                }
+                alarmAudio.playbackRate = isUrgent ? 1.4 : 1.0; // Urgent speed alert (INT-002)
+                
+                alarmAudio.play().then(() => {
+                    console.log("Cloudinary alarm audio started playing");
+                }).catch(e => {
+                    console.warn("Cloudinary alert audio blocked, executing synth fallbacks:", e);
+                    startBeepFallbackAlarm(isUrgent);
+                });
+            } catch (err) {
+                console.warn("Cloudinary alert initialization failed, executing synth fallbacks:", err);
+                startBeepFallbackAlarm(isUrgent);
+            }
+        }
+
+        function startBeepFallbackAlarm(isUrgent) {
+            const beepFunc = () => {
+                if (isUrgent) {
+                    triggerBeep(1200, 0.15);
+                    setTimeout(() => triggerBeep(1200, 0.15), 200);
+                } else {
+                    triggerBeep(880, 0.4);
+                }
+            };
+            beepFunc();
+            audioInterval = setInterval(beepFunc, 1500);
+        }
+
+        function stopLoudAlarm() {
+            if (alarmAudio) {
+                alarmAudio.pause();
+                alarmAudio.currentTime = 0;
+            }
+            if (audioInterval) {
+                clearInterval(audioInterval);
+                audioInterval = null;
+            }
+            alarmActive = false;
+        }
+
+        // Test Alarm Sound helpers
+        function toggleTestSound(event) {
+            if (event) event.stopPropagation();
+            if (testSoundActive) {
+                stopTestSound();
+            } else {
+                startTestSound();
+            }
+        }
+
+        function startTestSound() {
+            if (testSoundActive) return;
+            testSoundActive = true;
+            
+            const btn = document.getElementById('btn-test-sound');
+            if (btn) {
+                btn.classList.add('testing');
+                btn.innerHTML = `<i data-lucide="volume-x"></i><span>Stop Test Sound</span>`;
+                refreshIcons();
+            }
+
+            // Ensure audioContext is active
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }
             if (audioContext.state === 'suspended') {
                 audioContext.resume();
             }
-            
-            const osc = audioContext.createOscillator();
-            const gain = audioContext.createGain();
-            osc.connect(gain);
-            gain.connect(audioContext.destination);
-            
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(frequency, audioContext.currentTime);
-            gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-            
-            osc.start();
-            osc.stop(audioContext.currentTime + duration);
-        } catch (e) {
-            console.error("Audio generation failed: ", e);
-        }
-    }
 
-    function startLoudAlarm(isUrgent = false) {
-        if (alarmActive) return;
-        alarmActive = true;
-        
-        try {
-            if (!alarmAudio) {
-                alarmAudio = new Audio("https://res.cloudinary.com/dres0aek3/video/upload/20260528_123713_lvqapz.mp3");
-                alarmAudio.loop = true;
-            }
-            // If urgent, speed up the notification sound slightly (INT-002)
-            alarmAudio.playbackRate = isUrgent ? 1.4 : 1.0;
-            
-            alarmAudio.play().catch(e => {
-                console.warn("Custom notification sound playback failed, falling back to synthesizer beep:", e);
-                startBeepFallbackAlarm(isUrgent);
-            });
-        } catch (err) {
-            console.warn("Failed to instantiate Audio, falling back to synthesizer beep:", err);
-            startBeepFallbackAlarm(isUrgent);
-        }
-    }
-
-    function startBeepFallbackAlarm(isUrgent) {
-        const beepFunc = () => {
-            if (isUrgent) {
-                // Two rapid high-pitched beeps for Urgent order (INT-002)
-                triggerBeep(1200, 0.15);
-                setTimeout(() => triggerBeep(1200, 0.15), 200);
-            } else {
-                // Normal warning beep
-                triggerBeep(880, 0.4);
-            }
-        };
-        beepFunc();
-        audioInterval = setInterval(beepFunc, 1500);
-    }
-
-    function stopLoudAlarm() {
-        if (alarmAudio) {
-            alarmAudio.pause();
-            alarmAudio.currentTime = 0;
-        }
-        if (audioInterval) {
-            clearInterval(audioInterval);
-            audioInterval = null;
-        }
-        alarmActive = false;
-    }
-
-    function loadOrders() {
-        fetch(`/api/vendor/orders/${shopId}`)
-            .then(res => res.json())
-            .then(data => {
-                ordersList = data;
-                renderOrders();
-                
-                // Identify new incoming PENDING orders to trigger alarm
-                const mutedIds = getMutedOrders();
-                const unacceptedPending = data.filter(o => o.status === 'PENDING' && !mutedIds.includes(o.id));
-                
-                if (unacceptedPending.length > 0) {
-                    const latest = unacceptedPending[0];
-                    const modal = document.getElementById("new-order-modal");
-                    // Trigger alert modal & alarm sound
-                    if (modal.style.display === "none" || currentAlertingOrderId !== latest.id) {
-                        showNewOrderAlert(latest);
-                    }
-                } else {
-                    dismissNewOrderAlert();
+            try {
+                if (!alarmAudio) {
+                    alarmAudio = new Audio("https://res.cloudinary.com/dres0aek3/video/upload/20260528_123713_lvqapz.mp3");
+                    alarmAudio.loop = true;
+                    alarmAudio.crossOrigin = "anonymous";
                 }
-            });
-    }
-
-    function showNewOrderAlert(order) {
-        currentAlertingOrderId = order.id;
-        document.getElementById("modal-customer-details").innerText = `${order.customer_name}`;
-        
-        // Fetch order details for list summary
-        fetch(`/api/orders/${order.id}`)
-            .then(res => res.json())
-            .then(details => {
-                const itemsText = details.items.map(item => `${item.quantity}x ${item.product_name}`).join(", ");
-                document.getElementById("modal-items-summary").innerText = `${itemsText}`;
-            });
-
-        const badgeBox = document.getElementById("modal-priority-badge");
-        if (order.priority_type === 'URGENT') {
-            badgeBox.innerHTML = `<span class="badge badge-urgent" style="font-size: 1rem; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;"><i data-lucide="zap" style="width: 14px; height: 14px; color: white;"></i> URGENT PRIORITY ORDER</span>`;
-            startLoudAlarm(true); // Urgent fast alarm sound
-        } else {
-            badgeBox.innerHTML = `<span class="badge badge-normal" style="font-size: 1rem; padding: 8px 16px;">Standard Priority</span>`;
-            startLoudAlarm(false); // Normal alarm sound
-        }
-        refreshIcons();
-        
-        document.getElementById("modal-accept-btn").onclick = () => {
-            acceptIncomingOrder(order.id);
-            dismissNewOrderAlert();
-        };
-        
-        document.getElementById("new-order-modal").style.display = "flex";
-    }
-
-    function dismissNewOrderAlert() {
-        document.getElementById("new-order-modal").style.display = "none";
-        stopLoudAlarm();
-        currentAlertingOrderId = null;
-    }
-
-    function muteCurrentOrder() {
-        if (currentAlertingOrderId) {
-            muteOrder(currentAlertingOrderId);
-        }
-        dismissNewOrderAlert();
-    }
-
-    function acceptIncomingOrder(orderId) {
-        fetch(`/api/orders/${orderId}/accept`, { method: "POST" })
-            .then(res => res.json())
-            .then(data => {
-                loadOrders();
-            });
-    }
-
-    function markOrderReady(orderId) {
-        fetch(`/api/orders/${orderId}/ready`, { method: "POST" })
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    loadOrders();
-                }
-            });
-    }
-
-    function renderOrders() {
-        const container = document.getElementById("orders-queue-container");
-        container.innerHTML = "";
-        
-        const activeOrders = ordersList.filter(o => o.status !== 'DELIVERED' && o.status !== 'FAILED');
-        
-        if (activeOrders.length === 0) {
-            document.getElementById("empty-orders-placeholder").style.display = "block";
-            return;
-        }
-        
-        document.getElementById("empty-orders-placeholder").style.display = "none";
-        
-        activeOrders.forEach(o => {
-            const card = document.createElement("div");
-            card.className = `vendor-order-card fade-in-up ${o.priority_type === 'URGENT' ? 'urgent-border' : ''}`;
-            
-            let actionBtn = "";
-            let otpDisplay = "";
-            let statusBadge = "";
-            
-            if (o.status === 'PENDING') {
-                statusBadge = `<span class="badge badge-status-pending">PENDING</span>`;
-                actionBtn = `<button class="btn btn-primary" style="padding: 14px;" onclick="acceptIncomingOrder(${o.id})">Accept Order</button>`;
-            } else if (o.status === 'ACCEPTED') {
-                statusBadge = `<span class="badge badge-status-ready">PREPARING</span>`;
-                actionBtn = `<button class="btn btn-secondary text-accent" style="padding: 14px; border-color: var(--primary-accent);" onclick="markOrderReady(${o.id})">Mark as Packed</button>`;
-            } else if (o.status === 'READY_FOR_PICKUP') {
-                statusBadge = `<span class="badge badge-status-ready" style="background: var(--emerald-light); border-color: var(--emerald-green); color: var(--emerald-green);">READY</span>`;
-                actionBtn = `<button class="btn btn-secondary w-full" disabled style="opacity: 0.7;">Waiting for Rider...</button>`;
-                otpDisplay = `<div style="margin-top:16px; padding:12px; background:#f8fafc; border:1px dashed var(--border-color); border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-weight:700; color:var(--text-secondary); font-size: 0.85rem; text-transform: uppercase;">Handover OTP</span>
-                                <span class="text-accent" style="font-weight:800; font-size:1.25rem; letter-spacing: 2px;">${o.pickup_otp}</span>
-                              </div>`;
-            } else if (o.status === 'OUT_FOR_DELIVERY') {
-                statusBadge = `<span class="badge badge-status-delivered">DISPATCHED</span>`;
-                actionBtn = `<button class="btn btn-secondary w-full" disabled style="opacity: 0.6; background: #f8fafc;">En Route</button>`;
-            }
-            
-            card.innerHTML = `
-                <div>
-                    <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-                        <span style="font-weight:800; font-size:1.15rem; font-family: 'Outfit', sans-serif;">#${o.id}</span>
-                        <div style="display: flex; gap: 8px;">
-                            ${o.priority_type === 'URGENT' ? '<span class="badge badge-urgent" style="display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="zap" style="width: 12px; height: 12px; color: white;"></i> URGENT</span>' : ''}
-                            ${statusBadge}
-                        </div>
-                    </div>
-                    
-                    <div style="display: flex; align-items: center; gap: 12px; margin-top: 16px; margin-bottom: 16px;">
-                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; color: var(--primary-accent);"><i data-lucide="user" style="width: 18px; height: 18px;"></i></div>
-                        <div>
-                            <div style="font-weight: 700; font-size: 1rem; color: var(--text-primary);">${o.customer_name}</div>
-                            <div style="font-size: 0.85rem; color: var(--text-secondary);">${o.customer_phone}</div>
-                        </div>
-                    </div>
-                    
-                    <div style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:20px; background: #f8fafc; padding: 12px; border-radius: var(--radius-sm); display: flex; align-items: center; gap: 6px;">
-                        <i data-lucide="map-pin" class="icon-inline" style="margin: 0; width: 14px; height: 14px;"></i> <strong>Address:</strong> ${o.customer_address}
-                    </div>
-                    
-                    <div style="font-size:1.2rem; font-weight:800; color:var(--primary-accent); margin-bottom:20px; text-align: right;">
-                        ₹${o.total_amount.toFixed(2)}
-                    </div>
-                </div>
-                <div>
-                    ${actionBtn}
-                    ${otpDisplay}
-                </div>
-            `;
-            container.appendChild(card);
-        });
-        refreshIcons();
-    }
-
-    // Stock Control List Loader (VEND-002)
-    function loadInventory() {
-        fetch(`/api/shops/${shopId}/products?view_type=vendor`)
-            .then(res => res.json())
-            .then(products => {
-                const container = document.getElementById("inventory-list-container");
-                container.innerHTML = "";
+                alarmAudio.playbackRate = 1.0;
                 
-                products.forEach(prod => {
-                    const row = document.createElement("div");
-                    row.className = "flex-between";
-                    row.style.padding = "16px";
-                    row.style.background = "#f8fafc";
-                    row.style.border = "1px solid var(--border-color)";
-                    row.style.borderRadius = "var(--radius-sm)";
-                    
-                    row.innerHTML = `
-                        <div>
-                            <span style="font-size:1rem; font-weight:700; display: block; text-decoration: ${prod.is_available ? 'none' : 'line-through'}; color: ${prod.is_available ? 'var(--text-primary)' : 'var(--text-muted)'}">${prod.name}</span>
-                            <span style="font-size:0.85rem; color:var(--text-secondary); display: flex; align-items: center; gap: 4px;">
-                                ${prod.is_available ? '<i data-lucide="check-circle" class="icon-inline" style="color: var(--emerald-green); width: 14px; height: 14px; margin: 0;"></i> In Stock' : '<i data-lucide="x-circle" class="icon-inline" style="color: var(--ruby-danger); width: 14px; height: 14px; margin: 0;"></i> Out of Stock'}
-                            </span>
-                        </div>
-                        <label class="ios-toggle">
-                            <input type="checkbox" ${prod.is_available ? 'checked' : ''} onchange="toggleStock(${prod.id}, this.checked)" id="stock-check-${prod.id}">
-                            <span class="ios-toggle-slider"></span>
-                        </label>
-                    `;
-                    container.appendChild(row);
+                alarmAudio.play().then(() => {
+                    console.log("Test alarm audio started playing");
+                }).catch(e => {
+                    console.warn("Test alarm audio play blocked, using beep fallback:", e);
+                    startBeepFallbackAlarm(false);
                 });
+            } catch (err) {
+                console.warn("Test alarm initialization failed, using beep fallback:", err);
+                startBeepFallbackAlarm(false);
+            }
+
+            // Automatically stop test sound after 5 seconds
+            testSoundTimeout = setTimeout(() => {
+                stopTestSound();
+            }, 5000);
+        }
+
+        function stopTestSound() {
+            if (!testSoundActive) return;
+            testSoundActive = false;
+            
+            if (testSoundTimeout) {
+                clearTimeout(testSoundTimeout);
+                testSoundTimeout = null;
+            }
+            
+            const btn = document.getElementById('btn-test-sound');
+            if (btn) {
+                btn.classList.remove('testing');
+                btn.innerHTML = `<i data-lucide="volume-2"></i><span>Test Alarm Sound</span>`;
                 refreshIcons();
-            });
-    }
+            }
+            
+            stopLoudAlarm();
+        }
 
-    function toggleStock(prodId, isAvailable) {
-        fetch("/api/vendor/products/toggle", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ product_id: prodId, is_available: isAvailable ? 1 : 0 })
-        })
-        .then(res => res.json())
-        .then(data => {
-            loadInventory();
-        });
-    }
+        // Fetch Orders API
+        function loadOrders() {
+            fetch(`/api/vendor/orders/${shopId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (!Array.isArray(data)) {
+                        console.error("Orders data is not an array:", data);
+                        return;
+                    }
+                    ordersList = data;
+                    
+                    updateStats();
+                    renderOrders();
+                    
+                    // Check if there are active PENDING requests that are not muted
+                    const mutedIds = getMutedOrders();
+                    const unacceptedPending = data.filter(o => o.status === 'PENDING' && !mutedIds.includes(o.id));
+                    
+                    if (unacceptedPending.length > 0) {
+                        const latest = unacceptedPending[0];
+                        const modal = document.getElementById("new-order-modal");
+                        
+                        // Show modal alert if hidden or focusing a new order id
+                        if (modal && (modal.style.display === "none" || currentAlertingOrderId !== latest.id)) {
+                            showNewOrderAlert(latest);
+                        }
+                        
+                        // Update notification counts in title badges
+                        updateNotificationCount(unacceptedPending.length);
+                    } else {
+                        dismissNewOrderAlert();
+                        updateNotificationCount(0);
+                    }
+                })
+                .catch(err => console.error("Error loading vendor orders:", err));
+        }
 
-    // Low stock warnings calculations (INT-004)
-    function loadStockPredictions() {
-        fetch(`/api/vendor/low-stock-prediction/${shopId}`)
-            .then(res => res.json())
-            .then(predictions => {
-                const banner = document.getElementById("low-stock-alert-banner");
-                const list = document.getElementById("low-stock-predictions-list");
-                list.innerHTML = "";
+        function updateNotificationCount(count) {
+            const desktopBadge = document.getElementById('desktop-bell-badge');
+            const mobileBadge = document.getElementById('mobile-bell-badge');
+            
+            if (count > 0) {
+                if (desktopBadge) {
+                    desktopBadge.innerText = count;
+                    desktopBadge.style.display = 'flex';
+                }
+                if (mobileBadge) {
+                    mobileBadge.innerText = count;
+                    mobileBadge.style.display = 'flex';
+                }
+            } else {
+                if (desktopBadge) desktopBadge.style.display = 'none';
+                if (mobileBadge) mobileBadge.style.display = 'none';
+            }
+        }
+
+        function showNewOrderAlert(order) {
+            currentAlertingOrderId = order.id;
+            const nameEl = document.getElementById("modal-customer-name");
+            if (nameEl) nameEl.innerText = order.customer_name || 'Customer';
+            
+            const phoneEl = document.getElementById("modal-customer-phone");
+            if (phoneEl) phoneEl.innerText = order.customer_phone || '';
+            
+            // Get item list details
+            fetch(`/api/orders/${order.id}`)
+                .then(res => res.json())
+                .then(details => {
+                    if (details && Array.isArray(details.items)) {
+                        const itemsSummary = details.items.map(item => `${item.quantity}x ${item.product_name}`).join(", ");
+                        const summaryEl = document.getElementById("modal-items-summary");
+                        if (summaryEl) summaryEl.innerText = itemsSummary;
+                    }
+                })
+                .catch(err => console.error("Error loading order items for alert modal:", err));
+
+            const priorityContainer = document.getElementById("modal-priority-container");
+            if (priorityContainer) {
+                if (order.priority_type === 'URGENT') {
+                    priorityContainer.innerHTML = `<span class="badge-urgent-flash"><i data-lucide="zap" style="width: 13px; height: 13px; fill: currentColor;"></i> URGENT ORDER REQUEST</span>`;
+                    startLoudAlarm(true);
+                } else {
+                    priorityContainer.innerHTML = '';
+                    startLoudAlarm(false);
+                }
+            }
+            refreshIcons();
+            
+            const acceptBtn = document.getElementById("modal-accept-btn");
+            if (acceptBtn) {
+                acceptBtn.onclick = () => {
+                    acceptIncomingOrder(order.id);
+                    dismissNewOrderAlert();
+                };
+            }
+            
+            const modal = document.getElementById("new-order-modal");
+            if (modal) modal.style.display = "flex";
+        }
+
+        function dismissNewOrderAlert() {
+            const modal = document.getElementById("new-order-modal");
+            if (modal) modal.style.display = "none";
+            stopLoudAlarm();
+            currentAlertingOrderId = null;
+        }
+
+        function muteCurrentOrder() {
+            if (currentAlertingOrderId) {
+                muteOrder(currentAlertingOrderId);
+            }
+            dismissNewOrderAlert();
+        }
+
+        // Actions endpoints
+        function acceptIncomingOrder(orderId) {
+            fetch(`/api/orders/${orderId}/accept`, { method: "POST" })
+                .then(res => res.json())
+                .then(data => {
+                    if (selectedOrderId === orderId) {
+                        loadSelectedOrderDetails(orderId);
+                    }
+                    loadOrders();
+                })
+                .catch(err => console.error("Error accepting order:", err));
+        }
+
+        function markOrderReady(orderId) {
+            fetch(`/api/orders/${orderId}/ready`, { method: "POST" })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        startOTPCountdown(orderId);
+                        if (selectedOrderId === orderId) {
+                            loadSelectedOrderDetails(orderId);
+                        }
+                        loadOrders();
+                    }
+                })
+                .catch(err => console.error("Error marking order ready:", err));
+        }
+
+        // OTP Countdown mocks
+        function startOTPCountdown(orderId) {
+            if (countdownIntervals[orderId]) {
+                clearInterval(countdownIntervals[orderId]);
+            }
+            let duration = 600; // 10 minutes
+            countdownIntervals[orderId] = setInterval(() => {
+                duration--;
+                if (duration <= 0) {
+                    clearInterval(countdownIntervals[orderId]);
+                    delete countdownIntervals[orderId];
+                }
+                // Update active display if selected
+                if (selectedOrderId === orderId) {
+                    const timerText = document.getElementById(`otp-timer-text-${orderId}`);
+                    if (timerText) {
+                        let mins = Math.floor(duration / 60);
+                        let secs = duration % 60;
+                        timerText.innerText = `Valid for ${mins}:${secs < 10 ? '0' : ''}${secs} min`;
+                    }
+                }
+            }, 1000);
+        }
+
+        // Update top statistics panel dynamically (VEND-001, INT-009 calculations)
+        function updateStats() {
+            if (!Array.isArray(ordersList)) return;
+            
+            // 1. Total Orders
+            const totalEl = document.getElementById("stats-total-orders");
+            if (totalEl) totalEl.innerText = ordersList.length;
+            
+            // 2. Pending Orders
+            const pendingOrders = ordersList.filter(o => o.status === 'PENDING' || o.status === 'ACCEPTED').length;
+            const pendingEl = document.getElementById("stats-pending-orders");
+            if (pendingEl) pendingEl.innerText = pendingOrders;
+            
+            const pendingSub = document.getElementById("stats-pending-sub");
+            if (pendingSub) {
+                if (pendingOrders > 0) {
+                    pendingSub.innerText = "Needs Action";
+                    pendingSub.className = "stats-sub orange-text";
+                } else {
+                    pendingSub.innerText = "All caught up";
+                    pendingSub.className = "stats-sub";
+                }
+            }
+            
+            // 3. Today's Revenue (Delivered sum)
+            const revenueSum = ordersList
+                .filter(o => o.status === 'DELIVERED')
+                .reduce((sum, o) => sum + (o.total_amount || 0), 0);
+            
+            const revenueEl = document.getElementById("stats-revenue");
+            if (revenueEl) revenueEl.innerText = `₹${Math.round(revenueSum).toLocaleString()}`;
+        }
+
+        // Calculate time diff relative string
+        function getRelativeTimeStr(timestamp) {
+            try {
+                if (!timestamp) return "Just now";
+                // Remove millisecond fractions and convert sqlite format to parsable ISO/JS date string
+                let dateClean = timestamp.replace(" ", "T");
+                if (dateClean.indexOf('.') > -1) {
+                    dateClean = dateClean.split('.')[0];
+                }
+                const orderTime = new Date(dateClean + "Z"); // Add Z to interpret as UTC
+                const diffMs = new Date() - orderTime;
                 
-                if (predictions.length === 0) {
-                    banner.style.display = "none";
-                    return;
+                let diffMins = Math.floor(diffMs / 60000);
+                if (diffMins < 0) diffMins = 0;
+                
+                if (diffMins < 1) return "Just now";
+                if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+                
+                const diffHours = Math.floor(diffMins / 60);
+                if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+                
+                return orderTime.toLocaleDateString();
+            } catch (err) {
+                return "Just now";
+            }
+        }
+
+        // Render Recent Orders list in table
+        function renderOrders() {
+            const tbody = document.getElementById("orders-table-body");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+            
+            if (!Array.isArray(ordersList)) return;
+            
+            const activeOrders = ordersList.filter(o => o.status !== 'DELIVERED' && o.status !== 'FAILED');
+            
+            const placeholder = document.getElementById("empty-orders-placeholder");
+            if (activeOrders.length === 0) {
+                if (placeholder) placeholder.style.display = "block";
+                return;
+            }
+            
+            if (placeholder) placeholder.style.display = "none";
+            
+            // Select first active order automatically if none selected or the selected one was closed
+            if (selectedOrderId === null && activeOrders.length > 0) {
+                selectedOrderId = activeOrders[0].id;
+                loadSelectedOrderDetails(selectedOrderId);
+            }
+            
+            activeOrders.forEach(o => {
+                const tr = document.createElement("tr");
+                tr.id = `order-row-${o.id}`;
+                if (selectedOrderId === o.id) {
+                    tr.className = "selected-row";
                 }
                 
-                banner.style.display = "block";
-                predictions.forEach(p => {
-                    const li = document.createElement("li");
-                    li.style.marginBottom = "8px";
-                    li.innerHTML = `<strong style="color: var(--text-primary);">${p.name}</strong> &rarr; ${p.message}`;
-                    list.appendChild(li);
-                });
+                tr.onclick = () => selectOrderRow(o.id);
+                
+                const timeStr = getRelativeTimeStr(o.created_at);
+                
+                let priorityLabel = '';
+                if (o.priority_type === 'URGENT') {
+                    priorityLabel = `<span style="display:inline-flex; align-items:center; color:var(--red); font-weight:700; margin-right:4px;"><i data-lucide="zap" style="width:10px; height:10px; fill:currentColor;"></i></span>`;
+                }
+
+                // Determine display status name
+                let displayStatus = o.status ? o.status.replace(/_/g, ' ') : 'Pending';
+                if (o.status === 'ACCEPTED') displayStatus = 'Accepted';
+                
+                const statusClass = o.status ? o.status.toLowerCase() : 'pending';
+                
+                tr.innerHTML = `
+                    <td class="order-id">#ORD-${o.id}</td>
+                    <td class="customer-cell">${o.customer_name || 'Customer'}</td>
+                    <td class="items-cell">
+                        <span class="items-count" id="items-count-col-${o.id}">Loading...</span>
+                        <span class="items-list" id="items-list-col-${o.id}">...</span>
+                    </td>
+                    <td class="amount-cell">₹${(o.total_amount || 0).toFixed(0)}</td>
+                    <td>
+                        <span class="status-badge ${statusClass}">${displayStatus}</span>
+                    </td>
+                    <td class="time-cell">${priorityLabel}${timeStr}</td>
+                `;
+                tbody.appendChild(tr);
+                
+                // Asynchronously fetch item count and list for this order
+                fetchOrderItemsText(o.id);
             });
-    }
-</script>
-{% endblock %}
+            refreshIcons();
+        }
+
+        // Fetch items list helper for columns
+        function fetchOrderItemsText(orderId) {
+            fetch(`/api/orders/${orderId}`)
+                .then(res => res.json())
+                .then(details => {
+                    if (details && Array.isArray(details.items)) {
+                        const countEl = document.getElementById(`items-count-col-${orderId}`);
+                        const listEl = document.getElementById(`items-list-col-${orderId}`);
+                        
+                        if (countEl && listEl) {
+                            const totalQty = details.items.reduce((sum, item) => sum + item.quantity, 0);
+                            countEl.innerText = `${totalQty} Item${totalQty > 1 ? 's' : ''}`;
+                            
+                            const listText = details.items.map(item => item.product_name).join(", ");
+                            listEl.innerText = listText;
+                        }
+                    }
+                })
+                .catch(err => console.error("Error fetching items text column:", err));
+        }
+
+        // Highlight selected row and load details panel
+        function selectOrderRow(orderId) {
+            document.querySelectorAll("#orders-table-body tr").forEach(tr => {
+                tr.classList.remove("selected-row");
+            });
+            
+            const tr = document.getElementById(`order-row-${orderId}`);
+            if (tr) tr.classList.add("selected-row");
+            
+            selectedOrderId = orderId;
+            loadSelectedOrderDetails(orderId);
+        }
+
+        // Load detail actions / OTP card on the right side panel
+        function loadSelectedOrderDetails(orderId) {
+            const panel = document.getElementById("detail-card");
+            if (!panel) return;
+            
+            fetch(`/api/orders/${orderId}`)
+                .then(res => res.json())
+                .then(order => {
+                    if (!order || order.error) {
+                        panel.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:40px 10px;">Error loading order details</div>`;
+                        return;
+                    }
+                    
+                    const timeStr = getRelativeTimeStr(order.created_at);
+                    
+                    // Base template parts
+                    let statusLabel = order.status ? order.status.replace(/_/g, ' ') : 'Pending';
+                    if (order.status === 'ACCEPTED') statusLabel = 'Preparing';
+                    
+                    let detailsHeaderHTML = `
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i data-lucide="info"></i>
+                                Order details #ORD-${order.id}
+                            </h3>
+                            <span class="status-badge ${(order.status || 'pending').toLowerCase()}">${statusLabel}</span>
+                        </div>
+                        
+                        <div class="order-detail-summary">
+                            <div class="detail-row">
+                                <span class="detail-label">Customer Name</span>
+                                <span class="detail-value">${order.customer_name || 'Customer'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">${order.customer_phone || ''}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Delivery Address</span>
+                                <span class="detail-value address">${order.customer_address || ''}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Placed Time</span>
+                                <span class="detail-value">${timeStr}</span>
+                            </div>
+                            
+                            <div class="items-detail-list" id="detail-items-list-${order.id}">
+                                <span class="detail-label" style="margin-bottom: 6px; display:block;">Order Items</span>
+                                <!-- Loaded below -->
+                            </div>
+                        </div>
+                    `;
+
+                    if (order.status === 'PENDING') {
+                        panel.innerHTML = `
+                            ${detailsHeaderHTML}
+                            <button class="btn-green-action" onclick="acceptIncomingOrder(${order.id})">
+                                <i data-lucide="check"></i>
+                                Accept Order Request
+                            </button>
+                        `;
+                    } 
+                    else if (order.status === 'ACCEPTED') {
+                        panel.innerHTML = `
+                            ${detailsHeaderHTML}
+                            <button class="btn-green-action" onclick="markOrderReady(${order.id})">
+                                <i data-lucide="package"></i>
+                                Mark as Packed & Ready
+                            </button>
+                        `;
+                    } 
+                    else if (order.status === 'READY_FOR_PICKUP') {
+                        const digits = (order.pickup_otp || '----').split('');
+                        const timerId = `otp-timer-text-${order.id}`;
+                        
+                        panel.innerHTML = `
+                            <div class="otp-card-header">
+                                <h3 class="otp-card-title">
+                                    <i data-lucide="shield-check"></i>
+                                    Pickup OTP
+                                </h3>
+                                <i data-lucide="shield" class="otp-shield-icon"></i>
+                            </div>
+                            <p class="otp-desc">Share this OTP with delivery partner to handover order.</p>
+                            
+                            <div class="otp-digits-container">
+                                <div class="otp-digit-box">${digits[0] || '-'}</div>
+                                <div class="otp-digit-box">${digits[1] || '-'}</div>
+                                <div class="otp-digit-box">${digits[2] || '-'}</div>
+                                <div class="otp-digit-box">${digits[3] || '-'}</div>
+                            </div>
+                            
+                            <div class="otp-timer">
+                                <i data-lucide="clock"></i>
+                                <span id="${timerId}">Valid for 10:00 min</span>
+                            </div>
+                            
+                            <button class="btn-green-action" disabled style="background-color:#f1f5f9; color:var(--text-secondary); cursor:not-allowed; box-shadow:none; border:1px solid var(--border-color); margin-top: 10px;">
+                                <i data-lucide="loader" class="icon-inline" style="animation: spin 3s linear infinite;"></i>
+                                Waiting for Rider Pickup...
+                            </button>
+                            
+                            <div class="otp-footer">
+                                Order ID #ORD-${order.id} | Handover OTP
+                            </div>
+                        `;
+                        
+                        if (!countdownIntervals[order.id]) {
+                            startOTPCountdown(order.id);
+                        }
+                    } 
+                    else if (order.status === 'OUT_FOR_DELIVERY') {
+                        panel.innerHTML = `
+                            ${detailsHeaderHTML}
+                            <div style="background-color: var(--primary-light); border: 1px solid rgba(0, 156, 98, 0.15); padding: 14px; border-radius: var(--radius-lg); text-align: center; color: var(--primary); font-weight: 700; display:flex; align-items:center; justify-content:center; gap:8px;">
+                                <i data-lucide="bike" style="width: 18px; height: 18px;"></i>
+                                En Route to Customer House
+                            </div>
+                            <div style="font-size:0.8rem; color:var(--text-secondary); margin-top: 8px; font-weight:600; text-align:center;">
+                                Assigned Rider: ${order.rider_name || 'Rider'} (${order.rider_phone_masked || 'xxxxxx'})
+                            </div>
+                        `;
+                    }
+                    
+                    const itemsContainer = document.getElementById(`detail-items-list-${order.id}`);
+                    if (itemsContainer && Array.isArray(order.items)) {
+                        order.items.forEach(item => {
+                            const row = document.createElement("div");
+                            row.className = "item-detail-row";
+                            row.innerHTML = `
+                                <span class="item-detail-name">${item.product_name || ''}</span>
+                                <span class="item-detail-qty">x${item.quantity || 1} &nbsp;&nbsp; ₹${Math.round((item.price || 0) * (item.quantity || 1))}</span>
+                            `;
+                            itemsContainer.appendChild(row);
+                        });
+                    }
+                    
+                    refreshIcons();
+                })
+                .catch(err => console.error("Error loading selected order details:", err));
+        }
+
+        // Inventory Products Loader Drawer
+        function loadInventory() {
+            fetch(`/api/shops/${shopId}/products?view_type=vendor`)
+                .then(res => res.json())
+                .then(products => {
+                    if (!Array.isArray(products)) {
+                        console.error("Products data is not an array:", products);
+                        return;
+                    }
+                    inventoryList = products;
+                    renderInventory();
+                })
+                .catch(err => console.error("Error loading vendor inventory:", err));
+        }
+
+        // Render products list in inventory overview table
+        function renderInventory() {
+            const tbody = document.getElementById("inventory-table-body");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+            
+            if (!Array.isArray(inventoryList)) return;
+            
+            inventoryList.forEach(prod => {
+                const tr = document.createElement("tr");
+                tr.id = `inventory-row-${prod.id}`;
+                
+                const thumb = getProductThumbnail(prod.name || '');
+                const priceVal = typeof prod.price === 'number' ? prod.price : 0;
+                
+                tr.innerHTML = `
+                    <td>
+                        <div class="product-cell">
+                            <div class="product-image" style="background-color: ${thumb.color};">${thumb.emoji}</div>
+                            <span class="product-name">${prod.name || ''}</span>
+                        </div>
+                    </td>
+                    <td class="amount-cell">₹${priceVal.toFixed(0)}</td>
+                    <td>
+                        <span class="stock-badge ${prod.is_available ? 'in-stock' : 'out-of-stock'}" id="inventory-status-badge-${prod.id}">
+                            ${prod.is_available ? 'In Stock' : 'Out of Stock'}
+                        </span>
+                    </td>
+                    <td>
+                        <label class="switch">
+                            <input type="checkbox" ${prod.is_available ? 'checked' : ''} onchange="toggleStock(${prod.id}, this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Filter products in table based on search text input
+        function filterInventory() {
+            const input = document.getElementById("inventory-search-input");
+            if (!input) return;
+            const query = input.value.toLowerCase();
+            
+            if (!Array.isArray(inventoryList)) return;
+            
+            inventoryList.forEach(prod => {
+                const tr = document.getElementById(`inventory-row-${prod.id}`);
+                if (!tr) return;
+                
+                const name = prod.name ? prod.name.toLowerCase() : '';
+                if (name.includes(query)) {
+                    tr.style.display = "";
+                } else {
+                    tr.style.display = "none";
+                }
+            });
+        }
+
+        // Call toggle endpoint
+        function toggleStock(prodId, isAvailable) {
+            fetch("/api/vendor/products/toggle", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ product_id: prodId, is_available: isAvailable ? 1 : 0 })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const badge = document.getElementById(`inventory-status-badge-${prodId}`);
+                if (badge) {
+                    if (isAvailable) {
+                        badge.innerText = "In Stock";
+                        badge.className = "stock-badge in-stock";
+                    } else {
+                        badge.innerText = "Out of Stock";
+                        badge.className = "stock-badge out-of-stock";
+                    }
+                }
+                loadInventory();
+            })
+            .catch(err => console.error("Error toggling stock:", err));
+        }
+
+        // Fetch low stock prediction alerts
+        function loadStockPredictions() {
+            fetch(`/api/vendor/low-stock-prediction/${shopId}`)
+                .then(res => res.json())
+                .then(predictions => {
+                    if (!Array.isArray(predictions)) return;
+                    
+                    const banner = document.getElementById("low-stock-alert-banner");
+                    const list = document.getElementById("low-stock-predictions-list");
+                    if (!banner || !list) return;
+                    
+                    list.innerHTML = "";
+                    
+                    if (predictions.length === 0) {
+                        banner.style.display = "none";
+                        return;
+                    }
+                    
+                    banner.style.display = "block";
+                    predictions.forEach(p => {
+                        const li = document.createElement("li");
+                        li.style.marginBottom = "4px";
+                        li.innerHTML = `<strong style="color: var(--text-primary);">${p.name || ''}</strong> &rarr; ${p.message || ''}`;
+                        list.appendChild(li);
+                    });
+                    refreshIcons();
+                })
+                .catch(err => console.error("Error loading stock predictions:", err));
+        }
+    </script>
+</body>
+</html>

@@ -330,10 +330,10 @@ def place_order():
             'price': prod['price']
         })
         
-    # GST calculation: Standard 18% GST (or customized at shop level)
-    # The updated PRD mentions a Dynamic GST control. Let's set 18% general default or commission.
-    gst_amount = total_amount * 0.18
-    grand_total = total_amount + gst_amount
+    # Delivery Fee & Grand Total Calculation matching mockup (Free above 199, else 15)
+    delivery_fee = 15.0 if total_amount < 199.0 else 0.0
+    grand_total = total_amount + delivery_fee
+    gst_amount = 0.0 # GST is inclusive in item prices
     
     # Generate OTPs (4 digits numeric)
     pickup_otp = f"{random.randint(1000, 9999)}"

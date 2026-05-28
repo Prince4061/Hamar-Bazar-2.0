@@ -136,11 +136,11 @@ def seed_db():
     # Seed Products
     products_data = [
         # Kirana
-        (shop_ids['KIRANA'], 'Milk 1L Packet', 50.0),
-        (shop_ids['KIRANA'], 'Bread Brown Slice', 40.0),
-        (shop_ids['KIRANA'], 'Amul Butter 100g', 60.0),
-        (shop_ids['KIRANA'], 'Sugar 1kg Pack', 45.0),
-        (shop_ids['KIRANA'], 'Tata Tea Premium 250g', 95.0),
+        (shop_ids['KIRANA'], 'Amul Milk 1 Ltr', 62.0),
+        (shop_ids['KIRANA'], 'Britannia Bread 400g', 35.0),
+        (shop_ids['KIRANA'], 'Lays Classic 52g', 20.0),
+        (shop_ids['KIRANA'], 'Amul Butter 100g', 55.0),
+        (shop_ids['KIRANA'], 'Colgate Toothpaste 100g', 32.0),
         # Cakes
         (shop_ids['CAKES'], 'Chocolate Truffle Cake 500g', 450.0),
         (shop_ids['CAKES'], 'Red Velvet Cake 500g', 500.0),

@@ -1,147 +1,309 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<!-- Hero Banner -->
-<div class="glass-card" style="background: linear-gradient(135deg, var(--primary-light) 0%, rgba(255,255,255,1) 100%); margin-bottom: 32px; display: flex; flex-direction: column; gap: 16px;">
-    <div class="flex-between">
-        <div>
-            <h1 class="screen-title">Hey, {{ session.get('name', 'Alice') }}!</h1>
-            <p class="screen-subtitle">Everything you need, delivered in 10 minutes.</p>
-        </div>
-        <div style="display: flex; gap: 12px;">
-            <button class="btn btn-secondary" onclick="toggleExpensesModal()" style="width: auto; padding: 10px 16px; display: flex; align-items: center; gap: 6px;"><i data-lucide="trending-up" class="icon-inline" style="margin: 0;"></i> Insights</button>
-        </div>
-    </div>
-    <div style="display: flex; align-items: center; gap: 12px;">
-        <span class="badge badge-status-delivered" style="font-size: 0.85rem; display: flex; align-items: center; gap: 4px;"><i data-lucide="zap" class="icon-inline" style="margin: 0; width: 14px; height: 14px;"></i> Delivery: 10-15 mins</span>
-        <span class="badge badge-normal" style="font-size: 0.85rem; display: flex; align-items: center; gap: 4px;"><i data-lucide="map-pin" class="icon-inline" style="margin: 0; width: 14px; height: 14px;"></i> {{ session.get('address', 'Your Location') }}</span>
-    </div>
-</div>
-
-<!-- VOICE CART SECTION (INT-005) -->
-<div class="voice-banner">
-    <div>
-        <h4 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">Smart Voice Ordering <span class="badge badge-normal" style="font-size: 0.65rem;">BETA</span></h4>
-        <p id="voice-status" style="font-size: 0.95rem; color: var(--text-secondary);">Tap the mic and say "Add 2 Milk and 1 Bread"</p>
-    </div>
-    <button id="mic-btn" class="voice-mic-btn" onclick="startVoiceInput()"><i data-lucide="mic" style="width: 22px; height: 22px;"></i></button>
-</div>
-
-<!-- ACTIVE ORDER TRACKER TIMELINE (CUST-004) -->
-<div id="active-order-container" class="glass-card" style="display: none; border: 2px solid var(--primary-accent); box-shadow: var(--shadow-float);">
-    <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; display: flex; align-items: center;">
-        <span style="font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 6px;"><i data-lucide="package" class="icon-inline" style="margin: 0;"></i> Active Order <span id="tracking-order-id" class="text-accent">#--</span></span>
-        <span id="tracking-order-status" class="badge badge-status-pending">PENDING</span>
-    </div>
+<!-- Custom Header / Top Desktop Nav -->
+<header class="hamar-header">
+    <a href="/customer" class="hamar-logo-section">
+        <svg class="hamar-logo-icon" viewBox="0 0 24 24">
+            <path d="M8 8C8 5.79086 9.79086 4 12 4C14.2091 4 16 5.79086 16 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <rect x="4" y="8" width="16" height="13" rx="3.5"/>
+            <path d="M8 16V13C8 12.4477 8.4477 12 9 12C9.5523 12 10 12.4477 10 13V16M10 13C10 12.4477 10.4477 12 11 12C11.5523 12 12 12.4477 12 13V16" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span><span style="color: var(--primary-accent)">Hamar</span><span style="color: var(--text-primary)">Bazaar</span></span>
+    </a>
     
-    <!-- Timeline -->
-    <div class="timeline">
-        <div id="step-pending" class="timeline-step">
-            <div class="timeline-dot"></div>
-            <div class="timeline-title">Order Placed</div>
-            <div class="timeline-time">Waiting for shop acceptance</div>
+    <!-- Location Selector Widget -->
+    <div class="location-widget" onclick="alert('Location updates can be simulated by typing in the Delivering to widget.')">
+        <div class="location-pin-container">
+            <i data-lucide="map-pin" style="width: 16px; height: 16px;"></i>
         </div>
-        <div id="step-accepted" class="timeline-step">
-            <div class="timeline-dot"></div>
-            <div class="timeline-title">Accepted by Shop</div>
-            <div class="timeline-time">Vendor preparing items</div>
-        </div>
-        <div id="step-ready" class="timeline-step">
-            <div class="timeline-dot"></div>
-            <div class="timeline-title">Packed & Ready</div>
-            <div class="timeline-time">Awaiting delivery partner pickup</div>
-        </div>
-        <div id="step-out" class="timeline-step">
-            <div class="timeline-dot"></div>
-            <div class="timeline-title">Out for Delivery</div>
-            <div class="timeline-time">Rider carrying your parcel</div>
-        </div>
-        <div id="step-delivered" class="timeline-step">
-            <div class="timeline-dot"></div>
-            <div class="timeline-title">Delivered</div>
-            <div class="timeline-time">Enjoy your fresh purchase!</div>
+        <div class="location-text">
+            <span class="location-lbl">Delivery in</span>
+            <span class="location-val">Model Town, Delhi <i data-lucide="chevron-down" style="width: 14px; height: 14px; stroke-width: 3;"></i></span>
         </div>
     </div>
     
-    <div id="delivery-info-section" style="margin-top: 24px; padding-top: 20px; border-top: 2px dashed var(--border-color); display: none; background: #f8fafc; border-radius: var(--radius-md); padding: 16px;">
-        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
-            <div style="width: 48px; height: 48px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; color: var(--primary-accent);"><i data-lucide="bike" style="width: 24px; height: 24px;"></i></div>
-            <div>
-                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 2px;">Delivery Partner Assigned</p>
-                <p style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary);"><span id="rider-name">राहुल</span> • <span id="rider-phone" style="color: var(--primary-accent);">9000000001</span></p>
+    <!-- Product Search with Integrated Mic -->
+    <div class="search-bar-container">
+        <input type="text" id="search-input" class="search-bar-input" placeholder="Search for products..." oninput="handleSearch(this.value)" onkeydown="if(event.key === 'Enter') triggerSearch()">
+        <button class="voice-mic-btn-inline" id="mic-btn" onclick="startVoiceInput()" title="Smart Voice Ordering" style="border: none; background: transparent; cursor: pointer; color: var(--text-secondary); margin-right: 10px; display: flex; align-items: center; transition: var(--transition-bounce);">
+            <i data-lucide="mic" style="width: 18px; height: 18px;"></i>
+        </button>
+        <button class="search-bar-button" onclick="triggerSearch()">
+            <i data-lucide="search" style="width: 18px; height: 18px;"></i>
+        </button>
+    </div>
+    
+    <!-- Action Options -->
+    <div class="hamar-nav-links">
+        <a class="hamar-nav-link" onclick="alert('Special promo offers: Use code FREE100 for orders above ₹299!')">
+            <i data-lucide="gift"></i>
+            <span>Offers</span>
+        </a>
+        <a class="hamar-nav-link" onclick="scrollToOrders()">
+            <i data-lucide="file-text"></i>
+            <span>Orders</span>
+        </a>
+        
+        <!-- Profile Dropdown -->
+        <div class="hamar-nav-profile" onclick="toggleDropdown(event, 'profile-dropdown')">
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80" alt="Profile" class="profile-avatar">
+            <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 4px;">{{ session.get('name', 'Alice') }} <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: var(--text-secondary);"></i></span>
+            <div class="glass-dropdown" id="profile-dropdown" style="display: none; right: 32px; top: 60px;">
+                <a href="/session/logout" style="color: var(--ruby-danger);"><i data-lucide="log-out" class="icon-inline"></i> Logout</a>
             </div>
         </div>
-        <div style="background: rgba(16, 185, 129, 0.1); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid rgba(16, 185, 129, 0.2); display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: 600; color: var(--text-secondary);">Delivery Verification OTP</span>
-            <span id="delivery-otp-display" style="font-size: 1.5rem; font-weight: 800; color: var(--emerald-green); letter-spacing: 4px;">----</span>
-        </div>
+        
+        <!-- Cart Action -->
+        <a class="hamar-nav-link" onclick="scrollToCart()" style="position: relative;">
+            <i data-lucide="shopping-cart"></i>
+            <span>Cart</span>
+            <span class="badge" id="header-cart-badge" style="position: absolute; top: -6px; right: -6px; background: var(--primary-accent); color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800;">0</span>
+        </a>
     </div>
+</header>
+
+<!-- Speech Notification Status -->
+<div id="voice-status-toast" style="display:none; position: fixed; top: 85px; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 10px 20px; border-radius: 30px; font-size: 0.85rem; font-weight: 700; z-index: 1001; box-shadow: var(--shadow-float); align-items: center; gap: 8px;">
+    <span class="timeline-dot" style="position:relative; display:inline-block; background: var(--ruby-danger); width: 8px; height: 8px; border-radius: 50%; animation: pulseRing 1s infinite;"></span>
+    <span id="voice-status-text">Listening...</span>
 </div>
 
-<!-- CATEGORY SECTION (CUST-001) -->
-<div class="flex-between mb-sm">
-    <h3 style="font-size: 1.5rem; font-weight: 800;">Explore Categories</h3>
-</div>
-<div class="category-grid">
-    <div class="category-card" onclick="selectCategory('KIRANA', 1)">
-        <i data-lucide="shopping-basket" class="category-icon-lucide"></i>
-        <span class="category-name">Grocery</span>
-        <span class="category-desc">Apna Bazaar</span>
-    </div>
-    <div class="category-card" onclick="selectCategory('CAKES', 2)">
-        <i data-lucide="cake" class="category-icon-lucide"></i>
-        <span class="category-name">Cakes</span>
-        <span class="category-desc">Bakers Table</span>
-    </div>
-    <div class="category-card" onclick="selectCategory('VEGGIES', 3)">
-        <i data-lucide="leaf" class="category-icon-lucide"></i>
-        <span class="category-name">Veggies</span>
-        <span class="category-desc">Fresh & Green</span>
-    </div>
-    <div class="category-card" onclick="selectCategory('ELECTRONICS', 4)">
-        <i data-lucide="cpu" class="category-icon-lucide"></i>
-        <span class="category-name">Electronics</span>
-        <span class="category-desc">ElectroWorld</span>
-    </div>
-</div>
-
-<!-- SHOP & PRODUCT LIST + CART WORKSPACE -->
-<div class="shop-section">
-    <!-- Products Panel -->
+<!-- Page Main Grid -->
+<div class="shop-section" style="grid-template-columns: 1.3fr 0.7fr; gap: 32px; padding-top: 24px;">
+    
+    <!-- Left Column: Banner, Categories, Recommended -->
     <div>
-        <div class="glass-card" id="shop-products-panel" style="display: none;">
+        <!-- ACTIVE ORDER TRACKER TIMELINE (CUST-004) -->
+        <div id="active-order-container" class="glass-card mb-md" style="display: none; border: 2px solid var(--primary-accent); box-shadow: var(--shadow-float);">
+            <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; display: flex; align-items: center;">
+                <span style="font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 6px;"><i data-lucide="package" class="icon-inline" style="margin: 0;"></i> Active Order <span id="tracking-order-id" class="text-accent">#--</span></span>
+                <span id="tracking-order-status" class="badge badge-status-pending">PENDING</span>
+            </div>
+            
+            <div class="timeline">
+                <div id="step-pending" class="timeline-step">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-title">Order Placed</div>
+                    <div class="timeline-time">Waiting for shop acceptance</div>
+                </div>
+                <div id="step-accepted" class="timeline-step">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-title">Accepted by Shop</div>
+                    <div class="timeline-time">Vendor preparing items</div>
+                </div>
+                <div id="step-ready" class="timeline-step">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-title">Packed & Ready</div>
+                    <div class="timeline-time">Awaiting delivery partner pickup</div>
+                </div>
+                <div id="step-out" class="timeline-step">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-title">Out for Delivery</div>
+                    <div class="timeline-time">Rider carrying your parcel</div>
+                </div>
+                <div id="step-delivered" class="timeline-step">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-title">Delivered</div>
+                    <div class="timeline-time">Enjoy your fresh purchase!</div>
+                </div>
+            </div>
+            
+            <div id="delivery-info-section" style="margin-top: 24px; padding-top: 20px; border-top: 2px dashed var(--border-color); display: none; background: #f8fafc; border-radius: var(--radius-md); padding: 16px;">
+                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; color: var(--primary-accent);"><i data-lucide="bike" style="width: 24px; height: 24px;"></i></div>
+                    <div>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 2px;">Delivery Partner Assigned</p>
+                        <p style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary);"><span id="rider-name">राहुल</span> • <span id="rider-phone" style="color: var(--primary-accent);">9000000001</span></p>
+                    </div>
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.1); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid rgba(16, 185, 129, 0.2); display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; color: var(--text-secondary);">Delivery Verification OTP</span>
+                    <span id="delivery-otp-display" style="font-size: 1.5rem; font-weight: 800; color: var(--emerald-green); letter-spacing: 4px;">----</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- HERO BANNER -->
+        <div class="hamar-hero-banner mb-md">
+            <div class="hamar-hero-left">
+                <div class="hamar-hero-title">Sab kuch, paas hi paas.</div>
+                <div class="hamar-hero-subtitle" style="margin-top: -12px;"><span style="color: var(--primary-accent)">30–45 min</span> mein aapke ghar.</div>
+                
+                <div class="hamar-hero-badges-row">
+                    <div class="hamar-hero-badge">
+                        <i data-lucide="store"></i> Exclusive Local Shops
+                    </div>
+                    <div class="hamar-hero-badge">
+                        <i data-lucide="clock"></i> 30–45 min Delivery
+                    </div>
+                    <div class="hamar-hero-badge">
+                        <i data-lucide="shield-check"></i> Trusted & Verified
+                    </div>
+                </div>
+                
+                <!-- Dots indicators -->
+                <div style="display: flex; gap: 6px; margin-top: 8px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--primary-accent);"></span>
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1;"></span>
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1;"></span>
+                </div>
+            </div>
+            
+            <div class="hamar-hero-right">
+                <img src="{{ url_for('static', filename='images/delivery_scooter.png') }}" class="hamar-hero-rider-img" alt="Rider">
+                <!-- Phone Frame Decor -->
+                <div style="position: absolute; right: 20px; top: -15px; width: 130px; height: 230px; background: #ffffff; border: 4px solid #1e293b; border-radius: 20px; z-index: 1; box-shadow: var(--shadow-premium); padding: 8px; display: flex; flex-direction: column; justify-content: space-between; text-align: left;">
+                    <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                        <span style="font-size:0.65rem; font-weight:800; color:var(--primary-accent);">ETA</span>
+                        <span style="font-size:0.65rem; font-weight:800; color: var(--text-secondary);">30-45 min</span>
+                    </div>
+                    <div style="flex:1; background:#f8fafc; margin: 4px 0; border-radius: 4px; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;">
+                        <svg viewBox="0 0 100 100" style="width:100%; height:100%; stroke:var(--primary-accent); stroke-width:3; fill:none; opacity: 0.8;">
+                            <path d="M 10 90 Q 50 80 50 50 T 90 10" />
+                            <circle cx="10" cy="90" r="5" fill="#e11d48"/>
+                            <circle cx="90" cy="10" r="5" fill="var(--primary-accent)"/>
+                        </svg>
+                        <i data-lucide="map-pin" style="position: absolute; top: 10px; right: 10px; color: var(--primary-accent); fill: var(--primary-accent); width: 14px; height: 14px;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CATEGORIES GRID -->
+        <div class="hamar-section-header">
+            <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary);">Shop by Category</h3>
+            <a class="cart-edit-link" onclick="alert('Viewing all categories simulated.')" style="font-size: 0.9rem; display: flex; align-items: center; gap: 4px;">View all shops <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i></a>
+        </div>
+        <div class="category-grid" style="grid-template-columns: repeat(4, 1fr); gap: 16px;">
+            <div class="hamar-category-card category-card-kirana" onclick="selectCategory('KIRANA', 1)">
+                <div>
+                    <div class="hamar-category-title">Kirana</div>
+                    <div class="hamar-category-desc">Daily essentials</div>
+                </div>
+                <div class="hamar-category-action">
+                    <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
+                </div>
+                <img src="{{ url_for('static', filename='images/grocery_basket.png') }}" class="hamar-category-img" alt="Kirana">
+            </div>
+            
+            <div class="hamar-category-card category-card-cakes" onclick="selectCategory('CAKES', 2)">
+                <div>
+                    <div class="hamar-category-title">Cakes</div>
+                    <div class="hamar-category-desc">Fresh & delicious</div>
+                </div>
+                <div class="hamar-category-action">
+                    <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
+                </div>
+                <img src="{{ url_for('static', filename='images/cake_category.png') }}" class="hamar-category-img" alt="Cakes">
+            </div>
+            
+            <div class="hamar-category-card category-card-veggies" onclick="selectCategory('VEGGIES', 3)">
+                <div>
+                    <div class="hamar-category-title">Veggies</div>
+                    <div class="hamar-category-desc">Farm fresh</div>
+                </div>
+                <div class="hamar-category-action">
+                    <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
+                </div>
+                <img src="{{ url_for('static', filename='images/veggies_category.png') }}" class="hamar-category-img" alt="Veggies">
+            </div>
+            
+            <div class="hamar-category-card category-card-electronics" onclick="selectCategory('ELECTRONICS', 4)">
+                <div>
+                    <div class="hamar-category-title">Electronics</div>
+                    <div class="hamar-category-desc">Best quality</div>
+                </div>
+                <div class="hamar-category-action">
+                    <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
+                </div>
+                <img src="{{ url_for('static', filename='images/electronics_category.png') }}" class="hamar-category-img" alt="Electronics">
+            </div>
+        </div>
+
+        <!-- DYNAMIC PRODUCTS EXPANDABLE SHELF -->
+        <div class="glass-card mt-md" id="shop-products-panel" style="display: none; border-color: var(--primary-accent);">
             <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px;">
-                <h3 id="current-shop-name" style="font-size: 1.25rem; font-weight: 800;">Shop Name</h3>
-                <span id="current-shop-badge" class="badge badge-normal text-accent" style="background: var(--primary-light);">Exclusive Partner</span>
+                <div>
+                    <h3 id="current-shop-name" style="font-size: 1.25rem; font-weight: 800;">Shop Name</h3>
+                    <span id="current-shop-badge" class="badge badge-normal text-accent" style="background: var(--primary-light); margin-top: 4px; display: inline-block;">Exclusive Partner</span>
+                </div>
+                <button class="btn btn-secondary" onclick="closeShopShelf()" style="width: auto; padding: 8px 16px; border-radius: var(--radius-sm);">Close Shelf</button>
             </div>
             <div class="products-grid" id="products-container">
                 <!-- Loaded dynamically via JS -->
             </div>
         </div>
-        
-        <!-- Empty State for Shop selection -->
-        <div class="glass-card" id="shop-placeholder" style="text-align: center; padding: 80px 20px; border: 2px dashed var(--border-color); display: flex; flex-direction: column; align-items: center; justify-content: center;">
-            <i data-lucide="compass" style="width: 48px; height: 48px; stroke-width: 1.5; color: var(--primary-accent); margin-bottom: 16px;"></i>
-            <h4 style="font-size: 1.25rem; font-weight: 800;">Select a category to browse</h4>
-            <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 8px;">Enjoy 10-minute delivery from our premium monopolistic partners.</p>
-        </div>
-    </div>
 
-    <!-- Cart Drawer (Sticky on Desktop) -->
-    <div style="position: sticky; top: 100px;">
-        <div class="glass-card">
-            <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; align-items: center; gap: 8px;"><i data-lucide="shopping-bag" class="icon-inline" style="margin: 0;"></i> Your Cart</h3>
-            
-            <div id="cart-items-container" style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
-                <!-- Cart items render here -->
-                <div style="text-align: center; padding: 40px 0;">
-                    <i data-lucide="shopping-cart" style="width: 40px; height: 40px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 12px; display: inline-block;"></i>
-                    <p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">Your cart is empty.</p>
+        <!-- RECOMMENDED FOR YOU SHELF -->
+        <div class="hamar-section-header">
+            <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary);">Recommended for You</h3>
+            <a class="cart-edit-link" onclick="alert('Showing all recommendations')">See all</a>
+        </div>
+        <div class="hamar-carousel-wrapper">
+            <button class="carousel-btn-arrow carousel-btn-left" onclick="slideCarousel(-1)"><i data-lucide="chevron-left" style="width: 18px; height: 18px;"></i></button>
+            <div id="recommended-products-container" class="products-grid" style="width: 100%; overflow-x: auto; scroll-behavior: smooth; display: grid; grid-auto-flow: column; grid-auto-columns: calc(25% - 12px); gap: 16px; padding: 4px 4px 16px 4px; scrollbar-width: none;">
+                <!-- Preloaded dynamically on DOMContentLoaded -->
+            </div>
+            <button class="carousel-btn-arrow carousel-btn-right" onclick="slideCarousel(1)"><i data-lucide="chevron-right" style="width: 18px; height: 18px;"></i></button>
+        </div>
+
+        <!-- TRUST BADGES FOOTER -->
+        <div class="trust-footer-container">
+            <div class="trust-badge">
+                <div class="trust-icon-box">
+                    <i data-lucide="rotate-ccw"></i>
+                </div>
+                <div>
+                    <div class="trust-badge-title">7 Days Return</div>
+                    <div class="trust-badge-desc">Easy return & refund</div>
                 </div>
             </div>
+            <div class="trust-badge">
+                <div class="trust-icon-box">
+                    <i data-lucide="shield-check"></i>
+                </div>
+                <div>
+                    <div class="trust-badge-title">Secure Payments</div>
+                    <div class="trust-badge-desc">100% secure payments</div>
+                </div>
+            </div>
+            <div class="trust-badge">
+                <div class="trust-icon-box">
+                    <i data-lucide="map-pin"></i>
+                </div>
+                <div>
+                    <div class="trust-badge-title">Live Tracking</div>
+                    <div class="trust-badge-desc">Track your order live</div>
+                </div>
+            </div>
+            <div class="trust-badge">
+                <div class="trust-icon-box">
+                    <i data-lucide="help-circle"></i>
+                </div>
+                <div>
+                    <div class="trust-badge-title">Help & Support</div>
+                    <div class="trust-badge-desc">24x7 customer support</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column: Cart, Delivering Address, Payment -->
+    <div style="position: sticky; top: 100px; height: fit-content; display: flex; flex-direction: column; gap: 20px;">
+        <!-- CART CARD -->
+        <div class="glass-card" style="padding: 24px; text-align: left;" id="cart-card-workspace">
+            <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+                <h3 style="font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px; color: var(--text-primary);"><i data-lucide="shopping-bag" style="width: 18px; height: 18px; color: var(--primary-accent);"></i> Your Cart (<span id="cart-count">3</span>)</h3>
+                <a class="cart-edit-link" id="cart-edit-btn" onclick="toggleCartEdit()">Edit</a>
+            </div>
             
-            <!-- SMART RECOMMENDATION BOX (INT-001) -->
-            <div id="recommendation-box" style="display: none; background: #faf5ff; border: 1px solid #d8b4fe; padding: 16px; margin-bottom: 24px; border-radius: var(--radius-md);">
+            <div id="cart-items-container" style="display: flex; flex-direction: column; gap: 12px;">
+                <!-- Dynamic cart listing -->
+            </div>
+            
+            <!-- SMART SUGGESTION BOX (INT-001) -->
+            <div id="recommendation-box" style="display: none; background: #f0fdf4; border: 1px solid rgba(44, 160, 44, 0.15); padding: 16px; margin-top: 16px; border-radius: var(--radius-md);">
                 <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
                     <i data-lucide="sparkles" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--primary-accent);"></i>
                     <span style="font-size: 0.8rem; color: var(--primary-accent); font-weight: 800; text-transform: uppercase;">AI Suggestion</span>
@@ -151,66 +313,73 @@
                         <span id="rec-item-name" style="font-weight: 700; font-size: 0.95rem;">Butter</span>
                         <span id="rec-item-price" style="font-size: 0.85rem; color: var(--text-secondary); display: block;">₹60.0</span>
                     </div>
-                    <button class="btn btn-primary" id="rec-add-btn" style="width: auto; padding: 8px 16px; font-size: 0.85rem; border-radius: 20px;">+ Add</button>
+                    <button class="btn btn-primary" id="rec-add-btn" style="width: auto; padding: 6px 12px; font-size: 0.8rem; border-radius: 20px;">+ Add</button>
                 </div>
             </div>
-
-            <div id="cart-summary-section" style="display: none; border-top: 1px solid var(--border-color); padding-top: 20px;">
-                <div class="flex-between mb-sm" style="font-size: 0.95rem;">
-                    <span style="color: var(--text-secondary);">Subtotal</span>
+            
+            <!-- PRICING SUMMARY -->
+            <div id="cart-summary-section" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px; display: none;">
+                <div class="flex-between mb-sm" style="font-size: 0.9rem;">
+                    <span style="color: var(--text-secondary);">Item Total</span>
                     <span id="cart-subtotal" style="font-weight: 600;">₹0.00</span>
                 </div>
-                <div class="flex-between mb-sm" style="font-size: 0.95rem;">
-                    <span style="color: var(--text-secondary);">Handling & GST</span>
-                    <span id="cart-gst" style="font-weight: 600;">₹0.00</span>
-                </div>
-                <div class="flex-between mb-sm" style="font-size: 0.95rem;">
+                <div class="flex-between mb-sm" style="font-size: 0.9rem;">
                     <span style="color: var(--text-secondary);">Delivery Fee</span>
-                    <span style="font-weight: 700; color: var(--emerald-green);">FREE</span>
+                    <span id="cart-delivery-fee" style="font-weight: 600;">₹15.00</span>
                 </div>
-                <div class="flex-between mt-md" style="font-size: 1.25rem; font-weight: 800; border-top: 2px dashed var(--border-color); padding-top: 16px;">
+                
+                <div class="flex-between mt-md" style="font-size: 1.15rem; font-weight: 800; border-top: 2px dashed var(--border-color); padding-top: 12px; color: var(--text-primary);">
                     <span>To Pay</span>
-                    <span id="cart-grandtotal" class="text-accent">₹0.00</span>
+                    <span id="cart-grandtotal" style="color: var(--primary-accent); font-family: 'Outfit', sans-serif;">₹0.00</span>
                 </div>
                 
-                <!-- Checkout forms -->
-                <div class="form-group mt-md">
-                    <label class="form-label">Delivery Speed (INT-002)</label>
-                    <div style="display: flex; gap: 12px;">
-                        <label style="flex: 1; text-align: center; border: 2px solid var(--primary-accent); background: var(--primary-light); padding: 12px; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.95rem;">
-                            <input type="radio" name="priority" value="NORMAL" checked style="margin: 0;"> Standard
-                        </label>
-                        <label style="flex: 1; text-align: center; border: 2px solid #fecaca; background: var(--ruby-light); padding: 12px; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--ruby-danger); font-weight: 700; font-size: 0.95rem;">
-                            <input type="radio" name="priority" value="URGENT" style="margin: 0;"> <i data-lucide="zap" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--ruby-danger);"></i> Priority
-                        </label>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Delivery Address</label>
-                    <input type="text" id="address-input" class="form-input" placeholder="Flat number, Street area, Landmark">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Payment Method</label>
-                    <select id="payment-input" class="form-input">
-                        <option value="ONLINE">Pay Online (Simulated)</option>
-                        <option value="COD">Cash On Delivery</option>
-                    </select>
-                </div>
+                <!-- Speed Checkbox Hidden Field -->
+                <input type="hidden" name="priority" id="delivery-priority-field" value="NORMAL">
+                <input type="text" id="address-input" style="display: none;" value="A-123, Model Town, Delhi - 110009">
                 
-                <button class="btn btn-primary mt-md w-full" style="font-size: 1.1rem; padding: 16px;" onclick="checkoutOrder()">Place Order</button>
+                <!-- Checkout trigger button -->
+                <button class="btn btn-primary mt-md w-full" style="font-size: 1.05rem; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: var(--radius-md);" onclick="checkoutOrder()">Checkout <i data-lucide="arrow-right" style="width: 16px; height: 16px;"></i></button>
+                
+                <div class="cart-promo-badge">
+                    <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i> Free delivery on orders above ₹199
+                </div>
+            </div>
+        </div>
+
+        <!-- DELIVERING TO INFO WIDGET -->
+        <div class="address-info-panel" id="address-block-workspace">
+            <div class="address-info-detail">
+                <div class="address-info-header">
+                    <span class="address-lbl">Delivering to</span>
+                    <span class="address-tag">Home</span>
+                </div>
+                <span class="address-txt" id="sidebar-address-display">A-123, Model Town, Delhi - 110009</span>
+            </div>
+            <a class="cart-edit-link" onclick="changeDeliveryAddress()">Change</a>
+        </div>
+
+        <!-- PAYMENT OPTIONS SELECTION WIDGET -->
+        <div class="glass-card" style="padding: 20px; text-align: left;" id="payment-block-workspace">
+            <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 12px;">Payment Options</h4>
+            <div class="payment-options-grid">
+                <input type="hidden" id="payment-input" value="ONLINE">
+                <button class="payment-option-btn" id="pay-btn-cod" onclick="selectPaymentMode('COD')">
+                    <i data-lucide="wallet" style="width: 16px; height: 16px;"></i> COD
+                </button>
+                <button class="payment-option-btn selected" id="pay-btn-online" onclick="selectPaymentMode('ONLINE')">
+                    <i data-lucide="credit-card" style="width: 16px; height: 16px;"></i> UPI / Online
+                </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- MONTHLY EXPENSE INSIGHTS MODAL (INT-009) -->
+<!-- MONTHLY INSIGHTS MODAL (REMAINS SUPPORTED) -->
 <div id="expense-modal" class="overlay-modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">Your Monthly Insights</div>
         <div class="modal-body">
-            <p style="margin-bottom: 20px; font-size: 0.95rem;">Spending breakdown by category for your completed orders.</p>
+            <p style="margin-bottom: 20px; font-size: 0.95rem;">Spending breakdown by category for completed orders.</p>
             <div id="expense-stats" style="text-align: left; background: #f8fafc; border: 1px solid var(--border-color); padding: 20px; border-radius: var(--radius-md); margin-bottom: 24px;">
                 <!-- Loaded dynamically -->
             </div>
@@ -219,15 +388,16 @@
     </div>
 </div>
 
-<!-- Scripts for Client actions -->
+<!-- Client Actions Javascript Logic -->
 <script>
     const customerId = {{ active_user_id }};
     let currentShopId = null;
     let productsList = [];
     let cart = {}; // product_id -> {name, price, quantity}
     let trackingInterval = null;
+    let isCartEditMode = false;
 
-    // Load active order if exists in localStorage
+    // Load active order and seed cart to match mockup
     document.addEventListener("DOMContentLoaded", () => {
         const cachedOrder = localStorage.getItem(`active_order_${customerId}`);
         if (cachedOrder) {
@@ -238,31 +408,88 @@
         {% for u in users %}
             {% if u.id == active_user_id %}
                 document.getElementById("address-input").value = "{{ u.address }}";
+                document.getElementById("sidebar-address-display").innerText = "{{ u.address }}";
             {% endif %}
         {% endfor %}
+        
+        // Pre-populate cart to match mockup screenshot if cart is empty
+        const cachedCart = localStorage.getItem(`cart_${customerId}`);
+        if (cachedCart) {
+            cart = JSON.parse(cachedCart);
+        } else {
+            // Seed cart with mockup items exactly
+            cart = {
+                1: { id: 1, name: "Amul Milk 1 Ltr", price: 62.0, quantity: 1 },
+                2: { id: 2, name: "Britannia Bread 400g", price: 35.0, quantity: 1 },
+                3: { id: 3, name: "Lays Classic 52g", price: 20.0, quantity: 1 }
+            };
+            localStorage.setItem(`cart_${customerId}`, JSON.stringify(cart));
+        }
+        updateCartUI();
+        
+        // Load default Recommended items (under KIRANA category)
+        fetch(`/api/shops/1/products`)
+            .then(res => res.json())
+            .then(data => {
+                renderRecommendedProducts(data);
+            });
     });
 
     // Rule-based Recommendation Mapping (INT-001)
     const recRules = {
-        'milk': { id: 3, name: 'Amul Butter 100g', price: 60.0 },
-        'bread': { id: 3, name: 'Amul Butter 100g', price: 60.0 },
-        'cake': { id: 8, name: 'Sparkling Candles Pack', price: 35.0 },
-        'battery': { id: 15, name: 'Fast USB-C Cable 1.5m', price: 150.0 }
+        'milk': { id: 4, name: 'Amul Butter 100g', price: 55.0 },
+        'bread': { id: 4, name: 'Amul Butter 100g', price: 55.0 },
+        'lays': { id: 4, name: 'Amul Butter 100g', price: 55.0 },
+        'butter': { id: 5, name: 'Colgate Toothpaste 100g', price: 32.0 },
+        'colgate': { id: 1, name: 'Amul Milk 1 Ltr', price: 62.0 }
     };
 
+    // Slides the recommended carousel grid
+    function slideCarousel(dir) {
+        const container = document.getElementById("recommended-products-container");
+        const scrollAmount = 250;
+        container.scrollBy({ left: scrollAmount * dir, behavior: 'smooth' });
+    }
+
+    // Toggle Payment selection UI
+    function selectPaymentMode(mode) {
+        document.getElementById("payment-input").value = mode;
+        document.getElementById("pay-btn-cod").classList.toggle("selected", mode === 'COD');
+        document.getElementById("pay-btn-online").classList.toggle("selected", mode === 'ONLINE');
+    }
+
+    // Prompts and changes delivery address
+    function changeDeliveryAddress() {
+        const currentAddr = document.getElementById("sidebar-address-display").innerText;
+        const newAddr = prompt("Update Delivery Address:", currentAddr);
+        if (newAddr && newAddr.trim()) {
+            document.getElementById("sidebar-address-display").innerText = newAddr.trim();
+            document.getElementById("address-input").value = newAddr.trim();
+        }
+    }
+
+    // Scroll helpers
+    function scrollToOrders() {
+        document.getElementById("active-order-container").scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function scrollToCart() {
+        document.getElementById("cart-card-workspace").scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Displays products of selected category inside the shelf
     function selectCategory(category, shopId) {
-        // Toggle selected category card
-        document.querySelectorAll(".category-card").forEach((card, index) => {
-            if (index + 1 === shopId) card.classList.add("selected");
-            else card.classList.remove("selected");
+        // Toggle active styling
+        document.querySelectorAll(".hamar-category-card").forEach((card, index) => {
+            if (index + 1 === shopId) card.style.border = "2px solid var(--primary-accent)";
+            else card.style.border = "1px solid transparent";
         });
 
         currentShopId = shopId;
-        document.getElementById("shop-placeholder").style.display = "none";
         document.getElementById("shop-products-panel").style.display = "block";
         document.getElementById("shop-products-panel").classList.add("fade-in-up");
+        document.getElementById("shop-products-panel").scrollIntoView({ behavior: 'smooth' });
         
-        // Fetch products
         fetch(`/api/shops/${shopId}/products`)
             .then(res => res.json())
             .then(data => {
@@ -270,16 +497,23 @@
                 renderProducts();
             });
             
-        // Render Shop Title
         const shopNames = {
-            1: "Apna Bazaar Grocery",
-            2: "Bakers Table Premium",
+            1: "Apna Bazaar Kirana & General",
+            2: "Bakers Table Cakes",
             3: "Fresh & Green Veggies",
-            4: "ElectroWorld Tech"
+            4: "ElectroWorld Tech Products"
         };
         document.getElementById("current-shop-name").innerText = shopNames[shopId];
     }
 
+    // Close category products panel
+    function closeShopShelf() {
+        document.getElementById("shop-products-panel").style.display = "none";
+        document.querySelectorAll(".hamar-category-card").forEach(card => card.style.border = "1px solid transparent");
+        currentShopId = null;
+    }
+
+    // Render products inside Category Shelf
     function renderProducts() {
         const container = document.getElementById("products-container");
         container.innerHTML = "";
@@ -290,26 +524,19 @@
             
             const qty = cart[prod.id] ? cart[prod.id].quantity : 0;
             
-            // Random stock status logic for premium feel
-            const isLowStock = Math.random() > 0.8;
-            const stockBadge = isLowStock ? `<span style="font-size: 0.7rem; color: var(--ruby-danger); font-weight: 700; background: var(--ruby-light); padding: 2px 6px; border-radius: 4px;">Only few left</span>` : ``;
-
             card.innerHTML = `
                 <div>
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                        <span style="background: #f1f5f9; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--primary-accent);"><i data-lucide="package" style="width: 24px; height: 24px;"></i></span>
-                        ${stockBadge}
-                    </div>
-                    <h5 class="product-name">${prod.name}</h5>
+                    <span style="background: #f1f5f9; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--primary-accent); margin-bottom: 8px;"><i data-lucide="package" style="width: 20px; height: 20px;"></i></span>
+                    <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${prod.name}</h5>
                     <div class="product-price">₹${prod.price.toFixed(2)}</div>
                 </div>
-                <div>
+                <div style="margin-top: 12px;">
                     ${qty === 0 ? 
-                        `<button class="btn btn-secondary w-full" style="padding: 10px; font-size: 0.9rem;" onclick="addToCart(${prod.id}, 1)">Add to Cart</button>` :
+                        `<button class="btn btn-secondary w-full" style="padding: 8px; font-size: 0.85rem;" onclick="addToCart(${prod.id}, 1)">Add</button>` :
                         `<div class="product-qty-controls" style="justify-content: space-between;">
-                            <button class="btn-circle" style="width: 32px; height: 32px; font-size: 1rem;" onclick="changeQty(${prod.id}, -1)">-</button>
-                            <span style="font-weight:700; font-size: 1rem;">${qty}</span>
-                            <button class="btn-circle" style="width: 32px; height: 32px; font-size: 1rem; background: var(--primary-light); color: var(--primary-accent); border-color: var(--primary-light);" onclick="changeQty(${prod.id}, 1)">+</button>
+                            <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem;" onclick="changeQty(${prod.id}, -1)">-</button>
+                            <span style="font-weight:700; font-size: 0.95rem;">${qty}</span>
+                            <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; background: var(--primary-light); color: var(--primary-accent);" onclick="changeQty(${prod.id}, 1)">+</button>
                          </div>`
                     }
                 </div>
@@ -319,8 +546,65 @@
         refreshIcons();
     }
 
+    // Renders Recommended horizontal carousel
+    function renderRecommendedProducts(products) {
+        const container = document.getElementById("recommended-products-container");
+        container.innerHTML = "";
+        
+        products.forEach(prod => {
+            const card = document.createElement("div");
+            card.className = "product-card fade-in-up";
+            card.style.background = "#ffffff";
+            card.style.border = "1px solid var(--border-color)";
+            card.style.borderRadius = "var(--radius-lg)";
+            card.style.padding = "16px";
+            card.style.minWidth = "170px";
+            card.style.display = "flex";
+            card.style.flexDirection = "column";
+            card.style.justifyContent = "space-between";
+            
+            // Map product images
+            let imgName = "grocery_basket.png";
+            if (prod.id === 1) imgName = "grocery_basket.png";
+            else if (prod.id === 2) imgName = "grocery_basket.png";
+            
+            const qty = cart[prod.id] ? cart[prod.id].quantity : 0;
+            
+            card.innerHTML = `
+                <div style="text-align: left;">
+                    <div style="height: 90px; display:flex; align-items:center; justify-content:center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 12px; overflow:hidden;">
+                        <i data-lucide="package" style="width:32px; height:32px; color: var(--text-muted);"></i>
+                    </div>
+                    <h5 class="product-name" style="font-size: 0.9rem; font-weight:700; color:var(--text-primary); margin-bottom:4px; height:36px; overflow:hidden;">${prod.name}</h5>
+                    <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:500;">Pack Size</span>
+                </div>
+                
+                <div class="flex-between" style="margin-top:12px; align-items:center;">
+                    <span style="font-weight:800; font-size:1.05rem; color:var(--text-primary);">₹${prod.price.toFixed(0)}</span>
+                    ${qty === 0 ?
+                        `<button class="product-add-circle" onclick="addRecommendedToCart(${prod.id})">+</button>` :
+                        `<div style="display:flex; align-items:center; gap:8px;">
+                            <button class="btn-circle" style="width:24px; height:24px; font-size:0.8rem;" onclick="changeQty(${prod.id}, -1)">-</button>
+                            <span style="font-weight:700; font-size:0.9rem;">${qty}</span>
+                            <button class="btn-circle" style="width:24px; height:24px; font-size:0.8rem; background: var(--primary-light); color: var(--primary-accent);" onclick="changeQty(${prod.id}, 1)">+</button>
+                        </div>`
+                    }
+                </div>
+            `;
+            container.appendChild(card);
+        });
+        refreshIcons();
+    }
+
+    function addRecommendedToCart(prodId) {
+        // Fetch product info and add
+        fetch(`/api/orders/place`) // dummy to hit DB or query API
+        addToCart(prodId, 1);
+    }
+
     function addToCart(prodId, qty) {
-        const prod = productsList.find(p => p.id === prodId);
+        // If not in shelf list, fetch item detail or fallback map
+        const prod = productsList.find(p => p.id === prodId) || getMockProductDetail(prodId);
         if (!prod) return;
         
         cart[prodId] = {
@@ -333,6 +617,17 @@
         updateCartUI();
     }
 
+    function getMockProductDetail(id) {
+        const mocks = {
+            1: { name: "Amul Milk 1 Ltr", price: 62.0 },
+            2: { name: "Britannia Bread 400g", price: 35.0 },
+            3: { name: "Lays Classic 52g", price: 20.0 },
+            4: { name: "Amul Butter 100g", price: 55.0 },
+            5: { name: "Colgate Toothpaste 100g", price: 32.0 }
+        };
+        return mocks[id] || { name: "Standard Product", price: 100.0 };
+    }
+
     function changeQty(prodId, delta) {
         if (!cart[prodId]) return;
         cart[prodId].quantity += delta;
@@ -342,15 +637,29 @@
         updateCartUI();
     }
 
+    function toggleCartEdit() {
+        isCartEditMode = !isCartEditMode;
+        document.getElementById("cart-edit-btn").innerText = isCartEditMode ? "Done" : "Edit";
+        updateCartUI();
+    }
+
     function updateCartUI() {
+        // Sync category shelf and recommended list
         renderProducts();
+        fetch(`/api/shops/1/products`)
+            .then(res => res.json())
+            .then(data => renderRecommendedProducts(data));
         
         const container = document.getElementById("cart-items-container");
         container.innerHTML = "";
         
         const keys = Object.keys(cart);
+        const cartCount = keys.reduce((acc, k) => acc + cart[k].quantity, 0);
+        document.getElementById("cart-count").innerText = cartCount;
+        document.getElementById("header-cart-badge").innerText = cartCount;
+        
         if (keys.length === 0) {
-            container.innerHTML = `<div style="text-align: center; padding: 40px 0;"><i data-lucide="shopping-cart" style="width: 40px; height: 40px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 12px; display: inline-block;"></i><p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">Your cart is empty.</p></div>`;
+            container.innerHTML = `<div style="text-align: center; padding: 24px 0;"><i data-lucide="shopping-cart" style="width: 32px; height: 32px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 8px; display: inline-block;"></i><p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">Cart is empty.</p></div>`;
             document.getElementById("cart-summary-section").style.display = "none";
             document.getElementById("recommendation-box").style.display = "none";
             refreshIcons();
@@ -358,7 +667,6 @@
         }
         
         document.getElementById("cart-summary-section").style.display = "block";
-        document.getElementById("cart-summary-section").classList.add("fade-in-up");
         
         let subtotal = 0;
         keys.forEach(key => {
@@ -366,26 +674,38 @@
             subtotal += item.price * item.quantity;
             
             const itemRow = document.createElement("div");
-            itemRow.style = "display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);";
+            itemRow.style = "display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);";
+            
+            let qtyControls = `<span style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem;">x${item.quantity}</span>`;
+            if (isCartEditMode) {
+                qtyControls = `
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button class="btn-circle" style="width: 22px; height: 22px; font-size: 0.75rem;" onclick="changeQty(${item.id}, -1)">-</button>
+                        <span style="font-weight:700; font-size: 0.85rem;">${item.quantity}</span>
+                        <button class="btn-circle" style="width: 22px; height: 22px; font-size: 0.75rem; background: var(--primary-light); color: var(--primary-accent);" onclick="changeQty(${item.id}, 1)">+</button>
+                    </div>
+                `;
+            }
+
             itemRow.innerHTML = `
                 <div>
-                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">${item.name}</div>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">₹${item.price.toFixed(2)} x ${item.quantity}</div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">${item.name}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px;">₹${item.price.toFixed(0)}</div>
                 </div>
-                <div style="font-weight: 800; color: var(--primary-accent); font-size: 1.05rem;">
-                    ₹${(item.price * item.quantity).toFixed(2)}
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    ${qtyControls}
+                    <strong style="color: var(--text-primary); font-size: 0.95rem; width: 50px; text-align: right;">₹${(item.price * item.quantity).toFixed(0)}</strong>
                 </div>
             `;
             container.appendChild(itemRow);
         });
         
-        // Smart recommendation matching
+        // Smart recommendation
         let recFound = null;
         for (let key in cart) {
             const item_name_lower = cart[key].name.toLowerCase();
             for (let word in recRules) {
                 if (item_name_lower.includes(word)) {
-                    // Check if recommendation item is not already in cart
                     const recProd = recRules[word];
                     if (!cart[recProd.id]) {
                         recFound = recProd;
@@ -399,35 +719,26 @@
         const recBox = document.getElementById("recommendation-box");
         if (recFound) {
             recBox.style.display = "block";
-            recBox.classList.add("fade-in-up");
             document.getElementById("rec-item-name").innerText = recFound.name;
-            document.getElementById("rec-item-price").innerText = `₹${recFound.price.toFixed(2)}`;
+            document.getElementById("rec-item-price").innerText = `₹${recFound.price.toFixed(0)}`;
             document.getElementById("rec-add-btn").onclick = () => {
-                // If it is in productsList, add, else pull it from the category list
-                const inList = productsList.find(p => p.id === recFound.id);
-                if (inList) {
-                    addToCart(recFound.id, 1);
-                } else {
-                    // Force inject recommendation item to cart
-                    cart[recFound.id] = {
-                        id: recFound.id,
-                        name: recFound.name,
-                        price: recFound.price,
-                        quantity: 1
-                    };
-                    updateCartUI();
-                }
+                addToCart(recFound.id, 1);
             };
         } else {
             recBox.style.display = "none";
         }
         
-        const gst = subtotal * 0.18;
-        const grand = subtotal + gst;
+        // Mockup delivery pricing rules (Free above 199, else 15)
+        const deliveryFee = subtotal >= 199 ? 0 : 15;
+        const grand = subtotal + deliveryFee;
         
         document.getElementById("cart-subtotal").innerText = `₹${subtotal.toFixed(2)}`;
-        document.getElementById("cart-gst").innerText = `₹${gst.toFixed(2)}`;
+        document.getElementById("cart-delivery-fee").innerText = deliveryFee === 0 ? "FREE" : `₹${deliveryFee.toFixed(2)}`;
+        document.getElementById("cart-delivery-fee").style.color = deliveryFee === 0 ? "var(--emerald-green)" : "var(--text-primary)";
         document.getElementById("cart-grandtotal").innerText = `₹${grand.toFixed(2)}`;
+        
+        // Sync cache
+        localStorage.setItem(`cart_${customerId}`, JSON.stringify(cart));
         refreshIcons();
     }
 
@@ -443,18 +754,18 @@
             quantity: cart[k].quantity
         }));
         
-        const priority = document.querySelector('input[name="priority"]:checked').value;
+        const priority = document.getElementById("delivery-priority-field").value;
         const paymentMode = document.getElementById("payment-input").value;
         
         const checkoutPayload = {
             customer_id: customerId,
-            shop_id: currentShopId,
+            shop_id: 1, // seed Kirana shop
             items: itemsList,
             priority_type: priority
         };
         
         if (paymentMode === "ONLINE") {
-            alert("Redirecting to secure payment gateway...");
+            alert("Secure online transaction simulation via UPI...");
             setTimeout(() => {
                 sendCheckoutRequest(checkoutPayload);
             }, 1000);
@@ -474,19 +785,17 @@
             if (data.error) {
                 alert(data.error);
             } else {
-                alert("Payment Successful! Order Confirmed.");
-                // Clear cart
+                alert("Order placed successfully! Redirecting to tracker.");
                 cart = {};
+                localStorage.removeItem(`cart_${customerId}`);
                 updateCartUI();
-                // Cache active order ID
                 localStorage.setItem(`active_order_${customerId}`, JSON.stringify({ order_id: data.order_id }));
                 startTracking(data.order_id);
-                document.getElementById("active-order-container").scrollIntoView({behavior: 'smooth'});
+                scrollToOrders();
             }
         });
     }
 
-    // Timeline Live Tracking (CUST-004)
     function startTracking(orderId) {
         document.getElementById("active-order-container").style.display = "block";
         document.getElementById("active-order-container").classList.add("fade-in-up");
@@ -507,7 +816,6 @@
                     const statusBadge = document.getElementById("tracking-order-status");
                     statusBadge.innerText = status;
                     
-                    // Reset classes
                     const steps = ["step-pending", "step-accepted", "step-ready", "step-out", "step-delivered"];
                     steps.forEach(s => {
                         document.getElementById(s).classList.remove("active", "completed");
@@ -541,12 +849,10 @@
                         document.getElementById("step-out").classList.add("completed");
                         document.getElementById("step-delivered").classList.add("completed");
                         
-                        // Clear active order cache
                         localStorage.removeItem(`active_order_${customerId}`);
                         clearInterval(trackingInterval);
                     }
                     
-                    // Display OTP & Delivery Partner detail (INT-008)
                     const devSec = document.getElementById("delivery-info-section");
                     if (data.delivery_boy_id) {
                         devSec.style.display = "block";
@@ -561,10 +867,10 @@
         };
         
         poll();
-        trackingInterval = setInterval(poll, 10000); // Poll every 10 seconds (PRD requirement)
+        trackingInterval = setInterval(poll, 10000);
     }
 
-    // Monthly Expense Tracker Modal (INT-009)
+    // Expense modals
     function toggleExpensesModal() {
         const modal = document.getElementById("expense-modal");
         if (modal.style.display === "none" || !modal.style.display) {
@@ -577,7 +883,7 @@
 
     function loadExpenses() {
         const container = document.getElementById("expense-stats");
-        container.innerHTML = "<div style='text-align:center;'><div class='timeline-dot' style='position:relative; display:inline-block; animation: pulseRing 1s infinite;'></div><p class='mt-md'>Crunching numbers...</p></div>";
+        container.innerHTML = "<div style='text-align:center;'><p>Calculating spending insights...</p></div>";
         
         fetch(`/api/customer/${customerId}/expenses`)
             .then(res => res.json())
@@ -590,7 +896,7 @@
                     return;
                 }
                 
-                let barsHtml = `<div style="margin-bottom: 24px; text-align: center;"><h4 style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 4px;">Total Spent</h4><div style="font-size: 2.5rem; font-weight: 800; color: var(--primary-accent); letter-spacing: -1px;">₹${data.total_spent_overall.toFixed(2)}</div></div>`;
+                let barsHtml = `<div style="margin-bottom: 24px; text-align: center;"><h4 style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 4px;">Total Spent</h4><div style="font-size: 2rem; font-weight: 800; color: var(--primary-accent);">₹${data.total_spent_overall.toFixed(2)}</div></div>`;
                 
                 keys.forEach(k => {
                     const c = categories[k];
@@ -602,7 +908,7 @@
                                 <strong style="color: var(--text-primary);">₹${c.spent.toFixed(2)}</strong>
                             </div>
                             <div style="background:#e2e8f0; height:8px; border-radius:10px; overflow:hidden;">
-                                <div style="background:var(--primary-accent); height:100%; width:${pct}%; border-radius:10px;"></div>
+                                <div style="background:var(--primary-accent); height:100%; width:${pct}%;"></div>
                             </div>
                         </div>
                     `;
@@ -612,7 +918,7 @@
             });
     }
 
-    // Speech recognition parser (INT-005)
+    // Speech ordering API integration
     let recognition = null;
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -621,49 +927,60 @@
         recognition.lang = 'en-IN';
         
         recognition.onstart = () => {
-            document.getElementById("mic-btn").classList.add("listening");
-            document.getElementById("voice-status").innerText = "Listening... Speak now.";
-            document.getElementById("voice-status").style.color = "var(--ruby-danger)";
+            document.getElementById("mic-btn").style.color = "var(--ruby-danger)";
+            document.getElementById("voice-status-toast").style.display = "flex";
+            document.getElementById("voice-status-text").innerText = "Listening... Speak your order.";
         };
         
         recognition.onend = () => {
-            document.getElementById("mic-btn").classList.remove("listening");
-            document.getElementById("voice-status").style.color = "var(--text-secondary)";
+            document.getElementById("mic-btn").style.color = "var(--text-secondary)";
+            setTimeout(() => {
+                document.getElementById("voice-status-toast").style.display = "none";
+            }, 2500);
         };
         
         recognition.onresult = (event) => {
             const speechResult = event.results[0][0].transcript.toLowerCase();
-            document.getElementById("voice-status").innerText = `Recognized: "${speechResult}"`;
+            document.getElementById("voice-status-text").innerText = `Heard: "${speechResult}"`;
             parseVoiceCommand(speechResult);
         };
         
         recognition.onerror = (e) => {
-            document.getElementById("voice-status").innerText = "Speech error. Please try again.";
+            document.getElementById("voice-status-text").innerText = "Speech failed. Try again.";
             console.error(e);
         };
     }
 
     function startVoiceInput() {
         if (!recognition) {
-            alert("Speech recognition is not supported in this browser. Try Chrome.");
+            // Fallback / Simulation prompt
+            const simulatedSpeech = prompt("Voice Search is not supported or blocked. Simulate by typing your command here (e.g. 'add 2 milk', 'add 1 bread'):");
+            if (simulatedSpeech && simulatedSpeech.trim()) {
+                document.getElementById("voice-status-toast").style.display = "flex";
+                document.getElementById("voice-status-text").innerText = `Simulating: "${simulatedSpeech}"`;
+                setTimeout(() => {
+                    parseVoiceCommand(simulatedSpeech.toLowerCase());
+                    setTimeout(() => {
+                        document.getElementById("voice-status-toast").style.display = "none";
+                    }, 2500);
+                }, 1000);
+            }
             return;
         }
-        // Force routing to Kirana (Shop 1) to fetch products list first if not chosen
-        if (!currentShopId) {
-            selectCategory('KIRANA', 1);
+        try {
+            recognition.start();
+        } catch(e) {
+            console.warn("Speech recognition error: ", e);
+            const simulatedSpeech = prompt("Simulate voice command by typing here:");
+            if (simulatedSpeech && simulatedSpeech.trim()) {
+                parseVoiceCommand(simulatedSpeech.toLowerCase());
+            }
         }
-        
-        recognition.start();
     }
 
     function parseVoiceCommand(text) {
         const vocabulary = {
-            'milk': 1, 'bread': 2, 'butter': 3, 'sugar': 4, 'tea': 5,
-            'chocolate': 6, 'truffle': 6, 'red velvet': 7, 'velvet': 7,
-            'candle': 8, 'candles': 8, 'cap': 9, 'potato': 10, 'tomato': 11,
-            'onion': 12, 'coriander': 13, 'lemon': 14, 'cable': 15,
-            'usb': 15, 'earphone': 16, 'earphones': 16, 'battery': 17,
-            'duracell': 17, 'plug': 18
+            'milk': 1, 'bread': 2, 'lays': 3, 'chips': 3, 'butter': 4, 'colgate': 5, 'toothpaste': 5
         };
         
         const segments = text.split(/and|,/);
@@ -684,39 +1001,105 @@
             }
             
             if (foundProdId) {
-                let itemShop = 1;
-                if (foundProdId >= 6 && foundProdId <= 9) itemShop = 2;
-                else if (foundProdId >= 10 && foundProdId <= 14) itemShop = 3;
-                else if (foundProdId >= 15) itemShop = 4;
-                
-                if (currentShopId !== itemShop) {
-                    selectCategory(itemShop === 1 ? 'KIRANA' : itemShop === 2 ? 'CAKES' : itemShop === 3 ? 'VEGGIES' : 'ELECTRONICS', itemShop);
-                }
-                
-                setTimeout(() => {
-                    const matchedProd = productsList.find(p => p.id === foundProdId);
-                    if (matchedProd) {
-                        addToCart(foundProdId, qty);
-                        itemsAdded.push(`${qty}x ${matchedProd.name}`);
-                        document.getElementById("voice-status").innerText = `Added: ${itemsAdded.join(", ")}`;
-                        document.getElementById("voice-status").style.color = "var(--emerald-green)";
-                    } else {
-                        fetch(`/api/shops/${itemShop}/products`)
-                            .then(res => res.json())
-                            .then(prods => {
-                                productsList = prods;
-                                const p = productsList.find(x => x.id === foundProdId);
-                                if (p) addToCart(foundProdId, qty);
-                            });
-                    }
-                }, 400);
+                addToCart(foundProdId, qty);
+                itemsAdded.push(`${qty}x ${getMockProductDetail(foundProdId).name}`);
             }
         });
         
-        if (itemsAdded.length === 0) {
-            document.getElementById("voice-status").innerText = "Could not map speech. Try saying 'Add 2 Milk'.";
-            document.getElementById("voice-status").style.color = "var(--ruby-danger)";
+        if (itemsAdded.length > 0) {
+            document.getElementById("voice-status-text").innerText = `Added: ${itemsAdded.join(", ")}`;
+            document.getElementById("voice-status-toast").style.background = "var(--primary-accent)";
+        } else {
+            document.getElementById("voice-status-text").innerText = "Sorry, couldn't match item.";
+            document.getElementById("voice-status-toast").style.background = "var(--ruby-danger)";
         }
+    }
+
+    // Search and Filtering logic
+    function handleSearch(query) {
+        query = query.toLowerCase().trim();
+        if (!query) {
+            if (currentShopId) renderProducts();
+            return;
+        }
+        
+        if (currentShopId) {
+            const filtered = productsList.filter(p => p.name.toLowerCase().includes(query));
+            renderFilteredProducts(filtered);
+        } else {
+            searchAcrossAllShops(query);
+        }
+    }
+    
+    function triggerSearch() {
+        const query = document.getElementById("search-input").value;
+        handleSearch(query);
+    }
+    
+    function searchAcrossAllShops(query) {
+        const promises = [1, 2, 3, 4].map(id => fetch(`/api/shops/${id}/products`).then(res => res.json()));
+        Promise.all(promises).then(results => {
+            const allProducts = results.flat();
+            const filtered = allProducts.filter(p => p.name.toLowerCase().includes(query));
+            if (filtered.length > 0) {
+                const firstMatch = filtered[0];
+                currentShopId = firstMatch.shop_id;
+                
+                document.querySelectorAll(".hamar-category-card").forEach((card, index) => {
+                    if (index + 1 === currentShopId) card.style.border = "2px solid var(--primary-accent)";
+                    else card.style.border = "1px solid transparent";
+                });
+                
+                const shopNames = {
+                    1: "Apna Bazaar Kirana & General",
+                    2: "Bakers Table Cakes",
+                    3: "Fresh & Green Veggies",
+                    4: "ElectroWorld Tech Products"
+                };
+                document.getElementById("current-shop-name").innerText = shopNames[currentShopId];
+                document.getElementById("shop-products-panel").style.display = "block";
+                
+                productsList = results[currentShopId - 1];
+                renderFilteredProducts(filtered.filter(p => p.shop_id === currentShopId));
+            } else {
+                const container = document.getElementById("products-container");
+                document.getElementById("shop-products-panel").style.display = "block";
+                document.getElementById("current-shop-name").innerText = "Search Results";
+                container.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-muted);">No products match "${query}".</div>`;
+            }
+        });
+    }
+
+    function renderFilteredProducts(list) {
+        const container = document.getElementById("products-container");
+        container.innerHTML = "";
+        
+        list.forEach(prod => {
+            const card = document.createElement("div");
+            card.className = "product-card fade-in-up";
+            
+            const qty = cart[prod.id] ? cart[prod.id].quantity : 0;
+            
+            card.innerHTML = `
+                <div>
+                    <span style="background: #f1f5f9; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--primary-accent); margin-bottom: 8px;"><i data-lucide="package" style="width: 20px; height: 20px;"></i></span>
+                    <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${prod.name}</h5>
+                    <div class="product-price">₹${prod.price.toFixed(2)}</div>
+                </div>
+                <div style="margin-top: 12px;">
+                    ${qty === 0 ? 
+                        `<button class="btn btn-secondary w-full" style="padding: 8px; font-size: 0.85rem;" onclick="addToCart(${prod.id}, 1)">Add</button>` :
+                        `<div class="product-qty-controls" style="justify-content: space-between;">
+                            <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem;" onclick="changeQty(${prod.id}, -1)">-</button>
+                            <span style="font-weight:700; font-size: 0.95rem;">${qty}</span>
+                            <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; background: var(--primary-light); color: var(--primary-accent);" onclick="changeQty(${prod.id}, 1)">+</button>
+                         </div>`
+                    }
+                </div>
+            `;
+            container.appendChild(card);
+        });
+        refreshIcons();
     }
 </script>
 {% endblock %}

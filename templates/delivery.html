@@ -1,6 +1,171 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<style>
+    /* Modal Styles */
+    .modal-customer-info {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background-color: #f8fafc;
+        padding: 12px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+    }
+    .modal-customer-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-customer-text {
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+    }
+    .modal-customer-name {
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+    .modal-customer-phone {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+    .modal-order-items {
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 16px;
+        text-align: left;
+    }
+    .modal-items-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+    .modal-items-list {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 10px;
+    }
+
+    /* Test Alarm Sound Button */
+    .btn-test-sound {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #009c62;
+        background-color: #ecfdf5;
+        border: 1px solid rgba(0, 156, 98, 0.15);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-test-sound:hover {
+        background-color: #009c62;
+        color: #ffffff;
+        border-color: #009c62;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 156, 98, 0.15);
+    }
+
+    .btn-test-sound i {
+        width: 18px;
+        height: 18px;
+    }
+
+    .btn-test-sound.testing {
+        background-color: #fef2f2;
+        color: #ef4444;
+        border-color: rgba(239, 68, 68, 0.2);
+        animation: pulseTesting 1.5s infinite;
+    }
+
+    .btn-test-sound.testing:hover {
+        background-color: #ef4444;
+        color: #ffffff;
+        border-color: #ef4444;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+
+    @keyframes pulseTesting {
+        0% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+        }
+        70% {
+            box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+        }
+    }
+</style>
+
+<!-- NEW DELIVERY POPUP MODAL -->
+<div id="new-delivery-modal" class="overlay-modal" style="display: none; z-index: 10000;">
+    <div class="modal-content" style="text-align: center;">
+        <div class="modal-header">
+            <i data-lucide="bell-ring" class="icon-inline" style="animation: pulseRing 1.5s infinite;"></i>
+            New Delivery Available!
+        </div>
+        <div class="modal-body">
+            <div class="modal-customer-info">
+                <div class="modal-customer-icon" style="background: #ecfdf5; color: #009c62;">
+                    <i data-lucide="store"></i>
+                </div>
+                <div class="modal-customer-text">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Pickup Store</span>
+                    <span class="modal-customer-name" id="modal-shop-name">Shop Name</span>
+                </div>
+            </div>
+
+            <div class="modal-customer-info">
+                <div class="modal-customer-icon" style="background: #e0f2fe; color: #2563eb;">
+                    <i data-lucide="map-pin"></i>
+                </div>
+                <div class="modal-customer-text">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Deliver To</span>
+                    <span class="modal-customer-name" id="modal-cust-name">Customer Name</span>
+                    <span class="modal-customer-phone" id="modal-customer-address">Customer Address</span>
+                </div>
+            </div>
+            
+            <div class="modal-order-items">
+                <div class="modal-items-title">Earning Potential</div>
+                <div id="modal-order-amount" style="font-size: 1.5rem; font-weight: 800; color: #10b981; font-family: 'Outfit', sans-serif;">₹0.00</div>
+            </div>
+
+            <div id="modal-priority-container">
+                <!-- Urgent badge placed here dynamically -->
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn-modal-mute" onclick="muteCurrentDelivery()" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; background: #f1f5f9; border: 1px solid var(--border-color); border-radius: 8px; font-weight: 600; cursor: pointer; color: var(--text-secondary);">
+                    <i data-lucide="volume-x" style="width: 16px; height: 16px;"></i> Mute
+                </button>
+                <button class="btn-modal-accept" id="modal-claim-btn" style="flex: 2; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; background: #009c62; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(0,156,98,0.25);">
+                    <i data-lucide="check" style="width: 16px; height: 16px;"></i> Claim Delivery
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="glass-card fade-in-up" style="background: linear-gradient(135deg, var(--primary-light) 0%, rgba(255,255,255,1) 100%); margin-bottom: 32px;">
     <div class="flex-between">
         <div style="display: flex; align-items: center; gap: 16px;">
@@ -10,7 +175,11 @@
                 <p class="screen-subtitle">Active Status: <span style="color: var(--emerald-green); font-weight: 700; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="check-circle" class="icon-inline" style="color: var(--emerald-green); width: 14px; height: 14px; margin: 0;"></i> Online</span></p>
             </div>
         </div>
-        <div style="display: flex; gap: 12px;">
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <button id="btn-test-sound" class="btn-test-sound" onclick="toggleTestSound(event)">
+                <i data-lucide="volume-2"></i>
+                <span>Test Alarm Sound</span>
+            </button>
             <button class="btn-circle" onclick="resetRiderState()" title="Reset Cooldown" style="display: flex; align-items: center; justify-content: center;"><i data-lucide="rotate-cw" style="width: 16px; height: 16px;"></i></button>
         </div>
     </div>
@@ -74,21 +243,310 @@
     let cooldownTimerInterval = null;
     let cooldownTotalSeconds = 600; // 10 minutes default
 
+    // Sound variables
+    let alarmActive = false;
+    let alarmAudio = null;
+    let testSoundActive = false;
+    let testSoundTimeout = null;
+    let audioContext = null;
+    let audioInterval = null;
+    let currentAlertingOrderId = null;
+
     document.addEventListener("DOMContentLoaded", () => {
+        // Pre-initialize alarm audio element for user activation
+        try {
+            alarmAudio = new Audio("https://res.cloudinary.com/dres0aek3/video/upload/20260528_123713_lvqapz.mp3");
+            alarmAudio.loop = true;
+            alarmAudio.crossOrigin = "anonymous";
+        } catch (e) {
+            console.error("Failed to pre-initialize alarm audio:", e);
+        }
+
+        // Autoplay Browser Policy handler
+        const unlockAudio = () => {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    console.log("Web AudioContext enabled");
+                });
+            }
+            // Pre-play and pause to unlock media autoplay restrictions
+            if (alarmAudio) {
+                alarmAudio.play().then(() => {
+                    console.log("alarmAudio unlocked successfully");
+                    if (!alarmActive && !testSoundActive) {
+                        alarmAudio.pause();
+                        alarmAudio.currentTime = 0;
+                    }
+                }).catch(e => {
+                    console.warn("Failed to unlock alarmAudio:", e);
+                });
+            }
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('keydown', unlockAudio);
+        };
+        document.addEventListener('click', unlockAudio);
+        document.addEventListener('keydown', unlockAudio);
+
         loadDashboard();
         pollInterval = setInterval(loadDashboard, 10000);
     });
+
+    // Sound Notification Synthesizer Beeps - Fallback
+    function triggerBeep(frequency = 880, duration = 0.3) {
+        try {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(frequency, audioContext.currentTime);
+            gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+            
+            osc.start();
+            osc.stop(audioContext.currentTime + duration);
+        } catch (e) {
+            console.error("Failed to synthesise alert sound: ", e);
+        }
+    }
+
+    function startLoudAlarm(isUrgent = false) {
+        if (alarmActive) return;
+        alarmActive = true;
+        
+        try {
+            if (!alarmAudio) {
+                alarmAudio = new Audio("https://res.cloudinary.com/dres0aek3/video/upload/20260528_123713_lvqapz.mp3");
+                alarmAudio.loop = true;
+                alarmAudio.crossOrigin = "anonymous";
+            }
+            alarmAudio.playbackRate = isUrgent ? 1.4 : 1.0; // Urgent speed alert
+            
+            alarmAudio.play().then(() => {
+                console.log("Cloudinary alarm audio started playing");
+            }).catch(e => {
+                console.warn("Cloudinary alert audio blocked, executing synth fallbacks:", e);
+                startBeepFallbackAlarm(isUrgent);
+            });
+        } catch (err) {
+            console.warn("Cloudinary alert initialization failed, executing synth fallbacks:", err);
+            startBeepFallbackAlarm(isUrgent);
+        }
+    }
+
+    function startBeepFallbackAlarm(isUrgent) {
+        const beepFunc = () => {
+            if (isUrgent) {
+                triggerBeep(1200, 0.15);
+                setTimeout(() => triggerBeep(1200, 0.15), 200);
+            } else {
+                triggerBeep(880, 0.4);
+            }
+        };
+        beepFunc();
+        audioInterval = setInterval(beepFunc, 1500);
+    }
+
+    function stopLoudAlarm() {
+        if (alarmAudio) {
+            alarmAudio.pause();
+            alarmAudio.currentTime = 0;
+        }
+        if (audioInterval) {
+            clearInterval(audioInterval);
+            audioInterval = null;
+        }
+        alarmActive = false;
+    }
+
+    // Test Alarm Sound helpers
+    function toggleTestSound(event) {
+        if (event) event.stopPropagation();
+        if (testSoundActive) {
+            stopTestSound();
+        } else {
+            startTestSound();
+        }
+    }
+
+    function startTestSound() {
+        if (testSoundActive) return;
+        testSoundActive = true;
+        
+        const btn = document.getElementById('btn-test-sound');
+        if (btn) {
+            btn.classList.add('testing');
+            btn.innerHTML = `<i data-lucide="volume-x"></i><span>Stop Test</span>`;
+            refreshIcons();
+        }
+
+        // Ensure audioContext is active
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+
+        try {
+            if (!alarmAudio) {
+                alarmAudio = new Audio("https://res.cloudinary.com/dres0aek3/video/upload/20260528_123713_lvqapz.mp3");
+                alarmAudio.loop = true;
+                alarmAudio.crossOrigin = "anonymous";
+            }
+            alarmAudio.playbackRate = 1.0;
+            
+            alarmAudio.play().then(() => {
+                console.log("Test alarm audio started playing");
+            }).catch(e => {
+                console.warn("Test alarm audio play blocked, using beep fallback:", e);
+                startBeepFallbackAlarm(false);
+            });
+        } catch (err) {
+            console.warn("Test alarm initialization failed, using beep fallback:", err);
+            startBeepFallbackAlarm(false);
+        }
+
+        // Automatically stop test sound after 5 seconds
+        testSoundTimeout = setTimeout(() => {
+            stopTestSound();
+        }, 5000);
+    }
+
+    function stopTestSound() {
+        if (!testSoundActive) return;
+        testSoundActive = false;
+        
+        if (testSoundTimeout) {
+            clearTimeout(testSoundTimeout);
+            testSoundTimeout = null;
+        }
+        
+        const btn = document.getElementById('btn-test-sound');
+        if (btn) {
+            btn.classList.remove('testing');
+            btn.innerHTML = `<i data-lucide="volume-2"></i><span>Test Alarm Sound</span>`;
+            refreshIcons();
+        }
+        
+        stopLoudAlarm();
+    }
+
+    // Modal and Mute Notification Helpers
+    function getMutedDeliveries() {
+        try {
+            const val = localStorage.getItem(`muted_deliveries_${riderId}`);
+            return val ? JSON.parse(val) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+    
+    function muteDelivery(orderId) {
+        let muted = getMutedDeliveries();
+        if (!muted.includes(orderId)) {
+            muted.push(orderId);
+            localStorage.setItem(`muted_deliveries_${riderId}`, JSON.stringify(muted));
+        }
+    }
+
+    function checkJobPoolNotifications(poolData) {
+        // Only notify if rider is free (no active job)
+        if (activeJob) {
+            dismissNewDeliveryAlert();
+            return;
+        }
+
+        if (!Array.isArray(poolData)) return;
+
+        const mutedIds = getMutedDeliveries();
+        const unclaimedJobs = poolData.filter(o => !mutedIds.includes(o.id));
+
+        if (unclaimedJobs.length > 0) {
+            const latestJob = unclaimedJobs[0];
+            const modal = document.getElementById("new-delivery-modal");
+            
+            if (modal && (modal.style.display === "none" || currentAlertingOrderId !== latestJob.id)) {
+                showNewDeliveryAlert(latestJob);
+            }
+        } else {
+            dismissNewDeliveryAlert();
+        }
+    }
+
+    function showNewDeliveryAlert(job) {
+        currentAlertingOrderId = job.id;
+        
+        const shopNameEl = document.getElementById("modal-shop-name");
+        if (shopNameEl) shopNameEl.innerText = job.shop_name || 'Store';
+        
+        const custNameEl = document.getElementById("modal-cust-name");
+        if (custNameEl) custNameEl.innerText = job.customer_name || 'Customer';
+        
+        const custAddrEl = document.getElementById("modal-customer-address");
+        if (custAddrEl) custAddrEl.innerText = job.customer_address || '';
+        
+        const amountEl = document.getElementById("modal-order-amount");
+        if (amountEl) amountEl.innerText = `₹${(job.total_amount || 0).toFixed(2)}`;
+        
+        const priorityContainer = document.getElementById("modal-priority-container");
+        if (priorityContainer) {
+            if (job.priority_type === 'URGENT') {
+                priorityContainer.innerHTML = `<span class="badge badge-urgent" style="display: inline-block; margin-top: 12px; animation: pulseRing 1.5s infinite;"><i data-lucide="zap" class="icon-inline"></i> URGENT DELIVERY REQUEST</span>`;
+                startLoudAlarm(true);
+            } else {
+                priorityContainer.innerHTML = '';
+                startLoudAlarm(false);
+            }
+        }
+        refreshIcons();
+        
+        const claimBtn = document.getElementById("modal-claim-btn");
+        if (claimBtn) {
+            claimBtn.onclick = () => {
+                claimJob(job.id);
+                dismissNewDeliveryAlert();
+            };
+        }
+        
+        const modal = document.getElementById("new-delivery-modal");
+        if (modal) modal.style.display = "flex";
+    }
+
+    function dismissNewDeliveryAlert() {
+        const modal = document.getElementById("new-delivery-modal");
+        if (modal) modal.style.display = "none";
+        stopLoudAlarm();
+        currentAlertingOrderId = null;
+    }
+
+    function muteCurrentDelivery() {
+        if (currentAlertingOrderId) {
+            muteDelivery(currentAlertingOrderId);
+        }
+        dismissNewDeliveryAlert();
+    }
 
     function loadDashboard() {
         fetch(`/api/delivery/pool`)
             .then(res => res.json())
             .then(poolData => {
                 renderJobPool(poolData);
-                checkRiderActiveJob();
+                checkRiderActiveJob(poolData);
             });
     }
 
-    function checkRiderActiveJob() {
+    function checkRiderActiveJob(poolData) {
         fetch(`/api/delivery/rider/${riderId}/active`)
             .then(res => res.json())
             .then(data => {
@@ -98,11 +556,13 @@
                         .then(fullDetails => {
                             activeJob = fullDetails;
                             renderActiveJob();
+                            checkJobPoolNotifications(poolData);
                         });
                 } else {
                     activeJob = null;
                     document.getElementById("active-job-container").innerHTML = "";
                     document.getElementById("empty-job-placeholder").style.display = "block";
+                    checkJobPoolNotifications(poolData);
                 }
                 checkRiderCooldown();
             });
