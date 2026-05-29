@@ -36,11 +36,7 @@
     
     <!-- Action Options -->
     <div class="hamar-nav-links">
-        <a class="hamar-nav-link" onclick="alert('Special promo offers: Use code FREE100 for orders above ₹299!')">
-            <i data-lucide="gift"></i>
-            <span>Offers</span>
-        </a>
-        <a class="hamar-nav-link" onclick="scrollToOrders()">
+        <a class="hamar-nav-link" onclick="toggleOrdersHistoryModal()">
             <i data-lucide="file-text"></i>
             <span>Orders</span>
         </a>
@@ -49,8 +45,11 @@
         <div class="hamar-nav-profile" onclick="toggleDropdown(event, 'profile-dropdown')">
             <img src="{% if session.get('profile_pic') %}{{ session.get('profile_pic') }}{% else %}https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80{% endif %}" alt="Profile" class="profile-avatar" id="navbar-profile-avatar" style="object-fit: cover;">
             <span class="hamar-profile-name" style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 4px;"><span id="customer-navbar-name">{{ session.get('name', 'Alice') }}</span> <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: var(--text-secondary);"></i></span>
-            <div class="glass-dropdown" id="profile-dropdown" style="display: none; right: 32px; top: 60px;" onclick="event.stopPropagation();">
-                <a href="#" onclick="toggleProfileModal(event)"><i data-lucide="user" class="icon-inline"></i> Profile</a>
+            <div class="glass-dropdown" id="profile-dropdown" style="display: none; right: 32px; top: 60px; width: 190px;" onclick="event.stopPropagation();">
+                <a href="#" onclick="openProfileAndFocus('name', event)"><i data-lucide="user" class="icon-inline"></i> Update Name</a>
+                <a href="#" onclick="openProfileAndFocus('address', event)"><i data-lucide="map-pin" class="icon-inline"></i> Update Address</a>
+                <a href="#" onclick="openProfileAndFocus('password', event)"><i data-lucide="lock" class="icon-inline"></i> Update Password</a>
+                <a href="#" onclick="triggerAvatarUploadFromDropdown(event)"><i data-lucide="image" class="icon-inline"></i> Change Avatar</a>
                 <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 6px 0;">
                 <a href="/session/logout" style="color: var(--ruby-danger);"><i data-lucide="log-out" class="icon-inline"></i> Logout</a>
             </div>
@@ -306,6 +305,22 @@
     
     <!-- Right Column: Cart, Delivering Address, Payment -->
     <div class="hamar-sidebar">
+        <!-- MY PROFILE CARD -->
+        <div class="glass-card" style="padding: 20px; text-align: left; margin-bottom: 20px;" id="profile-summary-card">
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div style="position: relative; width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 2px solid var(--primary-accent); box-shadow: var(--shadow-soft);">
+                    <img id="sidebar-profile-avatar" src="{% if session.get('profile_pic') %}{{ session.get('profile_pic') }}{% else %}https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80{% endif %}" alt="Profile Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <h4 style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="sidebar-customer-name">{{ session.get('name', 'Alice') }}</h4>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-top: 2px;"><i data-lucide="phone" class="icon-inline" style="width: 12px; height: 12px; margin-right: 4px;"></i> <span id="sidebar-customer-phone-display">Loading...</span></span>
+                </div>
+                <button class="btn btn-secondary" style="width: auto; padding: 8px 12px; font-size: 0.8rem; border-radius: var(--radius-sm); margin: 0; display: inline-flex; align-items: center; gap: 4px;" onclick="toggleProfileModal(event)">
+                    <i data-lucide="settings" style="width: 14px; height: 14px;"></i> Edit
+                </button>
+            </div>
+        </div>
+
         <!-- CART CARD -->
         <div class="glass-card" style="padding: 24px; text-align: left;" id="cart-card-workspace">
             <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
@@ -403,6 +418,23 @@
     </div>
 </div>
 
+<!-- ORDERS HISTORY MODAL -->
+<div id="orders-history-modal" class="overlay-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 550px;">
+        <div class="modal-header" style="display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="clipboard-list" style="color: var(--primary-accent);"></i>
+            Your Order History
+        </div>
+        <div class="modal-body" style="text-align: left;">
+            <p style="margin-bottom: 20px; font-size: 0.95rem;">View status and details of your hyperlocal orders.</p>
+            <div id="orders-history-list" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; padding-right: 4px;">
+                <!-- Loaded dynamically -->
+            </div>
+            <button class="btn btn-secondary w-full" onclick="toggleOrdersHistoryModal()">Close</button>
+        </div>
+    </div>
+</div>
+
 <!-- PROFILE MODAL -->
 <div id="profile-modal" class="overlay-modal" style="display: none;">
     <div class="modal-content" style="max-width: 450px;">
@@ -433,8 +465,8 @@
             </div>
             
             <div class="form-group" style="margin-bottom: 16px;">
-                <label class="form-label" style="font-weight: 700; margin-bottom: 6px; display: block; font-size: 0.85rem; color: var(--text-secondary);">Full Name</label>
-                <input type="text" id="profile-name-input" class="form-input-staff" style="width: 100%;" placeholder="Enter your name" required>
+                <label class="form-label" style="font-weight: 700; margin-bottom: 6px; display: block; font-size: 0.85rem; color: var(--text-secondary);">Username / Full Name</label>
+                <input type="text" id="profile-name-input" class="form-input-staff" style="width: 100%;" placeholder="Enter your username" required>
             </div>
             
             <div class="form-group" style="margin-bottom: 16px;">
@@ -442,9 +474,14 @@
                 <input type="text" id="profile-phone-input" class="form-input-staff" style="width: 100%; background: #f1f5f9; cursor: not-allowed;" readonly>
             </div>
 
-            <div class="form-group" style="margin-bottom: 24px;">
+            <div class="form-group" style="margin-bottom: 16px;">
                 <label class="form-label" style="font-weight: 700; margin-bottom: 6px; display: block; font-size: 0.85rem; color: var(--text-secondary);">Delivery Address</label>
                 <textarea id="profile-address-input" class="form-input-staff" style="width: 100%; height: 80px; resize: none; padding: 12px; font-family: inherit;" placeholder="Enter delivery address" required></textarea>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label class="form-label" style="font-weight: 700; margin-bottom: 6px; display: block; font-size: 0.85rem; color: var(--text-secondary);">Password</label>
+                <input type="password" id="profile-password-input" class="form-input-staff" style="width: 100%;" placeholder="Enter your password" required>
             </div>
             
             <div style="display: flex; gap: 12px;">
@@ -459,7 +496,8 @@
 <script>
     const customerId = {{ active_user_id }};
     let customerPhone = "";
-    let customerProfilePic = "{{ session.get('profile_pic') or '' }}";
+    let customerPassword = "";
+    let customerProfilePic = {{ (session.get('profile_pic') or '') | tojson }};
     let currentShopId = null;
     let productsList = [];
     let cart = {}; // product_id -> {name, price, quantity}
@@ -476,24 +514,20 @@
         // Auto fill address
         {% for u in users %}
             {% if u.id == active_user_id %}
-                document.getElementById("address-input").value = "{{ u.address }}";
-                document.getElementById("sidebar-address-display").innerText = "{{ u.address }}";
-                customerPhone = "{{ u.phone }}";
+                document.getElementById("address-input").value = {{ u.address | tojson }};
+                document.getElementById("sidebar-address-display").innerText = {{ u.address | tojson }};
+                customerPhone = {{ u.phone | tojson }};
+                customerPassword = {{ (u.password or '') | tojson }};
             {% endif %}
         {% endfor %}
+        document.getElementById("sidebar-customer-phone-display").innerText = customerPhone;
         
-        // Pre-populate cart to match mockup screenshot if cart is empty
+        // Load cart from cache or start empty
         const cachedCart = localStorage.getItem(`cart_${customerId}`);
         if (cachedCart) {
             cart = JSON.parse(cachedCart);
         } else {
-            // Seed cart with mockup items exactly
-            cart = {
-                1: { id: 1, name: "Amul Milk 1 Ltr", price: 62.0, quantity: 1 },
-                2: { id: 2, name: "Britannia Bread 400g", price: 35.0, quantity: 1 },
-                3: { id: 3, name: "Lays Classic 52g", price: 20.0, quantity: 1 }
-            };
-            localStorage.setItem(`cart_${customerId}`, JSON.stringify(cart));
+            cart = {};
         }
         updateCartUI();
         
@@ -540,7 +574,12 @@
 
     // Scroll helpers
     function scrollToOrders() {
-        document.getElementById("active-order-container").scrollIntoView({ behavior: 'smooth' });
+        const activeOrder = document.getElementById("active-order-container");
+        if (activeOrder && activeOrder.style.display !== "none") {
+            activeOrder.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            alert("You have no active orders at the moment. Add items to your cart and place an order to track it here!");
+        }
     }
     
     function scrollToCart() {
@@ -1011,6 +1050,7 @@
             document.getElementById("profile-name-input").value = document.getElementById("customer-navbar-name").innerText.trim();
             document.getElementById("profile-phone-input").value = customerPhone;
             document.getElementById("profile-address-input").value = document.getElementById("sidebar-address-display").innerText.trim();
+            document.getElementById("profile-password-input").value = customerPassword;
             
             // Populate avatar details
             const defaultAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80";
@@ -1051,6 +1091,7 @@
                 // Update avatar previews
                 document.getElementById("profile-avatar-preview").src = customerProfilePic;
                 document.getElementById("navbar-profile-avatar").src = customerProfilePic;
+                document.getElementById("sidebar-profile-avatar").src = customerProfilePic;
                 
                 // Show remove button
                 document.getElementById("btn-remove-avatar").style.display = "inline-block";
@@ -1072,48 +1113,50 @@
     }
 
     function removeAvatar() {
-        if (!confirm("Are you sure you want to remove your profile picture?")) return;
-        
-        const errorDiv = document.getElementById("profile-error-msg");
-        errorDiv.style.display = "none";
-        
-        fetch("/api/customer/profile/remove_avatar", {
-            method: "POST"
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                customerProfilePic = "";
-                
-                const defaultAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80";
-                document.getElementById("profile-avatar-preview").src = defaultAvatar;
-                document.getElementById("navbar-profile-avatar").src = defaultAvatar;
-                
-                // Hide remove button
-                document.getElementById("btn-remove-avatar").style.display = "none";
-                alert("Profile picture removed successfully!");
-                refreshIcons();
-            } else {
-                errorDiv.innerText = data.error || "Failed to remove profile picture.";
+        aestheticConfirm("Are you sure you want to remove your profile picture?", () => {
+            const errorDiv = document.getElementById("profile-error-msg");
+            errorDiv.style.display = "none";
+            
+            fetch("/api/customer/profile/remove_avatar", {
+                method: "POST"
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    customerProfilePic = "";
+                    
+                    const defaultAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80";
+                    document.getElementById("profile-avatar-preview").src = defaultAvatar;
+                    document.getElementById("navbar-profile-avatar").src = defaultAvatar;
+                    document.getElementById("sidebar-profile-avatar").src = defaultAvatar;
+                    
+                    // Hide remove button
+                    document.getElementById("btn-remove-avatar").style.display = "none";
+                    alert("Profile picture removed successfully!");
+                    refreshIcons();
+                } else {
+                    errorDiv.innerText = data.error || "Failed to remove profile picture.";
+                    errorDiv.style.display = "block";
+                }
+            })
+            .catch(err => {
+                console.error("Avatar remove error:", err);
+                errorDiv.innerText = "Connection error. Please try again.";
                 errorDiv.style.display = "block";
-            }
-        })
-        .catch(err => {
-            console.error("Avatar remove error:", err);
-            errorDiv.innerText = "Connection error. Please try again.";
-            errorDiv.style.display = "block";
+            });
         });
     }
 
     function saveProfile() {
         const nameInput = document.getElementById("profile-name-input").value.trim();
         const addressInput = document.getElementById("profile-address-input").value.trim();
+        const passwordInput = document.getElementById("profile-password-input").value.trim();
         const errorDiv = document.getElementById("profile-error-msg");
         
         errorDiv.style.display = "none";
         
-        if (!nameInput || !addressInput) {
-            errorDiv.innerText = "Name and Address are required.";
+        if (!nameInput || !addressInput || !passwordInput) {
+            errorDiv.innerText = "Name, Address and Password are required.";
             errorDiv.style.display = "block";
             return;
         }
@@ -1126,7 +1169,8 @@
             body: JSON.stringify({
                 customer_id: customerId,
                 name: nameInput,
-                address: addressInput
+                address: addressInput,
+                password: passwordInput
             })
         })
         .then(res => res.json())
@@ -1134,10 +1178,12 @@
             if (data.success) {
                 // Update frontend navbar name
                 document.getElementById("customer-navbar-name").innerText = nameInput;
+                document.getElementById("sidebar-customer-name").innerText = nameInput;
                 
                 // Update active checkout address display and input
                 document.getElementById("sidebar-address-display").innerText = addressInput;
                 document.getElementById("address-input").value = addressInput;
+                customerPassword = passwordInput;
                 
                 // Close modal
                 document.getElementById("profile-modal").style.display = "none";
@@ -1351,6 +1397,153 @@
             container.appendChild(card);
         });
         refreshIcons();
+    }
+
+    // Direct profile updates & dropdown helpers
+    function openProfileAndFocus(field, event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        // Open modal if closed
+        const modal = document.getElementById("profile-modal");
+        if (modal.style.display === "none" || !modal.style.display) {
+            toggleProfileModal();
+        }
+        
+        // Focus specific field after rendering animation
+        setTimeout(() => {
+            if (field === 'name') {
+                document.getElementById("profile-name-input").focus();
+            } else if (field === 'address') {
+                document.getElementById("profile-address-input").focus();
+            } else if (field === 'password') {
+                document.getElementById("profile-password-input").focus();
+            }
+        }, 150);
+        
+        // Close dropdown
+        const dropdown = document.getElementById("profile-dropdown");
+        if (dropdown) dropdown.style.display = "none";
+    }
+
+    function triggerAvatarUploadFromDropdown(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        // Open modal if closed
+        const modal = document.getElementById("profile-modal");
+        if (modal.style.display === "none" || !modal.style.display) {
+            toggleProfileModal();
+        }
+        
+        // Trigger file select click
+        setTimeout(() => {
+            document.getElementById("avatar-file-input").click();
+        }, 150);
+        
+        // Close dropdown
+        const dropdown = document.getElementById("profile-dropdown");
+        if (dropdown) dropdown.style.display = "none";
+    }
+
+    // Orders History Modal controllers
+    function toggleOrdersHistoryModal() {
+        const modal = document.getElementById("orders-history-modal");
+        if (modal.style.display === "none" || !modal.style.display) {
+            modal.style.display = "flex";
+            modal.classList.add("fade-in-up");
+            loadOrdersHistory();
+        } else {
+            modal.style.display = "none";
+        }
+    }
+
+    function loadOrdersHistory() {
+        const listContainer = document.getElementById("orders-history-list");
+        listContainer.innerHTML = "<div style='text-align:center; padding: 20px;'><p>Fetching your orders...</p></div>";
+        
+        fetch(`/api/customer/${customerId}/orders`)
+            .then(res => res.json())
+            .then(orders => {
+                listContainer.innerHTML = "";
+                if (orders.length === 0) {
+                    listContainer.innerHTML = `<div style="text-align: center; padding: 32px 0;"><i data-lucide="shopping-bag" style="width: 40px; height: 40px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 12px; display: inline-block;"></i><p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">You haven't placed any orders yet.</p></div>`;
+                    refreshIcons();
+                    return;
+                }
+                
+                orders.forEach(o => {
+                    const card = document.createElement("div");
+                    card.style = "background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 8px;";
+                    
+                    let statusBadgeClass = "badge-status-pending";
+                    if (o.status === "DELIVERED") statusBadgeClass = "badge-status-delivered";
+                    else if (o.status === "ACCEPTED" || o.status === "READY_FOR_PICKUP" || o.status === "OUT_FOR_DELIVERY") statusBadgeClass = "badge-status-ready";
+                    
+                    let actionBtn = "";
+                    if (o.status !== "DELIVERED" && o.status !== "FAILED") {
+                        actionBtn = `<button class="btn btn-primary" style="width: auto; padding: 6px 12px; font-size: 0.8rem; border-radius: 20px; margin-top: 4px;" onclick="trackActiveOrder(${o.id})"><i data-lucide="navigation" style="width: 12px; height: 12px; margin-right: 4px;"></i> Track Live</button>`;
+                    } else {
+                        actionBtn = `<button class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 0.8rem; border-radius: 20px; margin-top: 4px;" onclick="viewOrderItems(${o.id})">View Details</button>`;
+                    }
+                    
+                    // Format time
+                    let timeStr = o.created_at;
+                    try {
+                        const dateClean = o.created_at.replace(" ", "T").split('.')[0];
+                        const date = new Date(dateClean + "Z");
+                        timeStr = date.toLocaleString();
+                    } catch(e) {}
+
+                    card.innerHTML = `
+                        <div class="flex-between">
+                            <span style="font-weight: 800; font-size: 1rem; color: var(--text-primary);">Order #${o.id}</span>
+                            <span class="badge ${statusBadgeClass}">${o.status.replace(/_/g, ' ')}</span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
+                            <div><strong>Shop:</strong> ${o.shop_name}</div>
+                            <div><strong>Placed:</strong> ${timeStr}</div>
+                            <div><strong>Total Amount:</strong> ₹${o.total_amount.toFixed(2)}</div>
+                            ${o.status === 'OUT_FOR_DELIVERY' ? `<div><strong>Delivery OTP:</strong> <strong style="color:var(--emerald-green); font-size:1rem; letter-spacing:1px;">${o.delivery_otp}</strong></div>` : ''}
+                        </div>
+                        <div class="flex-between" style="align-items: center; margin-top: 4px;">
+                            <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}" style="font-size:0.7rem; padding: 3px 8px;">${o.priority_type}</span>
+                            ${actionBtn}
+                        </div>
+                    `;
+                    listContainer.appendChild(card);
+                });
+                refreshIcons();
+            })
+            .catch(err => {
+                console.error("Error loading order history:", err);
+                listContainer.innerHTML = "<div style='text-align:center; padding: 20px; color: var(--ruby-danger);'><p>Failed to load orders history.</p></div>";
+            });
+    }
+
+    function trackActiveOrder(orderId) {
+        // Close modal
+        document.getElementById("orders-history-modal").style.display = "none";
+        // Start tracking timeline
+        localStorage.setItem(`active_order_${customerId}`, JSON.stringify({ order_id: orderId }));
+        startTracking(orderId);
+        scrollToOrders();
+    }
+
+    function viewOrderItems(orderId) {
+        fetch(`/api/orders/${orderId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.items) {
+                    const itemsText = data.items.map(item => `• ${item.quantity}x ${item.product_name} (₹${item.price.toFixed(0)})`).join("\n");
+                    alert(`Order #${orderId} Items:\n\n${itemsText}\n\nGrand Total: ₹${data.total_amount.toFixed(2)}`);
+                }
+            })
+            .catch(err => console.error("Error fetching order details for alert:", err));
     }
 </script>
 {% endblock %}

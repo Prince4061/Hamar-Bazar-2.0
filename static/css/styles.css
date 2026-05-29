@@ -272,7 +272,8 @@ body {
 
 @media (max-width: 960px) {
     .login-grid {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column-reverse;
         gap: 30px;
     }
     .login-left-panel {
@@ -296,6 +297,9 @@ body {
     .login-card-desktop {
         padding: 32px 24px !important;
         max-width: 100% !important;
+    }
+    .grocery-basket-img-container {
+        display: none !important;
     }
 }
 
@@ -1762,6 +1766,35 @@ body.theme-customer .app-container {
     object-fit: cover;
     border: 1.5px solid var(--border-color);
 }
+.glass-dropdown {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    width: 160px;
+    box-shadow: var(--shadow-md);
+    z-index: 1001;
+    display: none;
+}
+.glass-dropdown a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary) !important;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+}
+.glass-dropdown a:hover {
+    background: var(--bg-main);
+    color: var(--primary-accent) !important;
+}
 
 /* Hero Banner Layout */
 .hamar-hero-banner {
@@ -2378,4 +2411,334 @@ body.theme-customer .app-container {
         gap: 12px !important;
     }
 }
+
+/* ==========================================================================
+   Responsive Overrides for Login, Admin & Delivery (Non-Customer Pages)
+   ========================================================================== */
+@media (max-width: 768px) {
+    /* Login Top Bar wrapping */
+    .login-top-bar {
+        flex-direction: column !important;
+        gap: 12px !important;
+        padding: 12px 16px !important;
+        align-items: center !important;
+        text-align: center !important;
+    }
+    .btn-top-switch {
+        font-size: 0.85rem !important;
+        padding: 6px 12px !important;
+        width: 100% !important;
+        text-align: center !important;
+    }
+    .btn-signup-top {
+        font-size: 0.85rem !important;
+        padding: 6px 12px !important;
+        width: 100% !important;
+        max-width: 280px !important;
+        text-align: center !important;
+    }
+    .features-checklist {
+        grid-template-columns: 1fr !important;
+    }
+    .login-page-wrapper {
+        padding: 16px !important;
+    }
+
+    /* Admin Statistics Grid 2x2 */
+    .admin-stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 16px !important;
+    }
+    .stat-number {
+        font-size: 2rem !important;
+        margin: 8px 0 !important;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Admin Statistics Grid 1x1 on very small devices */
+    .admin-stats-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    
+    /* OTP Verification flow in delivery dashboard */
+    .modal-actions {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+    .modal-actions button,
+    .modal-actions a {
+        width: 100% !important;
+    }
+    
+    /* OTP Verification inline input row layout */
+    .otp-verify-row {
+        flex-direction: column !important;
+        gap: 8px !important;
+        align-items: stretch !important;
+    }
+    .otp-verify-row input {
+        width: 100% !important;
+    }
+    .otp-verify-row button {
+        width: 100% !important;
+    }
+}
+
+/* Responsive Table Overflows for Platform Overview & Audits */
+.vendor-score-table {
+    min-width: 800px;
+}
+.vendor-score-table th,
+.vendor-score-table td {
+    white-space: nowrap !important;
+}
+
+/* ==========================================================================
+   Aesthetic Toast & Confirm Notification System
+   ========================================================================== */
+.aesthetic-toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 400px;
+    width: calc(100% - 48px);
+    pointer-events: none;
+}
+
+@media (max-width: 480px) {
+    .aesthetic-toast-container {
+        top: auto;
+        bottom: 84px; /* Above mobile bottom nav */
+        right: 24px;
+        left: 24px;
+        width: calc(100% - 48px);
+    }
+}
+
+.aesthetic-toast {
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1), 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    overflow: hidden;
+    position: relative;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+}
+
+.aesthetic-toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+@media (max-width: 480px) {
+    .aesthetic-toast {
+        transform: translateY(120%);
+    }
+    .aesthetic-toast.show {
+        transform: translateY(0);
+    }
+}
+
+.aesthetic-toast-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Color schemes based on active theme */
+.aesthetic-toast-icon.info {
+    background: var(--primary-light);
+    color: var(--primary-accent);
+}
+
+.aesthetic-toast-icon.success {
+    background: var(--emerald-light);
+    color: var(--emerald-green);
+}
+
+.aesthetic-toast-icon.warning {
+    background: var(--amber-light);
+    color: var(--amber-warning);
+}
+
+.aesthetic-toast-icon.error {
+    background: var(--ruby-light);
+    color: var(--ruby-danger);
+}
+
+.aesthetic-toast-content {
+    flex: 1;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.aesthetic-toast-close {
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+    transition: var(--transition-fast);
+}
+
+.aesthetic-toast-close:hover {
+    background: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.aesthetic-toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 100%;
+    background: var(--primary-accent);
+    transform-origin: left;
+    transform: scaleX(1);
+    transition: transform linear;
+}
+
+/* Confirm Modal Overlay */
+.aesthetic-confirm-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.aesthetic-confirm-modal-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.aesthetic-confirm-modal-card {
+    background: #ffffff;
+    border-radius: var(--radius-xl);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+    width: 90%;
+    max-width: 440px;
+    overflow: hidden;
+    transform: scale(0.9);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+.aesthetic-confirm-modal-overlay.show .aesthetic-confirm-modal-card {
+    transform: scale(1);
+}
+
+.aesthetic-confirm-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px 24px 16px;
+}
+
+.aesthetic-confirm-modal-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-lg);
+    background: var(--primary-light);
+    color: var(--primary-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.aesthetic-confirm-modal-title {
+    font-size: 1.25rem;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.aesthetic-confirm-modal-body {
+    padding: 0 24px 24px;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.aesthetic-confirm-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 16px 24px 24px;
+    border-top: 1px solid var(--border-color);
+}
+
+.aesthetic-confirm-btn {
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: var(--transition-bounce);
+    border: none;
+    text-align: center;
+}
+
+.aesthetic-confirm-btn.btn-sec {
+    background: #f1f5f9;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.aesthetic-confirm-btn.btn-sec:hover {
+    background: #e2e8f0;
+    color: var(--text-primary);
+}
+
+.aesthetic-confirm-btn.btn-pri {
+    background: var(--primary-accent);
+    color: #ffffff;
+    box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.aesthetic-confirm-btn.btn-pri:hover {
+    background: var(--primary-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px var(--primary-glow);
+}
+
 

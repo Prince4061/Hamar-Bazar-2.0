@@ -702,7 +702,7 @@
             otpForm = `
                 <div style="margin-top: 24px; padding: 20px; border: 2px dashed var(--primary-accent); border-radius: var(--radius-md); background: var(--primary-light);">
                     <label class="form-label" style="color: var(--primary-accent); display: flex; align-items: center; gap: 6px;"><i data-lucide="key" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--primary-accent);"></i> Step 1: Verify Pickup OTP (Ask Vendor)</label>
-                    <div style="display:flex; gap:12px; margin-top: 12px;">
+                    <div class="otp-verify-row" style="display:flex; gap:12px; margin-top: 12px;">
                         <input type="text" id="pickup-otp-input-${o.id}" class="form-input" placeholder="4 Digits" maxlength="4" style="text-align:center; font-family: 'Outfit', sans-serif; font-weight:800; font-size:1.5rem; letter-spacing:8px; padding: 16px;">
                         <button class="btn btn-primary" onclick="verifyPickupOTP(${o.id})" style="width:auto; padding: 0 32px; font-size: 1.1rem;">Verify</button>
                     </div>
@@ -712,7 +712,7 @@
             otpForm = `
                 <div style="margin-top: 24px; padding: 20px; border: 2px dashed var(--emerald-green); border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.05);">
                     <label class="form-label" style="color:var(--emerald-green); display: flex; align-items: center; gap: 6px;"><i data-lucide="key" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--emerald-green);"></i> Step 2: Verify Delivery OTP (Ask Customer)</label>
-                    <div style="display:flex; gap:12px; margin-top: 12px;">
+                    <div class="otp-verify-row" style="display:flex; gap:12px; margin-top: 12px;">
                         <input type="text" id="delivery-otp-input-${o.id}" class="form-input" placeholder="4 Digits" maxlength="4" style="text-align:center; font-family: 'Outfit', sans-serif; font-weight:800; font-size:1.5rem; letter-spacing:8px; padding: 16px; border-color: #a7f3d0;">
                         <button class="btn btn-primary" onclick="verifyDeliveryOTP(${o.id})" style="width:auto; padding: 0 32px; font-size: 1.1rem; background: var(--emerald-green); box-shadow: 0 8px 20px rgba(16,185,129,0.25);">Deliver</button>
                     </div>

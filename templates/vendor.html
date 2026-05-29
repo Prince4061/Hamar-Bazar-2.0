@@ -210,6 +210,7 @@
             gap: 32px;
             max-width: 1300px;
             width: calc(100% - 260px);
+            min-width: 0;
         }
 
         /* Header Bar */
@@ -334,7 +335,7 @@
         /* Stats Cards */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 24px;
             width: 100%;
         }
@@ -410,7 +411,7 @@
         /* Split Section: Orders & Detail Card */
         .dashboard-row {
             display: grid;
-            grid-template-columns: 1.8fr 1.2fr;
+            grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.2fr);
             gap: 24px;
             width: 100%;
         }
@@ -467,10 +468,12 @@
         .table-responsive {
             width: 100%;
             overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .orders-table {
             width: 100%;
+            min-width: 750px;
             border-collapse: collapse;
             text-align: left;
         }
@@ -483,6 +486,7 @@
             letter-spacing: 0.5px;
             padding: 12px 16px;
             border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
         }
 
         .orders-table td {
@@ -492,6 +496,7 @@
             color: var(--text-secondary);
             font-weight: 500;
             vertical-align: middle;
+            white-space: nowrap;
         }
 
         .orders-table tr {
@@ -519,6 +524,10 @@
         .customer-cell {
             font-weight: 700;
             color: var(--text-primary);
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .items-cell {
@@ -703,12 +712,15 @@
         .detail-row {
             display: flex;
             justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
             font-size: 0.85rem;
         }
 
         .detail-label {
             color: var(--text-secondary);
             font-weight: 600;
+            flex-shrink: 0;
         }
 
         .detail-value {
@@ -716,7 +728,7 @@
             font-weight: 700;
             text-align: right;
             max-width: 180px;
-            word-break: break-word;
+            word-break: break-all;
         }
 
         .detail-value.address {
@@ -800,6 +812,7 @@
         /* Product Cards / Table */
         .inventory-table {
             width: 100%;
+            min-width: 600px;
             border-collapse: collapse;
             text-align: left;
         }

@@ -83,6 +83,174 @@
         document.addEventListener("DOMContentLoaded", () => {
             refreshIcons();
         });
+
+        // --- Aesthetic Notification System ---
+        // Auto-detect message type based on keywords
+        function detectToastType(message) {
+            const msg = String(message).toLowerCase();
+            if (msg.includes('success') || msg.includes('verified') || msg.includes('placed') || msg.includes('saved') || msg.includes('uploaded') || msg.includes('reset') || msg.includes('added') || msg.includes('complete') || msg.includes('logged in')) {
+                return 'success';
+            }
+            if (msg.includes('error') || msg.includes('fail') || msg.includes('incorrect') || msg.includes('unauthorized') || msg.includes('invalid') || msg.includes('blocked') || msg.includes('limit') || msg.includes('cannot') || msg.includes('must be')) {
+                return 'error';
+            }
+            if (msg.includes('warning') || msg.includes('cooldown') || msg.includes('wait') || msg.includes('caution') || msg.includes('attention')) {
+                return 'warning';
+            }
+            return 'info';
+        }
+
+        // Generate SVG Icons for Toast
+        function getToastIconSvg(type) {
+            switch(type) {
+                case 'success':
+                    return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+                case 'error':
+                    return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+                case 'warning':
+                    return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+                case 'info':
+                default:
+                    return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
+            }
+        }
+
+        // Show Custom Toast
+        function showAestheticToast(message, type = null, duration = 4000) {
+            const container = document.getElementById('aesthetic-toast-container');
+            if (!container) return;
+            
+            if (!type) {
+                type = detectToastType(message);
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = `aesthetic-toast`;
+            
+            toast.innerHTML = `
+                <div class="aesthetic-toast-icon ${type}">
+                    ${getToastIconSvg(type)}
+                </div>
+                <div class="aesthetic-toast-content">${message.replace(/\n/g, '<br>')}</div>
+                <button class="aesthetic-toast-close">&times;</button>
+                <div class="aesthetic-toast-progress" style="background: ${type === 'success' ? 'var(--emerald-green)' : type === 'error' ? 'var(--ruby-danger)' : type === 'warning' ? 'var(--amber-warning)' : 'var(--primary-accent)'}"></div>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Animate In
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+            
+            // Progress Bar Animation
+            const progressBar = toast.querySelector('.aesthetic-toast-progress');
+            progressBar.style.transitionDuration = `${duration}ms`;
+            setTimeout(() => {
+                progressBar.style.transform = 'scaleX(0)';
+            }, 10);
+            
+            // Close on click
+            const closeBtn = toast.querySelector('.aesthetic-toast-close');
+            closeBtn.onclick = () => {
+                removeToast(toast);
+            };
+            
+            // Auto Remove
+            const autoRemoveTimer = setTimeout(() => {
+                removeToast(toast);
+            }, duration);
+            
+            function removeToast(el) {
+                clearTimeout(autoRemoveTimer);
+                el.classList.remove('show');
+                el.addEventListener('transitionend', () => {
+                    el.remove();
+                });
+            }
+        }
+
+        // Override global alert
+        window.alert = function(message) {
+            if (typeof message === 'object') {
+                try {
+                    message = JSON.stringify(message);
+                } catch(e) {
+                    message = String(message);
+                }
+            }
+            showAestheticToast(message);
+        };
+
+        // Global Async Confirm Modal function
+        function aestheticConfirm(message, onOk = null, onCancel = null) {
+            const overlay = document.getElementById('aesthetic-confirm-modal');
+            const msgEl = document.getElementById('aesthetic-confirm-modal-message');
+            const okBtn = document.getElementById('aesthetic-confirm-ok');
+            const cancelBtn = document.getElementById('aesthetic-confirm-cancel');
+            
+            if (!overlay || !msgEl || !okBtn || !cancelBtn) {
+                const res = window.originalConfirm ? window.originalConfirm(message) : confirm(message);
+                if (res && onOk) onOk();
+                if (!res && onCancel) onCancel();
+                return;
+            }
+            
+            msgEl.innerText = message;
+            overlay.style.display = 'flex';
+            
+            // Trigger animations
+            setTimeout(() => {
+                overlay.classList.add('show');
+            }, 10);
+            
+            const cleanUp = () => {
+                overlay.classList.remove('show');
+                overlay.addEventListener('transitionend', function handler() {
+                    overlay.style.display = 'none';
+                    overlay.removeEventListener('transitionend', handler);
+                });
+            };
+            
+            okBtn.onclick = () => {
+                cleanUp();
+                if (onOk) onOk();
+            };
+            
+            cancelBtn.onclick = () => {
+                cleanUp();
+                if (onCancel) onCancel();
+            };
+        }
+
+        // Store original confirm
+        window.originalConfirm = window.confirm;
+        window.confirm = function(message) {
+            console.warn("Synchronous confirm() was overridden. Please use aestheticConfirm(message, onOk, onCancel) instead.");
+            return true; 
+        };
     </script>
+
+    <!-- Custom Toast Container -->
+    <div id="aesthetic-toast-container" class="aesthetic-toast-container"></div>
+
+    <!-- Custom Confirm Modal -->
+    <div id="aesthetic-confirm-modal" class="aesthetic-confirm-modal-overlay" style="display: none;">
+        <div class="aesthetic-confirm-modal-card">
+            <div class="aesthetic-confirm-modal-header">
+                <span class="aesthetic-confirm-modal-icon-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </span>
+                <h4 class="aesthetic-confirm-modal-title">Confirm Action</h4>
+            </div>
+            <div class="aesthetic-confirm-modal-body">
+                <p id="aesthetic-confirm-modal-message">Are you sure you want to proceed?</p>
+            </div>
+            <div class="aesthetic-confirm-modal-actions">
+                <button id="aesthetic-confirm-cancel" class="aesthetic-confirm-btn btn-sec">Cancel</button>
+                <button id="aesthetic-confirm-ok" class="aesthetic-confirm-btn btn-pri">Confirm</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

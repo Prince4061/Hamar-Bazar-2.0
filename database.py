@@ -107,6 +107,17 @@ def init_db():
     )
     ''')
     
+    # Migrations for is_active in shops and image_path in products
+    try:
+        cursor.execute("ALTER TABLE products ADD COLUMN image_path TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+        
+    try:
+        cursor.execute("ALTER TABLE shops ADD COLUMN is_active INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass # Already exists
+        
     conn.commit()
     conn.close()
     print("Database tables created successfully!")
@@ -195,6 +206,127 @@ def seed_db():
     conn.close()
     print("Database seeded successfully with exclusive shops, products, users, and riders!")
 
+def seed_historical_orders():
+    import random
+    from datetime import datetime, timedelta
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) FROM orders")
+    order_count = cursor.fetchone()[0]
+    
+    # If there are already a good number of orders, don't re-seed
+    if order_count > 20:
+        conn.close()
+        print("Historical orders already seeded.")
+        return
+        
+    cursor.execute("SELECT id FROM users")
+    user_ids = [row['id'] for row in cursor.fetchall()]
+    
+    cursor.execute("SELECT id, category FROM shops")
+    shops = cursor.fetchall()
+    shop_ids = [row['id'] for row in shops]
+    
+    cursor.execute("SELECT id, shop_id, name, price FROM products")
+    products_by_shop = {}
+    for row in cursor.fetchall():
+        s_id = row['shop_id']
+        if s_id not in products_by_shop:
+            products_by_shop[s_id] = []
+        products_by_shop[s_id].append(dict(row))
+        
+    cursor.execute("SELECT id FROM delivery_partners")
+    rider_ids = [row['id'] for row in cursor.fetchall()]
+    
+    if not user_ids or not shop_ids or not products_by_shop:
+        print("Seeding failed: Users, shops, or products not found.")
+        conn.close()
+        return
+        
+    now = datetime.now()
+    statuses = ['DELIVERED', 'DELIVERED', 'DELIVERED', 'DELIVERED', 'FAILED', 'DELIVERED']
+    failure_reasons = ['Rider unavailable', 'Customer cancelled', 'Out of stock', 'Invalid address']
+    
+    print("Generating 80 historical orders for the last 7 days...")
+    
+    for i in range(80):
+        hours_ago = random.randint(1, 168)
+        created_dt = now - timedelta(hours=hours_ago)
+        created_str = created_dt.strftime('%Y-%m-%d %H:%M:%S')
+        
+        cust_id = random.choice(user_ids)
+        shop_id = random.choice(shop_ids)
+        
+        status = random.choice(statuses)
+        if hours_ago <= 3:
+            status = random.choice(['PENDING', 'ACCEPTED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED'])
+            
+        priority = 'URGENT' if random.random() < 0.2 else 'NORMAL'
+        
+        sh_products = products_by_shop.get(shop_id, [])
+        if not sh_products:
+            continue
+            
+        num_items = random.randint(1, 3)
+        order_items_to_add = random.sample(sh_products, min(num_items, len(sh_products)))
+        
+        total_amount = 0.0
+        for prod in order_items_to_add:
+            qty = random.randint(1, 2)
+            total_amount += prod['price'] * qty
+            
+        fee = 15.0 if total_amount < 199.0 else 0.0
+        total_amount += fee
+        
+        pickup_otp = f"{random.randint(1000, 9999)}"
+        delivery_otp = f"{random.randint(1000, 9999)}"
+        
+        rider_id = None
+        if status in ['ACCEPTED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED']:
+            rider_id = random.choice(rider_ids) if rider_ids else None
+            
+        accepted_at = None
+        ready_at = None
+        assigned_at = None
+        delivered_at = None
+        fail_reason = None
+        
+        if status != 'PENDING':
+            accepted_at = (created_dt + timedelta(minutes=random.randint(2, 5))).strftime('%Y-%m-%d %H:%M:%S')
+            
+        if status in ['READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED']:
+            ready_at = (created_dt + timedelta(minutes=random.randint(7, 15))).strftime('%Y-%m-%d %H:%M:%S')
+            
+        if status in ['OUT_FOR_DELIVERY', 'DELIVERED']:
+            assigned_at = (created_dt + timedelta(minutes=random.randint(8, 18))).strftime('%Y-%m-%d %H:%M:%S')
+            
+        if status == 'DELIVERED':
+            delivered_at = (created_dt + timedelta(minutes=random.randint(18, 40))).strftime('%Y-%m-%d %H:%M:%S')
+            
+        if status == 'FAILED':
+            fail_reason = random.choice(failure_reasons)
+            
+        cursor.execute('''
+            INSERT INTO orders (customer_id, shop_id, delivery_boy_id, total_amount, gst_amount, priority_type, status, pickup_otp, delivery_otp, created_at, assigned_at, accepted_at, ready_at, delivered_at, failure_reason)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (cust_id, shop_id, rider_id, total_amount, 0.0, priority, status, pickup_otp, delivery_otp, created_str, assigned_at, accepted_at, ready_at, delivered_at, fail_reason))
+        
+        order_id = cursor.lastrowid
+        
+        for prod in order_items_to_add:
+            qty = random.randint(1, 2)
+            cursor.execute('''
+                INSERT INTO order_items (order_id, product_id, quantity, price)
+                VALUES (?, ?, ?, ?)
+            ''', (order_id, prod['id'], qty, prod['price']))
+            
+    conn.commit()
+    conn.close()
+    print("Historical orders seeded successfully!")
+
 if __name__ == '__main__':
     init_db()
     seed_db()
+    seed_historical_orders()
