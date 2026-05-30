@@ -53,6 +53,7 @@ def init_db():
         name TEXT NOT NULL,
         price REAL NOT NULL,
         is_available BOOLEAN DEFAULT 1,
+        subcategory TEXT,
         FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE
     )
     ''')
@@ -82,6 +83,8 @@ def init_db():
         status TEXT DEFAULT 'PENDING',
         pickup_otp TEXT,
         delivery_otp TEXT,
+        payment_mode TEXT DEFAULT 'COD',
+        payment_screenshot TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         assigned_at TIMESTAMP,
         accepted_at TIMESTAMP,
@@ -94,6 +97,16 @@ def init_db():
     )
     ''')
     
+    try:
+        cursor.execute("ALTER TABLE orders ADD COLUMN payment_mode TEXT DEFAULT 'COD'")
+    except sqlite3.OperationalError:
+        pass # Already exists
+        
+    try:
+        cursor.execute("ALTER TABLE orders ADD COLUMN payment_screenshot TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+
     # 6. Order Items Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS order_items (
@@ -107,9 +120,24 @@ def init_db():
     )
     ''')
     
+    # 7. Failed Logins Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS failed_logins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        username TEXT NOT NULL,
+        ip_address TEXT NOT NULL
+    )
+    ''')
+    
     # Migrations for is_active in shops and image_path in products
     try:
         cursor.execute("ALTER TABLE products ADD COLUMN image_path TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+
+    try:
+        cursor.execute("ALTER TABLE products ADD COLUMN subcategory TEXT")
     except sqlite3.OperationalError:
         pass # Already exists
         
@@ -117,6 +145,30 @@ def init_db():
         cursor.execute("ALTER TABLE shops ADD COLUMN is_active INTEGER DEFAULT 1")
     except sqlite3.OperationalError:
         pass # Already exists
+        
+    try:
+        cursor.execute("ALTER TABLE shops ADD COLUMN password TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+
+    try:
+        cursor.execute("ALTER TABLE shops ADD COLUMN image_path TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+        
+    # 8. Prescription Requests Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS prescription_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL,
+        image_path TEXT NOT NULL,
+        status TEXT DEFAULT 'PENDING',
+        shop_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES users(id),
+        FOREIGN KEY (shop_id) REFERENCES shops(id)
+    )
+    ''')
         
     conn.commit()
     conn.close()
@@ -141,16 +193,17 @@ def seed_db():
             
     # Seed Shops
     shops_data = [
-        ('Apna Bazaar (Kirana & General)', 'KIRANA', 5.0),
-        ('The Bakers Table (Premium Cakes)', 'CAKES', 8.0),
-        ('Fresh & Green Vegetables', 'VEGGIES', 4.0),
-        ('ElectroWorld Solutions', 'ELECTRONICS', 10.0)
+        ('Apna Bazaar (Kirana & General)', 'KIRANA', 5.0, 'password123', '/static/images/grocery_basket.png'),
+        ('The Bakers Table (Premium Cakes)', 'CAKES', 8.0, 'password123', '/static/images/cake_category.png'),
+        ('Fresh & Green Vegetables', 'VEGGIES', 4.0, 'password123', '/static/images/veggies_category.png'),
+        ('ElectroWorld Solutions', 'ELECTRONICS', 10.0, 'password123', '/static/images/electronics_category.png'),
+        ('City Medicos & Pharmacy', 'PHARMACY', 7.0, 'password123', '/static/images/pharmacy_category.png')
     ]
     for shop in shops_data:
         try:
-            cursor.execute('INSERT INTO shops (shop_name, category, commission_pct) VALUES (?, ?, ?)', shop)
+            cursor.execute('INSERT INTO shops (shop_name, category, commission_pct, password, image_path) VALUES (?, ?, ?, ?, ?)', shop)
         except sqlite3.IntegrityError:
-            pass # Already exists
+            cursor.execute('UPDATE shops SET password = ?, image_path = ? WHERE category = ?', (shop[3], shop[4], shop[1]))
             
     conn.commit()
     
@@ -181,14 +234,30 @@ def seed_db():
         (shop_ids['ELECTRONICS'], 'Fast USB-C Cable 1.5m', 150.0),
         (shop_ids['ELECTRONICS'], 'Wired Earphones with Mic', 250.0),
         (shop_ids['ELECTRONICS'], 'AA Duracell Battery 4pc', 120.0),
-        (shop_ids['ELECTRONICS'], 'Smart WiFi Plug 16A', 599.0)
+        (shop_ids['ELECTRONICS'], 'Smart WiFi Plug 16A', 599.0),
+        # Pharmacy
+        (shop_ids['PHARMACY'], 'Crocin Advance 500mg', 20.0, 'Pain Relief'),
+        (shop_ids['PHARMACY'], 'Dolo 650mg', 30.0, 'Pain Relief'),
+        (shop_ids['PHARMACY'], 'Combiflam Tablet 15pc', 45.0, 'Pain Relief'),
+        (shop_ids['PHARMACY'], 'Vicks Vaporub 50g', 140.0, 'Cold & Cough'),
+        (shop_ids['PHARMACY'], 'Cofsil Lozenges 10pc', 35.0, 'Cold & Cough'),
+        (shop_ids['PHARMACY'], 'Benadryl Cough Syrup 100ml', 125.0, 'Cold & Cough'),
+        (shop_ids['PHARMACY'], 'Limcee Vitamin C 15pc', 25.0, 'Vitamins'),
+        (shop_ids['PHARMACY'], 'Revital H Capsules 10pc', 110.0, 'Vitamins'),
+        (shop_ids['PHARMACY'], 'Calcium Sandoz 20pc', 160.0, 'Vitamins'),
+        (shop_ids['PHARMACY'], 'Dettol Liquid 100ml', 60.0, 'First Aid'),
+        (shop_ids['PHARMACY'], 'Band-Aid Premium 20pc', 45.0, 'First Aid'),
+        (shop_ids['PHARMACY'], 'Betadine Ointment 15g', 95.0, 'First Aid'),
+        (shop_ids['PHARMACY'], 'Dettol Hand Sanitizer 50ml', 25.0, 'Hygiene'),
+        (shop_ids['PHARMACY'], 'Savlon Handwash 200ml', 85.0, 'Hygiene')
     ]
     
     for product in products_data:
         # Check if already seeded to avoid duplicates
         cursor.execute('SELECT id FROM products WHERE shop_id = ? AND name = ?', (product[0], product[1]))
         if not cursor.fetchone():
-            cursor.execute('INSERT INTO products (shop_id, name, price) VALUES (?, ?, ?)', product)
+            subcat = product[3] if len(product) > 3 else None
+            cursor.execute('INSERT INTO products (shop_id, name, price, subcategory) VALUES (?, ?, ?, ?)', (product[0], product[1], product[2], subcat))
             
     # Seed Delivery Partners
     partners_data = [

@@ -1333,6 +1333,17 @@
                         </a>
                     </li>
                     <li>
+                        <a class="menu-item-link" onclick="switchTab('prescriptions')">
+                            <i data-lucide="file-text"></i> Prescriptions
+                        </a>
+                    </li>
+                    <li>
+                        <a class="menu-item-link" onclick="switchTab('payments')">
+                            <i data-lucide="credit-card"></i> Payment Approvals
+                            <span id="payments-sidebar-badge" class="badge-dot" style="display:none; position:relative; margin-left:auto; top:0; right:0; background: var(--ruby-danger); color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem; font-weight: 800; line-height: 1; height: auto; width: auto;"></span>
+                        </a>
+                    </li>
+                    <li>
                         <a class="menu-item-link" onclick="switchTab('system')">
                             <i data-lucide="shield-alert"></i> System Status
                         </a>
@@ -1667,6 +1678,7 @@
                 <div class="dashboard-card">
                     <div class="card-header-row">
                         <h3 class="card-title-text"><i data-lucide="store"></i> Exclusive Vendor Partners</h3>
+                        <button class="btn-custom btn-custom-primary" onclick="openAddShopModal()"><i data-lucide="plus"></i> Add Category / Shop</button>
                     </div>
                     
                     <div class="table-responsive-wrapper">
@@ -1675,7 +1687,8 @@
                                 <tr>
                                     <th>Shop ID</th>
                                     <th>Shop Name</th>
-                                    <th>Category Niche</th>
+                                    <th>Login ID (Category)</th>
+                                    <th>Password</th>
                                     <th>Commission Rate</th>
                                     <th>Gross Sales</th>
                                     <th>Orders Completed</th>
@@ -1869,6 +1882,76 @@
                 </div>
             </div>
 
+            <!-- --------------------------------------------------- -->
+            <!-- TAB 7: PRESCRIPTIONS REVIEW & FORWARDING -->
+            <!-- --------------------------------------------------- -->
+            <div class="tab-panel" id="panel-prescriptions">
+                <div class="dashboard-card">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text"><i data-lucide="file-text"></i> Customer Prescriptions & Medicine Uploads</h3>
+                        <button class="btn-custom btn-custom-secondary" onclick="loadPrescriptions()"><i data-lucide="refresh-cw"></i> Refresh Feed</button>
+                    </div>
+                    
+                    <div class="table-responsive-wrapper">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>Request ID</th>
+                                    <th>Date Uploaded</th>
+                                    <th>Customer Details</th>
+                                    <th>Medicine/Prescription Image</th>
+                                    <th>Current Status</th>
+                                    <th>Forward to Medical Shop</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prescriptions-admin-rows">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="empty-admin-prescriptions-placeholder" style="display:none; padding:40px; text-align:center; color:var(--text-muted);">
+                        <i data-lucide="package-open" style="width:48px; height:48px; stroke-width:1.5; margin-bottom:12px; display:inline-block;"></i>
+                        <p style="font-weight:600;">No prescription uploads in the log.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- --------------------------------------------------- -->
+            <!-- TAB 8: PAYMENT APPROVALS -->
+            <!-- --------------------------------------------------- -->
+            <div class="tab-panel" id="panel-payments">
+                <div class="dashboard-card">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text"><i data-lucide="credit-card"></i> Online Payment Verifications</h3>
+                        <button class="btn-custom btn-custom-secondary" onclick="loadPaymentApprovals()"><i data-lucide="refresh-cw"></i> Refresh Feed</button>
+                    </div>
+                    
+                    <div class="table-responsive-wrapper">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Date Created</th>
+                                    <th>Customer Details</th>
+                                    <th>Merchant / Shop</th>
+                                    <th>Amount</th>
+                                    <th>Payment Screenshot</th>
+                                    <th>Actions Control</th>
+                                </tr>
+                            </thead>
+                            <tbody id="payments-admin-rows">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="empty-admin-payments-placeholder" style="display:none; padding:40px; text-align:center; color:var(--text-muted);">
+                        <i data-lucide="shield-check" style="width:48px; height:48px; stroke-width:1.5; margin-bottom:12px; display:inline-block; color: var(--emerald-green);"></i>
+                        <p style="font-weight:600;">No pending payment verifications.</p>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -1951,6 +2034,48 @@
     </div>
 
     <!-- --------------------------------------------------- -->
+    <!-- ADD/EDIT SHOP CATEGORY MODAL -->
+    <!-- --------------------------------------------------- -->
+    <div class="modal-popup-overlay" id="shop-modal">
+        <div class="modal-popup-card">
+            <div class="modal-popup-header">
+                <h3 id="shop-modal-title">Add New Category / Shop</h3>
+                <button class="drawer-close" onclick="closeShopModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-popup-body">
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Shop Name</label>
+                    <input type="text" id="modal-shop-name" class="form-input-custom" style="width: 100%;" placeholder="e.g. Apna Bazaar (Kirana & General)">
+                </div>
+                
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Category Code (Login ID, Unique)</label>
+                    <input type="text" id="modal-shop-category" class="form-input-custom" style="width: 100%;" placeholder="e.g. CLOTHES">
+                </div>
+
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Commission Percentage</label>
+                    <input type="number" id="modal-shop-commission" class="form-input-custom" style="width: 100%;" placeholder="e.g. 5.0" step="0.1" value="5.0">
+                </div>
+
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Password (Login credential)</label>
+                    <input type="password" id="modal-shop-password" class="form-input-custom" style="width: 100%;" placeholder="Enter password (e.g. password123)">
+                </div>
+
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Category / Shop Image</label>
+                    <input type="file" id="modal-shop-image-file" class="form-input-custom" style="width: 100%;" accept="image/*">
+                </div>
+            </div>
+            <div class="modal-popup-footer">
+                <button class="btn-custom btn-custom-secondary" onclick="closeShopModal()">Cancel</button>
+                <button class="btn-custom btn-custom-primary" onclick="saveShopCategory()">Save Shop Category</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- --------------------------------------------------- -->
     <!-- CUSTOM CONFIRM MODAL OVERLAY -->
     <!-- --------------------------------------------------- -->
     <div id="aesthetic-confirm-modal" class="aesthetic-confirm-modal-overlay" style="display: none;">
@@ -2002,6 +2127,11 @@
             // Auto-refresh stats every 15 seconds
             setInterval(() => {
                 loadAllAnalytics(false);
+                if (activeTab === 'prescriptions') {
+                    loadPrescriptions();
+                } else if (activeTab === 'payments') {
+                    loadPaymentApprovals();
+                }
             }, 15000);
             
             // Listeners for closing menus
@@ -2036,6 +2166,8 @@
                 if (tabId === 'vendors') return txt.includes('shops');
                 if (tabId === 'products') return txt.includes('products');
                 if (tabId === 'delivery') return txt.includes('riders');
+                if (tabId === 'prescriptions') return txt.includes('prescriptions');
+                if (tabId === 'payments') return txt.includes('payment');
                 if (tabId === 'system') return txt.includes('system');
                 return false;
             });
@@ -2065,6 +2197,14 @@
             } else if (tabId === 'delivery') {
                 title = "Riders Pool & Cooldown monitors";
                 subtitle = "Dispatch active delivery partners and check double-OTP logs.";
+            } else if (tabId === 'prescriptions') {
+                title = "Prescription Review & Forwarding Center";
+                subtitle = "Approve customer uploads and forward them to chemistry shops.";
+                loadPrescriptions();
+            } else if (tabId === 'payments') {
+                title = "Payment Verification & Approvals";
+                subtitle = "Approve or reject customer online payment screenshots to place orders.";
+                loadPaymentApprovals();
             } else if (tabId === 'system') {
                 title = "SaaS Security & Core Engine audits";
                 subtitle = "Track API latencies, database file sizes, and security failed logs.";
@@ -2171,10 +2311,28 @@
                     renderDashboardOrders(data.recent_orders);
                     
                     // Render Inventory alerts
-                    renderInventoryAlertsList(data.shops_performance);
+                    renderInventoryAlertsList(data.stock_warnings);
 
                     // Render full orders table tab
                     renderOrdersFullTable(data.recent_orders);
+
+                    // Populate products catalog shop filter dynamically
+                    const shopFilter = document.getElementById("product-shop-filter");
+                    if (shopFilter && data.shops_performance) {
+                        const currentVal = shopFilter.value;
+                        shopFilter.innerHTML = "";
+                        data.shops_performance.forEach(s => {
+                            const opt = document.createElement("option");
+                            opt.value = s.shop_id;
+                            opt.innerText = `${s.shop_name} (${s.category})`;
+                            shopFilter.appendChild(opt);
+                        });
+                        if (currentVal && Array.from(shopFilter.options).some(opt => opt.value === currentVal)) {
+                            shopFilter.value = currentVal;
+                        } else if (data.shops_performance.length > 0) {
+                            shopFilter.value = data.shops_performance[0].shop_id;
+                        }
+                    }
 
                     // Render vendors list tab
                     renderVendorsTable(data.shops_performance);
@@ -2197,6 +2355,18 @@
                     // Render Charts
                     renderAnalyticsCharts(data);
                     
+                    // Render payments sidebar badge
+                    const payBadge = document.getElementById("payments-sidebar-badge");
+                    if (payBadge) {
+                        const count = data.overview.awaiting_payment_count || 0;
+                        if (count > 0) {
+                            payBadge.style.display = "inline-block";
+                            payBadge.innerText = count;
+                        } else {
+                            payBadge.style.display = "none";
+                        }
+                    }
+                    
                     if (manualTrigger) {
                         showAestheticToast("Analytics refreshed.", "success");
                     }
@@ -2206,6 +2376,235 @@
                     console.error("API Fetch Error:", err);
                     showAestheticToast("Failed to retrieve analytics data.", "error");
                 });
+        }
+
+        function loadPrescriptions() {
+            const container = document.getElementById("prescriptions-admin-rows");
+            const placeholder = document.getElementById("empty-admin-prescriptions-placeholder");
+            if (!container) return;
+            
+            container.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:20px;'>Loading prescriptions feed...</td></tr>";
+            if (placeholder) placeholder.style.display = "none";
+            
+            fetch('/api/admin/prescriptions')
+                .then(res => res.json())
+                .then(data => {
+                    container.innerHTML = "";
+                    if (!Array.isArray(data) || data.length === 0) {
+                        if (placeholder) placeholder.style.display = "block";
+                        return;
+                    }
+                    
+                    // Filter shops for category 'PHARMACY' and active status to populate the dropdowns
+                    const pharmacies = (analyticsData && analyticsData.shops_performance) ? 
+                        analyticsData.shops_performance.filter(s => s.category === 'PHARMACY' && s.is_active) : [];
+                    
+                    data.forEach(item => {
+                        const tr = document.createElement("tr");
+                        
+                        let badgeClass = "badge-pending";
+                        let statusText = "Pending Review";
+                        if (item.status === 'SENT_TO_VENDOR') {
+                            badgeClass = "badge-transit";
+                            statusText = `Sent to ${item.shop_name || 'Chemist'}`;
+                        } else if (item.status === 'COMPLETED') {
+                            badgeClass = "badge-delivered";
+                            statusText = "Completed / Quoted";
+                        }
+                        
+                        let dateStr = item.created_at;
+                        try {
+                            const cleanD = item.created_at.replace(" ", "T").split(".")[0];
+                            dateStr = new Date(cleanD + "Z").toLocaleString();
+                        } catch(e) {}
+                        
+                        // Dropdown selection
+                        let selectHtml = "";
+                        let actionBtn = "";
+                        
+                        if (item.status === 'PENDING') {
+                            selectHtml = `<select class="form-select-custom" id="forward-shop-${item.id}">`;
+                            if (pharmacies.length === 0) {
+                                selectHtml += `<option value="">No Active Pharmacies</option>`;
+                            } else {
+                                pharmacies.forEach(p => {
+                                    selectHtml += `<option value="${p.shop_id}">${p.shop_name}</option>`;
+                                });
+                            }
+                            selectHtml += `</select>`;
+                            
+                            actionBtn = `<button class="btn-custom btn-custom-primary" onclick="forwardPrescription(${item.id})"><i data-lucide="send" style="width:12px; height:12px;"></i> Forward</button>`;
+                        } else {
+                            selectHtml = `<span style="font-weight:600; color:var(--text-secondary);">${item.shop_name || 'Medical Shop'}</span>`;
+                            actionBtn = `<span style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">Handover complete</span>`;
+                        }
+                        
+                        tr.innerHTML = `
+                            <td style="font-weight:700;">#PR-${item.id}</td>
+                            <td style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${dateStr}</td>
+                            <td>
+                                <div style="display:flex; flex-direction:column; gap:2px;">
+                                    <strong style="color:var(--text-primary); font-size:0.85rem;">${item.customer_name}</strong>
+                                    <span style="font-size:0.8rem; color:var(--text-secondary);"><i data-lucide="phone" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i>${item.customer_phone}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="${item.image_path}" target="_blank" title="Click to view full size image">
+                                    <img src="${item.image_path}" alt="Prescription" style="width: 80px; height: 60px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                                </a>
+                            </td>
+                            <td>
+                                <span class="status-badge ${badgeClass}">${statusText}</span>
+                            </td>
+                            <td>
+                                ${selectHtml}
+                            </td>
+                            <td>
+                                ${actionBtn}
+                            </td>
+                        `;
+                        container.appendChild(tr);
+                    });
+                    if (window.lucide) lucide.createIcons();
+                })
+                .catch(err => {
+                    console.error("Error fetching prescriptions:", err);
+                    container.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:20px; color:var(--ruby-danger);'>Failed to retrieve prescription feed.</td></tr>";
+                });
+        }
+        
+        function forwardPrescription(reqId) {
+            const selectEl = document.getElementById(`forward-shop-${reqId}`);
+            if (!selectEl) return;
+            const shopId = selectEl.value;
+            if (!shopId) {
+                showAestheticToast("Please select a medical shop first.", "error");
+                return;
+            }
+            
+            aestheticConfirm("Are you sure you want to forward this medicine request to the selected chemist?", () => {
+                fetch(`/api/admin/prescriptions/${reqId}/forward`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shop_id: shopId })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAestheticToast("Prescription forwarded to merchant.", "success");
+                        loadPrescriptions();
+                    } else {
+                        showAestheticToast(data.error || "Failed to forward prescription.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Forward error:", err);
+                    showAestheticToast("Network communication error.", "error");
+                });
+            });
+        }
+
+        function loadPaymentApprovals() {
+            const container = document.getElementById("payments-admin-rows");
+            const placeholder = document.getElementById("empty-admin-payments-placeholder");
+            if (!container) return;
+            
+            container.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:20px;'>Loading payments feed...</td></tr>";
+            if (placeholder) placeholder.style.display = "none";
+            
+            fetch('/api/admin/payments/pending')
+                .then(res => res.json())
+                .then(data => {
+                    container.innerHTML = "";
+                    if (!Array.isArray(data) || data.length === 0) {
+                        if (placeholder) placeholder.style.display = "block";
+                        return;
+                    }
+                    
+                    data.forEach(item => {
+                        const tr = document.createElement("tr");
+                        
+                        let dateStr = item.created_at;
+                        try {
+                            const cleanD = item.created_at.replace(" ", "T").split(".")[0];
+                            dateStr = new Date(cleanD + "Z").toLocaleString();
+                        } catch(e) {}
+                        
+                        tr.innerHTML = `
+                            <td style="font-weight:700;">#ORD-${item.id}</td>
+                            <td style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${dateStr}</td>
+                            <td>
+                                <div style="display:flex; flex-direction:column; gap:2px;">
+                                    <strong style="color:var(--text-primary); font-size:0.85rem;">${item.customer_name}</strong>
+                                    <span style="font-size:0.8rem; color:var(--text-secondary);">${item.customer_phone}</span>
+                                </div>
+                            </td>
+                            <td style="font-weight:600; color:var(--text-primary);">${item.shop_name}</td>
+                            <td style="font-weight:700; color:var(--primary-accent);">₹${item.total_amount.toFixed(2)}</td>
+                            <td>
+                                <a href="${item.payment_screenshot}" target="_blank" title="Click to view full size image">
+                                    <img src="${item.payment_screenshot}" alt="Payment Screenshot" style="width: 80px; height: 60px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                                </a>
+                            </td>
+                            <td>
+                                <div style="display:flex; gap:8px;">
+                                    <button class="btn-custom btn-custom-primary" style="background-color: var(--emerald-green);" onclick="approvePayment(${item.id})"><i data-lucide="check" style="width:12px; height:12px;"></i> Approve</button>
+                                    <button class="btn-custom btn-custom-danger" onclick="rejectPayment(${item.id})"><i data-lucide="x" style="width:12px; height:12px;"></i> Reject</button>
+                                </div>
+                            </td>
+                        `;
+                        container.appendChild(tr);
+                    });
+                    if (window.lucide) lucide.createIcons();
+                })
+                .catch(err => {
+                    console.error("Error loading payment approvals:", err);
+                    container.innerHTML = "<tr><td colspan='7' style='text-align:center; color:var(--ruby-danger); padding:20px;'>Failed to load payment feed.</td></tr>";
+                });
+        }
+        
+        function approvePayment(orderId) {
+            aestheticConfirm(`Approve payment for Order #ORD-${orderId}?`, () => {
+                fetch(`/api/admin/payments/${orderId}/approve`, {
+                    method: 'POST'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAestheticToast(data.message, "success");
+                        loadPaymentApprovals();
+                        loadAllAnalytics(false);
+                    } else {
+                        showAestheticToast(data.error || "Failed to approve payment.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Approve payment error:", err);
+                    showAestheticToast("Connection error.", "error");
+                });
+            });
+        }
+        
+        function rejectPayment(orderId) {
+            aestheticConfirm(`Reject payment for Order #ORD-${orderId}? This will fail the order.`, () => {
+                fetch(`/api/admin/payments/${orderId}/reject`, {
+                    method: 'POST'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAestheticToast(data.message, "success");
+                        loadPaymentApprovals();
+                        loadAllAnalytics(false);
+                    } else {
+                        showAestheticToast(data.error || "Failed to reject payment.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Reject payment error:", err);
+                    showAestheticToast("Connection error.", "error");
+                });
+            });
         }
 
         // Show loading state mockup
@@ -2248,21 +2647,24 @@
         }
 
         // Render Inventory alerts list
-        function renderInventoryAlertsList(shops) {
+        function renderInventoryAlertsList(warnings) {
             const container = document.getElementById("dashboard-inventory-alerts-container");
             container.innerHTML = "";
             
-            const stockMocks = [
-                { name: "Amul Milk 1L", shop: "Apna Bazaar Store", left: 10, state: "Low Stock" },
-                { name: "Tomato 1kg", shop: "Fresh & Green Veggies", left: 8, state: "Low Stock" },
-                { name: "Chocolate Truffle Cake 500g", shop: "Bakers Table Cake Delight", left: 3, state: "Critical Stock" },
-                { name: "AA Duracell Battery 4pc", shop: "ElectroWorld Solutions", left: 12, state: "Stock Running Low" }
-            ];
+            if (!warnings || warnings.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-weight:600;">No stock warnings or high demand items.</div>`;
+                return;
+            }
             
-            stockMocks.forEach(item => {
+            warnings.forEach(item => {
                 let colorClass = "badge-transit";
-                if (item.left <= 3) colorClass = "badge-failed";
-                else if (item.left > 10) colorClass = "badge-pending";
+                let textDetail = `${item.left} sold`;
+                if (item.state === 'Out of Stock') {
+                    colorClass = "badge-failed";
+                    textDetail = `0 in stock`;
+                } else if (item.state === 'High Demand') {
+                    colorClass = "badge-delivered";
+                }
                 
                 const div = document.createElement("div");
                 div.style.padding = "10px 14px";
@@ -2280,7 +2682,7 @@
                     </div>
                     <div style="text-align:right;">
                         <span class="status-badge ${colorClass}" style="font-size:0.7rem;">${item.state}</span>
-                        <strong style="font-size:0.8rem; display:block; margin-top:2px; color:var(--text-secondary);">${item.left} left</strong>
+                        <strong style="font-size:0.8rem; display:block; margin-top:2px; color:var(--text-secondary);">${textDetail}</strong>
                     </div>
                 `;
                 container.appendChild(div);
@@ -2370,8 +2772,12 @@
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
                     <td style="font-weight:700;">#SHP${s.shop_id}</td>
-                    <td style="font-weight:600;">${s.shop_name}</td>
+                    <td style="font-weight:600; display:flex; align-items:center; gap:8px;">
+                        <img src="${s.image_path || '/static/images/grocery_basket.png'}" style="width:24px; height:24px; border-radius:4px; object-fit:cover;">
+                        <span>${s.shop_name}</span>
+                    </td>
                     <td><span class="status-badge badge-pending">${s.category}</span></td>
+                    <td style="font-family:monospace; font-weight:700; color:var(--text-secondary);">${s.password || 'password123'}</td>
                     <td style="font-weight:600;">${s.commission_pct}%</td>
                     <td style="font-weight:700; color:var(--primary-accent);">₹${(s.sales || 0).toLocaleString('en-IN')}</td>
                     <td style="font-weight:600;">${s.success_orders}</td>
@@ -2712,7 +3118,82 @@
             document.getElementById("modal-available-group").style.display = "none";
             document.getElementById("modal-shop-select-group").style.display = "block";
             
+            // Dynamically populate shops select dropdown
+            const shopSelect = document.getElementById("modal-product-shop");
+            shopSelect.innerHTML = "";
+            if (analyticsData && analyticsData.shops_performance) {
+                analyticsData.shops_performance.forEach(s => {
+                    const opt = document.createElement("option");
+                    opt.value = s.shop_id;
+                    opt.innerText = `${s.shop_name} (${s.category})`;
+                    shopSelect.appendChild(opt);
+                });
+            } else {
+                shopSelect.innerHTML = `
+                    <option value="1">Apna Bazaar (Kirana)</option>
+                    <option value="2">The Bakers Table (Cakes)</option>
+                    <option value="3">Fresh & Green Vegetables (Veggies)</option>
+                    <option value="4">ElectroWorld Solutions (Electronics)</option>
+                `;
+            }
+            
             document.getElementById("product-modal").style.display = "flex";
+        }
+
+        function openAddShopModal() {
+            document.getElementById("modal-shop-name").value = "";
+            document.getElementById("modal-shop-category").value = "";
+            document.getElementById("modal-shop-commission").value = "5.0";
+            document.getElementById("modal-shop-password").value = "";
+            document.getElementById("modal-shop-image-file").value = "";
+            document.getElementById("shop-modal").style.display = "flex";
+        }
+
+        function closeShopModal() {
+            document.getElementById("shop-modal").style.display = "none";
+        }
+
+        function saveShopCategory() {
+            const name = document.getElementById("modal-shop-name").value.trim();
+            const category = document.getElementById("modal-shop-category").value.trim().toUpperCase();
+            const commission = document.getElementById("modal-shop-commission").value;
+            const password = document.getElementById("modal-shop-password").value.trim();
+            const imageFile = document.getElementById("modal-shop-image-file").files[0];
+            
+            if (!name || !category || !password) {
+                showAestheticToast("Shop Name, Category Code, and Password are required.", "error");
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append("shop_name", name);
+            formData.append("category", category);
+            formData.append("commission_pct", commission);
+            formData.append("password", password);
+            if (imageFile) {
+                formData.append("shop_image", imageFile);
+            }
+            
+            showAestheticToast("Creating exclusive shop category...", "info");
+            
+            fetch('/api/admin/shops/add', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    showAestheticToast(data.error, "error");
+                } else {
+                    showAestheticToast(data.message, "success");
+                    closeShopModal();
+                    loadAllAnalytics(false);
+                }
+            })
+            .catch(err => {
+                console.error("Error adding category:", err);
+                showAestheticToast("Failed to create category.", "error");
+            });
         }
 
         // Edit Product Dialog Modal
@@ -2803,12 +3284,72 @@
             const container = document.getElementById("alerts-list-container");
             container.innerHTML = "";
             
-            const logs = [
-                { subject: "New Urgent order placed!", desc: `Order #ORD${data.recent_orders[0] ? data.recent_orders[0].id : 1024} requested priority delivery.`, time: "Just now", type: "urgent" },
-                { subject: "Critical Inventory alert", desc: "Cake shop stock of Truffle Cakes is critical (3 left). Suggest restock.", time: "12 min ago", type: "vendor" },
-                { subject: "Delivery cooldown active", desc: "Amit Express claimed a job and is cooling down (10 mins).", time: "25 min ago", type: "rider" },
-                { subject: "Database file verified", desc: `Size index matches SLA limits: ${data.system_health.db_size_kb} KB.`, time: "1 hour ago", type: "system" }
-            ];
+            const logs = [];
+            
+            // 1. Urgent orders alert
+            const recentUrgent = data.recent_orders.find(o => o.priority_type === 'URGENT');
+            if (recentUrgent) {
+                logs.push({
+                    subject: "Urgent Order Alert",
+                    desc: `Order #ORD${recentUrgent.id} requires priority delivery. Status: ${recentUrgent.status}.`,
+                    time: "Recent",
+                    type: "urgent"
+                });
+            } else {
+                logs.push({
+                    subject: "Order Stream Stable",
+                    desc: "No pending urgent delivery requests in the queue.",
+                    time: "Now",
+                    type: "system"
+                });
+            }
+            
+            // 2. Out of Stock / High Demand alert
+            const oosItem = data.stock_warnings.find(w => w.state === 'Out of Stock');
+            if (oosItem) {
+                logs.push({
+                    subject: "Inventory Out of Stock",
+                    desc: `Product "${oosItem.name}" at ${oosItem.shop} is Out of Stock.`,
+                    time: "Inventory",
+                    type: "vendor"
+                });
+            } else {
+                const hdItem = data.stock_warnings.find(w => w.state === 'High Demand');
+                if (hdItem) {
+                    logs.push({
+                        subject: "High Demand Item Alert",
+                        desc: `"${hdItem.name}" at ${hdItem.shop} has sold ${hdItem.left} units.`,
+                        time: "Prediction",
+                        type: "vendor"
+                    });
+                }
+            }
+            
+            // 3. Cooldown riders alert
+            const coolingRider = data.riders_status.find(r => r.cooldown_secs > 0);
+            if (coolingRider) {
+                logs.push({
+                    subject: "Rider Cooldown Active",
+                    desc: `${coolingRider.name} is on claim cooldown (${coolingRider.cooldown_secs}s).`,
+                    time: "Active Lock",
+                    type: "rider"
+                });
+            } else {
+                logs.push({
+                    subject: "Riders Pool Ready",
+                    desc: "All active partners are available for assignment.",
+                    time: "Ready",
+                    type: "rider"
+                });
+            }
+            
+            // 4. System / Database status alert
+            logs.push({
+                subject: "System Health Verified",
+                desc: `DB Size: ${data.system_health.db_size_kb} KB. API Latency: ${data.system_health.api_latency}.`,
+                time: "Health Check",
+                type: "system"
+            });
             
             logs.forEach(l => {
                 const div = document.createElement("div");
@@ -2940,9 +3481,15 @@
             }
 
             const categoryLabels = ['Kirana', 'Veggies', 'Cakes', 'Electronics'];
-            const categoryValues = [35, 25, 20, 20];
+            const categoryValues = [
+                data.category_demand.KIRANA || 0,
+                data.category_demand.VEGGIES || 0,
+                data.category_demand.CAKES || 0,
+                data.category_demand.ELECTRONICS || 0
+            ];
             
             if (categoryDemandChartObj) {
+                categoryDemandChartObj.data.datasets[0].data = categoryValues;
                 categoryDemandChartObj.update();
             } else {
                 const ctx = document.getElementById('categoryDemandChart').getContext('2d');
@@ -3020,21 +3567,22 @@
             }
 
             if (dbActivityChartObj) {
+                dbActivityChartObj.data.datasets[0].data = data.system_health.db_activity;
                 dbActivityChartObj.update();
             } else {
                 const ctx = document.getElementById('dbActivityChart').getContext('2d');
                 dbActivityChartObj = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: ['10s ago', '9s ago', '8s ago', '7s ago', '6s ago', '5s ago', '4s ago', 'Current'],
+                        labels: ['7h ago', '6h ago', '5h ago', '4h ago', '3h ago', '2h ago', '1h ago', 'Now'],
                         datasets: [{
-                            label: 'DB Reads/Sec',
+                            label: 'Hourly DB Writes (Orders)',
                             data: data.system_health.db_activity,
                             borderColor: 'rgba(0, 156, 98, 0.8)',
                             backgroundColor: 'rgba(0, 156, 98, 0.05)',
                             fill: true,
                             tension: 0.3,
-                            pointRadius: 0
+                            pointRadius: 2
                         }]
                     },
                     options: {

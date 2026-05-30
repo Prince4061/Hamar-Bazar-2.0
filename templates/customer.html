@@ -138,128 +138,235 @@
             </div>
         </div>
 
-        <!-- HERO BANNER -->
-        <div class="hamar-hero-banner mb-md">
-            <div class="hamar-hero-left">
-                <div class="hamar-hero-title">Sab kuch, paas hi paas.</div>
-                <div class="hamar-hero-subtitle" style="margin-top: -12px;"><span style="color: var(--primary-accent)">30–45 min</span> mein aapke ghar.</div>
-                
-                <div class="hamar-hero-badges-row">
-                    <div class="hamar-hero-badge">
-                        <i data-lucide="store"></i> Exclusive Local Shops
-                    </div>
-                    <div class="hamar-hero-badge">
-                        <i data-lucide="clock"></i> 30–45 min Delivery
-                    </div>
-                    <div class="hamar-hero-badge">
-                        <i data-lucide="shield-check"></i> Trusted & Verified
-                    </div>
-                </div>
-                
-                <!-- Dots indicators -->
-                <div style="display: flex; gap: 6px; margin-top: 8px;">
-                    <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--primary-accent);"></span>
-                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1;"></span>
-                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1;"></span>
-                </div>
-            </div>
-            
-            <div class="hamar-hero-right">
-                <img src="{{ url_for('static', filename='images/delivery_scooter.png') }}" class="hamar-hero-rider-img" alt="Rider">
-                <!-- Phone Frame Decor -->
-                <div class="hero-phone-decor">
-                    <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
-                        <span style="font-size:0.65rem; font-weight:800; color:var(--primary-accent);">ETA</span>
-                        <span style="font-size:0.65rem; font-weight:800; color: var(--text-secondary);">30-45 min</span>
-                    </div>
-                    <div style="flex:1; background:#f8fafc; margin: 4px 0; border-radius: 4px; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;">
-                        <svg viewBox="0 0 100 100" style="width:100%; height:100%; stroke:var(--primary-accent); stroke-width:3; fill:none; opacity: 0.8;">
-                            <path d="M 10 90 Q 50 80 50 50 T 90 10" />
-                            <circle cx="10" cy="90" r="5" fill="#e11d48"/>
-                            <circle cx="90" cy="10" r="5" fill="var(--primary-accent)"/>
-                        </svg>
-                        <i data-lucide="map-pin" style="position: absolute; top: 10px; right: 10px; color: var(--primary-accent); fill: var(--primary-accent); width: 14px; height: 14px;"></i>
-                    </div>
-                </div>
-            </div>
+        <!-- STORE SWITCHER (GROCERY VS PHARMACY) -->
+        <div class="store-switcher-container fade-in-up">
+            <button class="store-switch-btn active" id="btn-switch-grocery" onclick="showStorePage('grocery')">
+                <i data-lucide="shopping-bag"></i> Grocery Market
+            </button>
+            <button class="store-switch-btn" id="btn-switch-pharmacy" onclick="showStorePage('pharmacy')">
+                <i data-lucide="pill"></i> Pharmacy Hub
+            </button>
         </div>
 
-        <!-- CATEGORIES GRID -->
-        <div class="hamar-section-header">
-            <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary);">Shop by Category</h3>
-            <a class="cart-edit-link" onclick="alert('Viewing all categories simulated.')" style="font-size: 0.9rem; display: flex; align-items: center; gap: 4px;">View all shops <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i></a>
-        </div>
-        <div class="category-grid">
-            <div class="hamar-category-card category-card-kirana" onclick="selectCategory('KIRANA', 1)">
-                <div>
-                    <div class="hamar-category-title">Kirana</div>
-                    <div class="hamar-category-desc">Daily essentials</div>
+        <!-- GROCERY STOREFRONT WRAPPER -->
+        <div id="grocery-storefront-wrapper">
+            <!-- HERO BANNER -->
+            <div class="hamar-hero-banner mb-md">
+                <div class="hamar-hero-left">
+                    <div class="hamar-hero-title">Sab kuch, paas hi paas.</div>
+                    <div class="hamar-hero-subtitle" style="margin-top: -12px;"><span style="color: var(--primary-accent)">30–45 min</span> mein aapke ghar.</div>
+                    
+                    <div class="hamar-hero-badges-row">
+                        <div class="hamar-hero-badge">
+                            <i data-lucide="store"></i> Exclusive Local Shops
+                        </div>
+                        <div class="hamar-hero-badge">
+                            <i data-lucide="clock"></i> 30–45 min Delivery
+                        </div>
+                        <div class="hamar-hero-badge">
+                            <i data-lucide="shield-check"></i> Trusted & Verified
+                        </div>
+                    </div>
+                    
+                    <!-- Dots indicators -->
+                    <div style="display: flex; gap: 6px; margin-top: 8px;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--primary-accent);"></span>
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1;"></span>
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1;"></span>
+                    </div>
                 </div>
-                <div class="hamar-category-action">
-                    <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
+                
+                <div class="hamar-hero-right">
+                    <img src="{{ url_for('static', filename='images/delivery_scooter.png') }}" class="hamar-hero-rider-img" alt="Rider">
+                    <!-- Phone Frame Decor -->
+                    <div class="hero-phone-decor">
+                        <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                            <span style="font-size:0.65rem; font-weight:800; color:var(--primary-accent);">ETA</span>
+                            <span style="font-size:0.65rem; font-weight:800; color: var(--text-secondary);">30-45 min</span>
+                        </div>
+                        <div style="flex:1; background:#f8fafc; margin: 4px 0; border-radius: 4px; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;">
+                            <svg viewBox="0 0 100 100" style="width:100%; height:100%; stroke:var(--primary-accent); stroke-width:3; fill:none; opacity: 0.8;">
+                                <path d="M 10 90 Q 50 80 50 50 T 90 10" />
+                                <circle cx="10" cy="90" r="5" fill="#e11d48"/>
+                                <circle cx="90" cy="10" r="5" fill="var(--primary-accent)"/>
+                            </svg>
+                            <i data-lucide="map-pin" style="position: absolute; top: 10px; right: 10px; color: var(--primary-accent); fill: var(--primary-accent); width: 14px; height: 14px;"></i>
+                        </div>
+                    </div>
                 </div>
-                <img src="{{ url_for('static', filename='images/grocery_basket.png') }}" class="hamar-category-img" alt="Kirana">
             </div>
-            
-            <div class="hamar-category-card category-card-cakes" onclick="selectCategory('CAKES', 2)">
-                <div>
-                    <div class="hamar-category-title">Cakes</div>
-                    <div class="hamar-category-desc">Fresh & delicious</div>
-                </div>
-                <div class="hamar-category-action">
-                    <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
-                </div>
-                <img src="{{ url_for('static', filename='images/cake_category.png') }}" class="hamar-category-img" alt="Cakes">
-            </div>
-            
-            <div class="hamar-category-card category-card-veggies" onclick="selectCategory('VEGGIES', 3)">
-                <div>
-                    <div class="hamar-category-title">Veggies</div>
-                    <div class="hamar-category-desc">Farm fresh</div>
-                </div>
-                <div class="hamar-category-action">
-                    <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
-                </div>
-                <img src="{{ url_for('static', filename='images/veggies_category.png') }}" class="hamar-category-img" alt="Veggies">
-            </div>
-            
-            <div class="hamar-category-card category-card-electronics" onclick="selectCategory('ELECTRONICS', 4)">
-                <div>
-                    <div class="hamar-category-title">Electronics</div>
-                    <div class="hamar-category-desc">Best quality</div>
-                </div>
-                <div class="hamar-category-action">
-                    <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
-                </div>
-                <img src="{{ url_for('static', filename='images/electronics_category.png') }}" class="hamar-category-img" alt="Electronics">
-            </div>
-        </div>
 
-        <!-- DYNAMIC PRODUCTS EXPANDABLE SHELF -->
-        <div class="glass-card mt-md" id="shop-products-panel" style="display: none; border-color: var(--primary-accent);">
-            <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px;">
-                <div>
-                    <h3 id="current-shop-name" style="font-size: 1.25rem; font-weight: 800;">Shop Name</h3>
-                    <span id="current-shop-badge" class="badge badge-normal text-accent" style="background: var(--primary-light); margin-top: 4px; display: inline-block;">Exclusive Partner</span>
-                </div>
-                <button class="btn btn-secondary" onclick="closeShopShelf()" style="width: auto; padding: 8px 16px; border-radius: var(--radius-sm);">Close Shelf</button>
+            <!-- CATEGORIES GRID -->
+            <div class="hamar-section-header">
+                <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary);">Shop by Category</h3>
+                <a class="cart-edit-link" onclick="alert('Viewing all categories simulated.')" style="font-size: 0.9rem; display: flex; align-items: center; gap: 4px;">View all shops <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i></a>
             </div>
-            <div class="products-grid" id="products-container">
+            <div class="category-grid" id="homepage-category-grid">
                 <!-- Loaded dynamically via JS -->
             </div>
+
+            <!-- DYNAMIC PRODUCTS EXPANDABLE SHELF -->
+            <div class="glass-card mt-md" id="shop-products-panel" style="display: none; border-color: var(--primary-accent);">
+                <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px;">
+                    <div>
+                        <h3 id="current-shop-name" style="font-size: 1.25rem; font-weight: 800;">Shop Name</h3>
+                        <span id="current-shop-badge" class="badge badge-normal text-accent" style="background: var(--primary-light); margin-top: 4px; display: inline-block;">Exclusive Partner</span>
+                    </div>
+                    <button class="btn btn-secondary" onclick="closeShopShelf()" style="width: auto; padding: 8px 16px; border-radius: var(--radius-sm);">Close Shelf</button>
+                </div>
+                <div class="products-grid" id="products-container">
+                    <!-- Loaded dynamically via JS -->
+                </div>
+            </div>
+
+            <!-- RECOMMENDED FOR YOU SHELF -->
+            <div class="hamar-section-header">
+                <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary);">Recommended for You</h3>
+                <a class="cart-edit-link" onclick="alert('Showing all recommendations')">See all</a>
+            </div>
+            <div class="hamar-carousel-wrapper">
+                <button class="carousel-btn-arrow carousel-btn-left" onclick="slideCarousel(-1)"><i data-lucide="chevron-left" style="width: 18px; height: 18px;"></i></button>
+                <div id="recommended-products-container" class="products-grid" style="width: 100%; overflow-x: auto; scroll-behavior: smooth; display: grid; grid-auto-flow: column; grid-auto-columns: 200px; gap: 16px; padding: 4px 4px 16px 4px; scrollbar-width: none;">
+                    <!-- Preloaded dynamically on DOMContentLoaded -->
+                </div>
+                <button class="carousel-btn-arrow carousel-btn-right" onclick="slideCarousel(1)"><i data-lucide="chevron-right" style="width: 18px; height: 18px;"></i></button>
+            </div>
         </div>
 
-        <!-- RECOMMENDED FOR YOU SHELF -->
-        <div class="hamar-section-header">
-            <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary);">Recommended for You</h3>
-            <a class="cart-edit-link" onclick="alert('Showing all recommendations')">See all</a>
-        </div>
-        <div class="hamar-carousel-wrapper">
-            <button class="carousel-btn-arrow carousel-btn-left" onclick="slideCarousel(-1)"><i data-lucide="chevron-left" style="width: 18px; height: 18px;"></i></button>
-            <div id="recommended-products-container" class="products-grid" style="width: 100%; overflow-x: auto; scroll-behavior: smooth; display: grid; grid-auto-flow: column; grid-auto-columns: 200px; gap: 16px; padding: 4px 4px 16px 4px; scrollbar-width: none;">
-                <!-- Preloaded dynamically on DOMContentLoaded -->
+        <!-- PHARMACY STOREFRONT WRAPPER -->
+        <div id="pharmacy-storefront-wrapper" class="hidden-storefront pharmacy-container">
+            <!-- PHARMACY HERO BANNER -->
+            <div class="hamar-hero-banner mb-md" style="background: radial-gradient(circle at 50% 0%, #ffffff 0%, #ffe4e6 100%);">
+                <div class="hamar-hero-left">
+                    <div class="hamar-hero-title" style="color: #9f1239;">Hamar Pharmacy Hub</div>
+                    <div class="hamar-hero-subtitle" style="margin-top: -12px;"><span style="color: #e11d48">Safe & Certified</span> medicines in 30 min.</div>
+                    
+                    <div class="hamar-hero-badges-row" style="margin-top: 20px;">
+                        <div class="hamar-hero-badge" style="background: rgba(225, 29, 72, 0.1); color: #e11d48; font-weight: 700;">
+                            <i data-lucide="shield-check"></i> 100% Genuine Medicines
+                        </div>
+                        <div class="hamar-hero-badge" style="background: rgba(225, 29, 72, 0.1); color: #e11d48; font-weight: 700;">
+                            <i data-lucide="award"></i> Certified Pharmacists
+                        </div>
+                    </div>
+                </div>
+                <div class="hamar-hero-right" style="display: flex; align-items: center; justify-content: center;">
+                    <div style="background: #ffe4e6; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #e11d48;">
+                        <i data-lucide="pill" style="width: 50px; height: 50px; stroke-width: 2;"></i>
+                    </div>
+                </div>
             </div>
-            <button class="carousel-btn-arrow carousel-btn-right" onclick="slideCarousel(1)"><i data-lucide="chevron-right" style="width: 18px; height: 18px;"></i></button>
+
+            <!-- MEDICAL ALERT BANNER -->
+            <div class="medical-alert-banner fade-in-up" style="margin-top: -12px;">
+                <i data-lucide="alert-triangle" style="stroke-width: 2.5;"></i>
+                <div>
+                    <span style="display:block; font-size:0.95rem; font-weight:800; margin-bottom:2px; color: #9f1239;">Important Medical Disclaimer</span>
+                    Consult a qualified physician before using scheduled drugs. Our delivery rider will verify medication details upon delivery.
+                </div>
+            </div>
+
+            <!-- PRESCRIPTION UPLOAD CARD -->
+            <div class="glass-card fade-in-up" style="border-color: rgba(225, 29, 72, 0.15); background: #fffcfc; padding: 24px; margin-top: -12px;">
+                <div class="card-header-row" style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+                    <div>
+                        <h4 style="font-size: 1.1rem; font-weight: 800; color: #9f1239; display: flex; align-items: center; gap: 6px;"><i data-lucide="image-plus" style="color: #e11d48;"></i> Upload Medicine / Prescription Image</h4>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; display: block;">Send us a photo of your prescription or medicine box.</span>
+                    </div>
+                </div>
+                
+                <!-- Upload selector dropzone -->
+                <div onclick="document.getElementById('pharmacy-upload-input').click()" style="border: 2px dashed rgba(225, 29, 72, 0.3); background: rgba(225, 29, 72, 0.02); border-radius: var(--radius-lg); padding: 32px; text-align: center; cursor: pointer; transition: var(--transition-fast);" onmouseover="this.style.background='rgba(225, 29, 72, 0.05)'" onmouseout="this.style.background='rgba(225, 29, 72, 0.02)'">
+                    <input type="file" id="pharmacy-upload-input" accept="image/*" style="display: none;" onchange="handlePharmacyFileSelected(this)">
+                    <i data-lucide="upload-cloud" style="width: 40px; height: 40px; color: #e11d48; margin-bottom: 12px; display: inline-block;"></i>
+                    <p style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 4px;">Click to select or drop image here</p>
+                    <p style="font-size: 0.75rem; color: var(--text-muted);">Supports JPG, PNG, WEBP, GIF up to 5MB</p>
+                </div>
+                
+                <!-- Preview area -->
+                <div id="pharmacy-upload-preview-container" style="display: none; margin-top: 16px; padding: 16px; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); text-align: center;">
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px; font-weight: 600;">Selected Image Preview:</p>
+                    <img id="pharmacy-upload-preview-img" src="" alt="Selected Prescription" style="max-height: 200px; max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain;">
+                    <div style="display: flex; gap: 12px; justify-content: center; margin-top: 12px;">
+                        <button class="btn btn-secondary" style="width: auto; padding: 8px 16px; margin: 0; border-radius: var(--radius-sm);" onclick="cancelPharmacyUpload()">Cancel</button>
+                        <button class="btn" style="width: auto; padding: 8px 16px; margin: 0; background: #e11d48; color: white; border-radius: var(--radius-sm);" onclick="submitPharmacyPrescription()">Upload to Admin</button>
+                    </div>
+                </div>
+                
+                <!-- History Feed -->
+                <div style="margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                    <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;"><i data-lucide="history" style="width: 16px; height: 16px; color: var(--text-secondary);"></i> Uploaded Medicines History</h5>
+                    <div id="pharmacy-upload-history-list" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- PHARMACY SUBCATEGORIES GRID -->
+            <div class="hamar-section-header">
+                <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary);">Shop Medicines by Need</h3>
+            </div>
+            <div class="pharmacy-category-grid" id="pharmacy-subcategory-grid">
+                <div class="pharmacy-category-card pain" onclick="selectPharmacySubcategory('Pain Relief')">
+                    <div>
+                        <div class="pharmacy-category-title">Pain Relief</div>
+                        <div class="pharmacy-category-desc">Fever, headache, muscular pain</div>
+                    </div>
+                    <div class="pharmacy-category-icon-box">
+                        <i data-lucide="flame"></i>
+                    </div>
+                </div>
+                <div class="pharmacy-category-card cold" onclick="selectPharmacySubcategory('Cold & Cough')">
+                    <div>
+                        <div class="pharmacy-category-title">Cold & Cough</div>
+                        <div class="pharmacy-category-desc">Sore throat, flu, congestion</div>
+                    </div>
+                    <div class="pharmacy-category-icon-box">
+                        <i data-lucide="thermometer"></i>
+                    </div>
+                </div>
+                <div class="pharmacy-category-card vitamins" onclick="selectPharmacySubcategory('Vitamins')">
+                    <div>
+                        <div class="pharmacy-category-title">Vitamins</div>
+                        <div class="pharmacy-category-desc">Daily immunity & supplements</div>
+                    </div>
+                    <div class="pharmacy-category-icon-box">
+                        <i data-lucide="sparkles"></i>
+                    </div>
+                </div>
+                <div class="pharmacy-category-card firstaid" onclick="selectPharmacySubcategory('First Aid')">
+                    <div>
+                        <div class="pharmacy-category-title">First Aid & Care</div>
+                        <div class="pharmacy-category-desc">Dressing, antiseptic, bandages</div>
+                    </div>
+                    <div class="pharmacy-category-icon-box">
+                        <i data-lucide="activity"></i>
+                    </div>
+                </div>
+                <div class="pharmacy-category-card hygiene" onclick="selectPharmacySubcategory('Hygiene')">
+                    <div>
+                        <div class="pharmacy-category-title">Hygiene & Care</div>
+                        <div class="pharmacy-category-desc">Sanitizers, handwash, personal care</div>
+                    </div>
+                    <div class="pharmacy-category-icon-box">
+                        <i data-lucide="shield"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PHARMACY DYNAMIC PRODUCTS SHELF -->
+            <div class="glass-card mt-md" id="pharmacy-products-panel" style="display: none; border-color: #e11d48; background: #fffcfc;">
+                <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px;">
+                    <div>
+                        <h3 id="current-pharmacy-subcat-name" style="font-size: 1.25rem; font-weight: 800; color: #9f1239;">Category Name</h3>
+                        <span class="badge text-accent" style="background: #ffe4e6; color: #e11d48; margin-top: 4px; display: inline-block;">City Medicos Exclusive Partner</span>
+                    </div>
+                    <button class="btn btn-secondary" onclick="closePharmacyShelf()" style="width: auto; padding: 8px 16px; border-radius: var(--radius-sm);">Close Shelf</button>
+                </div>
+                <div class="products-grid" id="pharmacy-products-container">
+                    <!-- Loaded dynamically via JS -->
+                </div>
+            </div>
         </div>
 
         <!-- TRUST BADGES FOOTER -->
@@ -368,7 +475,7 @@
                 <input type="text" id="address-input" style="display: none;" value="A-123, Model Town, Delhi - 110009">
                 
                 <!-- Checkout trigger button -->
-                <button class="btn btn-primary mt-md w-full" style="font-size: 1.05rem; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: var(--radius-md);" onclick="checkoutOrder()">Checkout <i data-lucide="arrow-right" style="width: 16px; height: 16px;"></i></button>
+                <button id="checkout-submit-btn" class="btn btn-primary mt-md w-full" style="font-size: 1.05rem; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: var(--radius-md);" onclick="checkoutOrder()">Checkout <i data-lucide="arrow-right" style="width: 16px; height: 16px;"></i></button>
                 
                 <div class="cart-promo-badge">
                     <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i> Free delivery on orders above ₹199
@@ -399,6 +506,20 @@
                 <button class="payment-option-btn selected" id="pay-btn-online" onclick="selectPaymentMode('ONLINE')">
                     <i data-lucide="credit-card" style="width: 16px; height: 16px;"></i> UPI / Online
                 </button>
+            </div>
+            
+            <!-- Screenshot upload for online payment -->
+            <div id="payment-screenshot-container" style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">Upload Payment Screenshot (Required)</label>
+                <div onclick="document.getElementById('payment-screenshot-input').click()" style="border: 2px dashed var(--primary-accent); background: var(--primary-light); border-radius: var(--radius-md); padding: 16px; text-align: center; cursor: pointer; transition: var(--transition-fast);" onmouseover="this.style.background='rgba(111, 44, 244, 0.08)'" onmouseout="this.style.background='var(--primary-light)'">
+                    <input type="file" id="payment-screenshot-input" accept="image/*" style="display: none;" onchange="handlePaymentScreenshotSelected(this)">
+                    <i data-lucide="camera" style="width: 24px; height: 24px; color: var(--primary-accent); margin-bottom: 6px; display: inline-block;"></i>
+                    <p style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary); margin: 0;">Click to upload screenshot</p>
+                </div>
+                <div id="payment-screenshot-preview" style="display: none; margin-top: 12px; text-align: center;">
+                    <img id="payment-screenshot-img" src="" style="max-width: 100%; max-height: 150px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain;">
+                    <p id="payment-screenshot-filename" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></p>
+                </div>
             </div>
         </div>
     </div>
@@ -504,6 +625,111 @@
     let trackingInterval = null;
     let isCartEditMode = false;
 
+    let activeStorefront = "grocery";
+    let currentPharmacySubcat = null;
+    let pharmacyProductsList = [];
+
+    // Switch storefront display pages
+    function showStorePage(page) {
+        activeStorefront = page;
+        
+        const btnGrocery = document.getElementById("btn-switch-grocery");
+        const btnPharmacy = document.getElementById("btn-switch-pharmacy");
+        const wrapGrocery = document.getElementById("grocery-storefront-wrapper");
+        const wrapPharmacy = document.getElementById("pharmacy-storefront-wrapper");
+        
+        if (page === "grocery") {
+            btnGrocery.classList.add("active");
+            btnPharmacy.classList.remove("active");
+            wrapGrocery.classList.remove("hidden-storefront");
+            wrapPharmacy.classList.add("hidden-storefront");
+            closePharmacyShelf();
+        } else {
+            btnGrocery.classList.remove("active");
+            btnPharmacy.classList.add("active");
+            wrapGrocery.classList.add("hidden-storefront");
+            wrapPharmacy.classList.remove("hidden-storefront");
+            closeShopShelf();
+        }
+    }
+
+    // Select pharmacy subcategory
+    function selectPharmacySubcategory(subcat) {
+        document.querySelectorAll(".pharmacy-category-card").forEach(card => {
+            card.style.border = "1px solid var(--border-color)";
+        });
+        
+        const subcatClass = subcat.toLowerCase().replace("&", "").replace(/ /g, "");
+        const clickedCard = document.querySelector(`.pharmacy-category-card.${subcatClass}`);
+        if (clickedCard) {
+            clickedCard.style.border = "2px solid #e11d48";
+        }
+        
+        currentPharmacySubcat = subcat;
+        document.getElementById("pharmacy-products-panel").style.display = "block";
+        document.getElementById("pharmacy-products-panel").classList.add("fade-in-up");
+        document.getElementById("pharmacy-products-panel").scrollIntoView({ behavior: 'smooth' });
+        
+        // Pharmacy shop is shop ID 5 (City Medicos)
+        fetch(`/api/shops/5/products`)
+            .then(res => res.json())
+            .then(data => {
+                pharmacyProductsList = data.filter(p => p.subcategory === subcat);
+                renderPharmacyProducts();
+            });
+            
+        document.getElementById("current-pharmacy-subcat-name").innerText = subcat;
+    }
+
+    // Close pharmacy subcat shelf
+    function closePharmacyShelf() {
+        document.getElementById("pharmacy-products-panel").style.display = "none";
+        document.querySelectorAll(".pharmacy-category-card").forEach(card => {
+            card.style.border = "1px solid var(--border-color)";
+        });
+        currentPharmacySubcat = null;
+    }
+
+    // Render products inside Pharmacy Subcategory Shelf
+    function renderPharmacyProducts() {
+        if (!currentPharmacySubcat) return;
+        const container = document.getElementById("pharmacy-products-container");
+        container.innerHTML = "";
+        
+        if (pharmacyProductsList.length === 0) {
+            container.innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; color: var(--text-secondary); font-weight: 500;">No medicines found in this category.</div>`;
+            return;
+        }
+        
+        pharmacyProductsList.forEach(prod => {
+            const card = document.createElement("div");
+            card.className = "product-card fade-in-up";
+            card.style.borderColor = "rgba(225, 29, 72, 0.15)";
+            
+            const qty = cart[prod.id] ? cart[prod.id].quantity : 0;
+            
+            card.innerHTML = `
+                <div>
+                    <span style="background: #ffe4e6; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: #e11d48; margin-bottom: 8px;"><i data-lucide="pill" style="width: 20px; height: 20px;"></i></span>
+                    <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${prod.name}</h5>
+                    <div class="product-price" style="color: #e11d48;">₹${prod.price.toFixed(2)}</div>
+                </div>
+                <div style="margin-top: 12px;">
+                    ${qty === 0 ? 
+                        `<button class="btn w-full" style="padding: 8px; font-size: 0.85rem; background: #e11d48; color: white;" onclick="addToCart(${prod.id}, 1)">Add</button>` :
+                        `<div class="product-qty-controls" style="justify-content: space-between; border-color: rgba(225, 29, 72, 0.3);">
+                            <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; background: #ffe4e6; color: #e11d48;" onclick="changeQty(${prod.id}, -1)">-</button>
+                            <span style="font-weight:700; font-size: 0.95rem; color: #e11d48;">${qty}</span>
+                            <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; background: #e11d48; color: white;" onclick="changeQty(${prod.id}, 1)">+</button>
+                         </div>`
+                    }
+                </div>
+            `;
+            container.appendChild(card);
+        });
+        refreshIcons();
+    }
+
     // Load active order and seed cart to match mockup
     document.addEventListener("DOMContentLoaded", () => {
         const cachedOrder = localStorage.getItem(`active_order_${customerId}`);
@@ -537,7 +763,142 @@
             .then(data => {
                 renderRecommendedProducts(data);
             });
+            
+        // Load categories dynamically
+        loadCategories();
+        
+        // Load prescription history
+        loadPrescriptionHistory();
+        
+        // Start background polling for product updates (every 5 seconds)
+        setInterval(pollProductsAndCart, 5000);
     });
+
+    function pollProductsAndCart() {
+        // Poll prescription history if pharmacy hub or history container exists
+        loadPrescriptionHistory();
+
+        // 1. Sync category shelf if open
+        if (currentShopId) {
+            fetch(`/api/shops/${currentShopId}/products`)
+                .then(res => res.json())
+                .then(data => {
+                    productsList = data;
+                    renderProducts();
+                })
+                .catch(err => console.error("Error polling category products:", err));
+        }
+
+        // Sync pharmacy shelf if open (shop ID 5)
+        if (currentPharmacySubcat && !currentPharmacySubcat.startsWith('Search:')) {
+            fetch(`/api/shops/5/products`)
+                .then(res => res.json())
+                .then(data => {
+                    pharmacyProductsList = data.filter(p => p.subcategory === currentPharmacySubcat);
+                    renderPharmacyProducts();
+                })
+                .catch(err => console.error("Error polling pharmacy products:", err));
+        }
+
+        // 2. Sync recommended products (Kirana shop 1)
+        fetch(`/api/shops/1/products`)
+            .then(res => res.json())
+            .then(data => {
+                renderRecommendedProducts(data);
+            })
+            .catch(err => console.error("Error polling recommended products:", err));
+
+        // 3. Sync cart items with database
+        const cartKeys = Object.keys(cart);
+        if (cartKeys.length > 0) {
+            const productIds = cartKeys.map(Number);
+            fetch('/api/products/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_ids: productIds })
+            })
+            .then(res => res.json())
+            .then(products => {
+                let updated = false;
+                products.forEach(p => {
+                    if (cart[p.id]) {
+                        if (cart[p.id].name !== p.name || 
+                            cart[p.id].price !== p.price || 
+                            cart[p.id].is_available !== p.is_available ||
+                            cart[p.id].shop_id !== p.shop_id) {
+                            
+                            cart[p.id].name = p.name;
+                            cart[p.id].price = p.price;
+                            cart[p.id].is_available = p.is_available;
+                            cart[p.id].shop_id = p.shop_id;
+                            updated = true;
+                        }
+                    }
+                });
+                
+                // If any cart products no longer exist in the database, mark them out of stock
+                const returnedIds = new Set(products.map(p => p.id));
+                cartKeys.forEach(id => {
+                    if (!returnedIds.has(Number(id))) {
+                        if (cart[id].is_available !== 0) {
+                            cart[id].is_available = 0;
+                            updated = true;
+                        }
+                    }
+                });
+
+                if (updated) {
+                    updateCartUI();
+                }
+            })
+            .catch(err => console.error("Error syncing cart products:", err));
+        }
+    }
+
+    let shopsCache = [];
+    function loadCategories() {
+        fetch(`/api/shops`)
+            .then(res => res.json())
+            .then(shops => {
+                shopsCache = shops;
+                const grid = document.getElementById("homepage-category-grid");
+                grid.innerHTML = "";
+                
+                shops.forEach(s => {
+                    if (!s.is_active) return; // Hide disabled shops
+                    
+                    const card = document.createElement("div");
+                    const catLower = s.category.toLowerCase();
+                    card.className = `hamar-category-card category-card-${catLower}`;
+                    card.onclick = () => selectCategory(s.category, s.id);
+                    
+                    const label = s.category.charAt(0).toUpperCase() + s.category.slice(1).toLowerCase();
+                    
+                    let desc = "Exclusive items";
+                    if (s.category === 'KIRANA') desc = "Daily essentials";
+                    else if (s.category === 'CAKES') desc = "Fresh & delicious";
+                    else if (s.category === 'VEGGIES') desc = "Farm fresh";
+                    else if (s.category === 'ELECTRONICS') desc = "Best quality";
+                    
+                    card.innerHTML = `
+                        <div>
+                            <div class="hamar-category-title">${label}</div>
+                            <div class="hamar-category-desc">${desc}</div>
+                        </div>
+                        <div class="hamar-category-action">
+                            <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
+                        </div>
+                        <img src="${s.image_path || '/static/images/grocery_basket.png'}" class="hamar-category-img" alt="${label}">
+                    `;
+                    grid.appendChild(card);
+                });
+                
+                if (window.lucide) lucide.createIcons();
+            })
+            .catch(err => {
+                console.error("Error loading shop categories:", err);
+            });
+    }
 
     // Rule-based Recommendation Mapping (INT-001)
     const recRules = {
@@ -556,10 +917,61 @@
     }
 
     // Toggle Payment selection UI
+    let uploadedScreenshotPath = null;
+
     function selectPaymentMode(mode) {
         document.getElementById("payment-input").value = mode;
         document.getElementById("pay-btn-cod").classList.toggle("selected", mode === 'COD');
         document.getElementById("pay-btn-online").classList.toggle("selected", mode === 'ONLINE');
+        
+        const container = document.getElementById("payment-screenshot-container");
+        if (container) {
+            container.style.display = mode === 'ONLINE' ? 'block' : 'none';
+        }
+    }
+
+    function handlePaymentScreenshotSelected(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById("payment-screenshot-img").src = e.target.result;
+            document.getElementById("payment-screenshot-preview").style.display = "block";
+            document.getElementById("payment-screenshot-filename").innerText = file.name;
+        };
+        reader.readAsDataURL(file);
+        
+        const formData = new FormData();
+        formData.append("screenshot", file);
+        
+        showAestheticToast("Uploading screenshot...", "info");
+        
+        fetch("/api/payments/upload-screenshot", {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                uploadedScreenshotPath = data.file_path;
+                showAestheticToast("Screenshot uploaded successfully! Order can be placed now.", "success");
+            } else {
+                showAestheticToast(data.error || "Failed to upload screenshot.", "error");
+                cancelScreenshotSelection();
+            }
+        })
+        .catch(err => {
+            console.error("Screenshot upload error:", err);
+            showAestheticToast("Connection error while uploading screenshot.", "error");
+            cancelScreenshotSelection();
+        });
+    }
+
+    function cancelScreenshotSelection() {
+        uploadedScreenshotPath = null;
+        document.getElementById("payment-screenshot-input").value = "";
+        document.getElementById("payment-screenshot-preview").style.display = "none";
     }
 
     // Prompts and changes delivery address
@@ -589,10 +1001,13 @@
     // Displays products of selected category inside the shelf
     function selectCategory(category, shopId) {
         // Toggle active styling
-        document.querySelectorAll(".hamar-category-card").forEach((card, index) => {
-            if (index + 1 === shopId) card.style.border = "2px solid var(--primary-accent)";
-            else card.style.border = "1px solid transparent";
+        document.querySelectorAll(".hamar-category-card").forEach((card) => {
+            card.style.border = "1px solid transparent";
         });
+        const clickedCard = document.querySelector(`.category-card-${category.toLowerCase()}`);
+        if (clickedCard) {
+            clickedCard.style.border = "2px solid var(--primary-accent)";
+        }
 
         currentShopId = shopId;
         document.getElementById("shop-products-panel").style.display = "block";
@@ -606,13 +1021,8 @@
                 renderProducts();
             });
             
-        const shopNames = {
-            1: "Apna Bazaar Kirana & General",
-            2: "Bakers Table Cakes",
-            3: "Fresh & Green Veggies",
-            4: "ElectroWorld Tech Products"
-        };
-        document.getElementById("current-shop-name").innerText = shopNames[shopId];
+        const shop = shopsCache.find(s => s.id === shopId);
+        document.getElementById("current-shop-name").innerText = shop ? shop.shop_name : "Exclusive Partner Store";
     }
 
     // Close category products panel
@@ -712,15 +1122,62 @@
     }
 
     function addToCart(prodId, qty) {
-        // If not in shelf list, fetch item detail or fallback map
-        const prod = productsList.find(p => p.id === prodId) || getMockProductDetail(prodId);
-        if (!prod) return;
+        let prod = productsList.find(p => p.id === prodId);
+        if (prod) {
+            processAddToCart(prod, qty);
+        } else {
+            // Fetch dynamically from server
+            fetch('/api/products/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_ids: [prodId] })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    processAddToCart(data[0], qty);
+                } else {
+                    const mock = getMockProductDetail(prodId);
+                    mock.id = prodId;
+                    mock.shop_id = 1;
+                    mock.is_available = 1;
+                    processAddToCart(mock, qty);
+                }
+            })
+            .catch(() => {
+                const mock = getMockProductDetail(prodId);
+                mock.id = prodId;
+                mock.shop_id = 1;
+                mock.is_available = 1;
+                processAddToCart(mock, qty);
+            });
+        }
+    }
+
+    function processAddToCart(prod, qty) {
+        const cartKeys = Object.keys(cart);
+        if (cartKeys.length > 0) {
+            const firstItemId = cartKeys[0];
+            const currentCartShopId = cart[firstItemId].shop_id || 1;
+            const newProductShopId = prod.shop_id || 1;
+            
+            if (currentCartShopId !== newProductShopId) {
+                const clearConfirm = confirm("Your cart contains items from another merchant. Clear your cart and add this item?");
+                if (clearConfirm) {
+                    cart = {};
+                } else {
+                    return;
+                }
+            }
+        }
         
-        cart[prodId] = {
-            id: prodId,
+        cart[prod.id] = {
+            id: prod.id,
             name: prod.name,
             price: prod.price,
-            quantity: qty
+            quantity: qty,
+            shop_id: prod.shop_id || 1,
+            is_available: prod.is_available !== undefined ? prod.is_available : 1
         };
         
         updateCartUI();
@@ -755,9 +1212,7 @@
     function updateCartUI() {
         // Sync category shelf and recommended list
         renderProducts();
-        fetch(`/api/shops/1/products`)
-            .then(res => res.json())
-            .then(data => renderRecommendedProducts(data));
+        renderPharmacyProducts();
         
         const container = document.getElementById("cart-items-container");
         container.innerHTML = "";
@@ -778,12 +1233,23 @@
         document.getElementById("cart-summary-section").style.display = "block";
         
         let subtotal = 0;
+        let hasOutOfStock = false;
+        
         keys.forEach(key => {
             const item = cart[key];
-            subtotal += item.price * item.quantity;
+            const isOutOfStock = item.is_available === 0;
+            if (isOutOfStock) {
+                hasOutOfStock = true;
+            } else {
+                subtotal += item.price * item.quantity;
+            }
             
             const itemRow = document.createElement("div");
             itemRow.style = "display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);";
+            if (isOutOfStock) {
+                itemRow.style.borderColor = "var(--ruby-danger)";
+                itemRow.style.background = "#fffafb";
+            }
             
             let qtyControls = `<span style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem;">x${item.quantity}</span>`;
             if (isCartEditMode) {
@@ -796,14 +1262,17 @@
                 `;
             }
 
+            const oosBadge = isOutOfStock ? `<span style="background: var(--ruby-danger); color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-top: 4px; display: inline-block; font-weight: 700;">Out of Stock</span>` : "";
+
             itemRow.innerHTML = `
                 <div>
-                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">${item.name}</div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: ${isOutOfStock ? 'var(--ruby-danger)' : 'var(--text-primary)'};">${item.name}</div>
                     <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px;">₹${item.price.toFixed(0)}</div>
+                    ${oosBadge}
                 </div>
                 <div style="display: flex; align-items: center; gap: 16px;">
                     ${qtyControls}
-                    <strong style="color: var(--text-primary); font-size: 0.95rem; width: 50px; text-align: right;">₹${(item.price * item.quantity).toFixed(0)}</strong>
+                    <strong style="color: ${isOutOfStock ? 'var(--text-muted)' : 'var(--text-primary)'}; font-size: 0.95rem; width: 50px; text-align: right;">₹${isOutOfStock ? '0' : (item.price * item.quantity).toFixed(0)}</strong>
                 </div>
             `;
             container.appendChild(itemRow);
@@ -846,6 +1315,22 @@
         document.getElementById("cart-delivery-fee").style.color = deliveryFee === 0 ? "var(--emerald-green)" : "var(--text-primary)";
         document.getElementById("cart-grandtotal").innerText = `₹${grand.toFixed(2)}`;
         
+        // Enable/Disable Checkout Button
+        const checkoutBtn = document.getElementById("checkout-submit-btn");
+        if (checkoutBtn) {
+            if (hasOutOfStock) {
+                checkoutBtn.disabled = true;
+                checkoutBtn.style.opacity = "0.5";
+                checkoutBtn.style.cursor = "not-allowed";
+                checkoutBtn.innerHTML = `Remove Out of Stock Items`;
+            } else {
+                checkoutBtn.disabled = false;
+                checkoutBtn.style.opacity = "1";
+                checkoutBtn.style.cursor = "pointer";
+                checkoutBtn.innerHTML = `Checkout <i data-lucide="arrow-right" style="width: 16px; height: 16px;"></i>`;
+            }
+        }
+        
         // Sync cache
         localStorage.setItem(`cart_${customerId}`, JSON.stringify(cart));
         refreshIcons();
@@ -858,23 +1343,34 @@
             return;
         }
         
-        const itemsList = Object.keys(cart).map(k => ({
+        const keys = Object.keys(cart);
+        if (keys.length === 0) return;
+        
+        const itemsList = keys.map(k => ({
             product_id: parseInt(k),
             quantity: cart[k].quantity
         }));
         
+        const activeShopId = cart[keys[0]].shop_id || 1;
         const priority = document.getElementById("delivery-priority-field").value;
         const paymentMode = document.getElementById("payment-input").value;
         
+        if (paymentMode === "ONLINE" && !uploadedScreenshotPath) {
+            alert("Please upload a payment screenshot first.");
+            return;
+        }
+        
         const checkoutPayload = {
             customer_id: customerId,
-            shop_id: 1, // seed Kirana shop
+            shop_id: activeShopId,
             items: itemsList,
-            priority_type: priority
+            priority_type: priority,
+            payment_mode: paymentMode,
+            payment_screenshot: uploadedScreenshotPath
         };
         
         if (paymentMode === "ONLINE") {
-            alert("Secure online transaction simulation via UPI...");
+            showAestheticToast("Simulating UPI payment gateway transfer...", "info");
             setTimeout(() => {
                 sendCheckoutRequest(checkoutPayload);
             }, 1000);
@@ -894,9 +1390,19 @@
             if (data.error) {
                 alert(data.error);
             } else {
-                alert("Order placed successfully! Redirecting to tracker.");
+                if (data.status === "AWAITING_PAYMENT_APPROVAL") {
+                    alert("Order submitted! Admin verification is pending for your payment screenshot.");
+                } else {
+                    alert("Order placed successfully! Redirecting to tracker.");
+                }
                 cart = {};
                 localStorage.removeItem(`cart_${customerId}`);
+                uploadedScreenshotPath = null;
+                const screenshotInput = document.getElementById("payment-screenshot-input");
+                if (screenshotInput) screenshotInput.value = "";
+                const previewDiv = document.getElementById("payment-screenshot-preview");
+                if (previewDiv) previewDiv.style.display = "none";
+                
                 updateCartUI();
                 localStorage.setItem(`active_order_${customerId}`, JSON.stringify({ order_id: data.order_id }));
                 startTracking(data.order_id);
@@ -923,7 +1429,7 @@
                     
                     const status = data.status;
                     const statusBadge = document.getElementById("tracking-order-status");
-                    statusBadge.innerText = status;
+                    statusBadge.innerText = status.replace(/_/g, " ");
                     
                     const steps = ["step-pending", "step-accepted", "step-ready", "step-out", "step-delivered"];
                     steps.forEach(s => {
@@ -932,24 +1438,40 @@
                     
                     statusBadge.className = "badge";
                     
-                    if (status === "PENDING") {
+                    const stepPendingTitle = document.querySelector("#step-pending .timeline-title");
+                    const stepPendingTime = document.querySelector("#step-pending .timeline-time");
+                    
+                    if (status === "AWAITING_PAYMENT_APPROVAL") {
                         statusBadge.classList.add("badge-status-pending");
                         document.getElementById("step-pending").classList.add("active");
+                        if (stepPendingTitle) stepPendingTitle.innerText = "Payment Verification Pending";
+                        if (stepPendingTime) stepPendingTime.innerText = "Admin is verifying payment screenshot";
+                    } else if (status === "PENDING") {
+                        statusBadge.classList.add("badge-status-pending");
+                        document.getElementById("step-pending").classList.add("active");
+                        if (stepPendingTitle) stepPendingTitle.innerText = "Order Placed";
+                        if (stepPendingTime) stepPendingTime.innerText = "Waiting for shop acceptance";
                     } else if (status === "ACCEPTED") {
                         statusBadge.classList.add("badge-status-ready");
                         document.getElementById("step-pending").classList.add("completed");
                         document.getElementById("step-accepted").classList.add("active");
+                        if (stepPendingTitle) stepPendingTitle.innerText = "Order Placed";
+                        if (stepPendingTime) stepPendingTime.innerText = "Order confirmed";
                     } else if (status === "READY_FOR_PICKUP") {
                         statusBadge.classList.add("badge-status-ready");
                         document.getElementById("step-pending").classList.add("completed");
                         document.getElementById("step-accepted").classList.add("completed");
                         document.getElementById("step-ready").classList.add("active");
+                        if (stepPendingTitle) stepPendingTitle.innerText = "Order Placed";
+                        if (stepPendingTime) stepPendingTime.innerText = "Order confirmed";
                     } else if (status === "OUT_FOR_DELIVERY") {
                         statusBadge.classList.add("badge-status-ready");
                         document.getElementById("step-pending").classList.add("completed");
                         document.getElementById("step-accepted").classList.add("completed");
                         document.getElementById("step-ready").classList.add("completed");
                         document.getElementById("step-out").classList.add("active");
+                        if (stepPendingTitle) stepPendingTitle.innerText = "Order Placed";
+                        if (stepPendingTime) stepPendingTime.innerText = "Order confirmed";
                     } else if (status === "DELIVERED") {
                         statusBadge.classList.add("badge-status-delivered");
                         document.getElementById("step-pending").classList.add("completed");
@@ -957,6 +1479,19 @@
                         document.getElementById("step-ready").classList.add("completed");
                         document.getElementById("step-out").classList.add("completed");
                         document.getElementById("step-delivered").classList.add("completed");
+                        if (stepPendingTitle) stepPendingTitle.innerText = "Order Placed";
+                        if (stepPendingTime) stepPendingTime.innerText = "Order confirmed";
+                        
+                        localStorage.removeItem(`active_order_${customerId}`);
+                        clearInterval(trackingInterval);
+                    } else if (status === "FAILED") {
+                        statusBadge.classList.add("badge-status-delivered"); // fallback styling
+                        statusBadge.style.background = "var(--ruby-light)";
+                        statusBadge.style.color = "var(--ruby-danger)";
+                        
+                        document.getElementById("step-pending").classList.add("completed");
+                        if (stepPendingTitle) stepPendingTitle.innerText = "Order Failed";
+                        if (stepPendingTime) stepPendingTime.innerText = data.failure_reason || "Verification rejected";
                         
                         localStorage.removeItem(`active_order_${customerId}`);
                         clearInterval(trackingInterval);
@@ -1308,15 +1843,41 @@
     function handleSearch(query) {
         query = query.toLowerCase().trim();
         if (!query) {
-            if (currentShopId) renderProducts();
+            if (activeStorefront === "pharmacy") {
+                if (currentPharmacySubcat) {
+                    selectPharmacySubcategory(currentPharmacySubcat);
+                } else {
+                    closePharmacyShelf();
+                }
+            } else {
+                if (currentShopId) renderProducts();
+                else closeShopShelf();
+            }
             return;
         }
         
-        if (currentShopId) {
-            const filtered = productsList.filter(p => p.name.toLowerCase().includes(query));
-            renderFilteredProducts(filtered);
+        if (activeStorefront === "pharmacy") {
+            // Search inside pharmacy products (Shop ID 5)
+            fetch(`/api/shops/5/products`)
+                .then(res => res.json())
+                .then(data => {
+                    const filtered = data.filter(p => p.name.toLowerCase().includes(query));
+                    
+                    // Show in pharmacy panel
+                    document.getElementById("pharmacy-products-panel").style.display = "block";
+                    document.getElementById("current-pharmacy-subcat-name").innerText = `Search Results for "${query}"`;
+                    
+                    pharmacyProductsList = filtered;
+                    currentPharmacySubcat = `Search: ${query}`;
+                    renderPharmacyProducts();
+                });
         } else {
-            searchAcrossAllShops(query);
+            if (currentShopId) {
+                const filtered = productsList.filter(p => p.name.toLowerCase().includes(query));
+                renderFilteredProducts(filtered);
+            } else {
+                searchAcrossAllShops(query);
+            }
         }
     }
     
@@ -1544,6 +2105,107 @@
                 }
             })
             .catch(err => console.error("Error fetching order details for alert:", err));
+    }
+
+    function handlePharmacyFileSelected(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById("pharmacy-upload-preview-img").src = e.target.result;
+            document.getElementById("pharmacy-upload-preview-container").style.display = "block";
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    function cancelPharmacyUpload() {
+        document.getElementById("pharmacy-upload-input").value = "";
+        document.getElementById("pharmacy-upload-preview-container").style.display = "none";
+    }
+    
+    function submitPharmacyPrescription() {
+        const input = document.getElementById("pharmacy-upload-input");
+        if (!input.files || !input.files[0]) {
+            alert("Please select an image file first.");
+            return;
+        }
+        
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append("prescription_image", file);
+        
+        fetch("/api/prescriptions/upload", {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert("Prescription image uploaded successfully! It is now pending admin review.");
+                cancelPharmacyUpload();
+                loadPrescriptionHistory();
+            } else {
+                alert(data.error || "Failed to upload prescription.");
+            }
+        })
+        .catch(err => {
+            console.error("Prescription upload error:", err);
+            alert("Connection error. Please try again.");
+        });
+    }
+    
+    function loadPrescriptionHistory() {
+        const container = document.getElementById("pharmacy-upload-history-list");
+        if (!container) return;
+        
+        fetch(`/api/prescriptions/customer/${customerId}`)
+            .then(res => res.json())
+            .then(data => {
+                container.innerHTML = "";
+                if (data.length === 0) {
+                    container.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 12px 0;">No prescription uploads yet.</p>`;
+                    return;
+                }
+                
+                data.forEach(item => {
+                    let badgeClass = "badge-pending";
+                    let statusText = "Pending Admin Review";
+                    if (item.status === 'SENT_TO_VENDOR') {
+                        badgeClass = "badge-transit";
+                        statusText = `Sent to ${item.shop_name || 'Chemist'}`;
+                    } else if (item.status === 'COMPLETED') {
+                        badgeClass = "badge-delivered";
+                        statusText = "Completed / Quoted";
+                    }
+                    
+                    let dateStr = item.created_at;
+                    try {
+                        const cleanD = item.created_at.replace(" ", "T").split(".")[0];
+                        dateStr = new Date(cleanD + "Z").toLocaleString();
+                    } catch(e) {}
+                    
+                    const row = document.createElement("div");
+                    row.style = "display: flex; align-items: center; justify-content: space-between; padding: 10px; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);";
+                    row.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <a href="${item.image_path}" target="_blank" title="View full image">
+                                <img src="${item.image_path}" alt="Prescription" style="width: 44px; height: 44px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            </a>
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary);">Request #${item.id}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1px;">Uploaded: ${dateStr}</div>
+                            </div>
+                        </div>
+                        <span class="status-badge ${badgeClass}" style="font-size:0.75rem;">${statusText}</span>
+                    `;
+                    container.appendChild(row);
+                });
+                refreshIcons();
+            })
+            .catch(err => {
+                console.error("Error loading prescription history:", err);
+            });
     }
 </script>
 {% endblock %}

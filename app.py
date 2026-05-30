@@ -11,6 +11,28 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'marketplace.
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'profile_pics')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+PRESC_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'prescriptions')
+os.makedirs(PRESC_UPLOAD_FOLDER, exist_ok=True)
+
+PAY_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'payments')
+os.makedirs(PAY_UPLOAD_FOLDER, exist_ok=True)
+
+def run_migrations():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("ALTER TABLE orders ADD COLUMN payment_mode TEXT DEFAULT 'COD'")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE orders ADD COLUMN payment_screenshot TEXT")
+    except sqlite3.OperationalError:
+        pass
+    conn.commit()
+    conn.close()
+
+run_migrations()
+
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -103,6 +125,12 @@ def login():
         if user:
             # Enforce password verification
             if user['password'] and user['password'] != password:
+                # Record failed login in real table
+                try:
+                    cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
+                    db.commit()
+                except Exception as e:
+                    print("Failed to log failed login:", e)
                 return jsonify({'success': False, 'error': 'Incorrect password for this account.'})
             session['role'] = 'customer'
             session['role_id'] = user['id']
@@ -137,6 +165,7 @@ def staff_login():
             data = request.form
         role = data.get('role', '').strip()  # admin, vendor, delivery
         identifier = data.get('identifier', '').strip()
+        password = data.get('password', '').strip()
         
         if not role or not identifier:
             return jsonify({'success': False, 'error': 'Role and ID are required.'})
@@ -162,6 +191,8 @@ def staff_login():
                 identifier = 'VEGGIES'
             elif norm_id in ['electronics', 'electro', 'electroworld', '4']:
                 identifier = 'ELECTRONICS'
+            elif norm_id in ['pharmacy', 'medicine', 'medicines', 'chemist', 'medical', '5']:
+                identifier = 'PHARMACY'
 
             # Check if vendor identifier exists
             shop = None
@@ -172,12 +203,16 @@ def staff_login():
                 cursor.execute("SELECT * FROM shops WHERE shop_name LIKE ? OR category LIKE ?", (f"%{identifier}%", f"%{identifier}%"))
                 shop = cursor.fetchone()
                 
-            if not shop:
+            if shop:
+                # Verify password if one is set in the database
+                if shop['password'] and shop['password'] != password:
+                    return jsonify({'success': False, 'error': 'Incorrect password for this vendor store.'})
+            else:
                 # If shop doesn't exist, dynamically create it to let anyone log in!
                 category = "SHOP_" + identifier.upper().replace(" ", "_")[:10]
                 shop_name = identifier if "shop" in identifier.lower() or "bazaar" in identifier.lower() else f"{identifier} Store"
                 try:
-                    cursor.execute("INSERT INTO shops (shop_name, category, commission_pct) VALUES (?, ?, ?)", (shop_name, category, 5.0))
+                    cursor.execute("INSERT INTO shops (shop_name, category, commission_pct, password) VALUES (?, ?, ?, ?)", (shop_name, category, 5.0, password))
                     db.commit()
                     cursor.execute("SELECT * FROM shops WHERE id = ?", (cursor.lastrowid,))
                     shop = cursor.fetchone()
@@ -310,6 +345,31 @@ def get_shop_products(shop_id):
     products = [dict(row) for row in cursor.fetchall()]
     return jsonify(products)
 
+@app.route('/api/products/sync', methods=['POST'])
+def sync_products():
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+    product_ids = data.get('product_ids', [])
+    if not product_ids:
+        return jsonify([])
+        
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        product_ids = [int(x) for x in product_ids]
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid product IDs.'}), 400
+        
+    if not product_ids:
+        return jsonify([])
+        
+    placeholders = ','.join('?' for _ in product_ids)
+    cursor.execute(f"SELECT id, name, price, is_available, shop_id FROM products WHERE id IN ({placeholders})", product_ids)
+    products = [dict(row) for row in cursor.fetchall()]
+    return jsonify(products)
+
 @app.route('/api/orders/place', methods=['POST'])
 def place_order():
     data = request.json
@@ -331,10 +391,12 @@ def place_order():
     for item in items:
         prod_id = item['product_id']
         qty = int(item['quantity'])
-        cursor.execute("SELECT price, name FROM products WHERE id = ? AND shop_id = ?", (prod_id, shop_id))
+        cursor.execute("SELECT price, name, is_available FROM products WHERE id = ? AND shop_id = ?", (prod_id, shop_id))
         prod = cursor.fetchone()
         if not prod:
             return jsonify({'error': f'Product {prod_id} not found in this shop.'}), 400
+        if not prod['is_available']:
+            return jsonify({'error': f"Product '{prod['name']}' is out of stock."}), 400
         item_total = prod['price'] * qty
         total_amount += item_total
         products_details.append({
@@ -348,15 +410,19 @@ def place_order():
     grand_total = total_amount + delivery_fee
     gst_amount = 0.0 # GST is inclusive in item prices
     
+    payment_mode = data.get('payment_mode', 'COD').upper()
+    payment_screenshot = data.get('payment_screenshot')
+    status = 'AWAITING_PAYMENT_APPROVAL' if payment_mode == 'ONLINE' else 'PENDING'
+    
     # Generate OTPs (4 digits numeric)
     pickup_otp = f"{random.randint(1000, 9999)}"
     delivery_otp = f"{random.randint(1000, 9999)}"
     
     # Insert Order Master record
     cursor.execute('''
-        INSERT INTO orders (customer_id, shop_id, total_amount, gst_amount, priority_type, status, pickup_otp, delivery_otp)
-        VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
-    ''', (customer_id, shop_id, grand_total, gst_amount, priority_type, pickup_otp, delivery_otp))
+        INSERT INTO orders (customer_id, shop_id, total_amount, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (customer_id, shop_id, grand_total, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot))
     
     order_id = cursor.lastrowid
     
@@ -370,10 +436,11 @@ def place_order():
     db.commit()
     
     return jsonify({
-        'message': 'Order placed successfully!',
+        'message': 'Order placed successfully!' if status == 'PENDING' else 'Payment verification pending!',
         'order_id': order_id,
         'pickup_otp': pickup_otp, # Kept for debugging/testing visibility if needed
-        'delivery_otp': delivery_otp
+        'delivery_otp': delivery_otp,
+        'status': status
     })
 
 @app.route('/api/orders/<int:order_id>', methods=['GET'])
@@ -788,10 +855,110 @@ def verify_delivery(order_id):
     else:
         return jsonify({'error': 'Invalid Delivery OTP. Please verify with Customer.'}), 400
 
+# --- Payment Verification APIs ---
+
+@app.route('/api/payments/upload-screenshot', methods=['POST'])
+def upload_payment_screenshot():
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Please login as customer.'}), 403
+        
+    if 'screenshot' not in request.files:
+        return jsonify({'error': 'No screenshot file part.'}), 400
+        
+    file = request.files['screenshot']
+    customer_id = session.get('role_id')
+    
+    if file.filename == '':
+        return jsonify({'error': 'No file selected.'}), 400
+        
+    if file and allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"pay_{customer_id}_{int(datetime.now().timestamp())}.{ext}"
+        
+        file_path = os.path.join(PAY_UPLOAD_FOLDER, filename)
+        file.save(file_path)
+        
+        # Path relative to static/
+        relative_path = f"/static/uploads/payments/{filename}"
+        
+        return jsonify({
+            'success': True,
+            'file_path': relative_path,
+            'message': 'Screenshot uploaded successfully!'
+        })
+    else:
+        return jsonify({'error': 'Invalid file type.'}), 400
+
+@app.route('/api/admin/payments/pending', methods=['GET'])
+def get_pending_payments():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('''
+        SELECT o.id, o.created_at, o.total_amount, o.payment_screenshot,
+               u.name as customer_name, u.phone as customer_phone, s.shop_name
+        FROM orders o
+        JOIN users u ON o.customer_id = u.id
+        JOIN shops s ON o.shop_id = s.id
+        WHERE o.status = 'AWAITING_PAYMENT_APPROVAL'
+        ORDER BY o.id DESC
+    ''')
+    rows = [dict(row) for row in cursor.fetchall()]
+    return jsonify(rows)
+
+@app.route('/api/admin/payments/<int:order_id>/approve', methods=['POST'])
+def approve_order_payment(order_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT status FROM orders WHERE id = ?", (order_id,))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({'error': 'Order not found.'}), 404
+    if row['status'] != 'AWAITING_PAYMENT_APPROVAL':
+        return jsonify({'error': 'Order is not awaiting payment verification.'}), 400
+        
+    # Approve order: set status to PENDING and update created_at so it counts as placed now
+    cursor.execute('''
+        UPDATE orders 
+        SET status = 'PENDING', created_at = CURRENT_TIMESTAMP 
+        WHERE id = ?
+    ''', (order_id,))
+    db.commit()
+    return jsonify({'success': True, 'message': 'Payment approved. Order is now placed and visible to vendor.'})
+
+@app.route('/api/admin/payments/<int:order_id>/reject', methods=['POST'])
+def reject_order_payment(order_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT status FROM orders WHERE id = ?", (order_id,))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({'error': 'Order not found.'}), 404
+    if row['status'] != 'AWAITING_PAYMENT_APPROVAL':
+        return jsonify({'error': 'Order is not awaiting payment verification.'}), 400
+        
+    # Reject order: set status to FAILED and update failure reason
+    cursor.execute('''
+        UPDATE orders 
+        SET status = 'FAILED', failure_reason = 'sahiiii payment wala screen shot bheje' 
+        WHERE id = ?
+    ''', (order_id,))
+    db.commit()
+    return jsonify({'success': True, 'message': 'Payment screenshot rejected. Order marked as FAILED.'})
+
 # --- Admin APIs ---
 
 @app.route('/api/admin/analytics', methods=['GET'])
 def get_admin_analytics():
+    start_time = datetime.now()
     db = get_db()
     cursor = db.cursor()
     
@@ -832,6 +999,8 @@ def get_admin_analytics():
     transit_count = cursor.fetchone()[0] or 0
     cursor.execute("SELECT COUNT(*) FROM orders WHERE priority_type = 'URGENT'")
     urgent_count = cursor.fetchone()[0] or 0
+    cursor.execute("SELECT COUNT(*) FROM orders WHERE status = 'AWAITING_PAYMENT_APPROVAL'")
+    awaiting_payment_count = cursor.fetchone()[0] or 0
     
     # Today vs Yesterday
     now = datetime.now()
@@ -875,7 +1044,7 @@ def get_admin_analytics():
     
     # 3. Shop-wise sales & ratings (Vendor Reputation Score, INT-010, ADMIN-001)
     cursor.execute('''
-        SELECT s.id as shop_id, s.shop_name, s.category, s.commission_pct, s.is_active,
+        SELECT s.id as shop_id, s.shop_name, s.category, s.commission_pct, s.is_active, s.password, s.image_path,
                COUNT(o.id) as total_orders,
                SUM(CASE WHEN o.status = 'DELIVERED' THEN o.total_amount ELSE 0 END) as sales,
                SUM(CASE WHEN o.status = 'DELIVERED' THEN 1 ELSE 0 END) as success_orders,
@@ -890,7 +1059,7 @@ def get_admin_analytics():
         tot = sp['total_orders']
         sp['acceptance_rate'] = round((sp['success_orders'] / tot * 100), 1) if tot > 0 else 100.0
         sp['cancellation_rate'] = round((sp['failed_orders'] / tot * 100), 1) if tot > 0 else 0.0
-        sp['avg_rating'] = round(random.uniform(4.2, 4.9), 1) if sp['success_orders'] > 0 else 5.0
+        sp['avg_rating'] = round(4.0 + (sp['success_orders'] / tot * 0.9), 1) if tot > 0 else 5.0
         
     # 4. Peak order hours (Heatmap visual, INT-006, ADMIN-001)
     cursor.execute('''
@@ -998,17 +1167,90 @@ def get_admin_analytics():
     if os.path.exists(DB_PATH):
         db_size_kb = round(os.path.getsize(DB_PATH) / 1024.0, 1)
         
+    # Get real failed login attempts from DB
+    cursor.execute('''
+        SELECT timestamp, username as user, ip_address as ip
+        FROM failed_logins
+        ORDER BY id DESC
+        LIMIT 10
+    ''')
+    failed_logins_db = [dict(row) for row in cursor.fetchall()]
+
+    # Real DB activity (order counts in last 8 hours)
+    db_activity = []
+    for i in range(7, -1, -1):
+        dt = datetime.now() - timedelta(hours=i)
+        dt_str = dt.strftime('%Y-%m-%d %H')
+        cursor.execute("SELECT COUNT(*) FROM orders WHERE strftime('%Y-%m-%d %H', created_at) = ?", (dt_str,))
+        count = cursor.fetchone()[0] or 0
+        db_activity.append(count)
+
+    # Actual request processing latency
+    latency_ms = round((datetime.now() - start_time).total_seconds() * 1000.0, 1)
+
     system_health = {
         'db_size_kb': db_size_kb,
-        'api_latency': f"{random.randint(8, 15)}ms",
-        'server_uptime': '99.98%',
-        'db_activity': [random.randint(10, 50) for _ in range(8)],
-        'failed_logins': [
-            {'timestamp': (datetime.now() - timedelta(minutes=random.randint(5, 60))).strftime('%Y-%m-%d %H:%M:%S'), 'ip': '192.168.1.15', 'user': 'admin_test'},
-            {'timestamp': (datetime.now() - timedelta(hours=random.randint(2, 6))).strftime('%Y-%m-%d %H:%M:%S'), 'ip': '10.0.0.12', 'user': 'root'}
-        ]
+        'api_latency': f"{latency_ms}ms",
+        'server_uptime': '99.99%',
+        'db_activity': db_activity,
+        'failed_logins': failed_logins_db
     }
     
+    # 13. Real-time Stock Warnings / Low Stock predictions
+    # A. Out of Stock products
+    cursor.execute('''
+        SELECT p.name, s.shop_name
+        FROM products p
+        JOIN shops s ON p.shop_id = s.id
+        WHERE p.is_available = 0
+        LIMIT 5
+    ''')
+    out_of_stock = [dict(row) for row in cursor.fetchall()]
+    
+    # B. High Demand products (frequently sold, low stock prediction)
+    cursor.execute('''
+        SELECT p.name, s.shop_name, SUM(oi.quantity) as quantity_sold
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.id
+        JOIN orders o ON oi.order_id = o.id
+        JOIN shops s ON p.shop_id = s.id
+        WHERE o.status = 'DELIVERED'
+        GROUP BY p.id
+        ORDER BY quantity_sold DESC
+        LIMIT 5
+    ''')
+    high_demand = [dict(row) for row in cursor.fetchall()]
+
+    stock_warnings = []
+    for item in out_of_stock:
+        stock_warnings.append({
+            'name': item['name'],
+            'shop': item['shop_name'],
+            'left': 0,
+            'state': 'Out of Stock'
+        })
+    for item in high_demand:
+        stock_warnings.append({
+            'name': item['name'],
+            'shop': item['shop_name'],
+            'left': item['quantity_sold'],
+            'state': 'High Demand'
+        })
+
+    # 14. Category demand breakdown (INT-006)
+    cursor.execute('''
+        SELECT s.category, COUNT(o.id) as count
+        FROM orders o
+        JOIN shops s ON o.shop_id = s.id
+        GROUP BY s.category
+    ''')
+    cat_rows = cursor.fetchall()
+    category_demand = {row['category']: row['count'] for row in cat_rows}
+    # Ensure all categories are present
+    for cat in ['KIRANA', 'VEGGIES', 'CAKES', 'ELECTRONICS']:
+        if cat not in category_demand:
+            category_demand[cat] = 0
+
     return jsonify({
         'overview': {
             'delivered_count': delivered_count,
@@ -1029,7 +1271,8 @@ def get_admin_analytics():
             'yesterday_orders': yesterday_orders,
             'yesterday_revenue': yesterday_revenue,
             'orders_growth': orders_growth,
-            'revenue_growth': revenue_growth
+            'revenue_growth': revenue_growth,
+            'awaiting_payment_count': awaiting_payment_count
         },
         'timing_analytics': {
             'avg_delivery_time': avg_delivery,
@@ -1046,8 +1289,11 @@ def get_admin_analytics():
         'riders_status': riders_status,
         'retention_rate': retention_rate,
         'otp_logs': otp_logs,
-        'system_health': system_health
+        'system_health': system_health,
+        'stock_warnings': stock_warnings,
+        'category_demand': category_demand
     })
+
 
 @app.route('/api/admin/shops/<int:shop_id>/toggle', methods=['POST'])
 def toggle_shop_active(shop_id):
@@ -1058,6 +1304,59 @@ def toggle_shop_active(shop_id):
     cursor.execute("UPDATE shops SET is_active = ? WHERE id = ?", (int(is_active), shop_id))
     db.commit()
     return jsonify({'success': True, 'message': 'Shop status updated successfully.'})
+
+
+@app.route('/api/admin/shops/add', methods=['POST'])
+def admin_add_shop():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    shop_name = request.form.get('shop_name', '').strip()
+    category = request.form.get('category', '').strip().upper()
+    commission_pct = request.form.get('commission_pct', '5.0').strip()
+    password = request.form.get('password', '').strip()
+    
+    if not shop_name or not category:
+        return jsonify({'error': 'Shop Name and Category Code are required.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    # Check if category already exists
+    cursor.execute("SELECT id FROM shops WHERE category = ?", (category,))
+    if cursor.fetchone():
+        return jsonify({'error': f'Category/Shop with code "{category}" already exists.'}), 400
+        
+    # Handle image upload
+    image_path = '/static/images/grocery_basket.png' # default placeholder
+    if 'shop_image' in request.files:
+        file = request.files['shop_image']
+        if file and file.filename != '' and allowed_file(file.filename):
+            ext = file.filename.rsplit('.', 1)[1].lower()
+            filename = f"category_{category.lower()}_{int(datetime.now().timestamp())}.{ext}"
+            upload_path = os.path.join(app.root_path, 'static', 'uploads', 'category_pics')
+            os.makedirs(upload_path, exist_ok=True)
+            file_path = os.path.join(upload_path, filename)
+            file.save(file_path)
+            image_path = f"/static/uploads/category_pics/{filename}"
+            
+    try:
+        cursor.execute('''
+            INSERT INTO shops (shop_name, category, commission_pct, password, image_path, is_active)
+            VALUES (?, ?, ?, ?, ?, 1)
+        ''', (shop_name, category, float(commission_pct), password, image_path))
+        db.commit()
+        
+        # Dynamic seeding of 3 starter products for the new shop
+        shop_id = cursor.lastrowid
+        cursor.execute("INSERT INTO products (shop_id, name, price) VALUES (?, ?, ?)", (shop_id, 'Standard Product A', 100.0))
+        cursor.execute("INSERT INTO products (shop_id, name, price) VALUES (?, ?, ?)", (shop_id, 'Standard Product B', 200.0))
+        cursor.execute("INSERT INTO products (shop_id, name, price) VALUES (?, ?, ?)", (shop_id, 'Standard Product C', 350.0))
+        db.commit()
+        
+        return jsonify({'success': True, 'message': 'New Shop Category added successfully with credentials and starter products.', 'shop_id': shop_id})
+    except Exception as e:
+        return jsonify({'error': f'Failed to create shop category: {str(e)}'}), 500
 
 @app.route('/api/admin/products/upload-image', methods=['POST'])
 def upload_product_image():
@@ -1165,6 +1464,147 @@ def reset_rider_cooldown(rider_id):
     cursor.execute("UPDATE delivery_partners SET cooldown_until = NULL, active_orders = 0 WHERE id = ?", (rider_id,))
     db.commit()
     return jsonify({'message': 'Rider cooldown and active orders reset.'})
+
+
+# --- Prescription / Medicine Upload APIs ---
+
+@app.route('/api/prescriptions/upload', methods=['POST'])
+def upload_prescription():
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Please login as customer.'}), 403
+        
+    if 'prescription_image' not in request.files:
+        return jsonify({'error': 'No file part in the request.'}), 400
+        
+    file = request.files['prescription_image']
+    customer_id = session.get('role_id')
+    
+    if file.filename == '':
+        return jsonify({'error': 'No selected file.'}), 400
+        
+    if file and allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"presc_{customer_id}_{int(datetime.now().timestamp())}.{ext}"
+        
+        # Ensure upload folder exists
+        os.makedirs(PRESC_UPLOAD_FOLDER, exist_ok=True)
+        
+        file_path = os.path.join(PRESC_UPLOAD_FOLDER, filename)
+        file.save(file_path)
+        
+        # Path relative to static/
+        relative_path = f"/static/uploads/prescriptions/{filename}"
+        
+        db = get_db()
+        cursor = db.cursor()
+        try:
+            cursor.execute('''
+                INSERT INTO prescription_requests (customer_id, image_path, status)
+                VALUES (?, ?, 'PENDING')
+            ''', (customer_id, relative_path))
+            db.commit()
+            return jsonify({'success': True, 'image_path': relative_path, 'message': 'Medicine image uploaded successfully.'})
+        except Exception as e:
+            return jsonify({'error': f'Database saving failed: {str(e)}'}), 500
+    else:
+        return jsonify({'error': 'File type not allowed.'}), 400
+
+@app.route('/api/prescriptions/customer/<int:cust_id>', methods=['GET'])
+def get_customer_prescriptions(cust_id):
+    if session.get('role') != 'customer' or session.get('role_id') != cust_id:
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('''
+        SELECT pr.*, s.shop_name 
+        FROM prescription_requests pr
+        LEFT JOIN shops s ON pr.shop_id = s.id
+        WHERE pr.customer_id = ?
+        ORDER BY pr.id DESC
+    ''', (cust_id,))
+    rows = [dict(row) for row in cursor.fetchall()]
+    return jsonify(rows)
+
+@app.route('/api/admin/prescriptions', methods=['GET'])
+def get_admin_prescriptions():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('''
+        SELECT pr.*, u.name as customer_name, u.phone as customer_phone, s.shop_name 
+        FROM prescription_requests pr
+        JOIN users u ON pr.customer_id = u.id
+        LEFT JOIN shops s ON pr.shop_id = s.id
+        ORDER BY pr.id DESC
+    ''')
+    rows = [dict(row) for row in cursor.fetchall()]
+    return jsonify(rows)
+
+@app.route('/api/admin/prescriptions/<int:req_id>/forward', methods=['POST'])
+def forward_prescription(req_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    data = request.json or {}
+    shop_id = data.get('shop_id')
+    
+    if not shop_id:
+        return jsonify({'error': 'Shop ID is required.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT id FROM prescription_requests WHERE id = ?", (req_id,))
+    if not cursor.fetchone():
+        return jsonify({'error': 'Request not found.'}), 404
+        
+    cursor.execute('''
+        UPDATE prescription_requests 
+        SET shop_id = ?, status = 'SENT_TO_VENDOR' 
+        WHERE id = ?
+    ''', (int(shop_id), req_id))
+    db.commit()
+    return jsonify({'success': True, 'message': 'Prescription forwarded to medical shop successfully.'})
+
+@app.route('/api/vendor/prescriptions/<int:shop_id>', methods=['GET'])
+def get_vendor_prescriptions(shop_id):
+    if session.get('role') != 'vendor' or session.get('role_id') != shop_id:
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('''
+        SELECT pr.*, u.name as customer_name, u.phone as customer_phone, u.address as customer_address
+        FROM prescription_requests pr
+        JOIN users u ON pr.customer_id = u.id
+        WHERE pr.shop_id = ?
+        ORDER BY pr.id DESC
+    ''', (shop_id,))
+    rows = [dict(row) for row in cursor.fetchall()]
+    return jsonify(rows)
+
+@app.route('/api/vendor/prescriptions/<int:req_id>/complete', methods=['POST'])
+def complete_prescription(req_id):
+    if session.get('role') != 'vendor':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    shop_id = session.get('role_id')
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT id, shop_id FROM prescription_requests WHERE id = ?", (req_id,))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({'error': 'Request not found.'}), 404
+    if row['shop_id'] != shop_id:
+        return jsonify({'error': 'Unauthorized for this shop.'}), 403
+        
+    cursor.execute("UPDATE prescription_requests SET status = 'COMPLETED' WHERE id = ?", (req_id,))
+    db.commit()
+    return jsonify({'success': True, 'message': 'Prescription marked as complete/quoted.'})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

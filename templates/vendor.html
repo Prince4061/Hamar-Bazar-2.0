@@ -1523,6 +1523,12 @@
                     <i data-lucide="package"></i>
                     Inventory
                 </a>
+                {% if active_shop.category == 'PHARMACY' or active_shop_id|string == '5' %}
+                <a class="nav-link" id="link-prescriptions" onclick="switchTab('prescriptions')">
+                    <i data-lucide="file-text"></i>
+                    Prescriptions Feed
+                </a>
+                {% endif %}
             </nav>
         </div>
         
@@ -1709,6 +1715,42 @@
             
         </div>
 
+        <!-- Prescriptions View (Tab content) -->
+        <div id="prescriptions-tab-view" style="width: 100%; display: none; flex-direction: column; gap: 32px;">
+            <section class="inventory-section" id="prescriptions-overview-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i data-lucide="file-text"></i>
+                        Prescriptions Feed
+                    </h3>
+                    <span class="card-action-link" onclick="loadPrescriptions()">Refresh</span>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Request ID</th>
+                                <th>Date Received</th>
+                                <th>Customer Details</th>
+                                <th>Medicine/Prescription Image</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="prescriptions-table-body">
+                            <!-- Loaded dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="empty-prescriptions-placeholder" style="display:none; text-align: center; padding: 40px 10px; color: var(--text-muted);">
+                    <i data-lucide="check-circle-2" style="width: 42px; height: 42px; color: var(--primary); opacity: 0.6; margin-bottom: 12px; display: inline-block;"></i>
+                    <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">No prescriptions forwarded yet</h4>
+                    <p style="font-size: 0.85rem;">Prescriptions sent by admin will appear here.</p>
+                </div>
+            </section>
+        </div>
+
         <!-- Web Footer -->
         <footer class="footer">
             <p>© 2026 {{ active_shop.shop_name }} Vendor Panel. All rights reserved.</p>
@@ -1726,6 +1768,12 @@
             <i data-lucide="package"></i>
             Inventory
         </a>
+        {% if active_shop.category == 'PHARMACY' or active_shop_id|string == '5' %}
+        <a class="mobile-nav-item" id="m-link-prescriptions" onclick="switchTab('prescriptions')">
+            <i data-lucide="file-text"></i>
+            Prescriptions
+        </a>
+        {% endif %}
         <a href="/session/logout" class="mobile-nav-item logout">
             <i data-lucide="log-out"></i>
             Logout
@@ -1775,6 +1823,7 @@
         const shopId = {{ active_shop_id }};
         const shopCategory = "{{ active_shop.category }}";
         
+        let activeTab = 'dashboard';
         let ordersList = [];
         let inventoryList = [];
         let selectedOrderId = null;
@@ -1888,6 +1937,9 @@
                 loadOrders();
                 loadInventory();
                 loadStockPredictions();
+                if (activeTab === 'prescriptions') {
+                    loadPrescriptions();
+                }
             }, 10000);
 
             // Pre-initialize alarm audio element for user activation
@@ -1932,6 +1984,8 @@
 
         // Tab Switching Actions
         function switchTab(tabId) {
+            activeTab = tabId;
+
             // Hide sidebar overlay if mobile
             const sidebar = document.getElementById('sidebar-menu');
             if (sidebar) sidebar.classList.remove('mobile-open');
@@ -1939,48 +1993,60 @@
             // Reset active classes
             const linkDashboard = document.getElementById('link-dashboard');
             const linkInventory = document.getElementById('link-inventory');
+            const linkPrescriptions = document.getElementById('link-prescriptions');
             const mLinkDashboard = document.getElementById('m-link-dashboard');
             const mLinkInventory = document.getElementById('m-link-inventory');
+            const mLinkPrescriptions = document.getElementById('m-link-prescriptions');
             
             if (linkDashboard) linkDashboard.classList.remove('active');
             if (linkInventory) linkInventory.classList.remove('active');
+            if (linkPrescriptions) linkPrescriptions.classList.remove('active');
             if (mLinkDashboard) mLinkDashboard.classList.remove('active');
             if (mLinkInventory) mLinkInventory.classList.remove('active');
+            if (mLinkPrescriptions) mLinkPrescriptions.classList.remove('active');
+            
+            // Get all tab views
+            const dbTab = document.getElementById('dashboard-tab-view');
+            const invTab = document.getElementById('inventory-tab-view');
+            const prescTab = document.getElementById('prescriptions-tab-view');
+            
+            // Hide all by default
+            if (dbTab) dbTab.style.display = 'none';
+            if (invTab) invTab.style.display = 'none';
+            if (prescTab) prescTab.style.display = 'none';
             
             if (tabId === 'dashboard') {
-                const dbTab = document.getElementById('dashboard-tab-view');
                 if (dbTab) dbTab.style.display = 'flex';
-                
-                const invTab = document.getElementById('inventory-tab-view');
-                if (invTab) {
-                    if (window.innerWidth <= 960) {
-                        invTab.style.display = 'none';
-                    } else {
-                        invTab.style.display = 'flex';
-                    }
+                // On desktop, show inventory side-by-side or below
+                if (invTab && window.innerWidth > 960) {
+                    invTab.style.display = 'flex';
                 }
-                
                 if (linkDashboard) linkDashboard.classList.add('active');
                 if (mLinkDashboard) mLinkDashboard.classList.add('active');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else {
-                const dbTab = document.getElementById('dashboard-tab-view');
-                if (dbTab && window.innerWidth <= 960) {
-                    dbTab.style.display = 'none';
-                }
-                
-                const invTab = document.getElementById('inventory-tab-view');
+            } 
+            else if (tabId === 'inventory') {
                 if (invTab) invTab.style.display = 'flex';
-                
                 if (linkInventory) linkInventory.classList.add('active');
                 if (mLinkInventory) mLinkInventory.classList.add('active');
                 
-                // Scroll to inventory section
                 const target = document.getElementById('inventory-overview-card');
                 if (target) {
                     target.scrollIntoView({ behavior: 'smooth' });
                 }
+            } 
+            else if (tabId === 'prescriptions') {
+                if (prescTab) prescTab.style.display = 'flex';
+                if (linkPrescriptions) linkPrescriptions.classList.add('active');
+                if (mLinkPrescriptions) mLinkPrescriptions.classList.add('active');
+                loadPrescriptions();
+                
+                const target = document.getElementById('prescriptions-overview-card');
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
             }
+            refreshIcons();
         }
 
         // Toggle mobile sidebar menu drawer
@@ -2760,6 +2826,101 @@
                     refreshIcons();
                 })
                 .catch(err => console.error("Error loading stock predictions:", err));
+        }
+
+        function loadPrescriptions() {
+            const tbody = document.getElementById("prescriptions-table-body");
+            const placeholder = document.getElementById("empty-prescriptions-placeholder");
+            if (!tbody) return;
+            
+            tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:20px;'>Loading prescriptions feed...</td></tr>";
+            if (placeholder) placeholder.style.display = "none";
+            
+            fetch(`/api/vendor/prescriptions/${shopId}`)
+                .then(res => res.json())
+                .then(data => {
+                    tbody.innerHTML = "";
+                    if (!Array.isArray(data) || data.length === 0) {
+                        if (placeholder) placeholder.style.display = "block";
+                        return;
+                    }
+                    
+                    data.forEach(item => {
+                        const tr = document.createElement("tr");
+                        
+                        let badgeClass = "pending";
+                        let statusText = "Pending Review";
+                        if (item.status === 'SENT_TO_VENDOR') {
+                            badgeClass = "accepted";
+                            statusText = "Received";
+                        } else if (item.status === 'COMPLETED') {
+                            badgeClass = "delivered";
+                            statusText = "Completed / Quoted";
+                        }
+                        
+                        let dateStr = item.created_at;
+                        try {
+                            const cleanD = item.created_at.replace(" ", "T").split(".")[0];
+                            dateStr = new Date(cleanD + "Z").toLocaleString();
+                        } catch(e) {}
+                        
+                        // Action button
+                        let actionBtn = "";
+                        if (item.status === 'SENT_TO_VENDOR') {
+                            actionBtn = `<button class="btn-green-action" style="padding: 8px 12px; font-size: 0.8rem; border-radius: var(--radius-sm); width: auto;" onclick="completePrescription(${item.id})">Mark Complete / Quoted</button>`;
+                        } else {
+                            actionBtn = `<span style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">No actions</span>`;
+                        }
+                        
+                        tr.innerHTML = `
+                            <td class="order-id">#PR-${item.id}</td>
+                            <td class="time-cell">${dateStr}</td>
+                            <td>
+                                <div style="display:flex; flex-direction:column; gap:2px;">
+                                    <strong style="color:var(--text-primary); font-size:0.85rem;">${item.customer_name}</strong>
+                                    <span style="font-size:0.8rem; color:var(--text-secondary);"><i data-lucide="phone" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i>${item.customer_phone}</span>
+                                    <span style="font-size:0.75rem; color:var(--text-muted);"><i data-lucide="map-pin" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i>${item.customer_address}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="${item.image_path}" target="_blank" title="Click to view full size image">
+                                    <img src="${item.image_path}" alt="Prescription" style="width: 80px; height: 60px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-color); box-shadow: var(--shadow-soft);">
+                                </a>
+                            </td>
+                            <td>
+                                <span class="status-badge ${badgeClass}">${statusText}</span>
+                            </td>
+                            <td>
+                                ${actionBtn}
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    refreshIcons();
+                })
+                .catch(err => {
+                    console.error("Error loading prescriptions:", err);
+                    tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:20px; color:var(--red);'>Failed to load prescriptions.</td></tr>";
+                });
+        }
+        
+        function completePrescription(reqId) {
+            if (!confirm("Are you sure you want to mark this prescription as completed/quoted?")) return;
+            
+            fetch(`/api/vendor/prescriptions/${reqId}/complete`, { method: "POST" })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("Prescription request marked as complete/quoted successfully!");
+                        loadPrescriptions();
+                    } else {
+                        alert(data.error || "Failed to mark prescription complete.");
+                    }
+                })
+                .catch(err => {
+                    console.error("Error completing prescription:", err);
+                    alert("Connection error. Please try again.");
+                });
         }
     </script>
 </body>
