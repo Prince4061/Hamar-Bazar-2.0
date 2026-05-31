@@ -194,6 +194,17 @@ def init_db():
         FOREIGN KEY (shop_id) REFERENCES shops(id)
     )
     ''')
+    
+    # 9. Search History Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS search_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL,
+        keyword TEXT NOT NULL,
+        searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    ''')
         
     conn.commit()
     conn.close()
@@ -420,7 +431,78 @@ def seed_historical_orders():
     conn.close()
     print("Historical orders seeded successfully!")
 
+def seed_search_history():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Check if we already have search records
+    cursor.execute("SELECT COUNT(*) FROM search_history")
+    count = cursor.fetchone()[0]
+    if count > 0:
+        conn.close()
+        print("Search history already seeded.")
+        return
+        
+    # We need user IDs. Let's fetch them.
+    cursor.execute("SELECT id, name FROM users")
+    users = {row['name']: row['id'] for row in cursor.fetchall()}
+    
+    # If no users, we can't seed search history
+    if not users:
+        conn.close()
+        return
+        
+    import random
+    from datetime import datetime, timedelta
+    
+    searches = []
+    
+    # Alice
+    alice_id = users.get('Alice Sharma')
+    if alice_id:
+        alice_keywords = [
+            ("cake", 24), ("chips", 15), ("chocolate cake", 8), 
+            ("bread", 5), ("milk", 4), ("lays", 6), ("candles", 3)
+        ]
+        for kw, cnt in alice_keywords:
+            for _ in range(cnt):
+                hours_ago = random.randint(1, 120)
+                searched_at = (datetime.now() - timedelta(hours=hours_ago)).strftime('%Y-%m-%d %H:%M:%S')
+                searches.append((alice_id, kw, searched_at))
+                
+    # Bob
+    bob_id = users.get('Bob Verma')
+    if bob_id:
+        bob_keywords = [
+            ("milk", 12), ("bread", 10), ("butter", 8),
+            ("potato", 4), ("onion", 6), ("dolo", 5)
+        ]
+        for kw, cnt in bob_keywords:
+            for _ in range(cnt):
+                hours_ago = random.randint(1, 120)
+                searched_at = (datetime.now() - timedelta(hours=hours_ago)).strftime('%Y-%m-%d %H:%M:%S')
+                searches.append((bob_id, kw, searched_at))
+                
+    # Charlie
+    charlie_id = users.get('Charlie Gupta')
+    if charlie_id:
+        charlie_keywords = [
+            ("crocin", 18), ("dolo", 12), ("cough syrup", 10),
+            ("earphones", 5), ("battery", 6), ("wifi plug", 4)
+        ]
+        for kw, cnt in charlie_keywords:
+            for _ in range(cnt):
+                hours_ago = random.randint(1, 120)
+                searched_at = (datetime.now() - timedelta(hours=hours_ago)).strftime('%Y-%m-%d %H:%M:%S')
+                searches.append((charlie_id, kw, searched_at))
+                
+    cursor.executemany('INSERT INTO search_history (customer_id, keyword, searched_at) VALUES (?, ?, ?)', searches)
+    conn.commit()
+    conn.close()
+    print("Search history seeded successfully!")
+
 if __name__ == '__main__':
     init_db()
     seed_db()
     seed_historical_orders()
+    seed_search_history()

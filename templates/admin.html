@@ -1349,6 +1349,11 @@
                         </a>
                     </li>
                     <li>
+                        <a class="menu-item-link" onclick="switchTab('searches')">
+                            <i data-lucide="search"></i> Search Intelligence
+                        </a>
+                    </li>
+                    <li>
                         <a class="menu-item-link" onclick="switchTab('system')">
                             <i data-lucide="settings"></i> System Status
                         </a>
@@ -1994,6 +1999,83 @@
                 </div>
             </div>
 
+            <!-- --------------------------------------------------- -->
+            <!-- TAB 10: SEARCH INTELLIGENCE -->
+            <!-- --------------------------------------------------- -->
+            <div class="tab-panel" id="panel-searches">
+                <!-- GRID FOR SEARCH STATS CARDS -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                    <!-- Trending Searches (All Time) -->
+                    <div class="dashboard-card">
+                        <div class="card-header-row">
+                            <h3 class="card-title-text"><i data-lucide="award" style="color: var(--primary-accent);"></i> Top Trending Searches</h3>
+                        </div>
+                        <div style="margin-top: 16px;">
+                            <ul id="trending-searches-list" style="list-style: none; display: flex; flex-direction: column; gap: 10px; max-height: 350px; overflow-y: auto; padding-right: 4px;">
+                                <!-- Dynamically populated -->
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Most Active Searchers -->
+                    <div class="dashboard-card">
+                        <div class="card-header-row">
+                            <h3 class="card-title-text"><i data-lucide="users" style="color: var(--emerald-green);"></i> Most Active Searchers</h3>
+                        </div>
+                        <div style="margin-top: 16px;">
+                            <ul id="active-searchers-list" style="list-style: none; display: flex; flex-direction: column; gap: 10px; max-height: 350px; overflow-y: auto; padding-right: 4px;">
+                                <!-- Dynamically populated -->
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Trending Searches Timeframe Toggle (Today / Weekly / Monthly) -->
+                    <div class="dashboard-card">
+                        <div class="card-header-row">
+                            <h3 class="card-title-text"><i data-lucide="trending-up" style="color: var(--amber-warning);"></i> Search Trends</h3>
+                            <div class="segmented-control" style="display: flex; gap: 4px; background: #e2e8f0; padding: 4px; border-radius: var(--radius-md);">
+                                <button class="btn-toggle active" onclick="toggleTrendPeriod('today')" style="border: none; background: white; padding: 4px 10px; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700; cursor: pointer; color: var(--text-primary); transition: var(--transition-fast);">Today</button>
+                                <button class="btn-toggle" onclick="toggleTrendPeriod('weekly')" style="border: none; background: transparent; padding: 4px 10px; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700; cursor: pointer; color: var(--text-secondary); transition: var(--transition-fast);">Weekly</button>
+                                <button class="btn-toggle" onclick="toggleTrendPeriod('monthly')" style="border: none; background: transparent; padding: 4px 10px; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700; cursor: pointer; color: var(--text-secondary); transition: var(--transition-fast);">Monthly</button>
+                            </div>
+                        </div>
+                        <div style="margin-top: 16px;">
+                            <ul id="trend-searches-list" style="list-style: none; display: flex; flex-direction: column; gap: 10px; max-height: 350px; overflow-y: auto; padding-right: 4px;">
+                                <!-- Dynamically populated -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customer Search Directory Table -->
+                <div class="dashboard-card" style="margin-top: 24px;">
+                    <div class="card-header-row" style="margin-bottom: 16px;">
+                        <h3 class="card-title-text"><i data-lucide="search" style="color: var(--primary-accent);"></i> Customer Search Directory</h3>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <input type="text" id="search-directory-filter" class="form-input-custom" placeholder="Search by customer name, ID, or query..." onkeyup="filterSearchDirectory()" style="width: 280px; font-size: 0.85rem; padding: 8px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                            <button class="btn-custom btn-custom-secondary" onclick="loadSearchAnalytics(false)" style="padding: 8px 14px; font-size: 0.85rem; font-weight: 600;"><i data-lucide="refresh-cw" style="width: 14px; height: 14px; margin-right: 4px;"></i> Refresh</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive-wrapper">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>Customer Name</th>
+                                    <th>Customer ID</th>
+                                    <th>Last Searched Keyword</th>
+                                    <th>Total Searches</th>
+                                    <th>Last Search Time</th>
+                                    <th>Actions Control</th>
+                                </tr>
+                            </thead>
+                            <tbody id="search-directory-rows">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -2173,6 +2255,71 @@
         </div>
     </div>
 
+    <!-- --------------------------------------------------- -->
+    <!-- CUSTOMER SEARCH PROFILE DETAILS MODAL -->
+    <!-- --------------------------------------------------- -->
+    <div class="modal-popup-overlay" id="customer-search-modal" style="display: none;">
+        <div class="modal-popup-card" style="max-width: 600px;">
+            <div class="modal-popup-header">
+                <h3 style="display: flex; align-items: center; gap: 8px;"><i data-lucide="user" style="color: var(--primary-accent);"></i> Customer Search Profile</h3>
+                <button class="drawer-close" onclick="closeCustomerSearchModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-popup-body" style="max-height: 70vh; overflow-y: auto;">
+                <!-- Basic Details Card -->
+                <div style="background: var(--primary-light); padding: 16px; border-radius: var(--radius-lg); margin-bottom: 20px; border: 1px solid rgba(111, 44, 244, 0.1);">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Customer Name</span>
+                            <h4 id="cust-modal-name" style="font-size: 1.1rem; color: var(--text-primary); font-weight: 700; margin-top: 2px;">--</h4>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Phone Number</span>
+                            <p id="cust-modal-phone" style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-top: 2px;">--</p>
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Delivery Address</span>
+                            <p id="cust-modal-address" style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 2px;">--</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Cards Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                    <div style="border: 1px solid var(--border-color); padding: 12px 16px; border-radius: var(--radius-md);">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Total Orders</span>
+                        <h3 id="cust-modal-orders" style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-top: 4px;">--</h3>
+                    </div>
+                    <div style="border: 1px solid var(--border-color); padding: 12px 16px; border-radius: var(--radius-md);">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Total Spending (Delivered)</span>
+                        <h3 id="cust-modal-spending" style="font-size: 1.25rem; font-weight: 700; color: var(--emerald-green); margin-top: 4px;">₹0.00</h3>
+                    </div>
+                    <div style="grid-column: span 2; border: 1px solid var(--border-color); padding: 12px 16px; border-radius: var(--radius-md); background: #f8fafc;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Most Searched Product Keyword</span>
+                        <h3 id="cust-modal-most-searched" style="font-size: 1.1rem; font-weight: 700; color: var(--primary-accent); margin-top: 4px;">--</h3>
+                    </div>
+                </div>
+
+                <!-- Search History Timeline -->
+                <div>
+                    <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="history" style="width: 16px; height: 16px;"></i> Complete Search Timeline
+                    </h4>
+                    <div style="border: 1px solid var(--border-color); border-radius: var(--radius-md); max-height: 250px; overflow-y: auto;">
+                        <ul id="cust-modal-history-list" style="list-style: none; padding: 0; margin: 0;">
+                            <!-- Dynamically populated list items -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-popup-footer">
+                <button class="btn-custom btn-custom-secondary" onclick="closeCustomerSearchModal()">Close</button>
+                <button id="btn-export-pdf" class="btn-custom" style="background: var(--primary-accent); color: white; display: flex; align-items: center; gap: 8px;" onclick="exportCustomerSearchPDF()">
+                    <i data-lucide="download"></i> Export PDF Report
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden file input for product upload -->
     <input type="file" id="hidden-image-file-input" style="display: none;" onchange="handleProductImageFileSelected(event)">
 
@@ -2189,6 +2336,16 @@
         let productsCache = [];
         let ordersCache = [];
         let dateRange = 'Last 7 Days';
+
+        // Search tracking system globals
+        let searchTrendsData = {
+            today: [],
+            weekly: [],
+            monthly: []
+        };
+        let currentTrendPeriod = 'today';
+        let allCustomersSearchSummary = [];
+        let currentSelectedCustomerIdForExport = null;
         
         // Chart variables
         let orderStatusChart = null;
@@ -2212,6 +2369,13 @@
                     loadSuspiciousAccounts();
                 }
             }, 15000);
+
+            // Auto-refresh searches every 5 seconds if searches tab is active
+            setInterval(() => {
+                if (activeTab === 'searches') {
+                    loadSearchAnalytics(true);
+                }
+            }, 5000);
             
             // Listeners for closing menus
             window.addEventListener('click', () => {
@@ -2249,6 +2413,7 @@
                 if (tabId === 'payments') return txt.includes('payment');
                 if (tabId === 'security') return txt.includes('security');
                 if (tabId === 'system') return txt.includes('system');
+                if (tabId === 'searches') return txt.includes('search');
                 return false;
             });
             
@@ -2292,6 +2457,10 @@
             } else if (tabId === 'system') {
                 title = "SaaS Security & Core Engine audits";
                 subtitle = "Track API latencies, database file sizes, and security failed logs.";
+            } else if (tabId === 'searches') {
+                title = "Customer Search Tracking & Insights";
+                subtitle = "Analyze customer search intents, trending keywords, and individual histories.";
+                loadSearchAnalytics();
             }
             
             document.getElementById("header-tab-title").innerText = title;
@@ -3980,6 +4149,236 @@
                 cleanup();
                 if (onCancel) onCancel();
             };
+        }
+
+        // --- Search Tracking Dashboard Insights & Actions ---
+        function loadSearchAnalytics(isSilent = false) {
+            fetch('/api/admin/search-analytics')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        showAestheticToast(data.error, 'error');
+                        return;
+                    }
+                    
+                    searchTrendsData.today = data.today_top || [];
+                    searchTrendsData.weekly = data.weekly_top || [];
+                    searchTrendsData.monthly = data.monthly_top || [];
+                    
+                    // Populate Trending list (All Time)
+                    const trendingList = document.getElementById('trending-searches-list');
+                    if (trendingList) {
+                        if (!data.trending || data.trending.length === 0) {
+                            trendingList.innerHTML = `<li style="padding: 12px; text-align: center; color: var(--text-muted);">No searches recorded yet</li>`;
+                        } else {
+                            trendingList.innerHTML = data.trending.map((item, index) => `
+                                <li style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: var(--radius-md); background: #f8fafc; border: 1px solid var(--border-color); margin-bottom: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span style="font-weight: 800; color: var(--primary-accent); width: 24px; font-family: 'Outfit', sans-serif;">#${index + 1}</span>
+                                        <span style="font-weight: 600; text-transform: capitalize; color: var(--text-primary); font-size: 0.9rem;">${item.keyword}</span>
+                                    </div>
+                                    <span style="background: var(--primary-light); color: var(--primary-accent); font-weight: 700; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;">
+                                        ${item.count} searches
+                                    </span>
+                                </li>
+                            `).join('');
+                        }
+                    }
+                    
+                    // Populate Active Searchers list
+                    const activeList = document.getElementById('active-searchers-list');
+                    if (activeList) {
+                        if (!data.active_searchers || data.active_searchers.length === 0) {
+                            activeList.innerHTML = `<li style="padding: 12px; text-align: center; color: var(--text-muted);">No active searchers yet</li>`;
+                        } else {
+                            activeList.innerHTML = data.active_searchers.map((item, index) => `
+                                <li onclick="viewCustomerSearchProfile(${item.id})" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: var(--radius-md); background: #f8fafc; border: 1px solid var(--border-color); margin-bottom: 8px; cursor: pointer; transition: var(--transition-fast);" onmouseover="this.style.borderColor='var(--primary-accent)'; this.style.backgroundColor='#faf5ff';" onmouseout="this.style.borderColor='var(--border-color)'; this.style.backgroundColor='#f8fafc';">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span style="font-weight: 800; color: var(--emerald-green); width: 24px; font-family: 'Outfit', sans-serif;">#${index + 1}</span>
+                                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">${item.name} <span style="font-weight: 400; font-size: 0.75rem; color: var(--text-muted);">(ID: ${item.id})</span></span>
+                                    </div>
+                                    <span style="background: var(--emerald-light); color: var(--emerald-green); font-weight: 700; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;">
+                                        ${item.count} queries
+                                    </span>
+                                </li>
+                            `).join('');
+                        }
+                    }
+                    
+                    renderTrendPeriodList();
+                    renderCustomerSearchDirectory(data.customers_summary || []);
+                    
+                    if (window.lucide) {
+                        lucide.createIcons();
+                    }
+                })
+                .catch(err => {
+                    console.error("Failed to load search analytics:", err);
+                    if (!isSilent) {
+                        showAestheticToast("Could not fetch Search Intelligence analytics.", "error");
+                    }
+                });
+        }
+
+        function toggleTrendPeriod(period) {
+            currentTrendPeriod = period;
+            
+            const buttons = document.querySelectorAll('#panel-searches .segmented-control .btn-toggle');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+                btn.style.background = 'transparent';
+                btn.style.color = 'var(--text-secondary)';
+            });
+            
+            const activeBtn = Array.from(buttons).find(btn => btn.innerText.toLowerCase() === period);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+                activeBtn.style.background = 'white';
+                activeBtn.style.color = 'var(--text-primary)';
+            }
+            
+            renderTrendPeriodList();
+        }
+
+        function renderTrendPeriodList() {
+            const list = document.getElementById('trend-searches-list');
+            if (!list) return;
+            
+            const items = searchTrendsData[currentTrendPeriod] || [];
+            if (items.length === 0) {
+                list.innerHTML = `<li style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No trending queries in this period</li>`;
+                return;
+            }
+            
+            list.innerHTML = items.map((item, index) => `
+                <li style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: var(--radius-md); background: #f8fafc; border: 1px solid var(--border-color); margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-weight: 800; color: var(--amber-warning); width: 24px; font-family: 'Outfit', sans-serif;">#${index + 1}</span>
+                        <span style="font-weight: 600; text-transform: capitalize; color: var(--text-primary); font-size: 0.9rem;">${item.keyword}</span>
+                    </div>
+                    <span style="font-weight: 700; color: var(--text-secondary); font-size: 0.85rem;">
+                        ${item.count} hits
+                    </span>
+                </li>
+            `).join('');
+        }
+
+        function renderCustomerSearchDirectory(customers) {
+            allCustomersSearchSummary = customers;
+            filterSearchDirectory();
+        }
+
+        function filterSearchDirectory() {
+            const filterInput = document.getElementById('search-directory-filter');
+            if (!filterInput) return;
+            const query = filterInput.value.toLowerCase().trim();
+            
+            const filtered = allCustomersSearchSummary.filter(c => {
+                const name = c.name.toLowerCase();
+                const lastKw = (c.last_search_keyword || '').toLowerCase();
+                const idStr = String(c.id);
+                return name.includes(query) || lastKw.includes(query) || idStr.includes(query);
+            });
+            
+            const tbody = document.getElementById('search-directory-rows');
+            if (!tbody) return;
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <i data-lucide="info" style="width: 48px; height: 48px; stroke-width: 1.5; margin-bottom: 12px; display: inline-block;"></i>
+                            <p style="font-weight: 600;">No matching customers in directory</p>
+                        </td>
+                    </tr>
+                `;
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+            
+            tbody.innerHTML = filtered.map(c => `
+                <tr>
+                    <td style="font-weight: 700; color: var(--text-primary);">${c.name}</td>
+                    <td style="color: var(--text-secondary); font-weight: 600;">#${c.id}</td>
+                    <td>
+                        ${c.last_search_keyword ? `<span style="background: var(--primary-light); color: var(--primary-accent); text-transform: capitalize; font-weight: 700; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem;">${c.last_search_keyword}</span>` : `<span style="color: var(--text-muted);">None</span>`}
+                    </td>
+                    <td style="font-weight: 700;">
+                        ${c.total_searches > 0 ? `<span style="color: var(--primary-accent);">${c.total_searches}</span>` : `<span style="color: var(--text-muted);">0</span>`}
+                    </td>
+                    <td style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">${c.last_search_time_formatted}</td>
+                    <td>
+                        <button class="btn-custom" style="padding: 6px 12px; font-size: 0.8rem; background: var(--primary-light); color: var(--primary-accent); font-weight: 600; display: flex; align-items: center; gap: 4px;" onclick="viewCustomerSearchProfile(${c.id})">
+                            <i data-lucide="eye" style="width: 14px; height: 14px;"></i> Profile
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        }
+
+        function viewCustomerSearchProfile(customerId) {
+            currentSelectedCustomerIdForExport = customerId;
+            
+            fetch(`/api/admin/customer/${customerId}/search-profile`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        showAestheticToast(data.error, 'error');
+                        return;
+                    }
+                    
+                    document.getElementById('cust-modal-name').innerText = data.customer.name;
+                    document.getElementById('cust-modal-phone').innerText = data.customer.phone;
+                    document.getElementById('cust-modal-address').innerText = data.customer.address || 'No delivery address stored';
+                    
+                    document.getElementById('cust-modal-orders').innerText = data.total_orders;
+                    document.getElementById('cust-modal-spending').innerText = `₹${data.total_spending.toFixed(2)}`;
+                    document.getElementById('cust-modal-most-searched').innerText = data.most_searched_product;
+                    
+                    const historyList = document.getElementById('cust-modal-history-list');
+                    if (historyList) {
+                        if (!data.history || data.history.length === 0) {
+                            historyList.innerHTML = `<li style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No searches found in database</li>`;
+                        } else {
+                            historyList.innerHTML = data.history.map(item => `
+                                <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border-color);">
+                                    <span style="font-weight: 600; text-transform: capitalize; color: var(--text-primary); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
+                                        <i data-lucide="search" style="width: 14px; height: 14px; color: var(--text-muted);"></i>
+                                        ${item.keyword}
+                                    </span>
+                                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">${item.searched_at_formatted}</span>
+                                </li>
+                            `).join('');
+                        }
+                    }
+                    
+                    document.getElementById('customer-search-modal').style.display = 'flex';
+                    
+                    if (window.lucide) {
+                        lucide.createIcons();
+                    }
+                })
+                .catch(err => {
+                    console.error("Error fetching search profile:", err);
+                    showAestheticToast("Could not retrieve customer search profile.", "error");
+                });
+        }
+
+        function closeCustomerSearchModal() {
+            document.getElementById('customer-search-modal').style.display = 'none';
+        }
+
+        function exportCustomerSearchPDF() {
+            if (!currentSelectedCustomerIdForExport) {
+                showAestheticToast("No active customer selected.", "error");
+                return;
+            }
+            window.location.href = `/api/admin/customer/${currentSelectedCustomerIdForExport}/export-pdf`;
+            showAestheticToast("Downloading search report PDF...", "info");
         }
     </script>
 </body>

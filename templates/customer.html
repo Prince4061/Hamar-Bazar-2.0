@@ -628,6 +628,10 @@
     let activeStorefront = "grocery";
     let currentPharmacySubcat = null;
     let pharmacyProductsList = [];
+    
+    // Search Intelligence Tracking States
+    let searchTrackTimeout = null;
+    let lastTrackedQuery = "";
 
     // Switch storefront display pages
     function showStorePage(page) {
@@ -1840,8 +1844,37 @@
     }
 
     // Search and Filtering logic
+    function trackSearchTerm(query) {
+        query = query.toLowerCase().trim();
+        if (!query || query === lastTrackedQuery) return;
+        
+        lastTrackedQuery = query;
+        
+        fetch('/api/search/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customer_id: customerId, keyword: query })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                console.log("Search tracked successfully:", query);
+            }
+        })
+        .catch(err => console.error("Error tracking search:", err));
+    }
+
     function handleSearch(query) {
         query = query.toLowerCase().trim();
+        
+        // Debounce search tracking API call (1000ms delay)
+        if (searchTrackTimeout) clearTimeout(searchTrackTimeout);
+        if (query) {
+            searchTrackTimeout = setTimeout(() => {
+                trackSearchTerm(query);
+            }, 1000);
+        }
+        
         if (!query) {
             if (activeStorefront === "pharmacy") {
                 if (currentPharmacySubcat) {
@@ -1891,6 +1924,13 @@
         } else if (mobileInput) {
             query = mobileInput.value;
         }
+        
+        // Cancel debounced timeout and track immediately
+        if (searchTrackTimeout) clearTimeout(searchTrackTimeout);
+        if (query.trim()) {
+            trackSearchTerm(query.trim());
+        }
+        
         handleSearch(query);
     }
     

@@ -45,6 +45,18 @@ def run_migrations():
         cursor.execute("ALTER TABLE delivery_partners ADD COLUMN password TEXT")
     except sqlite3.OperationalError:
         pass
+    try:
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS search_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            keyword TEXT NOT NULL,
+            searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        ''')
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
     conn.close()
 
@@ -1877,6 +1889,293 @@ def complete_prescription(req_id):
     cursor.execute("UPDATE prescription_requests SET status = 'COMPLETED' WHERE id = ?", (req_id,))
     db.commit()
     return jsonify({'success': True, 'message': 'Prescription marked as complete/quoted.'})
+
+# --- Customer Search Intelligence API Endpoints ---
+
+@app.route('/api/search/track', methods=['POST'])
+def track_search():
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+    customer_id = data.get('customer_id')
+    keyword = data.get('keyword', '').strip().lower()
+    
+    if not customer_id or not keyword:
+        return jsonify({'error': 'Customer ID and keyword are required.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("INSERT INTO search_history (customer_id, keyword) VALUES (?, ?)", (int(customer_id), keyword))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Search tracked successfully.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to track search: {str(e)}'}), 500
+
+@app.route('/api/admin/search-analytics', methods=['GET'])
+def get_search_analytics():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    # 1. Top Trending Searches (all time)
+    cursor.execute('''
+        SELECT keyword, COUNT(*) as count 
+        FROM search_history 
+        GROUP BY keyword 
+        ORDER BY count DESC 
+        LIMIT 10
+    ''')
+    trending = [dict(row) for row in cursor.fetchall()]
+    
+    # 2. Most Active Searchers
+    cursor.execute('''
+        SELECT u.id, u.name, COUNT(sh.id) as count
+        FROM search_history sh
+        JOIN users u ON sh.customer_id = u.id
+        GROUP BY sh.customer_id
+        ORDER BY count DESC
+        LIMIT 10
+    ''')
+    active_searchers = [dict(row) for row in cursor.fetchall()]
+    
+    # 3. Today's Top Searches
+    cursor.execute('''
+        SELECT keyword, COUNT(*) as count 
+        FROM search_history 
+        WHERE DATE(searched_at) = DATE('now', 'localtime')
+        GROUP BY keyword 
+        ORDER BY count DESC 
+        LIMIT 5
+    ''')
+    today_top = [dict(row) for row in cursor.fetchall()]
+    
+    # 4. Weekly Top Searches
+    cursor.execute('''
+        SELECT keyword, COUNT(*) as count 
+        FROM search_history 
+        WHERE searched_at >= datetime('now', '-7 days')
+        GROUP BY keyword 
+        ORDER BY count DESC 
+        LIMIT 5
+    ''')
+    weekly_top = [dict(row) for row in cursor.fetchall()]
+    
+    # 5. Monthly Top Searches
+    cursor.execute('''
+        SELECT keyword, COUNT(*) as count 
+        FROM search_history 
+        WHERE searched_at >= datetime('now', '-30 days')
+        GROUP BY keyword 
+        ORDER BY count DESC 
+        LIMIT 5
+    ''')
+    monthly_top = [dict(row) for row in cursor.fetchall()]
+    
+    # 6. Customer Summary List (all customers, with search counts)
+    cursor.execute('''
+        SELECT u.id, u.name, u.phone, u.address,
+               (SELECT COUNT(*) FROM search_history WHERE customer_id = u.id) as total_searches,
+               (SELECT keyword FROM search_history WHERE customer_id = u.id ORDER BY id DESC LIMIT 1) as last_search_keyword,
+               (SELECT searched_at FROM search_history WHERE customer_id = u.id ORDER BY id DESC LIMIT 1) as last_search_time
+        FROM users u
+        ORDER BY last_search_time DESC, u.id DESC
+    ''')
+    customers_summary = []
+    for row in cursor.fetchall():
+        r = dict(row)
+        if r['last_search_time']:
+            try:
+                dt = datetime.strptime(r['last_search_time'], '%Y-%m-%d %H:%M:%S' if '.' not in r['last_search_time'] else '%Y-%m-%d %H:%M:%S.%f')
+                r['last_search_time_formatted'] = dt.strftime('%d %b %Y %I:%M %p')
+            except Exception:
+                r['last_search_time_formatted'] = r['last_search_time']
+        else:
+            r['last_search_time_formatted'] = '--'
+        customers_summary.append(r)
+        
+    return jsonify({
+        'trending': trending,
+        'active_searchers': active_searchers,
+        'today_top': today_top,
+        'weekly_top': weekly_top,
+        'monthly_top': monthly_top,
+        'customers_summary': customers_summary
+    })
+
+@app.route('/api/admin/customer/<int:cust_id>/search-profile', methods=['GET'])
+def get_customer_search_profile(cust_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    # Fetch Customer basic details
+    cursor.execute("SELECT id, name, phone, address FROM users WHERE id = ?", (cust_id,))
+    user_row = cursor.fetchone()
+    if not user_row:
+        return jsonify({'error': 'Customer not found.'}), 404
+        
+    user_details = dict(user_row)
+    
+    # Total Orders count
+    cursor.execute("SELECT COUNT(*) FROM orders WHERE customer_id = ?", (cust_id,))
+    total_orders = cursor.fetchone()[0] or 0
+    
+    # Total Spending
+    cursor.execute("SELECT SUM(total_amount) FROM orders WHERE customer_id = ? AND status = 'DELIVERED'", (cust_id,))
+    total_spending = cursor.fetchone()[0] or 0.0
+    
+    # Complete Search History
+    cursor.execute("SELECT keyword, searched_at FROM search_history WHERE customer_id = ? ORDER BY id DESC", (cust_id,))
+    history = []
+    for row in cursor.fetchall():
+        h = dict(row)
+        try:
+            dt = datetime.strptime(h['searched_at'], '%Y-%m-%d %H:%M:%S' if '.' not in h['searched_at'] else '%Y-%m-%d %H:%M:%S.%f')
+            h['searched_at_formatted'] = dt.strftime('%d %b %Y %I:%M %p')
+        except Exception:
+            h['searched_at_formatted'] = h['searched_at']
+        history.append(h)
+        
+    # Last Search Time
+    last_search_time_formatted = '--'
+    if history:
+        last_search_time_formatted = history[0]['searched_at_formatted']
+        
+    # Most Searched Keyword
+    cursor.execute('''
+        SELECT keyword, COUNT(*) as count 
+        FROM search_history 
+        WHERE customer_id = ? 
+        GROUP BY keyword 
+        ORDER BY count DESC 
+        LIMIT 1
+    ''', (cust_id,))
+    most_searched_row = cursor.fetchone()
+    most_searched = 'None'
+    if most_searched_row:
+        most_searched = f"{most_searched_row['keyword']} ({most_searched_row['count']} searches)"
+        
+    return jsonify({
+        'customer': user_details,
+        'total_orders': total_orders,
+        'total_spending': round(total_spending, 2),
+        'history': history,
+        'last_search_time': last_search_time_formatted,
+        'most_searched_product': most_searched
+    })
+
+@app.route('/api/admin/customer/<int:cust_id>/export-pdf', methods=['GET'])
+def export_customer_search_pdf(cust_id):
+    if session.get('role') != 'admin':
+        return "Unauthorized", 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    # Fetch Customer Details
+    cursor.execute("SELECT name, phone, address FROM users WHERE id = ?", (cust_id,))
+    user = cursor.fetchone()
+    if not user:
+        return "Customer not found", 404
+        
+    # Fetch Search Stats
+    cursor.execute("SELECT COUNT(*) FROM search_history WHERE customer_id = ?", (cust_id,))
+    total_searches = cursor.fetchone()[0] or 0
+    
+    cursor.execute('''
+        SELECT keyword, COUNT(*) as count 
+        FROM search_history 
+        WHERE customer_id = ? 
+        GROUP BY keyword 
+        ORDER BY count DESC 
+        LIMIT 5
+    ''', (cust_id,))
+    top_keywords = cursor.fetchall()
+    
+    cursor.execute("SELECT keyword, searched_at FROM search_history WHERE customer_id = ? ORDER BY id DESC", (cust_id,))
+    all_history = cursor.fetchall()
+    
+    # FPDF generation
+    from fpdf import FPDF
+    
+    class PDF(FPDF):
+        def header(self):
+            # Title
+            self.set_font('Helvetica', 'B', 15)
+            self.cell(0, 10, 'Customer Search Intelligence Report', new_x='LMARGIN', new_y='NEXT', align='C')
+            self.set_draw_color(111, 44, 244)
+            self.set_line_width(0.5)
+            self.line(10, 22, 200, 22)
+            self.ln(10)
+            
+        def footer(self):
+            # Page number
+            self.set_y(-15)
+            self.set_font('Helvetica', 'I', 8)
+            self.cell(0, 10, f'Page {self.page_no()} | Generated by Mor Bazar Control Center', align='C')
+            
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_font('Helvetica', '', 10)
+    
+    # Customer Info Card
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.cell(0, 8, 'Customer Details', new_x='LMARGIN', new_y='NEXT')
+    pdf.set_font('Helvetica', '', 10)
+    pdf.cell(0, 6, f"Name: {user['name']}", new_x='LMARGIN', new_y='NEXT')
+    pdf.cell(0, 6, f"Phone: {user['phone']}", new_x='LMARGIN', new_y='NEXT')
+    pdf.cell(0, 6, f"Address: {user['address']}", new_x='LMARGIN', new_y='NEXT')
+    pdf.cell(0, 6, f"Total Searches: {total_searches}", new_x='LMARGIN', new_y='NEXT')
+    pdf.ln(6)
+    
+    # Top Searched Keywords Card
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.cell(0, 8, 'Most Searched Keywords', new_x='LMARGIN', new_y='NEXT')
+    pdf.set_font('Helvetica', 'B', 10)
+    pdf.cell(100, 7, 'Keyword', border=1)
+    pdf.cell(50, 7, 'Frequency', border=1, new_x='LMARGIN', new_y='NEXT')
+    pdf.set_font('Helvetica', '', 10)
+    
+    for kw_row in top_keywords:
+        pdf.cell(100, 7, kw_row['keyword'], border=1)
+        pdf.cell(50, 7, str(kw_row['count']), border=1, new_x='LMARGIN', new_y='NEXT')
+    pdf.ln(8)
+    
+    # Complete Search History Section
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.cell(0, 8, 'Complete Search History Log', new_x='LMARGIN', new_y='NEXT')
+    pdf.set_font('Helvetica', 'B', 10)
+    pdf.cell(100, 7, 'Keyword', border=1)
+    pdf.cell(70, 7, 'Date & Time', border=1, new_x='LMARGIN', new_y='NEXT')
+    pdf.set_font('Helvetica', '', 10)
+    
+    for hist_row in all_history:
+        time_str = hist_row['searched_at']
+        try:
+            dt = datetime.strptime(hist_row['searched_at'], '%Y-%m-%d %H:%M:%S' if '.' not in hist_row['searched_at'] else '%Y-%m-%d %H:%M:%S.%f')
+            time_str = dt.strftime('%d %b %Y %I:%M %p')
+        except Exception:
+            pass
+        pdf.cell(100, 7, hist_row['keyword'], border=1)
+        pdf.cell(70, 7, time_str, border=1, new_x='LMARGIN', new_y='NEXT')
+        
+    pdf_bytes = pdf.output()
+    
+    from flask import Response
+    clean_name = "".join(c for c in user['name'] if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+    filename = f"Customer_Search_Report_{clean_name}.pdf"
+    
+    return Response(
+        bytes(pdf_bytes),
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f"attachment;filename={filename}"}
+    )
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
