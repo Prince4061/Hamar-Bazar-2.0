@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, redirect, session, g
 import sqlite3
 import os
 import random
+import re
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
@@ -28,6 +29,22 @@ def run_migrations():
         cursor.execute("ALTER TABLE orders ADD COLUMN payment_screenshot TEXT")
     except sqlite3.OperationalError:
         pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN is_blocked INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN is_suspicious INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN suspicion_reasons TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE delivery_partners ADD COLUMN password TEXT")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
     conn.close()
 
@@ -49,6 +66,86 @@ def close_connection(exception):
     db = getattr(g, '_database', None)
     if db is not None:
         db.close()
+
+def check_and_flag_suspicious_user(user_id, db):
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    if not user:
+        return
+        
+    reasons = []
+    
+    # 1. Suspicious Name checks
+    name = user['name'].strip().lower()
+    # Match keywords like test, fake, spam, guest, admin, null, undefined, placeholder
+    suspicious_patterns = [r'test', r'fake', r'spam', r'guest', r'admin', r'null', r'undefined', r'dummy', r'placeholder', r'user\d+']
+    if any(re.search(pat, name) for pat in suspicious_patterns):
+        reasons.append("Name contains suspicious test/spam keywords")
+    # Check if name contains numeric characters or special symbols (excluding space and dot)
+    if not re.match(r'^[a-zA-Z\s\.]+$', user['name'].strip()):
+        reasons.append("Name contains invalid characters (numbers or symbols)")
+    if len(user['name'].strip()) < 3:
+        reasons.append("Name is suspiciously short (< 3 characters)")
+        
+    # 2. Suspicious Phone checks
+    phone = user['phone'].strip()
+    # Normalize phone: remove non-digits
+    phone_clean = ''.join(c for c in phone if c.isdigit())
+    if phone_clean.startswith('91') and len(phone_clean) > 10:
+        phone_clean = phone_clean[2:]
+        
+    # Check if number has repeating digits (e.g. 9999999999) or sequential (1234567890)
+    if len(set(phone_clean)) <= 2:
+        reasons.append("Phone number contains repeating digits")
+    if phone_clean in ['1234567890', '0987654321', '123456789', '987654321']:
+        reasons.append("Phone number matches a sequential placeholder pattern")
+    if len(phone_clean) != 10:
+        reasons.append(f"Phone number length is not standard ({len(phone_clean)} digits)")
+        
+    # 3. Transaction / Order checks in the last 24 hours
+    one_day_ago = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
+    cursor.execute("""
+        SELECT COUNT(id) as cnt, SUM(total_amount) as total 
+        FROM orders 
+        WHERE customer_id = ? AND created_at >= ? AND status != 'FAILED'
+    """, (user_id, one_day_ago))
+    stats = cursor.fetchone()
+    
+    if stats:
+        cnt = stats['cnt'] or 0
+        total = stats['total'] or 0.0
+        if cnt >= 3:
+            reasons.append(f"Placed too many orders ({cnt} orders) in the last 24 hours")
+        if total > 5000:
+            reasons.append(f"High transaction spending (₹{total:.2f}) in the last 24 hours")
+            
+    if reasons:
+        reasons_str = "; ".join(reasons)
+        cursor.execute("UPDATE users SET is_suspicious = 1, suspicion_reasons = ? WHERE id = ?", (reasons_str, user_id))
+    else:
+        cursor.execute("UPDATE users SET is_suspicious = 0, suspicion_reasons = NULL WHERE id = ?", (user_id,))
+    db.commit()
+
+@app.before_request
+def check_user_blocked():
+    # Exclude static assets and session logout from checking to avoid infinite loops or blocking assets
+    if request.path.startswith('/static/') or request.path == '/session/logout' or request.path == '/login':
+        return
+        
+    if session.get('role') == 'customer' and session.get('role_id'):
+        try:
+            db = get_db()
+            cursor = db.cursor()
+            cursor.execute("SELECT is_blocked FROM users WHERE id = ?", (session['role_id'],))
+            row = cursor.fetchone()
+            if row and row['is_blocked']:
+                session.clear()
+                if request.path.startswith('/api/'):
+                    return jsonify({'error': 'Your account has been blocked due to security reasons. Please contact support.'}), 403
+                return redirect('/login?error=blocked')
+        except Exception as e:
+            print("Failed to run check_user_blocked:", e)
 
 # -------------------------------------------------------------
 # Role Switcher & Mock Session
@@ -123,6 +220,8 @@ def login():
         user = cursor.fetchone()
         
         if user:
+            if user['is_blocked']:
+                return jsonify({'success': False, 'error': 'Your account has been blocked due to suspicious activity. Please contact support.'})
             # Enforce password verification
             if user['password'] and user['password'] != password:
                 # Record failed login in real table
@@ -132,6 +231,10 @@ def login():
                 except Exception as e:
                     print("Failed to log failed login:", e)
                 return jsonify({'success': False, 'error': 'Incorrect password for this account.'})
+            
+            # Keep credentials updated / validated
+            check_and_flag_suspicious_user(user['id'], db)
+            
             session['role'] = 'customer'
             session['role_id'] = user['id']
             session['name'] = user['name']
@@ -145,8 +248,14 @@ def login():
                 cursor.execute("INSERT INTO users (name, phone, address, password) VALUES (?, ?, ?, ?)", (username, phone, new_address, password))
                 db.commit()
                 # Get the newly created user
-                cursor.execute("SELECT * FROM users WHERE id = ?", (cursor.lastrowid,))
+                new_id = cursor.lastrowid
+                
+                # Run fraud check on registration!
+                check_and_flag_suspicious_user(new_id, db)
+                
+                cursor.execute("SELECT * FROM users WHERE id = ?", (new_id,))
                 user = cursor.fetchone()
+                
                 session['role'] = 'customer'
                 session['role_id'] = user['id']
                 session['name'] = user['name']
@@ -252,12 +361,15 @@ def staff_login():
                 cursor.execute("SELECT * FROM delivery_partners WHERE name LIKE ?", (f"%{identifier}%",))
                 rider = cursor.fetchone()
                 
-            if not rider:
+            if rider:
+                if rider['password'] and rider['password'] != password:
+                    return jsonify({'success': False, 'error': 'Incorrect password for this delivery rider.'})
+            else:
                 rider_name = identifier if "rider" in identifier.lower() or "delivery" in identifier.lower() else f"{identifier} Rider"
                 import random
                 mock_phone = f"9000{random.randint(100000, 999999)}"
                 try:
-                    cursor.execute("INSERT INTO delivery_partners (name, phone, active_orders, availability_status) VALUES (?, ?, 0, 'online')", (rider_name, mock_phone))
+                    cursor.execute("INSERT INTO delivery_partners (name, phone, active_orders, availability_status, password) VALUES (?, ?, 0, 'online', ?)", (rider_name, mock_phone, password))
                     db.commit()
                     cursor.execute("SELECT * FROM delivery_partners WHERE id = ?", (cursor.lastrowid,))
                     rider = cursor.fetchone()
@@ -434,6 +546,9 @@ def place_order():
         ''', (order_id, pd['product_id'], pd['quantity'], pd['price']))
         
     db.commit()
+    
+    # Run security checks to flag suspicious user
+    check_and_flag_suspicious_user(customer_id, db)
     
     return jsonify({
         'message': 'Order placed successfully!' if status == 'PENDING' else 'Payment verification pending!',
@@ -954,6 +1069,55 @@ def reject_order_payment(order_id):
     db.commit()
     return jsonify({'success': True, 'message': 'Payment screenshot rejected. Order marked as FAILED.'})
 
+# --- Admin Security Checker APIs ---
+
+@app.route('/api/admin/suspicious-users', methods=['GET'])
+def get_suspicious_users():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id FROM users")
+    user_ids = [row['id'] for row in cursor.fetchall()]
+    
+    # Evaluate all users to dynamically detect suspicious activity
+    for u_id in user_ids:
+        check_and_flag_suspicious_user(u_id, db)
+        
+    # Return all suspicious or blocked users
+    cursor.execute('''
+        SELECT id, name, phone, address, is_blocked, is_suspicious, suspicion_reasons
+        FROM users
+        WHERE is_suspicious = 1 OR is_blocked = 1
+        ORDER BY is_blocked ASC, is_suspicious DESC, id DESC
+    ''')
+    rows = [dict(row) for row in cursor.fetchall()]
+    return jsonify(rows)
+
+@app.route('/api/admin/users/<int:user_id>/block', methods=['POST'])
+def block_user(user_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("UPDATE users SET is_blocked = 1 WHERE id = ?", (user_id,))
+    db.commit()
+    return jsonify({'success': True, 'message': 'User account has been blocked successfully.'})
+
+@app.route('/api/admin/users/<int:user_id>/unblock', methods=['POST'])
+def unblock_user(user_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    # Unblock and clear suspicion reasons
+    cursor.execute("UPDATE users SET is_blocked = 0, is_suspicious = 0, suspicion_reasons = NULL WHERE id = ?", (user_id,))
+    db.commit()
+    return jsonify({'success': True, 'message': 'User account has been unblocked successfully.'})
+
 # --- Admin APIs ---
 
 @app.route('/api/admin/analytics', methods=['GET'])
@@ -1120,7 +1284,7 @@ def get_admin_analytics():
     failed_order_reasons = [dict(row) for row in cursor.fetchall()]
     
     # 9. Riders Status
-    cursor.execute("SELECT id, name, phone, availability_status, active_orders, cooldown_until FROM delivery_partners")
+    cursor.execute("SELECT id, name, phone, availability_status, active_orders, cooldown_until, password FROM delivery_partners")
     riders_status = []
     for row in cursor.fetchall():
         r = dict(row)
@@ -1293,6 +1457,114 @@ def get_admin_analytics():
         'stock_warnings': stock_warnings,
         'category_demand': category_demand
     })
+
+
+@app.route('/api/admin/shops/<int:shop_id>/update', methods=['POST'])
+def admin_update_shop(shop_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+        
+    shop_name = data.get('shop_name', '').strip()
+    category = data.get('category', '').strip().upper()
+    commission_pct = data.get('commission_pct', '5.0')
+    password = data.get('password', '').strip()
+    
+    if not shop_name or not category:
+        return jsonify({'error': 'Shop Name and Category Code are required.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT id FROM shops WHERE category = ? AND id != ?", (category, shop_id))
+    if cursor.fetchone():
+        return jsonify({'error': f'Category/Shop with code "{category}" already exists.'}), 400
+        
+    try:
+        cursor.execute('''
+            UPDATE shops 
+            SET shop_name = ?, category = ?, commission_pct = ?, password = ? 
+            WHERE id = ?
+        ''', (shop_name, category, float(commission_pct), password, shop_id))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Shop category credentials updated successfully.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to update shop: {str(e)}'}), 500
+
+
+@app.route('/api/admin/delivery/add', methods=['POST'])
+def admin_add_delivery_partner():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+        
+    name = data.get('name', '').strip()
+    phone = data.get('phone', '').strip().replace(" ", "").replace("-", "")
+    password = data.get('password', '').strip()
+    
+    if not name or not phone or not password:
+        return jsonify({'error': 'Name, Phone Number, and Password are required.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT id FROM delivery_partners WHERE phone = ?", (phone,))
+    if cursor.fetchone():
+        return jsonify({'error': f'Delivery partner with phone number "{phone}" already exists.'}), 400
+        
+    try:
+        cursor.execute('''
+            INSERT INTO delivery_partners (name, phone, password, availability_status, active_orders)
+            VALUES (?, ?, ?, 'online', 0)
+        ''', (name, phone, password))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Delivery partner added successfully.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to add delivery partner: {str(e)}'}), 500
+
+
+@app.route('/api/admin/delivery/<int:rider_id>/update', methods=['POST'])
+def admin_update_delivery_partner(rider_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+        
+    name = data.get('name', '').strip()
+    phone = data.get('phone', '').strip().replace(" ", "").replace("-", "")
+    password = data.get('password', '').strip()
+    
+    if not name or not phone or not password:
+        return jsonify({'error': 'Name, Phone Number, and Password are required.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT id FROM delivery_partners WHERE phone = ? AND id != ?", (phone, rider_id))
+    if cursor.fetchone():
+        return jsonify({'error': f'Delivery partner with phone number "{phone}" already exists.'}), 400
+        
+    try:
+        cursor.execute('''
+            UPDATE delivery_partners 
+            SET name = ?, phone = ?, password = ? 
+            WHERE id = ?
+        ''', (name, phone, password, rider_id))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Delivery partner credentials updated successfully.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to update delivery partner: {str(e)}'}), 500
 
 
 @app.route('/api/admin/shops/<int:shop_id>/toggle', methods=['POST'])

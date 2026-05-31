@@ -153,6 +153,17 @@
 </div>
 
 <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('error') === 'blocked') {
+            const errorDiv = document.getElementById("login-error-msg");
+            if (errorDiv) {
+                errorDiv.innerText = "Your account has been blocked due to suspicious activity. Please contact admin.";
+                errorDiv.style.display = "block";
+            }
+        }
+    });
+
     function toggleCustomerPasswordVisibility() {
         const pwdInput = document.getElementById("customer-password");
         if (pwdInput.type === "password") {

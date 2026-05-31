@@ -1344,8 +1344,13 @@
                         </a>
                     </li>
                     <li>
+                        <a class="menu-item-link" onclick="switchTab('security')">
+                            <i data-lucide="shield-alert"></i> Security Checker
+                        </a>
+                    </li>
+                    <li>
                         <a class="menu-item-link" onclick="switchTab('system')">
-                            <i data-lucide="shield-alert"></i> System Status
+                            <i data-lucide="settings"></i> System Status
                         </a>
                     </li>
                 </ul>
@@ -1744,6 +1749,7 @@
                     <div class="dashboard-card">
                         <div class="card-header-row">
                             <h3 class="card-title-text"><i data-lucide="bike"></i> Active Delivery Partners</h3>
+                            <button class="btn-custom btn-custom-primary" onclick="openAddDeliveryModal()"><i data-lucide="plus"></i> Add Delivery Partner</button>
                         </div>
                         
                         <div class="table-responsive-wrapper">
@@ -1752,11 +1758,12 @@
                                     <tr>
                                         <th>Rider ID</th>
                                         <th>Rider Name</th>
-                                        <th>Phone Number</th>
+                                        <th>Login ID (Phone)</th>
+                                        <th>Password</th>
                                         <th>Status</th>
                                         <th>Active Deliveries</th>
                                         <th>Claim Cooldown Timer</th>
-                                        <th>Actions</th>
+                                        <th>Actions Control</th>
                                     </tr>
                                 </thead>
                                 <tbody id="riders-list-rows">
@@ -1952,6 +1959,41 @@
                 </div>
             </div>
 
+            <!-- --------------------------------------------------- -->
+            <!-- TAB 9: SECURITY CHECKER -->
+            <!-- --------------------------------------------------- -->
+            <div class="tab-panel" id="panel-security">
+                <div class="dashboard-card">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text"><i data-lucide="shield-alert" style="color: var(--ruby-danger);"></i> Suspicious & Flagged Accounts</h3>
+                        <button class="btn-custom btn-custom-secondary" onclick="loadSuspiciousAccounts()"><i data-lucide="refresh-cw"></i> Refresh Feed</button>
+                    </div>
+                    
+                    <div class="table-responsive-wrapper">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>Customer ID</th>
+                                    <th>Customer Name</th>
+                                    <th>Phone Number</th>
+                                    <th>Delivery Address</th>
+                                    <th>Suspicion Indicators</th>
+                                    <th>Account Status</th>
+                                    <th>Actions Control</th>
+                                </tr>
+                            </thead>
+                            <tbody id="security-admin-rows">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="empty-admin-security-placeholder" style="display:none; padding:40px; text-align:center; color:var(--text-muted);">
+                        <i data-lucide="shield" style="width:48px; height:48px; stroke-width:1.5; margin-bottom:12px; display:inline-block; color: var(--emerald-green);"></i>
+                        <p style="font-weight:600;">No suspicious accounts detected. Platform is secure!</p>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -2043,6 +2085,7 @@
                 <button class="drawer-close" onclick="closeShopModal()"><i data-lucide="x"></i></button>
             </div>
             <div class="modal-popup-body">
+                <input type="hidden" id="modal-shop-id">
                 <div class="form-group-custom">
                     <label class="form-label-custom">Shop Name</label>
                     <input type="text" id="modal-shop-name" class="form-input-custom" style="width: 100%;" placeholder="e.g. Apna Bazaar (Kirana & General)">
@@ -2071,6 +2114,40 @@
             <div class="modal-popup-footer">
                 <button class="btn-custom btn-custom-secondary" onclick="closeShopModal()">Cancel</button>
                 <button class="btn-custom btn-custom-primary" onclick="saveShopCategory()">Save Shop Category</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- --------------------------------------------------- -->
+    <!-- ADD/EDIT DELIVERY PARTNER MODAL -->
+    <!-- --------------------------------------------------- -->
+    <div class="modal-popup-overlay" id="delivery-modal">
+        <div class="modal-popup-card">
+            <div class="modal-popup-header">
+                <h3 id="delivery-modal-title">Add New Delivery Partner</h3>
+                <button class="drawer-close" onclick="closeDeliveryModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-popup-body">
+                <input type="hidden" id="modal-delivery-id">
+                
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Rider Name</label>
+                    <input type="text" id="modal-delivery-name" class="form-input-custom" style="width: 100%;" placeholder="e.g. Rahul Rider">
+                </div>
+                
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Phone Number (Login ID, Unique)</label>
+                    <input type="text" id="modal-delivery-phone" class="form-input-custom" style="width: 100%;" placeholder="e.g. 9876543210">
+                </div>
+
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Password (Login credential)</label>
+                    <input type="password" id="modal-delivery-password" class="form-input-custom" style="width: 100%;" placeholder="Enter password (e.g. password123)">
+                </div>
+            </div>
+            <div class="modal-popup-footer">
+                <button class="btn-custom btn-custom-secondary" onclick="closeDeliveryModal()">Cancel</button>
+                <button class="btn-custom btn-custom-primary" onclick="saveDeliveryPartner()">Save Partner</button>
             </div>
         </div>
     </div>
@@ -2131,6 +2208,8 @@
                     loadPrescriptions();
                 } else if (activeTab === 'payments') {
                     loadPaymentApprovals();
+                } else if (activeTab === 'security') {
+                    loadSuspiciousAccounts();
                 }
             }, 15000);
             
@@ -2168,6 +2247,7 @@
                 if (tabId === 'delivery') return txt.includes('riders');
                 if (tabId === 'prescriptions') return txt.includes('prescriptions');
                 if (tabId === 'payments') return txt.includes('payment');
+                if (tabId === 'security') return txt.includes('security');
                 if (tabId === 'system') return txt.includes('system');
                 return false;
             });
@@ -2205,6 +2285,10 @@
                 title = "Payment Verification & Approvals";
                 subtitle = "Approve or reject customer online payment screenshots to place orders.";
                 loadPaymentApprovals();
+            } else if (tabId === 'security') {
+                title = "Security Checker & Fraud Detection";
+                subtitle = "Monitor suspicious accounts, investigate indicators, and block/unblock users.";
+                loadSuspiciousAccounts();
             } else if (tabId === 'system') {
                 title = "SaaS Security & Core Engine audits";
                 subtitle = "Track API latencies, database file sizes, and security failed logs.";
@@ -2607,6 +2691,126 @@
             });
         }
 
+        function loadSuspiciousAccounts() {
+            const container = document.getElementById("security-admin-rows");
+            const placeholder = document.getElementById("empty-admin-security-placeholder");
+            if (!container) return;
+            
+            container.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:20px;'>Loading security audits...</td></tr>";
+            if (placeholder) placeholder.style.display = "none";
+            
+            fetch('/api/admin/suspicious-users')
+                .then(res => res.json())
+                .then(data => {
+                    container.innerHTML = "";
+                    if (!Array.isArray(data) || data.length === 0) {
+                        if (placeholder) placeholder.style.display = "block";
+                        return;
+                    }
+                    
+                    data.forEach(item => {
+                        const tr = document.createElement("tr");
+                        
+                        let badgeClass = "badge-pending";
+                        let statusText = "Suspicious";
+                        if (item.is_blocked) {
+                            badgeClass = "badge-failed";
+                            statusText = "Blocked";
+                        }
+                        
+                        // Indicators split by ";"
+                        let reasonsHtml = "";
+                        if (item.suspicion_reasons) {
+                            reasonsHtml = item.suspicion_reasons.split("; ").map(r => 
+                                `<span class="status-badge badge-failed" style="font-size:0.75rem; margin:2px; display:inline-block;">${r}</span>`
+                            ).join(" ");
+                        } else {
+                            reasonsHtml = `<span class="status-badge badge-delivered" style="font-size:0.75rem;">Clear / Investigated</span>`;
+                        }
+                        
+                        let actionBtns = "";
+                        if (item.is_blocked) {
+                            actionBtns = `<button class="btn-custom btn-custom-primary" style="background-color: var(--emerald-green);" onclick="unblockAccount(${item.id})"><i data-lucide="unlock" style="width:12px; height:12px;"></i> Unblock</button>`;
+                        } else {
+                            actionBtns = `
+                                <div style="display:flex; gap:8px;">
+                                    <button class="btn-custom btn-custom-danger" onclick="blockAccount(${item.id})"><i data-lucide="shield-alert" style="width:12px; height:12px;"></i> Block</button>
+                                    <button class="btn-custom btn-custom-secondary" onclick="unblockAccount(${item.id})"><i data-lucide="check" style="width:12px; height:12px;"></i> Dismiss</button>
+                                </div>
+                            `;
+                        }
+                        
+                        tr.innerHTML = `
+                            <td style="font-weight:700;">#USR-${item.id}</td>
+                            <td>
+                                <strong style="color:var(--text-primary); font-size:0.85rem;">${item.name}</strong>
+                            </td>
+                            <td style="font-size:0.8rem; color:var(--text-secondary); font-weight:600;">${item.phone}</td>
+                            <td style="font-size:0.8rem; color:var(--text-secondary);">${item.address}</td>
+                            <td style="max-width:280px; white-space:normal; line-height:1.4;">
+                                ${reasonsHtml}
+                            </td>
+                            <td>
+                                <span class="status-badge ${badgeClass}">${statusText}</span>
+                            </td>
+                            <td>
+                                ${actionBtns}
+                            </td>
+                        `;
+                        container.appendChild(tr);
+                    });
+                    if (window.lucide) lucide.createIcons();
+                })
+                .catch(err => {
+                    console.error("Error loading suspicious users:", err);
+                    container.innerHTML = "<tr><td colspan='7' style='text-align:center; color:var(--ruby-danger); padding:20px;'>Failed to load security audit feed.</td></tr>";
+                });
+        }
+        
+        function blockAccount(userId) {
+            aestheticConfirm("Are you sure you want to block this user account? Their active session will be terminated instantly and they will not be allowed to place orders or log back in.", () => {
+                fetch(`/api/admin/users/${userId}/block`, {
+                    method: 'POST'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAestheticToast(data.message, "success");
+                        loadSuspiciousAccounts();
+                        loadAllAnalytics(false);
+                    } else {
+                        showAestheticToast(data.error || "Failed to block account.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Block user error:", err);
+                    showAestheticToast("Connection error.", "error");
+                });
+            });
+        }
+        
+        function unblockAccount(userId) {
+            aestheticConfirm("Clear security flag and restore access for this user account?", () => {
+                fetch(`/api/admin/users/${userId}/unblock`, {
+                    method: 'POST'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAestheticToast(data.message, "success");
+                        loadSuspiciousAccounts();
+                        loadAllAnalytics(false);
+                    } else {
+                        showAestheticToast(data.error || "Failed to unblock account.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Unblock user error:", err);
+                    showAestheticToast("Connection error.", "error");
+                });
+            });
+        }
+
         // Show loading state mockup
         function showLoadingState() {
             document.querySelectorAll('.kpi-value').forEach(el => {
@@ -2789,9 +2993,10 @@
                         </span>
                     </td>
                     <td>
-                        <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:12px;">
                             <input type="checkbox" id="vendor-toggle-${s.shop_id}" class="toggle-switch-input" ${s.is_active ? 'checked' : ''} onchange="handleVendorToggle(${s.shop_id}, this.checked)">
                             <label for="vendor-toggle-${s.shop_id}" class="toggle-switch-label"></label>
+                            <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="openEditShopModal(${s.shop_id}, '${(s.shop_name || '').replace(/'/g, "\\'")}', '${(s.category || '').replace(/'/g, "\\'")}', ${s.commission_pct}, '${(s.password || 'password123').replace(/'/g, "\\'")}')"><i data-lucide="edit-2" style="width:12px; height:12px;"></i> Credentials</button>
                         </div>
                     </td>
                 `;
@@ -2831,18 +3036,22 @@
                 
                 const isCooldown = r.cooldown_secs > 0;
                 
-                tr = document.createElement("tr");
+                const tr = document.createElement("tr");
                 tr.innerHTML = `
                     <td style="font-weight:700;">#RDR${r.id}</td>
                     <td style="font-weight:600;">${r.name}</td>
                     <td style="font-size:0.8rem; color:var(--text-secondary); font-weight:600;">${r.phone}</td>
+                    <td style="font-family:monospace; font-weight:700; color:var(--text-secondary);">${r.password || 'password123'}</td>
                     <td><span class="status-badge ${badgeClass}">${r.availability_status}</span></td>
                     <td style="font-weight:700;">${r.active_orders} active</td>
                     <td>
                         ${isCooldown ? `<span class="status-badge badge-priority" id="rider-cooldown-${r.id}" data-secs="${r.cooldown_secs}"><i data-lucide="clock"></i> Cooling down: ${r.cooldown_secs}s</span>` : `<span class="status-badge badge-delivered"><i data-lucide="check"></i> Available</span>`}
                     </td>
                     <td>
-                        <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="resetRiderCooldown(${r.id})">Reset Timer</button>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="resetRiderCooldown(${r.id})">Reset Timer</button>
+                            <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="openEditDeliveryModal(${r.id}, '${(r.name || '').replace(/'/g, "\\'")}', '${(r.phone || '').replace(/'/g, "\\'")}', '${(r.password || 'password123').replace(/'/g, "\\'")}')"><i data-lucide="edit-2" style="width:12px; height:12px;"></i> Credentials</button>
+                        </div>
                     </td>
                 `;
                 container.appendChild(tr);
@@ -3027,7 +3236,7 @@
                         </div>
                         
                         <div style="display:flex; gap:6px;">
-                            <button class="btn-custom btn-custom-secondary" style="padding:6px 10px;" onclick="openEditProductModal(${p.id}, '${p.name.replace(/'/g, "\\'")}', ${p.price}, ${p.is_available})"><i data-lucide="edit-2" style="width:12px;"></i></button>
+                            <button class="btn-custom btn-custom-secondary" style="padding:6px 10px;" onclick="openEditProductModal(${p.id}, '${(p.name || '').replace(/'/g, "\\'")}', ${p.price}, ${p.is_available})"><i data-lucide="edit-2" style="width:12px;"></i></button>
                             <button class="btn-custom btn-custom-danger" style="padding:6px 10px;" onclick="deleteProductCatalog(${p.id})"><i data-lucide="trash" style="width:12px;"></i></button>
                         </div>
                     </div>
@@ -3141,10 +3350,23 @@
         }
 
         function openAddShopModal() {
+            document.getElementById("shop-modal-title").innerText = "Add New Category / Shop";
+            document.getElementById("modal-shop-id").value = "";
             document.getElementById("modal-shop-name").value = "";
             document.getElementById("modal-shop-category").value = "";
             document.getElementById("modal-shop-commission").value = "5.0";
             document.getElementById("modal-shop-password").value = "";
+            document.getElementById("modal-shop-image-file").value = "";
+            document.getElementById("shop-modal").style.display = "flex";
+        }
+
+        function openEditShopModal(shopId, name, category, commission, password) {
+            document.getElementById("shop-modal-title").innerText = "Edit Vendor Credentials";
+            document.getElementById("modal-shop-id").value = shopId;
+            document.getElementById("modal-shop-name").value = name;
+            document.getElementById("modal-shop-category").value = category;
+            document.getElementById("modal-shop-commission").value = commission;
+            document.getElementById("modal-shop-password").value = password;
             document.getElementById("modal-shop-image-file").value = "";
             document.getElementById("shop-modal").style.display = "flex";
         }
@@ -3154,6 +3376,7 @@
         }
 
         function saveShopCategory() {
+            const id = document.getElementById("modal-shop-id").value;
             const name = document.getElementById("modal-shop-name").value.trim();
             const category = document.getElementById("modal-shop-category").value.trim().toUpperCase();
             const commission = document.getElementById("modal-shop-commission").value;
@@ -3174,9 +3397,13 @@
                 formData.append("shop_image", imageFile);
             }
             
-            showAestheticToast("Creating exclusive shop category...", "info");
+            const isEdit = id ? true : false;
+            const url = isEdit ? `/api/admin/shops/${id}/update` : '/api/admin/shops/add';
+            const text = isEdit ? "Updating exclusive shop credentials..." : "Creating exclusive shop category...";
             
-            fetch('/api/admin/shops/add', {
+            showAestheticToast(text, "info");
+            
+            fetch(url, {
                 method: 'POST',
                 body: formData
             })
@@ -3191,8 +3418,69 @@
                 }
             })
             .catch(err => {
-                console.error("Error adding category:", err);
-                showAestheticToast("Failed to create category.", "error");
+                console.error("Error saving category:", err);
+                showAestheticToast("Failed to save shop category.", "error");
+            });
+        }
+
+        // Delivery Partner Modal Helpers
+        function openAddDeliveryModal() {
+            document.getElementById("delivery-modal-title").innerText = "Add New Delivery Partner";
+            document.getElementById("modal-delivery-id").value = "";
+            document.getElementById("modal-delivery-name").value = "";
+            document.getElementById("modal-delivery-phone").value = "";
+            document.getElementById("modal-delivery-password").value = "";
+            document.getElementById("delivery-modal").style.display = "flex";
+        }
+
+        function openEditDeliveryModal(riderId, name, phone, password) {
+            document.getElementById("delivery-modal-title").innerText = "Edit Delivery Partner Credentials";
+            document.getElementById("modal-delivery-id").value = riderId;
+            document.getElementById("modal-delivery-name").value = name;
+            document.getElementById("modal-delivery-phone").value = phone;
+            document.getElementById("modal-delivery-password").value = password;
+            document.getElementById("delivery-modal").style.display = "flex";
+        }
+
+        function closeDeliveryModal() {
+            document.getElementById("delivery-modal").style.display = "none";
+        }
+
+        function saveDeliveryPartner() {
+            const id = document.getElementById("modal-delivery-id").value;
+            const name = document.getElementById("modal-delivery-name").value.trim();
+            const phone = document.getElementById("modal-delivery-phone").value.trim().replace(/ /g, '').replace(/-/g, '');
+            const password = document.getElementById("modal-delivery-password").value.trim();
+            
+            if (!name || !phone || !password) {
+                showAestheticToast("Rider Name, Phone Number, and Password are required.", "error");
+                return;
+            }
+            
+            const isEdit = id ? true : false;
+            const url = isEdit ? `/api/admin/delivery/${id}/update` : '/api/admin/delivery/add';
+            const text = isEdit ? "Updating delivery partner credentials..." : "Adding new delivery partner...";
+            
+            showAestheticToast(text, "info");
+            
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, phone: phone, password: password })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    showAestheticToast(data.error, "error");
+                } else {
+                    showAestheticToast(data.message, "success");
+                    closeDeliveryModal();
+                    loadAllAnalytics(false);
+                }
+            })
+            .catch(err => {
+                console.error("Error saving delivery partner:", err);
+                showAestheticToast("Failed to save delivery partner.", "error");
             });
         }
 

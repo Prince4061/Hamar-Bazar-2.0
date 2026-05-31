@@ -20,7 +20,10 @@ def init_db():
         phone TEXT UNIQUE NOT NULL,
         address TEXT NOT NULL,
         profile_pic TEXT,
-        password TEXT
+        password TEXT,
+        is_blocked INTEGER DEFAULT 0,
+        is_suspicious INTEGER DEFAULT 0,
+        suspicion_reasons TEXT
     )
     ''')
     
@@ -32,6 +35,21 @@ def init_db():
         
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN password TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN is_blocked INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass # Already exists
+
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN is_suspicious INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass # Already exists
+
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN suspicion_reasons TEXT")
     except sqlite3.OperationalError:
         pass # Already exists
     
@@ -66,9 +84,16 @@ def init_db():
         phone TEXT UNIQUE NOT NULL,
         active_orders INTEGER DEFAULT 0,
         availability_status TEXT DEFAULT 'online',
-        cooldown_until TIMESTAMP NULL
+        cooldown_until TIMESTAMP NULL,
+        password TEXT
     )
     ''')
+
+    try:
+        cursor.execute("ALTER TABLE delivery_partners ADD COLUMN password TEXT")
+    except sqlite3.OperationalError:
+        pass
+
     
     # 5. Orders Table (State Machine Master)
     cursor.execute('''
@@ -261,15 +286,15 @@ def seed_db():
             
     # Seed Delivery Partners
     partners_data = [
-        ('Rahul Rider', '9000000001', 0, 'online'),
-        ('Amit Express', '9000000002', 0, 'online'),
-        ('Vicky Speedster', '9000000003', 0, 'offline')
+        ('Rahul Rider', '9000000001', 0, 'online', 'password123'),
+        ('Amit Express', '9000000002', 0, 'online', 'password123'),
+        ('Vicky Speedster', '9000000003', 0, 'offline', 'password123')
     ]
     for partner in partners_data:
         try:
-            cursor.execute('INSERT INTO delivery_partners (name, phone, active_orders, availability_status) VALUES (?, ?, ?, ?)', partner)
+            cursor.execute('INSERT INTO delivery_partners (name, phone, active_orders, availability_status, password) VALUES (?, ?, ?, ?, ?)', partner)
         except sqlite3.IntegrityError:
-            pass
+            cursor.execute('UPDATE delivery_partners SET password = ? WHERE phone = ?', ('password123', partner[1]))
             
     conn.commit()
     conn.close()
