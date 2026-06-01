@@ -1684,27 +1684,30 @@ body.theme-customer .app-container {
 .search-bar-container {
     display: flex;
     align-items: center;
-    background: #f1f5f9;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-    padding: 2px 2px 2px 14px;
+    background: #ffffff;
+    border-radius: 32px; /* Large rounded bubble shape */
+    border: 2.5px solid var(--border-color); /* Premium slightly thicker border */
+    padding: 4px 4px 4px 20px;
     width: 100%;
-    max-width: 440px;
-    transition: var(--transition-fast);
+    max-width: 100% !important; /* Stretch full-width as requested! */
+    height: 52px; /* Bigger vertical height! */
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
 }
 .search-bar-container:focus-within {
     background: #ffffff;
     border-color: var(--primary-accent);
-    box-shadow: 0 0 0 3px var(--primary-glow);
+    box-shadow: 0 8px 24px rgba(111, 44, 244, 0.12), 0 0 0 4px var(--primary-glow);
+    transform: scale(1.02); /* Pop out bubbly scale! */
 }
 .search-bar-input {
     flex: 1;
     border: none;
     outline: none;
     background: transparent;
-    font-size: 0.95rem;
+    font-size: 1rem; /* Slightly larger, more readable font size */
     color: var(--text-primary);
-    font-weight: 500;
+    font-weight: 600;
     width: 100%;
 }
 .search-bar-button {
@@ -1712,17 +1715,19 @@ body.theme-customer .app-container {
     color: #ffffff;
     border: none;
     outline: none;
-    width: 36px;
-    height: 36px;
-    border-radius: var(--radius-sm);
+    width: 44px; /* Larger circular button! */
+    height: 44px;
+    border-radius: 50%; /* Perfect bubble circle! */
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: var(--transition-fast);
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 10px rgba(111, 44, 244, 0.15);
 }
 .search-bar-button:hover {
     background: var(--primary-accent-hover);
+    transform: scale(1.1) rotate(5deg);
 }
 
 /* Nav Actions */
@@ -1798,15 +1803,16 @@ body.theme-customer .app-container {
 
 /* Hero Banner Layout */
 .hamar-hero-banner {
-    background: linear-gradient(135deg, #f2faf4 0%, #fffbeb 100%);
-    border-radius: var(--radius-xl);
+    background: linear-gradient(135deg, #e0e7ff 0%, #f0fdf4 50%, #fef3c7 100%); /* Bright playful candy gradient */
+    border-radius: 24px;
     padding: 32px 48px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(44, 160, 44, 0.08);
+    border: 2px solid rgba(111, 44, 244, 0.06);
+    box-shadow: 0 8px 24px rgba(111, 44, 244, 0.04);
 }
 .hamar-hero-left {
     flex: 1.2;
@@ -1867,85 +1873,138 @@ body.theme-customer .app-container {
     max-height: 240px;
     object-fit: contain;
     z-index: 2;
+    mix-blend-mode: multiply; /* Blends out white background from rider image */
     animation: floatAnimation 4s ease-in-out infinite;
 }
 
 /* Category Cards Redesign */
 .hamar-category-card {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: space-between;
-    padding: 24px;
-    border-radius: var(--radius-lg);
-    border: 1px solid transparent;
-    transition: var(--transition-bounce);
-    cursor: pointer;
-    position: relative;
-    height: 190px;
-    overflow: hidden;
-    text-align: left;
-}
-.hamar-category-card:hover {
-    transform: translateY(-6px);
-    box-shadow: var(--shadow-md);
+    display: flex !important;
+    flex-direction: row !important; /* Horizontally aligned text and image */
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 12px 18px !important;
+    border-radius: 24px !important; /* Bubbly card shape */
+    border: 2px solid transparent !important;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important; /* Spring transition! */
+    cursor: pointer !important;
+    position: relative !important;
+    height: 90px !important; /* Compact unified height */
+    overflow: hidden !important;
+    text-align: left !important;
 }
 
+/* Glowing Neon Bouncy Hover states for kids view */
 .category-card-kirana {
-    background: #f0fdf4; /* Very light green tint */
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
     border-color: rgba(34, 197, 94, 0.15);
+    box-shadow: 0 8px 16px rgba(34, 197, 94, 0.05);
 }
+.category-card-kirana:hover {
+    transform: translateY(-6px) scale(1.03) rotate(0.5deg) !important;
+    box-shadow: 0 16px 32px rgba(34, 197, 94, 0.22);
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
 .category-card-cakes {
-    background: #fdf2f8; /* Very light pink tint */
+    background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
     border-color: rgba(236, 72, 153, 0.15);
+    box-shadow: 0 8px 16px rgba(236, 72, 153, 0.05);
 }
+.category-card-cakes:hover {
+    transform: translateY(-6px) scale(1.03) rotate(-0.5deg) !important;
+    box-shadow: 0 16px 32px rgba(236, 72, 153, 0.22);
+    border-color: rgba(236, 72, 153, 0.3);
+}
+
 .category-card-veggies {
-    background: #fffbeb; /* Very light orange/yellow tint */
+    background: linear-gradient(135deg, #fffbeb 0%, #fef9c3 100%);
     border-color: rgba(245, 158, 11, 0.15);
+    box-shadow: 0 8px 16px rgba(245, 158, 11, 0.05);
 }
+.category-card-veggies:hover {
+    transform: translateY(-6px) scale(1.03) rotate(0.5deg) !important;
+    box-shadow: 0 16px 32px rgba(245, 158, 11, 0.22);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
 .category-card-electronics {
-    background: #eff6ff; /* Very light blue tint */
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
     border-color: rgba(59, 130, 246, 0.15);
+    box-shadow: 0 8px 16px rgba(59, 130, 246, 0.05);
+}
+.category-card-electronics:hover {
+    transform: translateY(-6px) scale(1.03) rotate(-0.5deg) !important;
+    box-shadow: 0 16px 32px rgba(59, 130, 246, 0.22);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.category-card-pharmacy {
+    background: linear-gradient(135deg, #fff1f2 0%, #fff1f2 100%);
+    border-color: rgba(244, 63, 94, 0.12);
+    box-shadow: 0 8px 16px rgba(244, 63, 94, 0.05);
+}
+.category-card-pharmacy:hover {
+    transform: translateY(-8px) scale(1.05) rotate(1.2deg);
+    box-shadow: 0 16px 32px rgba(244, 63, 94, 0.22);
+    border-color: rgba(244, 63, 94, 0.3);
+}
+
+.category-card-tech {
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    border-color: rgba(168, 85, 247, 0.15);
+    box-shadow: 0 8px 16px rgba(168, 85, 247, 0.05);
+}
+.category-card-tech:hover {
+    transform: translateY(-6px) scale(1.03) rotate(-0.5deg) !important;
+    box-shadow: 0 16px 32px rgba(168, 85, 247, 0.22);
+    border-color: rgba(168, 85, 247, 0.3);
+}
+.category-card-tech .hamar-category-img {
+    position: static !important;
+    width: 60px !important;
+    height: 60px !important;
+    opacity: 0.98 !important;
+    margin-left: auto !important;
 }
 
 .hamar-category-title {
-    font-size: 1.15rem;
+    font-size: 1.15rem !important; /* Extra clear bold font size */
     font-weight: 800;
     color: var(--text-primary);
-    margin-bottom: 2px;
+    margin: 0;
 }
-.hamar-category-desc {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    font-weight: 500;
+
+/* Cute Soft Candy Pills */
+.kid-tag {
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 20px;
+    display: inline-block;
+    letter-spacing: 0.1px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.01);
 }
-.hamar-category-action {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ffffff;
-    transition: var(--transition-fast);
-}
-.category-card-kirana .hamar-category-action { background: #22c55e; }
-.category-card-cakes .hamar-category-action { background: #ec4899; }
-.category-card-veggies .hamar-category-action { background: #eab308; }
-.category-card-electronics .hamar-category-action { background: #3b82f6; }
+.kirana-tag { background: rgba(34, 197, 94, 0.12); color: #166534; }
+.cakes-tag { background: rgba(236, 72, 153, 0.12); color: #9d174d; }
+.veggies-tag { background: rgba(245, 158, 11, 0.12); color: #854d0e; }
+.electronics-tag { background: rgba(59, 130, 246, 0.12); color: #1e40af; }
+.pharmacy-tag { background: rgba(244, 63, 94, 0.12); color: #9f1239; }
+.tech-tag { background: rgba(168, 85, 247, 0.12); color: #581c87; }
 
 .hamar-category-img {
-    position: absolute;
-    right: 12px;
-    bottom: 12px;
-    width: 90px;
-    height: 90px;
-    object-fit: contain;
-    opacity: 0.95;
-    transition: var(--transition-bounce);
+    position: static !important;
+    width: 60px !important;
+    height: 60px !important;
+    object-fit: contain !important;
+    opacity: 0.98 !important;
+    margin-left: auto !important; /* Push image to far right */
+    mix-blend-mode: multiply !important; /* Blends white image background out, making it transparent */
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
 }
 .hamar-category-card:hover .hamar-category-img {
-    transform: scale(1.1) rotate(-3deg);
+    transform: scale(1.15) rotate(-3deg) !important;
 }
 
 /* Recommended Section Grid & Carousel */
@@ -2245,7 +2304,7 @@ body.theme-customer .app-container {
         width: 100%;
     }
     .category-grid {
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+        grid-template-columns: repeat(2, 1fr) !important;
         gap: 16px !important;
     }
 }
@@ -2266,24 +2325,35 @@ body.theme-customer .app-container {
         margin-right: -16px;
     }
     .hamar-logo-text {
-        display: none !important; /* Hide HamarBazaar logo text on mobile */
+        display: inline-block !important; /* Show brand name next to icon on mobile! */
+        font-weight: 800;
+        font-size: 1.1rem !important;
     }
     .hamar-logo-icon {
         width: 32px;
         height: 32px;
     }
     .location-widget {
-        max-width: 145px;
-        padding: 4px 6px !important;
+        max-width: 180px !important;
+        padding: 6px 10px !important;
         gap: 4px !important;
+        background: #f1f5f9 !important; /* Soft grey premium capsule */
+        border: none !important;
+        border-radius: 20px !important;
     }
     .location-val {
-        font-size: 0.8rem !important;
+        font-size: 0.78rem !important;
+        font-weight: 800 !important; /* Bold address selector font */
+        color: var(--text-primary) !important;
         display: flex !important;
         align-items: center !important;
+        gap: 2px !important;
     }
     .location-name-text {
-        max-width: 70px !important;
+        max-width: 100px !important; /* Expand max-width to let Model Town render fully */
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
     .location-pin-container {
         width: 28px !important;
@@ -2749,12 +2819,12 @@ body.theme-customer .app-container {
     display: flex;
     justify-content: center;
     background: rgba(241, 245, 249, 0.95);
-    border: 1px solid var(--border-color);
+    border: 2px solid var(--border-color);
     border-radius: 50px;
-    padding: 6px;
+    padding: 4px;
     max-width: 480px;
-    margin: 0 auto 32px auto;
-    box-shadow: var(--shadow-soft);
+    margin: 0 auto 24px auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
     backdrop-filter: blur(10px);
 }
 
@@ -2764,38 +2834,47 @@ body.theme-customer .app-container {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 12px 24px;
+    padding: 10px 20px;
     border-radius: 40px;
     border: none;
     background: transparent;
-    font-size: 0.95rem;
-    font-weight: 700;
+    font-size: 0.9rem;
+    font-weight: 800; /* Extra bold text for kid readability */
     color: var(--text-secondary);
     cursor: pointer;
-    transition: var(--transition-fast);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Candy bouncy pop! */
 }
 
 .store-switch-btn i {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     stroke-width: 2.5;
+    transition: transform 0.2s ease;
 }
 
 .store-switch-btn:hover {
     color: var(--text-primary);
 }
 
-/* Active States */
+/* Tactile Active Candy capsule states */
 .store-switch-btn.active#btn-switch-grocery {
-    background: #ffffff;
-    color: var(--primary-accent);
-    box-shadow: 0 4px 12px rgba(111, 44, 244, 0.08);
+    background: var(--primary-accent);
+    color: #ffffff; /* Contrast text */
+    transform: scale(1.05); /* Pop out! */
+    box-shadow: 0 8px 20px rgba(111, 44, 244, 0.3);
+}
+.store-switch-btn.active#btn-switch-grocery i {
+    transform: scale(1.15) rotate(5deg);
 }
 
 .store-switch-btn.active#btn-switch-pharmacy {
-    background: #ffffff;
-    color: #e11d48; /* Crimson red/rose accent for medical pharmacy store */
-    box-shadow: 0 4px 12px rgba(225, 29, 72, 0.08);
+    background: #e11d48;
+    color: #ffffff; /* Contrast text */
+    transform: scale(1.05); /* Pop out! */
+    box-shadow: 0 8px 20px rgba(225, 29, 72, 0.3);
+}
+.store-switch-btn.active#btn-switch-pharmacy i {
+    transform: scale(1.15) rotate(-5deg);
 }
 
 /* Pharmacy View layout wrapper */
@@ -2917,6 +2996,67 @@ body.theme-customer .app-container {
 /* Storefront Page Toggle */
 .hidden-storefront {
     display: none !important;
+}
+
+/* Kid-Friendly Bouncy Slide-Up Bottom Sheet Drawer */
+.drawer-overlay {
+    transition: opacity 0.3s ease;
+}
+.bouncy-drawer {
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: #ffffff !important;
+    border-top: 6px solid var(--primary-accent) !important;
+    border-radius: 36px 36px 0 0 !important; /* Extremely round bubbly top sheet corners */
+    box-shadow: 0 -16px 40px rgba(15, 23, 42, 0.18) !important;
+    z-index: 2000 !important;
+    max-height: 75vh !important;
+    overflow-y: auto !important;
+    padding: 24px 20px !important;
+    margin: 0 !important;
+    display: none;
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s ease; /* Organic bouncy pop! */
+}
+.bouncy-drawer.show {
+    display: block !important;
+    transform: translateY(0);
+}
+
+/* Beautiful custom kids-focused product cards rendering inside shelf */
+.bouncy-drawer .product-card {
+    background: #f8fafc !important;
+    border: 2px solid var(--border-color) !important;
+    border-radius: 24px !important; /* Bubbly card shape */
+    padding: 16px !important;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+.bouncy-drawer .product-card:hover {
+    border-color: var(--primary-accent) !important;
+    transform: translateY(-4px) scale(1.03) !important;
+    box-shadow: 0 12px 24px rgba(111, 44, 244, 0.08) !important;
+}
+
+/* Bigger plus/minus click bubbles for child-friendly touch target sizing */
+.bouncy-drawer .btn-circle {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 1.2rem !important;
+    border-radius: 50% !important;
+    font-weight: 800 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06) !important;
+}
+.bouncy-drawer .btn-secondary {
+    border-radius: 24px !important;
+    font-weight: 800 !important;
+    padding: 10px !important;
+    font-size: 0.95rem !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04) !important;
 }
 
 

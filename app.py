@@ -314,6 +314,8 @@ def staff_login():
                 identifier = 'ELECTRONICS'
             elif norm_id in ['pharmacy', 'medicine', 'medicines', 'chemist', 'medical', '5']:
                 identifier = 'PHARMACY'
+            elif norm_id in ['tech', 'gadgets', 'accessories', 'hub', '6']:
+                identifier = 'TECH'
 
             # Check if vendor identifier exists
             shop = None
@@ -1423,7 +1425,7 @@ def get_admin_analytics():
     cat_rows = cursor.fetchall()
     category_demand = {row['category']: row['count'] for row in cat_rows}
     # Ensure all categories are present
-    for cat in ['KIRANA', 'VEGGIES', 'CAKES', 'ELECTRONICS']:
+    for cat in ['KIRANA', 'VEGGIES', 'CAKES', 'ELECTRONICS', 'PHARMACY', 'TECH']:
         if cat not in category_demand:
             category_demand[cat] = 0
 
@@ -2178,4 +2180,4 @@ def export_customer_search_pdf(cust_id):
     )
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5001)

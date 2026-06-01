@@ -230,16 +230,17 @@ def seed_db():
     # Seed Shops
     shops_data = [
         ('Apna Bazaar (Kirana & General)', 'KIRANA', 5.0, 'password123', '/static/images/grocery_basket.png'),
-        ('The Bakers Table (Premium Cakes)', 'CAKES', 8.0, 'password123', '/static/images/cake_category.png'),
+        ('Apna Cakes & Bakery', 'CAKES', 6.0, 'password123', '/static/images/cake_category.png'),
         ('Fresh & Green Vegetables', 'VEGGIES', 4.0, 'password123', '/static/images/veggies_category.png'),
         ('ElectroWorld Solutions', 'ELECTRONICS', 10.0, 'password123', '/static/images/electronics_category.png'),
-        ('City Medicos & Pharmacy', 'PHARMACY', 7.0, 'password123', '/static/images/pharmacy_category.png')
+        ('City Medicos & Pharmacy', 'PHARMACY', 7.0, 'password123', '/static/images/pharmacy_category.png'),
+        ('Hamar Tech Hub (Gadgets & Accessories)', 'TECH', 8.0, 'password123', '/static/images/tech_category.png')
     ]
     for shop in shops_data:
         try:
             cursor.execute('INSERT INTO shops (shop_name, category, commission_pct, password, image_path) VALUES (?, ?, ?, ?, ?)', shop)
         except sqlite3.IntegrityError:
-            cursor.execute('UPDATE shops SET password = ?, image_path = ? WHERE category = ?', (shop[3], shop[4], shop[1]))
+            cursor.execute('UPDATE shops SET shop_name = ?, password = ?, image_path = ? WHERE category = ?', (shop[0], shop[3], shop[4], shop[1]))
             
     conn.commit()
     
@@ -255,11 +256,12 @@ def seed_db():
         (shop_ids['KIRANA'], 'Lays Classic 52g', 20.0),
         (shop_ids['KIRANA'], 'Amul Butter 100g', 55.0),
         (shop_ids['KIRANA'], 'Colgate Toothpaste 100g', 32.0),
-        # Cakes
+        # Cakes & Bakery
         (shop_ids['CAKES'], 'Chocolate Truffle Cake 500g', 450.0),
-        (shop_ids['CAKES'], 'Red Velvet Cake 500g', 500.0),
-        (shop_ids['CAKES'], 'Sparkling Candles Pack', 35.0),
-        (shop_ids['CAKES'], 'Birthday Cap Premium', 25.0),
+        (shop_ids['CAKES'], 'Pineapple Cream Cake 500g', 350.0),
+        (shop_ids['CAKES'], 'Fresh Fruit Cake 500g', 499.0),
+        (shop_ids['CAKES'], 'Red Velvet Pastry 1pc', 80.0),
+        (shop_ids['CAKES'], 'Vanilla Cupcake 1pc', 50.0),
         # Veggies
         (shop_ids['VEGGIES'], 'Potato 1kg', 30.0),
         (shop_ids['VEGGIES'], 'Tomato 1kg', 40.0),
@@ -271,6 +273,11 @@ def seed_db():
         (shop_ids['ELECTRONICS'], 'Wired Earphones with Mic', 250.0),
         (shop_ids['ELECTRONICS'], 'AA Duracell Battery 4pc', 120.0),
         (shop_ids['ELECTRONICS'], 'Smart WiFi Plug 16A', 599.0),
+        # Tech (Gadgets & Accessories)
+        (shop_ids['TECH'], 'Wireless Bluetooth Earbuds', 999.0),
+        (shop_ids['TECH'], 'Smart Fitness Tracker Smartwatch', 1499.0),
+        (shop_ids['TECH'], 'Multi-Angle Phone Stand', 199.0),
+        (shop_ids['TECH'], 'Rechargeable LED Desk Lamp', 499.0),
         # Pharmacy
         (shop_ids['PHARMACY'], 'Crocin Advance 500mg', 20.0, 'Pain Relief'),
         (shop_ids['PHARMACY'], 'Dolo 650mg', 30.0, 'Pain Relief'),

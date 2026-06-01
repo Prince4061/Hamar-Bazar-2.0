@@ -1,613 +1,706 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<!-- Custom Header / Top Desktop Nav -->
-<header class="hamar-header">
-    <a href="/customer" class="hamar-logo-section" style="display: flex; align-items: center; gap: 8px;">
-        <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" style="height: 36px; width: 36px; object-fit: cover; border-radius: var(--radius-sm);">
-        <span class="hamar-logo-text"><span style="color: var(--primary-accent)">Hamar</span><span style="color: var(--text-primary)">Bazaar</span></span>
-    </a>
-    
-    <!-- Location Selector Widget -->
-    <div class="location-widget" onclick="alert('Location updates can be simulated by typing in the Delivering to widget.')">
-        <div class="location-pin-container">
-            <i data-lucide="map-pin" style="width: 16px; height: 16px;"></i>
-        </div>
-        <div class="location-text">
-            <span class="location-lbl">Delivery in</span>
-            <span class="location-val"><span class="location-name-text">Model Town, Delhi</span> <i data-lucide="chevron-down" style="width: 14px; height: 14px; stroke-width: 3;"></i></span>
-        </div>
-    </div>
-    
-    <!-- Product Search with Integrated Mic -->
-    <div class="search-bar-container">
-        <input type="text" id="search-input" class="search-bar-input" placeholder="Search for products..." oninput="handleSearch(this.value)" onkeydown="if(event.key === 'Enter') triggerSearch()">
-        <button class="voice-mic-btn-inline" id="mic-btn" onclick="startVoiceInput()" title="Smart Voice Ordering" style="border: none; background: transparent; cursor: pointer; color: var(--text-secondary); margin-right: 10px; display: flex; align-items: center; transition: var(--transition-bounce);">
-            <i data-lucide="mic" style="width: 18px; height: 18px;"></i>
-        </button>
-        <button class="search-bar-button" onclick="triggerSearch()">
-            <i data-lucide="search" style="width: 18px; height: 18px;"></i>
-        </button>
-    </div>
-    
-    <!-- Action Options -->
-    <div class="hamar-nav-links">
-        <a class="hamar-nav-link" onclick="toggleOrdersHistoryModal()">
-            <i data-lucide="file-text"></i>
-            <span>Orders</span>
+<style>
+/* Reset outer layouts for customer page to ensure full viewport locking */
+html, body {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+}
+
+.app-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    display: block !important;
+    gap: 0 !important;
+    animation: none !important;
+    overflow: hidden !important;
+}
+
+/* Hide duplicate base.html bottom nav bar */
+.mobile-bottom-nav {
+    display: none !important;
+}
+
+/* Custom Styles for Mobile App Shell and Bottom Navigation */
+.mobile-app-shell {
+    width: 100%;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-main);
+    position: relative;
+    overflow: hidden;
+}
+
+.app-mobile-header {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    z-index: 10;
+}
+
+.mobile-app-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px 80px 16px !important; /* Compact styling with safe bottom padding */
+    scrollbar-width: none;
+}
+.mobile-app-body::-webkit-scrollbar {
+    display: none;
+}
+
+/* Tab screens */
+.app-screen {
+    display: none;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.app-screen.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Bottom Navigation Bar */
+.bottom-nav-bar {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 64px !important; /* Premium capsule height */
+    background: rgba(255, 255, 255, 0.96) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(226, 232, 240, 0.8);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000 !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+.bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    gap: 4px;
+    transition: var(--transition-fast);
+    padding: 6px 10px;
+    border-radius: 12px;
+}
+
+.bottom-nav-item i {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2.2;
+    transition: transform 0.2s ease;
+}
+
+.bottom-nav-item:hover, .bottom-nav-item.active {
+    color: var(--primary-accent);
+}
+
+.bottom-nav-item.active i {
+    transform: scale(1.1);
+    stroke-width: 2.5;
+}
+
+.cart-icon-wrapper .badge {
+    position: absolute;
+    top: -5px;
+    right: -8px;
+    background: var(--primary-accent);
+    color: white;
+    font-size: 0.62rem;
+    font-weight: 800;
+    border-radius: 50%;
+    width: 15px;
+    height: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.keyword-chip {
+    background: var(--primary-light);
+    color: var(--primary-accent);
+    border: 1px solid rgba(111, 44, 244, 0.15);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+.keyword-chip:hover {
+    background: var(--primary-accent);
+    color: white;
+}
+
+/* Timeline vertical overrides */
+.timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: relative;
+    padding-left: 24px;
+}
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: var(--border-color);
+    z-index: 1;
+}
+
+.timeline-step {
+    position: relative;
+    z-index: 2;
+    padding-bottom: 8px;
+}
+.timeline-dot {
+    position: absolute;
+    left: -24px;
+    top: 5px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    border: 3px solid #f8fafc;
+    z-index: 3;
+    transition: var(--transition-fast);
+}
+
+.timeline-step.active .timeline-dot {
+    background: var(--primary-accent);
+    box-shadow: 0 0 0 4px var(--primary-glow);
+}
+.timeline-step.completed .timeline-dot {
+    background: var(--emerald-green);
+}
+
+.timeline-step.active .timeline-title {
+    color: var(--primary-accent);
+}
+.timeline-step.completed .timeline-title {
+    color: var(--emerald-green);
+}
+
+/* Responsive Adaptive Desktop Device view */
+@media (min-width: 769px) {
+    body {
+        background: radial-gradient(circle at top left, var(--primary-light), transparent 60%), #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        overflow: hidden;
+    }
+    .app-container {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 100vh !important;
+        width: 100% !important;
+        padding: 0 !important;
+    }
+    .hamar-header {
+        display: none !important;
+    }
+    .mobile-app-shell {
+        width: 412px;
+        height: 840px;
+        max-height: 92vh;
+        border: 10px solid #0f172a;
+        border-radius: 42px;
+        box-shadow: 0 30px 60px -15px rgba(15, 23, 42, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+        overflow: hidden;
+    }
+    .bottom-nav-bar {
+        position: absolute;
+    }
+}
+</style>
+
+
+<div class="mobile-app-shell">
+    <!-- App Mobile Header -->
+    <header class="app-mobile-header">
+        <a href="/customer" class="hamar-logo-section" style="display: flex; align-items: center; gap: 8px;">
+            <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" style="height: 32px; width: 32px; object-fit: cover; border-radius: var(--radius-sm);">
+            <span class="hamar-logo-text" style="font-size: 1.15rem; font-weight: 800;"><span style="color: var(--primary-accent)">Hamar</span><span style="color: var(--text-primary)">Bazaar</span></span>
         </a>
+    </header>
+
+    <div class="mobile-app-body">
         
-        <!-- Profile Dropdown -->
-        <div class="hamar-nav-profile" onclick="toggleDropdown(event, 'profile-dropdown')">
-            <img src="{% if session.get('profile_pic') %}{{ session.get('profile_pic') }}{% else %}https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80{% endif %}" alt="Profile" class="profile-avatar" id="navbar-profile-avatar" style="object-fit: cover;">
-            <span class="hamar-profile-name" style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 4px;"><span id="customer-navbar-name">{{ session.get('name', 'Alice') }}</span> <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: var(--text-secondary);"></i></span>
-            <div class="glass-dropdown" id="profile-dropdown" style="display: none; right: 32px; top: 60px; width: 190px;" onclick="event.stopPropagation();">
-                <a href="#" onclick="openProfileAndFocus('name', event)"><i data-lucide="user" class="icon-inline"></i> Update Name</a>
-                <a href="#" onclick="openProfileAndFocus('address', event)"><i data-lucide="map-pin" class="icon-inline"></i> Update Address</a>
-                <a href="#" onclick="openProfileAndFocus('password', event)"><i data-lucide="lock" class="icon-inline"></i> Update Password</a>
-                <a href="#" onclick="triggerAvatarUploadFromDropdown(event)"><i data-lucide="image" class="icon-inline"></i> Change Avatar</a>
-                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 6px 0;">
-                <a href="/session/logout" style="color: var(--ruby-danger);"><i data-lucide="log-out" class="icon-inline"></i> Logout</a>
+        <!-- ==================== SCREEN 1: HOME (EXPLORE) ==================== -->
+        <div id="screen-home" class="app-screen active">
+            <!-- Active order notification quickcard -->
+            <div id="home-active-order-quickcard" class="glass-card mb-md" style="display: none; border-left: 5px solid var(--primary-accent); padding: 16px; cursor: pointer; margin-bottom: 16px;" onclick="switchTab('orders')">
+                <div class="flex-between">
+                    <span style="font-weight: 800; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; color: var(--text-primary);"><i data-lucide="truck" style="width:16px; height:16px; color: var(--primary-accent);"></i> Active Order is Running</span>
+                    <span class="badge badge-status-pending" style="font-size: 0.65rem; padding: 2px 6px; background: var(--primary-light); color: var(--primary-accent);">TRACK LIVE</span>
+                </div>
             </div>
-        </div>
-        
-        <!-- Cart Action -->
-        <a class="hamar-nav-link" onclick="scrollToCart()" style="position: relative;">
-            <i data-lucide="shopping-cart"></i>
-            <span>Cart</span>
-            <span class="badge" id="header-cart-badge" style="position: absolute; top: -6px; right: -6px; background: var(--primary-accent); color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800;">0</span>
-        </a>
-    </div>
-</header>
 
-<!-- Speech Notification Status -->
-<div id="voice-status-toast" style="display:none; position: fixed; top: 85px; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 10px 20px; border-radius: 30px; font-size: 0.85rem; font-weight: 700; z-index: 1001; box-shadow: var(--shadow-float); align-items: center; gap: 8px;">
-    <span class="timeline-dot" style="position:relative; display:inline-block; background: var(--ruby-danger); width: 8px; height: 8px; border-radius: 50%; animation: pulseRing 1s infinite;"></span>
-    <span id="voice-status-text">Listening...</span>
-</div>
-
-<!-- Page Main Grid -->
-<div class="shop-section" style="padding-top: 24px;">
-    
-    <!-- Left Column: Banner, Categories, Recommended -->
-    <div class="shop-left-col">
-        <!-- ACTIVE ORDER TRACKER TIMELINE (CUST-004) -->
-        <div id="active-order-container" class="glass-card mb-md" style="display: none; border: 2px solid var(--primary-accent); box-shadow: var(--shadow-float);">
-            <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; display: flex; align-items: center;">
-                <span style="font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 6px;"><i data-lucide="package" class="icon-inline" style="margin: 0;"></i> Active Order <span id="tracking-order-id" class="text-accent">#--</span></span>
-                <span id="tracking-order-status" class="badge badge-status-pending">PENDING</span>
-            </div>
-            
-            <div class="timeline">
-                <div id="step-pending" class="timeline-step">
-                    <div class="timeline-dot"></div>
-                    <div class="timeline-title">Order Placed</div>
-                    <div class="timeline-time">Waiting for shop acceptance</div>
-                </div>
-                <div id="step-accepted" class="timeline-step">
-                    <div class="timeline-dot"></div>
-                    <div class="timeline-title">Accepted by Shop</div>
-                    <div class="timeline-time">Vendor preparing items</div>
-                </div>
-                <div id="step-ready" class="timeline-step">
-                    <div class="timeline-dot"></div>
-                    <div class="timeline-title">Packed & Ready</div>
-                    <div class="timeline-time">Awaiting delivery partner pickup</div>
-                </div>
-                <div id="step-out" class="timeline-step">
-                    <div class="timeline-dot"></div>
-                    <div class="timeline-title">Out for Delivery</div>
-                    <div class="timeline-time">Rider carrying your parcel</div>
-                </div>
-                <div id="step-delivered" class="timeline-step">
-                    <div class="timeline-dot"></div>
-                    <div class="timeline-title">Delivered</div>
-                    <div class="timeline-time">Enjoy your fresh purchase!</div>
-                </div>
-            </div>
-            
-            <div id="delivery-info-section" style="margin-top: 24px; padding-top: 20px; border-top: 2px dashed var(--border-color); display: none; background: #f8fafc; border-radius: var(--radius-md); padding: 16px;">
-                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
-                    <div style="width: 48px; height: 48px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; color: var(--primary-accent);"><i data-lucide="bike" style="width: 24px; height: 24px;"></i></div>
-                    <div>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 2px;">Delivery Partner Assigned</p>
-                        <p style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary);"><span id="rider-name">राहुल</span> • <span id="rider-phone" style="color: var(--primary-accent);">9000000001</span></p>
-                    </div>
-                </div>
-                <div style="background: rgba(16, 185, 129, 0.1); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid rgba(16, 185, 129, 0.2); display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: 600; color: var(--text-secondary);">Delivery Verification OTP</span>
-                    <span id="delivery-otp-display" style="font-size: 1.5rem; font-weight: 800; color: var(--emerald-green); letter-spacing: 4px;">----</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- MOBILE SEARCH BAR (Visible only on mobile/tablet) -->
-        <div class="mobile-search-wrapper" style="display: none; margin-bottom: 24px; width: 100%;">
-            <div class="search-bar-container" style="display: flex; max-width: 100%; width: 100%; background: #ffffff; box-shadow: var(--shadow-soft);">
-                <input type="text" id="search-input-mobile" class="search-bar-input" placeholder="Search for products..." oninput="handleSearch(this.value)" onkeydown="if(event.key === 'Enter') triggerSearch()">
-                <button class="voice-mic-btn-inline" id="mic-btn-mobile" onclick="startVoiceInput()" title="Smart Voice Ordering" style="border: none; background: transparent; cursor: pointer; color: var(--text-secondary); margin-right: 10px; display: flex; align-items: center; transition: var(--transition-bounce);">
-                    <i data-lucide="mic" style="width: 18px; height: 18px;"></i>
+            <!-- standalone search input with clear action -->
+            <div class="search-bar-container" style="margin-bottom: 16px;">
+                <input type="text" id="search-input-standalone" class="search-bar-input" placeholder="Chips, Cake, Milk search karein... 🔍" oninput="handleSearch(this.value)" onkeydown="if(event.key === 'Enter') triggerSearch()" style="flex: 1; border: none; padding: 12px 16px; font-size: 0.95rem; outline: none; background: transparent;">
+                <button id="clear-search-btn" onclick="clearHomeSearch()" style="display: none; border: none; background: transparent; cursor: pointer; color: var(--text-secondary); padding: 8px; align-items: center; justify-content: center; margin-right: 8px;">
+                    <i data-lucide="x" style="width: 18px; height: 18px;"></i>
                 </button>
                 <button class="search-bar-button" onclick="triggerSearch()">
                     <i data-lucide="search" style="width: 18px; height: 18px;"></i>
                 </button>
             </div>
-        </div>
+            
 
-        <!-- STORE SWITCHER (GROCERY VS PHARMACY) -->
-        <div class="store-switcher-container fade-in-up">
-            <button class="store-switch-btn active" id="btn-switch-grocery" onclick="showStorePage('grocery')">
-                <i data-lucide="shopping-bag"></i> Grocery Market
-            </button>
-            <button class="store-switch-btn" id="btn-switch-pharmacy" onclick="showStorePage('pharmacy')">
-                <i data-lucide="pill"></i> Pharmacy Hub
-            </button>
-        </div>
 
-        <!-- GROCERY STOREFRONT WRAPPER -->
-        <div id="grocery-storefront-wrapper">
-            <!-- HERO BANNER -->
-            <div class="hamar-hero-banner mb-md">
-                <div class="hamar-hero-left">
-                    <div class="hamar-hero-title">Sab kuch, paas hi paas.</div>
-                    <div class="hamar-hero-subtitle" style="margin-top: -12px;"><span style="color: var(--primary-accent)">30–45 min</span> mein aapke ghar.</div>
-                    
-                    <div class="hamar-hero-badges-row">
-                        <div class="hamar-hero-badge">
-                            <i data-lucide="store"></i> Exclusive Local Shops
-                        </div>
-                        <div class="hamar-hero-badge">
-                            <i data-lucide="clock"></i> 30–45 min Delivery
-                        </div>
-                        <div class="hamar-hero-badge">
-                            <i data-lucide="shield-check"></i> Trusted & Verified
-                        </div>
-                    </div>
-                    
-                    <!-- Dots indicators -->
-                    <div style="display: flex; gap: 6px; margin-top: 8px;">
-                        <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--primary-accent);"></span>
-                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1;"></span>
-                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1;"></span>
-                    </div>
-                </div>
-                
-                <div class="hamar-hero-right">
-                    <img src="{{ url_for('static', filename='images/delivery_scooter.png') }}" class="hamar-hero-rider-img" alt="Rider">
-                    <!-- Phone Frame Decor -->
-                    <div class="hero-phone-decor">
-                        <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
-                            <span style="font-size:0.65rem; font-weight:800; color:var(--primary-accent);">ETA</span>
-                            <span style="font-size:0.65rem; font-weight:800; color: var(--text-secondary);">30-45 min</span>
-                        </div>
-                        <div style="flex:1; background:#f8fafc; margin: 4px 0; border-radius: 4px; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;">
-                            <svg viewBox="0 0 100 100" style="width:100%; height:100%; stroke:var(--primary-accent); stroke-width:3; fill:none; opacity: 0.8;">
-                                <path d="M 10 90 Q 50 80 50 50 T 90 10" />
-                                <circle cx="10" cy="90" r="5" fill="#e11d48"/>
-                                <circle cx="90" cy="10" r="5" fill="var(--primary-accent)"/>
-                            </svg>
-                            <i data-lucide="map-pin" style="position: absolute; top: 10px; right: 10px; color: var(--primary-accent); fill: var(--primary-accent); width: 14px; height: 14px;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- CATEGORIES GRID -->
-            <div class="hamar-section-header">
-                <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary);">Shop by Category</h3>
-                <a class="cart-edit-link" onclick="alert('Viewing all categories simulated.')" style="font-size: 0.9rem; display: flex; align-items: center; gap: 4px;">View all shops <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i></a>
-            </div>
-            <div class="category-grid" id="homepage-category-grid">
-                <!-- Loaded dynamically via JS -->
-            </div>
-
-            <!-- DYNAMIC PRODUCTS EXPANDABLE SHELF -->
-            <div class="glass-card mt-md" id="shop-products-panel" style="display: none; border-color: var(--primary-accent);">
-                <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px;">
-                    <div>
-                        <h3 id="current-shop-name" style="font-size: 1.25rem; font-weight: 800;">Shop Name</h3>
-                        <span id="current-shop-badge" class="badge badge-normal text-accent" style="background: var(--primary-light); margin-top: 4px; display: inline-block;">Exclusive Partner</span>
-                    </div>
-                    <button class="btn btn-secondary" onclick="closeShopShelf()" style="width: auto; padding: 8px 16px; border-radius: var(--radius-sm);">Close Shelf</button>
-                </div>
-                <div class="products-grid" id="products-container">
+            <!-- Search Results section directly on Home screen -->
+            <div id="search-results-section" style="display: none; border-top: 1px solid var(--border-color); padding-top: 16px; text-align: left; margin-bottom: 24px;">
+                <h4 id="search-results-title" style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin-bottom: 16px;">Search Results</h4>
+                <div class="products-grid" id="search-products-grid">
                     <!-- Loaded dynamically via JS -->
                 </div>
             </div>
 
-            <!-- RECOMMENDED FOR YOU SHELF -->
-            <div class="hamar-section-header">
-                <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary);">Recommended for You</h3>
-                <a class="cart-edit-link" onclick="alert('Showing all recommendations')">See all</a>
-            </div>
-            <div class="hamar-carousel-wrapper">
-                <button class="carousel-btn-arrow carousel-btn-left" onclick="slideCarousel(-1)"><i data-lucide="chevron-left" style="width: 18px; height: 18px;"></i></button>
-                <div id="recommended-products-container" class="products-grid" style="width: 100%; overflow-x: auto; scroll-behavior: smooth; display: grid; grid-auto-flow: column; grid-auto-columns: 200px; gap: 16px; padding: 4px 4px 16px 4px; scrollbar-width: none;">
-                    <!-- Preloaded dynamically on DOMContentLoaded -->
+            <div id="home-default-storefronts">
+                <!-- Store Switcher (Grocery vs Pharmacy) -->
+                <div class="store-switcher-container fade-in-up" style="margin-top: 0; margin-bottom: 20px;">
+                    <button class="store-switch-btn active" id="btn-switch-grocery" onclick="showStorePage('grocery')">
+                        <i data-lucide="shopping-bag"></i> Daily Need & Tech 🛍️
+                    </button>
+                    <button class="store-switch-btn" id="btn-switch-pharmacy" onclick="showStorePage('pharmacy')">
+                        <i data-lucide="pill"></i> Dawaiyan 💊
+                    </button>
                 </div>
-                <button class="carousel-btn-arrow carousel-btn-right" onclick="slideCarousel(1)"><i data-lucide="chevron-right" style="width: 18px; height: 18px;"></i></button>
-            </div>
-        </div>
 
-        <!-- PHARMACY STOREFRONT WRAPPER -->
-        <div id="pharmacy-storefront-wrapper" class="hidden-storefront pharmacy-container">
-            <!-- PHARMACY HERO BANNER -->
-            <div class="hamar-hero-banner mb-md" style="background: radial-gradient(circle at 50% 0%, #ffffff 0%, #ffe4e6 100%);">
-                <div class="hamar-hero-left">
-                    <div class="hamar-hero-title" style="color: #9f1239;">Hamar Pharmacy Hub</div>
-                    <div class="hamar-hero-subtitle" style="margin-top: -12px;"><span style="color: #e11d48">Safe & Certified</span> medicines in 30 min.</div>
-                    
-                    <div class="hamar-hero-badges-row" style="margin-top: 20px;">
-                        <div class="hamar-hero-badge" style="background: rgba(225, 29, 72, 0.1); color: #e11d48; font-weight: 700;">
-                            <i data-lucide="shield-check"></i> 100% Genuine Medicines
+                <!-- Grocery Storefront Wrapper -->
+                <div id="grocery-storefront-wrapper">
+                    <!-- Sleek, Compact Hero Banner -->
+                    <div class="hamar-hero-banner mb-md" style="padding: 12px 20px; min-height: auto; margin-bottom: 16px;">
+                        <div class="hamar-hero-left" style="gap: 4px;">
+                            <div class="hamar-hero-title" style="font-size: 1.15rem; font-weight: 800; line-height: 1.2;">Sab kuch, paas hi paas.</div>
+                            <div class="hamar-hero-subtitle" style="font-size: 0.95rem; margin-top: 0; font-weight: 700;"><span style="color: var(--primary-accent)">30–45 min</span> mein aapke ghar.</div>
                         </div>
-                        <div class="hamar-hero-badge" style="background: rgba(225, 29, 72, 0.1); color: #e11d48; font-weight: 700;">
-                            <i data-lucide="award"></i> Certified Pharmacists
+                        <div class="hamar-hero-right" style="flex: 0.4; display: flex; justify-content: flex-end;">
+                            <img src="{{ url_for('static', filename='images/delivery_scooter.png') }}" class="hamar-hero-rider-img" alt="Rider" style="max-height: 64px; margin: 0;">
                         </div>
                     </div>
-                </div>
-                <div class="hamar-hero-right" style="display: flex; align-items: center; justify-content: center;">
-                    <div style="background: #ffe4e6; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #e11d48;">
-                        <i data-lucide="pill" style="width: 50px; height: 50px; stroke-width: 2;"></i>
-                    </div>
-                </div>
-            </div>
 
-            <!-- MEDICAL ALERT BANNER -->
-            <div class="medical-alert-banner fade-in-up" style="margin-top: -12px;">
-                <i data-lucide="alert-triangle" style="stroke-width: 2.5;"></i>
-                <div>
-                    <span style="display:block; font-size:0.95rem; font-weight:800; margin-bottom:2px; color: #9f1239;">Important Medical Disclaimer</span>
-                    Consult a qualified physician before using scheduled drugs. Our delivery rider will verify medication details upon delivery.
-                </div>
-            </div>
+                    <!-- Categories Grid -->
+                    <div class="hamar-section-header">
+                        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">Shop by Category</h3>
+                    </div>
+                    <div class="category-grid" id="homepage-category-grid">
+                        <!-- Loaded dynamically via JS -->
+                    </div>
 
-            <!-- PRESCRIPTION UPLOAD CARD -->
-            <div class="glass-card fade-in-up" style="border-color: rgba(225, 29, 72, 0.15); background: #fffcfc; padding: 24px; margin-top: -12px;">
-                <div class="card-header-row" style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
-                    <div>
-                        <h4 style="font-size: 1.1rem; font-weight: 800; color: #9f1239; display: flex; align-items: center; gap: 6px;"><i data-lucide="image-plus" style="color: #e11d48;"></i> Upload Medicine / Prescription Image</h4>
-                        <span style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; display: block;">Send us a photo of your prescription or medicine box.</span>
-                    </div>
-                </div>
-                
-                <!-- Upload selector dropzone -->
-                <div onclick="document.getElementById('pharmacy-upload-input').click()" style="border: 2px dashed rgba(225, 29, 72, 0.3); background: rgba(225, 29, 72, 0.02); border-radius: var(--radius-lg); padding: 32px; text-align: center; cursor: pointer; transition: var(--transition-fast);" onmouseover="this.style.background='rgba(225, 29, 72, 0.05)'" onmouseout="this.style.background='rgba(225, 29, 72, 0.02)'">
-                    <input type="file" id="pharmacy-upload-input" accept="image/*" style="display: none;" onchange="handlePharmacyFileSelected(this)">
-                    <i data-lucide="upload-cloud" style="width: 40px; height: 40px; color: #e11d48; margin-bottom: 12px; display: inline-block;"></i>
-                    <p style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 4px;">Click to select or drop image here</p>
-                    <p style="font-size: 0.75rem; color: var(--text-muted);">Supports JPG, PNG, WEBP, GIF up to 5MB</p>
-                </div>
-                
-                <!-- Preview area -->
-                <div id="pharmacy-upload-preview-container" style="display: none; margin-top: 16px; padding: 16px; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); text-align: center;">
-                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px; font-weight: 600;">Selected Image Preview:</p>
-                    <img id="pharmacy-upload-preview-img" src="" alt="Selected Prescription" style="max-height: 200px; max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain;">
-                    <div style="display: flex; gap: 12px; justify-content: center; margin-top: 12px;">
-                        <button class="btn btn-secondary" style="width: auto; padding: 8px 16px; margin: 0; border-radius: var(--radius-sm);" onclick="cancelPharmacyUpload()">Cancel</button>
-                        <button class="btn" style="width: auto; padding: 8px 16px; margin: 0; background: #e11d48; color: white; border-radius: var(--radius-sm);" onclick="submitPharmacyPrescription()">Upload to Admin</button>
-                    </div>
-                </div>
-                
-                <!-- History Feed -->
-                <div style="margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 20px;">
-                    <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;"><i data-lucide="history" style="width: 16px; height: 16px; color: var(--text-secondary);"></i> Uploaded Medicines History</h5>
-                    <div id="pharmacy-upload-history-list" style="display: flex; flex-direction: column; gap: 10px;">
-                        <!-- Loaded dynamically -->
-                    </div>
-                </div>
-            </div>
+                    <!-- Drawer Dimming Backdrop Overlay -->
+                    <div id="shop-products-overlay" class="drawer-overlay" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.35); backdrop-filter: blur(3px); z-index: 1999; border-radius: 42px;" onclick="closeShopShelf()"></div>
 
-            <!-- PHARMACY SUBCATEGORIES GRID -->
-            <div class="hamar-section-header">
-                <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary);">Shop Medicines by Need</h3>
-            </div>
-            <div class="pharmacy-category-grid" id="pharmacy-subcategory-grid">
-                <div class="pharmacy-category-card pain" onclick="selectPharmacySubcategory('Pain Relief')">
-                    <div>
-                        <div class="pharmacy-category-title">Pain Relief</div>
-                        <div class="pharmacy-category-desc">Fever, headache, muscular pain</div>
+                    <!-- Product Bouncy Drawer Sheet -->
+                    <div id="shop-products-panel" class="bouncy-drawer">
+                        <div class="flex-between mb-sm" style="border-bottom: 2px solid var(--border-color); padding-bottom: 14px; margin-bottom: 20px; align-items: center;">
+                            <div>
+                                <h3 id="current-shop-name" style="font-size: 1.35rem; font-weight: 900; color: var(--primary-accent); margin: 0; font-family: 'Outfit', sans-serif;">Shop Name</h3>
+                            </div>
+                            <button onclick="closeShopShelf()" style="width: 40px; height: 40px; border-radius: 50%; font-size: 1rem; display: flex; align-items: center; justify-content: center; background: #ffe4e6; color: #e11d48; border: none; box-shadow: 0 4px 10px rgba(225, 29, 72, 0.15); cursor: pointer; transition: all 0.2s ease;">❌</button>
+                        </div>
+                        <div class="products-grid" id="products-container">
+                            <!-- Loaded dynamically via JS -->
+                        </div>
                     </div>
-                    <div class="pharmacy-category-icon-box">
-                        <i data-lucide="flame"></i>
-                    </div>
-                </div>
-                <div class="pharmacy-category-card cold" onclick="selectPharmacySubcategory('Cold & Cough')">
-                    <div>
-                        <div class="pharmacy-category-title">Cold & Cough</div>
-                        <div class="pharmacy-category-desc">Sore throat, flu, congestion</div>
-                    </div>
-                    <div class="pharmacy-category-icon-box">
-                        <i data-lucide="thermometer"></i>
-                    </div>
-                </div>
-                <div class="pharmacy-category-card vitamins" onclick="selectPharmacySubcategory('Vitamins')">
-                    <div>
-                        <div class="pharmacy-category-title">Vitamins</div>
-                        <div class="pharmacy-category-desc">Daily immunity & supplements</div>
-                    </div>
-                    <div class="pharmacy-category-icon-box">
-                        <i data-lucide="sparkles"></i>
-                    </div>
-                </div>
-                <div class="pharmacy-category-card firstaid" onclick="selectPharmacySubcategory('First Aid')">
-                    <div>
-                        <div class="pharmacy-category-title">First Aid & Care</div>
-                        <div class="pharmacy-category-desc">Dressing, antiseptic, bandages</div>
-                    </div>
-                    <div class="pharmacy-category-icon-box">
-                        <i data-lucide="activity"></i>
-                    </div>
-                </div>
-                <div class="pharmacy-category-card hygiene" onclick="selectPharmacySubcategory('Hygiene')">
-                    <div>
-                        <div class="pharmacy-category-title">Hygiene & Care</div>
-                        <div class="pharmacy-category-desc">Sanitizers, handwash, personal care</div>
-                    </div>
-                    <div class="pharmacy-category-icon-box">
-                        <i data-lucide="shield"></i>
-                    </div>
-                </div>
-            </div>
 
-            <!-- PHARMACY DYNAMIC PRODUCTS SHELF -->
-            <div class="glass-card mt-md" id="pharmacy-products-panel" style="display: none; border-color: #e11d48; background: #fffcfc;">
-                <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px;">
-                    <div>
-                        <h3 id="current-pharmacy-subcat-name" style="font-size: 1.25rem; font-weight: 800; color: #9f1239;">Category Name</h3>
-                        <span class="badge text-accent" style="background: #ffe4e6; color: #e11d48; margin-top: 4px; display: inline-block;">City Medicos Exclusive Partner</span>
+
+                </div>
+
+                <!-- Pharmacy Storefront Wrapper -->
+                <div id="pharmacy-storefront-wrapper" class="hidden-storefront pharmacy-container">
+                    <!-- Pharmacy Hero Banner -->
+                    <div class="hamar-hero-banner mb-md" style="background: radial-gradient(circle at 50% 0%, #ffffff 0%, #ffe4e6 100%);">
+                        <div class="hamar-hero-left">
+                            <div class="hamar-hero-title" style="color: #9f1239; font-size: 1.25rem;">Hamar Pharmacy Hub</div>
+                            <div class="hamar-hero-subtitle" style="margin-top: -12px;"><span style="color: #e11d48">Safe & Certified</span> medicines in 30 min.</div>
+                        </div>
+                        <div class="hamar-hero-right" style="display: flex; align-items: center; justify-content: center;">
+                            <div style="background: #ffe4e6; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #e11d48;">
+                                <i data-lucide="pill" style="width: 32px; height: 32px; stroke-width: 2;"></i>
+                            </div>
+                        </div>
                     </div>
-                    <button class="btn btn-secondary" onclick="closePharmacyShelf()" style="width: auto; padding: 8px 16px; border-radius: var(--radius-sm);">Close Shelf</button>
+
+                    <!-- Prescription Upload Card -->
+                    <div class="glass-card fade-in-up" style="border-color: rgba(225, 29, 72, 0.15); background: #fffcfc; padding: 16px; margin-top: -12px; margin-bottom: 16px;">
+                        <h4 style="font-size: 0.95rem; font-weight: 800; color: #9f1239; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;"><i data-lucide="image-plus" style="color: #e11d48; width:16px; height:16px;"></i> Upload Prescription / Medicine Image</h4>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 10px; display: block;">Send us a photo of your prescription or medicine box.</span>
+                        
+                        <div onclick="document.getElementById('pharmacy-upload-input').click()" style="border: 2px dashed rgba(225, 29, 72, 0.3); background: rgba(225, 29, 72, 0.02); border-radius: var(--radius-md); padding: 24px; text-align: center; cursor: pointer;">
+                            <input type="file" id="pharmacy-upload-input" accept="image/*" style="display: none;" onchange="handlePharmacyFileSelected(this)">
+                            <i data-lucide="upload-cloud" style="width: 36px; height: 36px; color: #e11d48; margin-bottom: 8px; display: inline-block;"></i>
+                            <p style="font-weight: 700; font-size: 0.82rem; color: var(--text-primary); margin-bottom: 2px;">Click to select or drop image here</p>
+                        </div>
+                        
+                        <div id="pharmacy-upload-preview-container" style="display: none; margin-top: 12px; padding: 12px; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-sm); text-align: center;">
+                            <img id="pharmacy-upload-preview-img" src="" alt="Selected Prescription" style="max-height: 150px; max-width: 100%; border-radius: var(--radius-sm); object-fit: contain;">
+                            <div style="display: flex; gap: 8px; justify-content: center; margin-top: 8px;">
+                                <button class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 0.75rem;" onclick="cancelPharmacyUpload()">Cancel</button>
+                                <button class="btn" style="width: auto; padding: 6px 12px; font-size: 0.75rem; background: #e11d48; color: white;" onclick="submitPharmacyPrescription()">Upload to Admin</button>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+                            <h5 style="font-size: 0.85rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">Uploaded Medicines History</h5>
+                            <div id="pharmacy-upload-history-list" style="display: flex; flex-direction: column; gap: 8px;">
+                                <!-- Loaded dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Subcategories Grid -->
+                    <div class="hamar-section-header">
+                        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">Shop Medicines by Need</h3>
+                    </div>
+                    <div class="pharmacy-category-grid" id="pharmacy-subcategory-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                        <div class="pharmacy-category-card pain" onclick="selectPharmacySubcategory('Pain Relief')" style="padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div class="pharmacy-category-title" style="font-size: 0.9rem;">Pain Relief</div>
+                            </div>
+                            <i data-lucide="flame" style="width: 18px; height: 18px; color: #e11d48;"></i>
+                        </div>
+                        <div class="pharmacy-category-card cold" onclick="selectPharmacySubcategory('Cold & Cough')" style="padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div class="pharmacy-category-title" style="font-size: 0.9rem;">Cold & Cough</div>
+                            </div>
+                            <i data-lucide="thermometer" style="width: 18px; height: 18px; color: #e11d48;"></i>
+                        </div>
+                        <div class="pharmacy-category-card vitamins" onclick="selectPharmacySubcategory('Vitamins')" style="padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div class="pharmacy-category-title" style="font-size: 0.9rem;">Vitamins</div>
+                            </div>
+                            <i data-lucide="sparkles" style="width: 18px; height: 18px; color: #e11d48;"></i>
+                        </div>
+                        <div class="pharmacy-category-card firstaid" onclick="selectPharmacySubcategory('First Aid')" style="padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div class="pharmacy-category-title" style="font-size: 0.9rem;">First Aid</div>
+                            </div>
+                            <i data-lucide="activity" style="width: 18px; height: 18px; color: #e11d48;"></i>
+                        </div>
+                    </div>
+
+                    <!-- Pharmacy Dynamic Products Panel -->
+                    <div class="glass-card mt-md" id="pharmacy-products-panel" style="display: none; border-color: #e11d48; background: #fffcfc; padding: 16px; margin-top: 16px;">
+                        <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+                            <h3 id="current-pharmacy-subcat-name" style="font-size: 1.1rem; font-weight: 800; color: #9f1239;">Category Name</h3>
+                            <button class="btn btn-secondary" onclick="closePharmacyShelf()" style="width: auto; padding: 6px 12px; font-size: 0.8rem;">Close</button>
+                        </div>
+                        <div class="products-grid" id="pharmacy-products-container">
+                            <!-- Loaded dynamically via JS -->
+                        </div>
+                    </div>
                 </div>
-                <div class="products-grid" id="pharmacy-products-container">
-                    <!-- Loaded dynamically via JS -->
-                </div>
+
+
             </div>
         </div>
 
-        <!-- TRUST BADGES FOOTER -->
-        <div class="trust-footer-container">
-            <div class="trust-badge">
-                <div class="trust-icon-box">
-                    <i data-lucide="rotate-ccw"></i>
-                </div>
-                <div>
-                    <div class="trust-badge-title">7 Days Return</div>
-                    <div class="trust-badge-desc">Easy return & refund</div>
-                </div>
-            </div>
-            <div class="trust-badge">
-                <div class="trust-icon-box">
-                    <i data-lucide="shield-check"></i>
-                </div>
-                <div>
-                    <div class="trust-badge-title">Secure Payments</div>
-                    <div class="trust-badge-desc">100% secure payments</div>
-                </div>
-            </div>
-            <div class="trust-badge">
-                <div class="trust-icon-box">
-                    <i data-lucide="map-pin"></i>
-                </div>
-                <div>
-                    <div class="trust-badge-title">Live Tracking</div>
-                    <div class="trust-badge-desc">Track your order live</div>
-                </div>
-            </div>
-            <div class="trust-badge">
-                <div class="trust-icon-box">
-                    <i data-lucide="help-circle"></i>
-                </div>
-                <div>
-                    <div class="trust-badge-title">Help & Support</div>
-                    <div class="trust-badge-desc">24x7 customer support</div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Right Column: Cart, Delivering Address, Payment -->
-    <div class="hamar-sidebar">
-        <!-- MY PROFILE CARD -->
-        <div class="glass-card" style="padding: 20px; text-align: left; margin-bottom: 20px;" id="profile-summary-card">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <div style="position: relative; width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 2px solid var(--primary-accent); box-shadow: var(--shadow-soft);">
-                    <img id="sidebar-profile-avatar" src="{% if session.get('profile_pic') %}{{ session.get('profile_pic') }}{% else %}https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80{% endif %}" alt="Profile Avatar" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div style="flex: 1; min-width: 0;">
-                    <h4 style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="sidebar-customer-name">{{ session.get('name', 'Alice') }}</h4>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-top: 2px;"><i data-lucide="phone" class="icon-inline" style="width: 12px; height: 12px; margin-right: 4px;"></i> <span id="sidebar-customer-phone-display">Loading...</span></span>
-                </div>
-                <button class="btn btn-secondary" style="width: auto; padding: 8px 12px; font-size: 0.8rem; border-radius: var(--radius-sm); margin: 0; display: inline-flex; align-items: center; gap: 4px;" onclick="toggleProfileModal(event)">
-                    <i data-lucide="settings" style="width: 14px; height: 14px;"></i> Edit
-                </button>
-            </div>
-        </div>
+        <!-- ==================== SCREEN 3: CART ==================== -->
+        <div id="screen-cart" class="app-screen">
+            <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 16px; color: var(--text-primary); text-align: left;">Mera Bag</h3>
 
-        <!-- CART CARD -->
-        <div class="glass-card" style="padding: 24px; text-align: left;" id="cart-card-workspace">
-            <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
-                <h3 style="font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px; color: var(--text-primary);"><i data-lucide="shopping-bag" style="width: 18px; height: 18px; color: var(--primary-accent);"></i> Your Cart (<span id="cart-count">3</span>)</h3>
-                <a class="cart-edit-link" id="cart-edit-btn" onclick="toggleCartEdit()">Edit</a>
-            </div>
-            
-            <div id="cart-items-container" style="display: flex; flex-direction: column; gap: 12px;">
-                <!-- Dynamic cart listing -->
-            </div>
-            
-            <!-- SMART SUGGESTION BOX (INT-001) -->
-            <div id="recommendation-box" style="display: none; background: #f0fdf4; border: 1px solid rgba(44, 160, 44, 0.15); padding: 16px; margin-top: 16px; border-radius: var(--radius-md);">
-                <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-                    <i data-lucide="sparkles" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--primary-accent);"></i>
-                    <span style="font-size: 0.8rem; color: var(--primary-accent); font-weight: 800; text-transform: uppercase;">AI Suggestion</span>
-                </div>
-                <div class="flex-between">
-                    <div>
-                        <span id="rec-item-name" style="font-weight: 700; font-size: 0.95rem;">Butter</span>
-                        <span id="rec-item-price" style="font-size: 0.85rem; color: var(--text-secondary); display: block;">₹60.0</span>
+            <!-- Delivering to widget -->
+            <div class="address-info-panel" id="address-block-workspace" style="margin-bottom: 16px;">
+                <div class="address-info-detail" style="text-align: left;">
+                    <div class="address-info-header">
+                        <span class="address-lbl">Yahan Deliver Hoga</span>
+                        <span class="address-tag">Ghar</span>
                     </div>
-                    <button class="btn btn-primary" id="rec-add-btn" style="width: auto; padding: 6px 12px; font-size: 0.8rem; border-radius: 20px;">+ Add</button>
+                    <span class="address-txt" id="sidebar-address-display">A-123, Model Town, Delhi - 110009</span>
+                </div>
+                <a class="cart-edit-link" onclick="changeDeliveryAddress()">Change</a>
+            </div>
+
+            <!-- Cart Card Workspace -->
+            <div class="glass-card" style="padding: 16px; text-align: left; margin-bottom: 16px;" id="cart-card-workspace">
+                <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 12px;">
+                    <h4 style="font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 6px; color: var(--text-primary);"><i data-lucide="shopping-bag" style="width: 16px; height: 16px; color: var(--primary-accent);"></i> Bag ke Items (<span id="cart-count">0</span>)</h4>
+                    <a class="cart-edit-link" id="cart-edit-btn" onclick="toggleCartEdit()">Edit</a>
+                </div>
+                
+                <div id="cart-items-container" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Dynamic cart listing -->
+                </div>
+                
+                <!-- Smart AI Suggestion Box -->
+                <div id="recommendation-box" style="display: none; background: #f0fdf4; border: 1px solid rgba(44, 160, 44, 0.15); padding: 12px; margin-top: 12px; border-radius: var(--radius-md);">
+                    <div style="display: flex; gap: 6px; margin-bottom: 4px; align-items: center;">
+                        <i data-lucide="sparkles" style="width: 12px; height: 12px; color: var(--primary-accent);"></i>
+                        <span style="font-size: 0.7rem; color: var(--primary-accent); font-weight: 800; text-transform: uppercase;">AI Suggestion</span>
+                    </div>
+                    <div class="flex-between">
+                        <div>
+                            <span id="rec-item-name" style="font-weight: 700; font-size: 0.85rem;">Butter</span>
+                            <span id="rec-item-price" style="font-size: 0.75rem; color: var(--text-secondary); display: block;">₹60.0</span>
+                        </div>
+                        <button class="btn btn-primary" id="rec-add-btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem; border-radius: 20px;">+ Add</button>
+                    </div>
                 </div>
             </div>
-            
-            <!-- PRICING SUMMARY -->
-            <div id="cart-summary-section" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px; display: none;">
-                <div class="flex-between mb-sm" style="font-size: 0.9rem;">
-                    <span style="color: var(--text-secondary);">Item Total</span>
+
+            <!-- Payment Options Selection Widget -->
+            <div class="glass-card" style="padding: 16px; text-align: left; margin-bottom: 16px;" id="payment-block-workspace">
+                <h4 style="font-size: 0.9rem; font-weight: 800; color: var(--text-primary); margin-bottom: 10px;">Payment Kaise Karenge?</h4>
+                <div class="payment-options-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                    <input type="hidden" id="payment-input" value="ONLINE">
+                    <button class="payment-option-btn" id="pay-btn-cod" onclick="selectPaymentMode('COD')" style="padding: 10px; font-size: 0.85rem;">
+                        <i data-lucide="wallet" style="width: 14px; height: 14px;"></i> COD
+                    </button>
+                    <button class="payment-option-btn selected" id="pay-btn-online" onclick="selectPaymentMode('ONLINE')" style="padding: 10px; font-size: 0.85rem;">
+                        <i data-lucide="credit-card" style="width: 14px; height: 14px;"></i> Online UPI
+                    </button>
+                </div>
+                
+                <!-- Screenshot upload for online payment -->
+                <div id="payment-screenshot-container" style="margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">Payment Screenshot Upload Karein</label>
+                    <div onclick="document.getElementById('payment-screenshot-input').click()" style="border: 2px dashed var(--primary-accent); background: var(--primary-light); border-radius: var(--radius-sm); padding: 16px; text-align: center; cursor: pointer;">
+                        <input type="file" id="payment-screenshot-input" accept="image/*" style="display: none;" onchange="handlePaymentScreenshotSelected(this)">
+                        <i data-lucide="camera" style="width: 20px; height: 20px; color: var(--primary-accent); margin-bottom: 4px; display: inline-block;"></i>
+                        <p style="font-weight: 700; font-size: 0.75rem; color: var(--text-primary); margin: 0;">Click karke scanner ka screenshot upload karein</p>
+                    </div>
+                    <div id="payment-screenshot-preview" style="display: none; margin-top: 8px; text-align: center;">
+                        <img id="payment-screenshot-img" src="" style="max-width: 100%; max-height: 100px; border-radius: var(--radius-sm); object-fit: contain;">
+                        <p id="payment-screenshot-filename" style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pricing Summary and Checkout Button -->
+            <div id="cart-summary-section" class="glass-card" style="padding: 16px; text-align: left; display: none;">
+                <div class="flex-between mb-sm" style="font-size: 0.85rem;">
+                    <span style="color: var(--text-secondary);">Saman ka Total</span>
                     <span id="cart-subtotal" style="font-weight: 600;">₹0.00</span>
                 </div>
-                <div class="flex-between mb-sm" style="font-size: 0.9rem;">
-                    <span style="color: var(--text-secondary);">Delivery Fee</span>
+                <div class="flex-between mb-sm" style="font-size: 0.85rem;">
+                    <span style="color: var(--text-secondary);">Delivery ka Kharcha</span>
                     <span id="cart-delivery-fee" style="font-weight: 600;">₹15.00</span>
                 </div>
                 
-                <div class="flex-between mt-md" style="font-size: 1.15rem; font-weight: 800; border-top: 2px dashed var(--border-color); padding-top: 12px; color: var(--text-primary);">
-                    <span>To Pay</span>
+                <div class="flex-between mt-md" style="font-size: 1.05rem; font-weight: 800; border-top: 2px dashed var(--border-color); padding-top: 10px; color: var(--text-primary);">
+                    <span>Kul Bhugtan</span>
                     <span id="cart-grandtotal" style="color: var(--primary-accent); font-family: 'Outfit', sans-serif;">₹0.00</span>
                 </div>
                 
-                <!-- Speed Checkbox Hidden Field -->
                 <input type="hidden" name="priority" id="delivery-priority-field" value="NORMAL">
                 <input type="text" id="address-input" style="display: none;" value="A-123, Model Town, Delhi - 110009">
                 
-                <!-- Checkout trigger button -->
-                <button id="checkout-submit-btn" class="btn btn-primary mt-md w-full" style="font-size: 1.05rem; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: var(--radius-md);" onclick="checkoutOrder()">Checkout <i data-lucide="arrow-right" style="width: 16px; height: 16px;"></i></button>
+                <!-- Checkout button -->
+                <button id="checkout-submit-btn" class="btn btn-primary mt-md w-full" style="font-size: 0.95rem; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: var(--radius-md);" onclick="checkoutOrder()">Checkout <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i></button>
                 
-                <div class="cart-promo-badge">
-                    <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i> Free delivery on orders above ₹199
+                <div class="cart-promo-badge" style="font-size: 0.7rem; margin-top: 10px; padding: 6px; justify-content: center; background: var(--primary-light); color: var(--primary-accent); border-radius: var(--radius-sm); border: none;">
+                    <i data-lucide="shield-check" style="width: 12px; height: 12px;"></i> ₹199 se upar ke orders par Delivery bilkul Free!
                 </div>
             </div>
         </div>
 
-        <!-- DELIVERING TO INFO WIDGET -->
-        <div class="address-info-panel" id="address-block-workspace">
-            <div class="address-info-detail">
-                <div class="address-info-header">
-                    <span class="address-lbl">Delivering to</span>
-                    <span class="address-tag">Home</span>
-                </div>
-                <span class="address-txt" id="sidebar-address-display">A-123, Model Town, Delhi - 110009</span>
-            </div>
-            <a class="cart-edit-link" onclick="changeDeliveryAddress()">Change</a>
-        </div>
-
-        <!-- PAYMENT OPTIONS SELECTION WIDGET -->
-        <div class="glass-card" style="padding: 20px; text-align: left;" id="payment-block-workspace">
-            <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 12px;">Payment Options</h4>
-            <div class="payment-options-grid">
-                <input type="hidden" id="payment-input" value="ONLINE">
-                <button class="payment-option-btn" id="pay-btn-cod" onclick="selectPaymentMode('COD')">
-                    <i data-lucide="wallet" style="width: 16px; height: 16px;"></i> COD
+        <!-- ==================== SCREEN 4: ORDERS ==================== -->
+        <div id="screen-orders" class="app-screen">
+            <!-- Screen segment tab switcher -->
+            <div class="store-switcher-container fade-in-up" style="margin-bottom: 20px;">
+                <button class="store-switch-btn active" id="btn-orders-tracking" onclick="switchOrdersSegment('tracking')">
+                    <i data-lucide="truck"></i> Active Tracking
                 </button>
-                <button class="payment-option-btn selected" id="pay-btn-online" onclick="selectPaymentMode('ONLINE')">
-                    <i data-lucide="credit-card" style="width: 16px; height: 16px;"></i> UPI / Online
+                <button class="store-switch-btn" id="btn-orders-history" onclick="switchOrdersSegment('history')">
+                    <i data-lucide="history"></i> Order History
                 </button>
             </div>
-            
-            <!-- Screenshot upload for online payment -->
-            <div id="payment-screenshot-container" style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">Upload Payment Screenshot (Required)</label>
-                <div onclick="document.getElementById('payment-screenshot-input').click()" style="border: 2px dashed var(--primary-accent); background: var(--primary-light); border-radius: var(--radius-md); padding: 16px; text-align: center; cursor: pointer; transition: var(--transition-fast);" onmouseover="this.style.background='rgba(111, 44, 244, 0.08)'" onmouseout="this.style.background='var(--primary-light)'">
-                    <input type="file" id="payment-screenshot-input" accept="image/*" style="display: none;" onchange="handlePaymentScreenshotSelected(this)">
-                    <i data-lucide="camera" style="width: 24px; height: 24px; color: var(--primary-accent); margin-bottom: 6px; display: inline-block;"></i>
-                    <p style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary); margin: 0;">Click to upload screenshot</p>
+
+            <!-- Segment A: Active Order Tracker -->
+            <div id="orders-segment-tracking" style="text-align: left;">
+                <div id="active-order-container" class="glass-card mb-md" style="display: none; border: 2px solid var(--primary-accent); padding: 16px;">
+                    <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+                        <span style="font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 4px;"><i data-lucide="package" style="color: var(--primary-accent); width:18px; height:18px;"></i> Active Order <span id="tracking-order-id" class="text-accent">#--</span></span>
+                        <span id="tracking-order-status" class="badge badge-status-pending">PENDING</span>
+                    </div>
+                    
+                    <div class="timeline" style="margin-top: 12px;">
+                        <div id="step-pending" class="timeline-step">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-title" style="font-size: 0.9rem; font-weight: 700;">Order Placed</div>
+                            <div class="timeline-time" style="font-size: 0.75rem;">Waiting for shop acceptance</div>
+                        </div>
+                        <div id="step-accepted" class="timeline-step">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-title" style="font-size: 0.9rem; font-weight: 700;">Accepted by Shop</div>
+                            <div class="timeline-time" style="font-size: 0.75rem;">Vendor preparing items</div>
+                        </div>
+                        <div id="step-ready" class="timeline-step">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-title" style="font-size: 0.9rem; font-weight: 700;">Packed & Ready</div>
+                            <div class="timeline-time" style="font-size: 0.75rem;">Awaiting delivery partner pickup</div>
+                        </div>
+                        <div id="step-out" class="timeline-step">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-title" style="font-size: 0.9rem; font-weight: 700;">Out for Delivery</div>
+                            <div class="timeline-time" style="font-size: 0.75rem;">Rider carrying your parcel</div>
+                        </div>
+                        <div id="step-delivered" class="timeline-step">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-title" style="font-size: 0.9rem; font-weight: 700;">Delivered</div>
+                            <div class="timeline-time" style="font-size: 0.75rem;">Enjoy your purchase!</div>
+                        </div>
+                    </div>
+                    
+                    <div id="delivery-info-section" style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: var(--radius-md); border-top: 1px dashed var(--border-color); display: none;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                            <div style="width: 36px; height: 36px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; color: var(--primary-accent);"><i data-lucide="bike" style="width: 18px; height: 18px;"></i></div>
+                            <div>
+                                <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0;">Delivery Partner</p>
+                                <p style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); margin: 0;"><span id="rider-name">Rahul</span> • <span id="rider-phone" style="color: var(--primary-accent);">9000000001</span></p>
+                            </div>
+                        </div>
+                        <div style="background: rgba(16, 185, 129, 0.08); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid rgba(16, 185, 129, 0.15); display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">Delivery OTP</span>
+                            <span id="delivery-otp-display" style="font-size: 1.15rem; font-weight: 800; color: var(--emerald-green); letter-spacing: 2px;">----</span>
+                        </div>
+                    </div>
                 </div>
-                <div id="payment-screenshot-preview" style="display: none; margin-top: 12px; text-align: center;">
-                    <img id="payment-screenshot-img" src="" style="max-width: 100%; max-height: 150px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain;">
-                    <p id="payment-screenshot-filename" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></p>
+                
+                <div id="no-active-order-msg" style="text-align: center; padding: 40px 16px; color: var(--text-muted);">
+                    <i data-lucide="package" style="width: 48px; height: 48px; stroke-width: 1.2; color: var(--text-muted); margin-bottom: 12px; display: inline-block;"></i>
+                    <p style="font-weight: 600; font-size: 0.95rem;">No active order running</p>
+                    <p style="font-size: 0.8rem; margin-top: 4px;">Items added to your bag will appear here once checked out.</p>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<!-- MONTHLY INSIGHTS MODAL (REMAINS SUPPORTED) -->
-<div id="expense-modal" class="overlay-modal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">Your Monthly Insights</div>
-        <div class="modal-body">
-            <p style="margin-bottom: 20px; font-size: 0.95rem;">Spending breakdown by category for completed orders.</p>
-            <div id="expense-stats" style="text-align: left; background: #f8fafc; border: 1px solid var(--border-color); padding: 20px; border-radius: var(--radius-md); margin-bottom: 24px;">
-                <!-- Loaded dynamically -->
-            </div>
-            <button class="btn btn-secondary w-full" onclick="toggleExpensesModal()">Close</button>
-        </div>
-    </div>
-</div>
-
-<!-- ORDERS HISTORY MODAL -->
-<div id="orders-history-modal" class="overlay-modal" style="display: none;">
-    <div class="modal-content" style="max-width: 550px;">
-        <div class="modal-header" style="display: flex; align-items: center; gap: 8px;">
-            <i data-lucide="clipboard-list" style="color: var(--primary-accent);"></i>
-            Your Order History
-        </div>
-        <div class="modal-body" style="text-align: left;">
-            <p style="margin-bottom: 20px; font-size: 0.95rem;">View status and details of your hyperlocal orders.</p>
-            <div id="orders-history-list" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; padding-right: 4px;">
-                <!-- Loaded dynamically -->
-            </div>
-            <button class="btn btn-secondary w-full" onclick="toggleOrdersHistoryModal()">Close</button>
-        </div>
-    </div>
-</div>
-
-<!-- PROFILE MODAL -->
-<div id="profile-modal" class="overlay-modal" style="display: none;">
-    <div class="modal-content" style="max-width: 450px;">
-        <div class="modal-header" style="display: flex; align-items: center; gap: 8px;">
-            <i data-lucide="user" style="color: var(--primary-accent);"></i>
-            Edit Profile
-        </div>
-        <div class="modal-body" style="text-align: left;">
-            <div id="profile-error-msg" class="login-error-alert" style="display: none; margin-bottom: 16px;"></div>
-            
-            <!-- Avatar Section -->
-            <div class="profile-modal-avatar-container" style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px; background: #f8fafc; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-                <div style="position: relative; width: 80px; height: 80px; border-radius: 50%; overflow: hidden; border: 2px solid var(--primary-accent); box-shadow: var(--shadow-soft);">
-                    <img id="profile-avatar-preview" src="" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">Profile Picture</span>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="file" id="avatar-file-input" accept="image/*" style="display: none;" onchange="handleAvatarUpload(this)">
-                        <label for="avatar-file-input" class="btn btn-secondary" style="font-size: 0.75rem; padding: 6px 12px; width: auto; margin: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; border-radius: 20px;">
-                            <i data-lucide="upload" style="width: 12px; height: 12px;"></i> Upload
-                        </label>
-                        <button type="button" class="btn" id="btn-remove-avatar" style="font-size: 0.75rem; padding: 6px 12px; width: auto; margin: 0; color: var(--ruby-danger); background: transparent; border: 1px solid var(--ruby-light); border-radius: 20px;" onclick="removeAvatar()">
-                            Remove
-                        </button>
+            <!-- Segment B: Order History -->
+            <div id="orders-segment-history" style="display: none; text-align: left;">
+                <!-- order history list container directly on screen -->
+                <div class="glass-card" style="padding: 16px;">
+                    <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 4px;"><i data-lucide="clipboard-list" style="color: var(--primary-accent); width:16px; height:16px;"></i> Completed Orders</h4>
+                    <div id="orders-history-list" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Dynamic completed orders -->
                     </div>
                 </div>
             </div>
-            
-            <div class="form-group" style="margin-bottom: 16px;">
-                <label class="form-label" style="font-weight: 700; margin-bottom: 6px; display: block; font-size: 0.85rem; color: var(--text-secondary);">Username / Full Name</label>
-                <input type="text" id="profile-name-input" class="form-input-staff" style="width: 100%;" placeholder="Enter your username" required>
-            </div>
-            
-            <div class="form-group" style="margin-bottom: 16px;">
-                <label class="form-label" style="font-weight: 700; margin-bottom: 6px; display: block; font-size: 0.85rem; color: var(--text-secondary);">Mobile Number (Not Editable)</label>
-                <input type="text" id="profile-phone-input" class="form-input-staff" style="width: 100%; background: #f1f5f9; cursor: not-allowed;" readonly>
-            </div>
+        </div>
 
-            <div class="form-group" style="margin-bottom: 16px;">
-                <label class="form-label" style="font-weight: 700; margin-bottom: 6px; display: block; font-size: 0.85rem; color: var(--text-secondary);">Delivery Address</label>
-                <textarea id="profile-address-input" class="form-input-staff" style="width: 100%; height: 80px; resize: none; padding: 12px; font-family: inherit;" placeholder="Enter delivery address" required></textarea>
-            </div>
+        <!-- ==================== SCREEN 5: PROFILE ==================== -->
+        <div id="screen-profile" class="app-screen">
+            <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 16px; color: var(--text-primary); text-align: left;">My Account</h3>
+            
+            <div class="glass-card" style="padding: 16px; text-align: left;">
+                <div id="profile-error-msg" class="login-error-alert" style="display: none; margin-bottom: 12px; font-size: 0.8rem;"></div>
+                
+                <!-- Avatar block -->
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; background: #f8fafc; padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div style="position: relative; width: 64px; height: 64px; border-radius: 50%; overflow: hidden; border: 2px solid var(--primary-accent);">
+                        <img id="profile-avatar-preview" src="" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary);">Profile Picture</span>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <input type="file" id="avatar-file-input" accept="image/*" style="display: none;" onchange="handleAvatarUpload(this)">
+                            <label for="avatar-file-input" class="btn btn-secondary" style="font-size: 0.7rem; padding: 4px 10px; width: auto; margin: 0; cursor: pointer; border-radius: 20px;">
+                                <i data-lucide="upload" style="width: 10px; height: 10px; margin-right: 2px;"></i> Upload
+                            </label>
+                            <button type="button" class="btn" id="btn-remove-avatar" style="font-size: 0.7rem; padding: 4px 10px; width: auto; margin: 0; color: var(--ruby-danger); background: transparent; border: 1px solid var(--ruby-light); border-radius: 20px;" onclick="removeAvatar()">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Profile inputs -->
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Username / Full Name</label>
+                    <input type="text" id="profile-name-input" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem;" placeholder="Enter name" required>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Mobile Number (ReadOnly)</label>
+                    <input type="text" id="profile-phone-input" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem; background: #f1f5f9; cursor: not-allowed;" readonly>
+                </div>
 
-            <div class="form-group" style="margin-bottom: 24px;">
-                <label class="form-label" style="font-weight: 700; margin-bottom: 6px; display: block; font-size: 0.85rem; color: var(--text-secondary);">Password</label>
-                <input type="password" id="profile-password-input" class="form-input-staff" style="width: 100%;" placeholder="Enter your password" required>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Delivery Address</label>
+                    <textarea id="profile-address-input" class="form-input-staff" style="width: 100%; height: 60px; resize: none; padding: 10px; font-size:0.9rem;" placeholder="Enter address" required></textarea>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Password</label>
+                    <input type="password" id="profile-password-input" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem;" placeholder="Enter password" required>
+                </div>
+                
+                <button class="btn btn-primary w-full" style="padding: 10px; font-size: 0.9rem; border-radius: var(--radius-sm);" onclick="saveProfile()">Save Changes</button>
             </div>
             
-            <div style="display: flex; gap: 12px;">
-                <button class="btn btn-secondary" style="flex: 1;" onclick="toggleProfileModal(event)">Cancel</button>
-                <button class="btn btn-primary" style="flex: 2;" onclick="saveProfile()">Save Changes</button>
+            <!-- Quick Log out card -->
+            <div class="glass-card" style="padding: 12px; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; border-color: rgba(239, 68, 68, 0.15); background: #fffcfc;">
+                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">Finish Session</span>
+                <a href="/session/logout" class="btn" style="width: auto; margin: 0; padding: 6px 16px; background: var(--ruby-danger); color: white; font-size: 0.8rem; border-radius: var(--radius-sm); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                    <i data-lucide="log-out" style="width: 12px; height: 12px;"></i> Logout
+                </a>
             </div>
         </div>
+
     </div>
+    
+    <!-- BOTTOM NAV BAR FIXED -->
+    <nav class="bottom-nav-bar">
+        <button class="bottom-nav-item active" onclick="switchTab('home')" id="nav-home">
+            <i data-lucide="home"></i>
+            <span>Bazaar</span>
+        </button>
+        <button class="bottom-nav-item" onclick="switchTab('cart')" id="nav-cart">
+            <div class="cart-icon-wrapper" style="position: relative;">
+                <i data-lucide="shopping-cart"></i>
+                <span class="badge" id="bottom-cart-badge">0</span>
+            </div>
+            <span>Mera Bag</span>
+        </button>
+        <button class="bottom-nav-item" onclick="switchTab('orders')" id="nav-orders">
+            <i data-lucide="clipboard-list"></i>
+            <span>Mere Orders</span>
+        </button>
+        <button class="bottom-nav-item" onclick="switchTab('profile')" id="nav-profile">
+            <i data-lucide="user"></i>
+            <span>Mera Account</span>
+        </button>
+    </nav>
 </div>
+
+<!-- Dummy Hidden Modal Elements left for absolute backward compatibility with any other library calls -->
+<div id="profile-modal" style="display: none;"></div>
+<div id="orders-history-modal" style="display: none;"></div>
+<div id="expense-modal" style="display: none;"></div>
 
 <!-- Client Actions Javascript Logic -->
 <script>
@@ -628,6 +721,83 @@
     // Search Intelligence Tracking States
     let searchTrackTimeout = null;
     let lastTrackedQuery = "";
+
+    // Tab Screen Switcher Function
+    function switchTab(tabId) {
+        document.querySelectorAll(".app-screen").forEach(screen => {
+            screen.classList.remove("active");
+        });
+        const selectedScreen = document.getElementById(`screen-${tabId}`);
+        if (selectedScreen) {
+            selectedScreen.classList.add("active");
+        }
+        
+        document.querySelectorAll(".bottom-nav-item").forEach(item => {
+            item.classList.remove("active");
+        });
+        const activeNavBtn = document.getElementById(`nav-${tabId}`);
+        if (activeNavBtn) {
+            activeNavBtn.classList.add("active");
+        }
+        
+        const appBody = document.querySelector(".mobile-app-body");
+        if (appBody) {
+            appBody.scrollTop = 0;
+        }
+        
+        if (tabId === 'orders') {
+            loadOrdersHistory();
+            loadExpenses();
+            const cachedOrder = localStorage.getItem(`active_order_${customerId}`);
+            const trackerContainer = document.getElementById("active-order-container");
+            const noActiveMsg = document.getElementById("no-active-order-msg");
+            if (cachedOrder) {
+                if (trackerContainer) trackerContainer.style.display = "block";
+                if (noActiveMsg) noActiveMsg.style.display = "none";
+            } else {
+                if (trackerContainer) trackerContainer.style.display = "none";
+                if (noActiveMsg) noActiveMsg.style.display = "block";
+            }
+        } else if (tabId === 'profile') {
+            document.getElementById("profile-name-input").value = document.getElementById("customer-navbar-name") ? document.getElementById("customer-navbar-name").innerText.trim() : "";
+            document.getElementById("profile-phone-input").value = customerPhone;
+            document.getElementById("profile-address-input").value = document.getElementById("sidebar-address-display").innerText.trim();
+            document.getElementById("profile-password-input").value = customerPassword;
+            
+            const defaultAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80";
+            const previewImg = document.getElementById("profile-avatar-preview");
+            const removeBtn = document.getElementById("btn-remove-avatar");
+            if (previewImg) {
+                previewImg.src = customerProfilePic || defaultAvatar;
+            }
+            if (removeBtn) {
+                removeBtn.style.display = customerProfilePic ? "inline-block" : "none";
+            }
+        }
+    }
+
+    // Orders Segment Switcher
+    function switchOrdersSegment(segmentId) {
+        document.getElementById("orders-segment-tracking").style.display = segmentId === 'tracking' ? 'block' : 'none';
+        document.getElementById("orders-segment-history").style.display = segmentId === 'history' ? 'block' : 'none';
+        
+        document.getElementById("btn-orders-tracking").classList.toggle("active", segmentId === 'tracking');
+        document.getElementById("btn-orders-history").classList.toggle("active", segmentId === 'history');
+        
+        if (segmentId === 'history') {
+            loadOrdersHistory();
+            loadExpenses();
+        }
+    }
+
+    // Quick Keyword Search inside search tab
+    function searchKeyword(keyword) {
+        const input = document.getElementById("search-input-standalone");
+        if (input) {
+            input.value = keyword;
+        }
+        handleSearch(keyword);
+    }
 
     // Switch storefront display pages
     function showStorePage(page) {
@@ -668,7 +838,6 @@
         currentPharmacySubcat = subcat;
         document.getElementById("pharmacy-products-panel").style.display = "block";
         document.getElementById("pharmacy-products-panel").classList.add("fade-in-up");
-        document.getElementById("pharmacy-products-panel").scrollIntoView({ behavior: 'smooth' });
         
         // Pharmacy shop is shop ID 5 (City Medicos)
         fetch(`/api/shops/5/products`)
@@ -740,18 +909,26 @@
         const cachedOrder = localStorage.getItem(`active_order_${customerId}`);
         if (cachedOrder) {
             startTracking(JSON.parse(cachedOrder).order_id);
+            // Show active order indicators
+            document.getElementById("home-active-order-quickcard").style.display = "block";
         }
         
         // Auto fill address
         {% for u in users %}
             {% if u.id == active_user_id %}
-                document.getElementById("address-input").value = {{ u.address | tojson }};
-                document.getElementById("sidebar-address-display").innerText = {{ u.address | tojson }};
+                const addressInput = document.getElementById("address-input");
+                if (addressInput) addressInput.value = {{ u.address | tojson }};
+                
+                const addressDisplay = document.getElementById("sidebar-address-display");
+                if (addressDisplay) addressDisplay.innerText = {{ u.address | tojson }};
+                
                 customerPhone = {{ u.phone | tojson }};
                 customerPassword = {{ (u.password or '') | tojson }};
             {% endif %}
         {% endfor %}
-        document.getElementById("sidebar-customer-phone-display").innerText = customerPhone;
+        
+        const phoneDisplay = document.getElementById("sidebar-customer-phone-display");
+        if (phoneDisplay) phoneDisplay.innerText = customerPhone;
         
         // Load cart from cache or start empty
         const cachedCart = localStorage.getItem(`cart_${customerId}`);
@@ -780,10 +957,8 @@
     });
 
     function pollProductsAndCart() {
-        // Poll prescription history if pharmacy hub or history container exists
         loadPrescriptionHistory();
 
-        // 1. Sync category shelf if open
         if (currentShopId) {
             fetch(`/api/shops/${currentShopId}/products`)
                 .then(res => res.json())
@@ -794,7 +969,6 @@
                 .catch(err => console.error("Error polling category products:", err));
         }
 
-        // Sync pharmacy shelf if open (shop ID 5)
         if (currentPharmacySubcat && !currentPharmacySubcat.startsWith('Search:')) {
             fetch(`/api/shops/5/products`)
                 .then(res => res.json())
@@ -805,7 +979,6 @@
                 .catch(err => console.error("Error polling pharmacy products:", err));
         }
 
-        // 2. Sync recommended products (Kirana shop 1)
         fetch(`/api/shops/1/products`)
             .then(res => res.json())
             .then(data => {
@@ -813,7 +986,6 @@
             })
             .catch(err => console.error("Error polling recommended products:", err));
 
-        // 3. Sync cart items with database
         const cartKeys = Object.keys(cart);
         if (cartKeys.length > 0) {
             const productIds = cartKeys.map(Number);
@@ -841,7 +1013,6 @@
                     }
                 });
                 
-                // If any cart products no longer exist in the database, mark them out of stock
                 const returnedIds = new Set(products.map(p => p.id));
                 cartKeys.forEach(id => {
                     if (!returnedIds.has(Number(id))) {
@@ -870,29 +1041,29 @@
                 grid.innerHTML = "";
                 
                 shops.forEach(s => {
-                    if (!s.is_active) return; // Hide disabled shops
+                    if (!s.is_active) return;
+                    if (s.category === 'PHARMACY') return; // Dawaiyan category card removed as it has a dedicated top switcher tab!
+                    if (s.category === 'ELECTRONICS') return; // Bijli ka Saman category card removed as requested!
                     
                     const card = document.createElement("div");
                     const catLower = s.category.toLowerCase();
                     card.className = `hamar-category-card category-card-${catLower}`;
                     card.onclick = () => selectCategory(s.category, s.id);
                     
-                    const label = s.category.charAt(0).toUpperCase() + s.category.slice(1).toLowerCase();
+                    let label = s.category.charAt(0).toUpperCase() + s.category.slice(1).toLowerCase();
                     
-                    let desc = "Exclusive items";
-                    if (s.category === 'KIRANA') desc = "Daily essentials";
-                    else if (s.category === 'CAKES') desc = "Fresh & delicious";
-                    else if (s.category === 'VEGGIES') desc = "Farm fresh";
-                    else if (s.category === 'ELECTRONICS') desc = "Best quality";
+                    if (s.category === 'KIRANA') {
+                        label = "Kirana 🍪";
+                    } else if (s.category === 'CAKES') {
+                        label = "Cakes 🎂";
+                    } else if (s.category === 'VEGGIES') {
+                        label = "Phal & Sabzi 🍎";
+                    } else if (s.category === 'TECH') {
+                        label = "Tech & Laptop 💻";
+                    }
                     
                     card.innerHTML = `
-                        <div>
-                            <div class="hamar-category-title">${label}</div>
-                            <div class="hamar-category-desc">${desc}</div>
-                        </div>
-                        <div class="hamar-category-action">
-                            <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
-                        </div>
+                        <div class="hamar-category-title" style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.2px; line-height: 1.2;">${label}</div>
                         <img src="${s.image_path || '/static/images/grocery_basket.png'}" class="hamar-category-img" alt="${label}">
                     `;
                     grid.appendChild(card);
@@ -905,7 +1076,6 @@
             });
     }
 
-    // Rule-based Recommendation Mapping (INT-001)
     const recRules = {
         'milk': { id: 4, name: 'Amul Butter 100g', price: 55.0 },
         'bread': { id: 4, name: 'Amul Butter 100g', price: 55.0 },
@@ -913,13 +1083,6 @@
         'butter': { id: 5, name: 'Colgate Toothpaste 100g', price: 32.0 },
         'colgate': { id: 1, name: 'Amul Milk 1 Ltr', price: 62.0 }
     };
-
-    // Slides the recommended carousel grid
-    function slideCarousel(dir) {
-        const container = document.getElementById("recommended-products-container");
-        const scrollAmount = 250;
-        container.scrollBy({ left: scrollAmount * dir, behavior: 'smooth' });
-    }
 
     // Toggle Payment selection UI
     let uploadedScreenshotPath = null;
@@ -989,23 +1152,8 @@
         }
     }
 
-    // Scroll helpers
-    function scrollToOrders() {
-        const activeOrder = document.getElementById("active-order-container");
-        if (activeOrder && activeOrder.style.display !== "none") {
-            activeOrder.scrollIntoView({ behavior: 'smooth' });
-        } else {
-            alert("You have no active orders at the moment. Add items to your cart and place an order to track it here!");
-        }
-    }
-    
-    function scrollToCart() {
-        document.getElementById("cart-card-workspace").scrollIntoView({ behavior: 'smooth' });
-    }
-
     // Displays products of selected category inside the shelf
     function selectCategory(category, shopId) {
-        // Toggle active styling
         document.querySelectorAll(".hamar-category-card").forEach((card) => {
             card.style.border = "1px solid transparent";
         });
@@ -1015,9 +1163,15 @@
         }
 
         currentShopId = shopId;
-        document.getElementById("shop-products-panel").style.display = "block";
-        document.getElementById("shop-products-panel").classList.add("fade-in-up");
-        document.getElementById("shop-products-panel").scrollIntoView({ behavior: 'smooth' });
+        
+        // Dynamic bouncy drawer opening
+        const overlay = document.getElementById("shop-products-overlay");
+        const panel = document.getElementById("shop-products-panel");
+        if (overlay) overlay.style.display = "block";
+        if (panel) {
+            panel.style.display = "block";
+            setTimeout(() => panel.classList.add("show"), 10);
+        }
         
         fetch(`/api/shops/${shopId}/products`)
             .then(res => res.json())
@@ -1032,9 +1186,43 @@
 
     // Close category products panel
     function closeShopShelf() {
-        document.getElementById("shop-products-panel").style.display = "none";
+        const overlay = document.getElementById("shop-products-overlay");
+        const panel = document.getElementById("shop-products-panel");
+        if (overlay) overlay.style.display = "none";
+        if (panel) {
+            panel.classList.remove("show");
+            setTimeout(() => { panel.style.display = "none"; }, 300);
+        }
         document.querySelectorAll(".hamar-category-card").forEach(card => card.style.border = "1px solid transparent");
         currentShopId = null;
+    }
+
+    // Modular Product Card Html Builder
+    function buildProductCardHtml(prod) {
+        const qty = cart[prod.id] ? cart[prod.id].quantity : 0;
+        
+        return `
+            <div>
+                ${prod.image_path ? 
+                    `<div style="width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow: hidden; border: 1px solid var(--border-color);">
+                        <img src="${prod.image_path}" alt="${prod.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                     </div>` : 
+                    `<span style="background: #f1f5f9; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--primary-accent); margin-bottom: 8px;"><i data-lucide="package" style="width: 20px; height: 20px;"></i></span>`
+                }
+                <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${prod.name}</h5>
+                <div class="product-price">₹${prod.price.toFixed(2)}</div>
+            </div>
+            <div style="margin-top: 12px;">
+                ${qty === 0 ? 
+                    `<button class="btn btn-secondary w-full" style="padding: 8px; font-size: 0.85rem;" onclick="addToCart(${prod.id}, 1)">Add</button>` :
+                    `<div class="product-qty-controls" style="justify-content: space-between;">
+                        <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem;" onclick="changeQty(${prod.id}, -1)">-</button>
+                        <span style="font-weight:700; font-size: 0.95rem;">${qty}</span>
+                        <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; background: var(--primary-light); color: var(--primary-accent);" onclick="changeQty(${prod.id}, 1)">+</button>
+                     </div>`
+                }
+            </div>
+        `;
     }
 
     // Render products inside Category Shelf
@@ -1045,37 +1233,13 @@
         productsList.forEach(prod => {
             const card = document.createElement("div");
             card.className = "product-card fade-in-up";
-            
-            const qty = cart[prod.id] ? cart[prod.id].quantity : 0;
-            
-            card.innerHTML = `
-                <div>
-                    ${prod.image_path ? 
-                        `<div style="width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow: hidden; border: 1px solid var(--border-color);">
-                            <img src="${prod.image_path}" alt="${prod.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
-                         </div>` : 
-                        `<span style="background: #f1f5f9; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--primary-accent); margin-bottom: 8px;"><i data-lucide="package" style="width: 20px; height: 20px;"></i></span>`
-                    }
-                    <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${prod.name}</h5>
-                    <div class="product-price">₹${prod.price.toFixed(2)}</div>
-                </div>
-                <div style="margin-top: 12px;">
-                    ${qty === 0 ? 
-                        `<button class="btn btn-secondary w-full" style="padding: 8px; font-size: 0.85rem;" onclick="addToCart(${prod.id}, 1)">Add</button>` :
-                        `<div class="product-qty-controls" style="justify-content: space-between;">
-                            <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem;" onclick="changeQty(${prod.id}, -1)">-</button>
-                            <span style="font-weight:700; font-size: 0.95rem;">${qty}</span>
-                            <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; background: var(--primary-light); color: var(--primary-accent);" onclick="changeQty(${prod.id}, 1)">+</button>
-                         </div>`
-                    }
-                </div>
-            `;
+            card.innerHTML = buildProductCardHtml(prod);
             container.appendChild(card);
         });
         refreshIcons();
     }
 
-    // Renders Recommended horizontal carousel
+    // Renders Recommended horizontal list
     function renderRecommendedProducts(products) {
         const container = document.getElementById("recommended-products-container");
         container.innerHTML = "";
@@ -1087,38 +1251,32 @@
             card.style.border = "1px solid var(--border-color)";
             card.style.borderRadius = "var(--radius-lg)";
             card.style.padding = "16px";
-            card.style.minWidth = "170px";
+            card.style.minWidth = "150px";
             card.style.display = "flex";
             card.style.flexDirection = "column";
             card.style.justifyContent = "space-between";
-            
-            // Map product images
-            let imgName = "grocery_basket.png";
-            if (prod.id === 1) imgName = "grocery_basket.png";
-            else if (prod.id === 2) imgName = "grocery_basket.png";
             
             const qty = cart[prod.id] ? cart[prod.id].quantity : 0;
             
             card.innerHTML = `
                 <div style="text-align: left;">
-                    <div style="height: 90px; display:flex; align-items:center; justify-content:center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 12px; overflow:hidden; border: 1px solid var(--border-color);">
+                    <div style="height: 80px; display:flex; align-items:center; justify-content:center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow:hidden; border: 1px solid var(--border-color);">
                         ${prod.image_path ? 
                             `<img src="${prod.image_path}" alt="${prod.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">` :
-                            `<i data-lucide="package" style="width:32px; height:32px; color: var(--text-muted);"></i>`
+                            `<i data-lucide="package" style="width:24px; height:24px; color: var(--text-muted);"></i>`
                         }
                     </div>
-                    <h5 class="product-name" style="font-size: 0.9rem; font-weight:700; color:var(--text-primary); margin-bottom:4px; height:36px; overflow:hidden;">${prod.name}</h5>
-                    <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:500;">Pack Size</span>
+                    <h5 class="product-name" style="font-size: 0.85rem; font-weight:700; color:var(--text-primary); margin-bottom:4px; height:32px; overflow:hidden;">${prod.name}</h5>
                 </div>
                 
-                <div class="flex-between" style="margin-top:12px; align-items:center;">
-                    <span style="font-weight:800; font-size:1.05rem; color:var(--text-primary);">₹${prod.price.toFixed(0)}</span>
+                <div class="flex-between" style="margin-top:10px; align-items:center;">
+                    <span style="font-weight:800; font-size:0.95rem; color:var(--text-primary);">₹${prod.price.toFixed(0)}</span>
                     ${qty === 0 ?
                         `<button class="product-add-circle" onclick="addRecommendedToCart(${prod.id})">+</button>` :
-                        `<div style="display:flex; align-items:center; gap:8px;">
-                            <button class="btn-circle" style="width:24px; height:24px; font-size:0.8rem;" onclick="changeQty(${prod.id}, -1)">-</button>
-                            <span style="font-weight:700; font-size:0.9rem;">${qty}</span>
-                            <button class="btn-circle" style="width:24px; height:24px; font-size:0.8rem; background: var(--primary-light); color: var(--primary-accent);" onclick="changeQty(${prod.id}, 1)">+</button>
+                        `<div style="display:flex; align-items:center; gap:6px;">
+                            <button class="btn-circle" style="width:20px; height:20px; font-size:0.75rem;" onclick="changeQty(${prod.id}, -1)">-</button>
+                            <span style="font-weight:700; font-size:0.85rem;">${qty}</span>
+                            <button class="btn-circle" style="width:20px; height:20px; font-size:0.75rem; background: var(--primary-light); color: var(--primary-accent);" onclick="changeQty(${prod.id}, 1)">+</button>
                         </div>`
                     }
                 </div>
@@ -1129,8 +1287,6 @@
     }
 
     function addRecommendedToCart(prodId) {
-        // Fetch product info and add
-        fetch(`/api/orders/place`) // dummy to hit DB or query API
         addToCart(prodId, 1);
     }
 
@@ -1139,7 +1295,6 @@
         if (prod) {
             processAddToCart(prod, qty);
         } else {
-            // Fetch dynamically from server
             fetch('/api/products/sync', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1194,6 +1349,8 @@
         };
         
         updateCartUI();
+        // Dynamic switch: auto navigate to Cart screen so customer sees addition
+        showAestheticToast(`Added ${prod.name} to Bag!`, "success");
     }
 
     function getMockProductDetail(id) {
@@ -1223,7 +1380,6 @@
     }
 
     function updateCartUI() {
-        // Sync category shelf and recommended list
         renderProducts();
         renderPharmacyProducts();
         
@@ -1233,7 +1389,7 @@
         const keys = Object.keys(cart);
         const cartCount = keys.reduce((acc, k) => acc + cart[k].quantity, 0);
         document.getElementById("cart-count").innerText = cartCount;
-        document.getElementById("header-cart-badge").innerText = cartCount;
+        document.getElementById("bottom-cart-badge").innerText = cartCount;
         
         if (keys.length === 0) {
             container.innerHTML = `<div style="text-align: center; padding: 24px 0;"><i data-lucide="shopping-cart" style="width: 32px; height: 32px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 8px; display: inline-block;"></i><p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">Cart is empty.</p></div>`;
@@ -1291,7 +1447,6 @@
             container.appendChild(itemRow);
         });
         
-        // Smart recommendation
         let recFound = null;
         for (let key in cart) {
             const item_name_lower = cart[key].name.toLowerCase();
@@ -1319,7 +1474,6 @@
             recBox.style.display = "none";
         }
         
-        // Mockup delivery pricing rules (Free above 199, else 15)
         const deliveryFee = subtotal >= 199 ? 0 : 15;
         const grand = subtotal + deliveryFee;
         
@@ -1328,7 +1482,6 @@
         document.getElementById("cart-delivery-fee").style.color = deliveryFee === 0 ? "var(--emerald-green)" : "var(--text-primary)";
         document.getElementById("cart-grandtotal").innerText = `₹${grand.toFixed(2)}`;
         
-        // Enable/Disable Checkout Button
         const checkoutBtn = document.getElementById("checkout-submit-btn");
         if (checkoutBtn) {
             if (hasOutOfStock) {
@@ -1340,11 +1493,10 @@
                 checkoutBtn.disabled = false;
                 checkoutBtn.style.opacity = "1";
                 checkoutBtn.style.cursor = "pointer";
-                checkoutBtn.innerHTML = `Checkout <i data-lucide="arrow-right" style="width: 16px; height: 16px;"></i>`;
+                checkoutBtn.innerHTML = `Checkout <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>`;
             }
         }
         
-        // Sync cache
         localStorage.setItem(`cart_${customerId}`, JSON.stringify(cart));
         refreshIcons();
     }
@@ -1418,15 +1570,21 @@
                 
                 updateCartUI();
                 localStorage.setItem(`active_order_${customerId}`, JSON.stringify({ order_id: data.order_id }));
+                
+                // Active Order tracked timeline starts
                 startTracking(data.order_id);
-                scrollToOrders();
+                document.getElementById("home-active-order-quickcard").style.display = "block";
+                
+                // Direct route: switch user automatically to screen-orders
+                switchTab('orders');
+                switchOrdersSegment('tracking');
             }
         });
     }
 
     function startTracking(orderId) {
         document.getElementById("active-order-container").style.display = "block";
-        document.getElementById("active-order-container").classList.add("fade-in-up");
+        document.getElementById("no-active-order-msg").style.display = "none";
         document.getElementById("tracking-order-id").innerText = `#${orderId}`;
         
         if (trackingInterval) clearInterval(trackingInterval);
@@ -1496,9 +1654,10 @@
                         if (stepPendingTime) stepPendingTime.innerText = "Order confirmed";
                         
                         localStorage.removeItem(`active_order_${customerId}`);
+                        document.getElementById("home-active-order-quickcard").style.display = "none";
                         clearInterval(trackingInterval);
                     } else if (status === "FAILED") {
-                        statusBadge.classList.add("badge-status-delivered"); // fallback styling
+                        statusBadge.classList.add("badge-status-delivered");
                         statusBadge.style.background = "var(--ruby-light)";
                         statusBadge.style.color = "var(--ruby-danger)";
                         
@@ -1507,6 +1666,7 @@
                         if (stepPendingTime) stepPendingTime.innerText = data.failure_reason || "Verification rejected";
                         
                         localStorage.removeItem(`active_order_${customerId}`);
+                        document.getElementById("home-active-order-quickcard").style.display = "none";
                         clearInterval(trackingInterval);
                     }
                     
@@ -1524,22 +1684,12 @@
         };
         
         poll();
-        trackingInterval = setInterval(poll, 10000);
-    }
-
-    // Expense modals
-    function toggleExpensesModal() {
-        const modal = document.getElementById("expense-modal");
-        if (modal.style.display === "none" || !modal.style.display) {
-            modal.style.display = "flex";
-            loadExpenses();
-        } else {
-            modal.style.display = "none";
-        }
+        trackingInterval = setInterval(poll, 5000); // Poll tracking every 5 seconds for smooth mobile experience
     }
 
     function loadExpenses() {
         const container = document.getElementById("expense-stats");
+        if (!container) return;
         container.innerHTML = "<div style='text-align:center;'><p>Calculating spending insights...</p></div>";
         
         fetch(`/api/customer/${customerId}/expenses`)
@@ -1549,22 +1699,22 @@
                 const categories = data.categories;
                 const keys = Object.keys(categories);
                 if (keys.length === 0) {
-                    container.innerHTML = `<p style="text-align:center; color:var(--text-muted); font-weight: 500;">No delivered orders yet this month.</p>`;
+                    container.innerHTML = `<p style="text-align:center; color:var(--text-muted); font-weight: 500; margin: 0; padding: 12px 0;">No completed orders yet this month.</p>`;
                     return;
                 }
                 
-                let barsHtml = `<div style="margin-bottom: 24px; text-align: center;"><h4 style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 4px;">Total Spent</h4><div style="font-size: 2rem; font-weight: 800; color: var(--primary-accent);">₹${data.total_spent_overall.toFixed(2)}</div></div>`;
+                let barsHtml = `<div style="margin-bottom: 16px; text-align: center;"><h4 style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 2px;">Total Spent</h4><div style="font-size: 1.6rem; font-weight: 800; color: var(--primary-accent);">₹${data.total_spent_overall.toFixed(2)}</div></div>`;
                 
                 keys.forEach(k => {
                     const c = categories[k];
                     const pct = Math.min(100, (c.spent / data.total_spent_overall * 100).toFixed(0));
                     barsHtml += `
-                        <div style="margin-bottom:16px;">
-                            <div class="flex-between" style="font-size:0.9rem; margin-bottom:8px;">
+                        <div style="margin-bottom:12px;">
+                            <div class="flex-between" style="font-size:0.82rem; margin-bottom:6px;">
                                 <span style="font-weight: 600;">${k} <span style="color:var(--text-muted); font-weight: 400;">(${c.count} orders)</span></span>
                                 <strong style="color: var(--text-primary);">₹${c.spent.toFixed(2)}</strong>
                             </div>
-                            <div style="background:#e2e8f0; height:8px; border-radius:10px; overflow:hidden;">
+                            <div style="background:#e2e8f0; height:6px; border-radius:10px; overflow:hidden;">
                                 <div style="background:var(--primary-accent); height:100%; width:${pct}%;"></div>
                             </div>
                         </div>
@@ -1573,48 +1723,6 @@
                 
                 container.innerHTML = barsHtml;
             });
-    }
-
-    // Profile Edit Modal Controls
-    function toggleProfileModal(event) {
-        if (event) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-        
-        // Hide profile dropdown if open
-        const dropdown = document.getElementById("profile-dropdown");
-        if (dropdown) dropdown.style.display = "none";
-        
-        const modal = document.getElementById("profile-modal");
-        const errorDiv = document.getElementById("profile-error-msg");
-        errorDiv.style.display = "none";
-        
-        if (modal.style.display === "none" || !modal.style.display) {
-            modal.style.display = "flex";
-            modal.classList.add("fade-in-up");
-            
-            // Populate inputs
-            document.getElementById("profile-name-input").value = document.getElementById("customer-navbar-name").innerText.trim();
-            document.getElementById("profile-phone-input").value = customerPhone;
-            document.getElementById("profile-address-input").value = document.getElementById("sidebar-address-display").innerText.trim();
-            document.getElementById("profile-password-input").value = customerPassword;
-            
-            // Populate avatar details
-            const defaultAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80";
-            const previewImg = document.getElementById("profile-avatar-preview");
-            const removeBtn = document.getElementById("btn-remove-avatar");
-            
-            if (customerProfilePic) {
-                previewImg.src = customerProfilePic;
-                removeBtn.style.display = "inline-block";
-            } else {
-                previewImg.src = defaultAvatar;
-                removeBtn.style.display = "none";
-            }
-        } else {
-            modal.style.display = "none";
-        }
     }
 
     function handleAvatarUpload(input) {
@@ -1635,13 +1743,7 @@
         .then(data => {
             if (data.success) {
                 customerProfilePic = data.profile_pic;
-                
-                // Update avatar previews
                 document.getElementById("profile-avatar-preview").src = customerProfilePic;
-                document.getElementById("navbar-profile-avatar").src = customerProfilePic;
-                document.getElementById("sidebar-profile-avatar").src = customerProfilePic;
-                
-                // Show remove button
                 document.getElementById("btn-remove-avatar").style.display = "inline-block";
                 alert("Profile picture uploaded successfully!");
                 refreshIcons();
@@ -1656,12 +1758,11 @@
             errorDiv.style.display = "block";
         });
         
-        // Reset file input value
         input.value = "";
     }
 
     function removeAvatar() {
-        aestheticConfirm("Are you sure you want to remove your profile picture?", () => {
+        if (confirm("Are you sure you want to remove your profile picture?")) {
             const errorDiv = document.getElementById("profile-error-msg");
             errorDiv.style.display = "none";
             
@@ -1672,13 +1773,8 @@
             .then(data => {
                 if (data.success) {
                     customerProfilePic = "";
-                    
                     const defaultAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80";
                     document.getElementById("profile-avatar-preview").src = defaultAvatar;
-                    document.getElementById("navbar-profile-avatar").src = defaultAvatar;
-                    document.getElementById("sidebar-profile-avatar").src = defaultAvatar;
-                    
-                    // Hide remove button
                     document.getElementById("btn-remove-avatar").style.display = "none";
                     alert("Profile picture removed successfully!");
                     refreshIcons();
@@ -1692,7 +1788,7 @@
                 errorDiv.innerText = "Connection error. Please try again.";
                 errorDiv.style.display = "block";
             });
-        });
+        }
     }
 
     function saveProfile() {
@@ -1724,17 +1820,10 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                // Update frontend navbar name
-                document.getElementById("customer-navbar-name").innerText = nameInput;
-                document.getElementById("sidebar-customer-name").innerText = nameInput;
-                
-                // Update active checkout address display and input
+                // Update frontend models
                 document.getElementById("sidebar-address-display").innerText = addressInput;
                 document.getElementById("address-input").value = addressInput;
                 customerPassword = passwordInput;
-                
-                // Close modal
-                document.getElementById("profile-modal").style.display = "none";
                 alert("Profile updated successfully!");
                 refreshIcons();
             } else {
@@ -1749,108 +1838,7 @@
         });
     }
 
-    // Speech ordering API integration
-    let recognition = null;
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRec();
-        recognition.continuous = false;
-        recognition.lang = 'en-IN';
-        
-        recognition.onstart = () => {
-            const btn = document.getElementById("mic-btn");
-            const btnMob = document.getElementById("mic-btn-mobile");
-            if (btn) btn.style.color = "var(--ruby-danger)";
-            if (btnMob) btnMob.style.color = "var(--ruby-danger)";
-            document.getElementById("voice-status-toast").style.display = "flex";
-            document.getElementById("voice-status-text").innerText = "Listening... Speak your order.";
-        };
-        
-        recognition.onend = () => {
-            const btn = document.getElementById("mic-btn");
-            const btnMob = document.getElementById("mic-btn-mobile");
-            if (btn) btn.style.color = "var(--text-secondary)";
-            if (btnMob) btnMob.style.color = "var(--text-secondary)";
-            setTimeout(() => {
-                document.getElementById("voice-status-toast").style.display = "none";
-            }, 2500);
-        };
-        
-        recognition.onresult = (event) => {
-            const speechResult = event.results[0][0].transcript.toLowerCase();
-            document.getElementById("voice-status-text").innerText = `Heard: "${speechResult}"`;
-            parseVoiceCommand(speechResult);
-        };
-        
-        recognition.onerror = (e) => {
-            document.getElementById("voice-status-text").innerText = "Speech failed. Try again.";
-            console.error(e);
-        };
-    }
 
-    function startVoiceInput() {
-        if (!recognition) {
-            // Fallback / Simulation prompt
-            const simulatedSpeech = prompt("Voice Search is not supported or blocked. Simulate by typing your command here (e.g. 'add 2 milk', 'add 1 bread'):");
-            if (simulatedSpeech && simulatedSpeech.trim()) {
-                document.getElementById("voice-status-toast").style.display = "flex";
-                document.getElementById("voice-status-text").innerText = `Simulating: "${simulatedSpeech}"`;
-                setTimeout(() => {
-                    parseVoiceCommand(simulatedSpeech.toLowerCase());
-                    setTimeout(() => {
-                        document.getElementById("voice-status-toast").style.display = "none";
-                    }, 2500);
-                }, 1000);
-            }
-            return;
-        }
-        try {
-            recognition.start();
-        } catch(e) {
-            console.warn("Speech recognition error: ", e);
-            const simulatedSpeech = prompt("Simulate voice command by typing here:");
-            if (simulatedSpeech && simulatedSpeech.trim()) {
-                parseVoiceCommand(simulatedSpeech.toLowerCase());
-            }
-        }
-    }
-
-    function parseVoiceCommand(text) {
-        const vocabulary = {
-            'milk': 1, 'bread': 2, 'lays': 3, 'chips': 3, 'butter': 4, 'colgate': 5, 'toothpaste': 5
-        };
-        
-        const segments = text.split(/and|,/);
-        let itemsAdded = [];
-        
-        segments.forEach(seg => {
-            seg = seg.trim();
-            const numMatch = seg.match(/\d+/);
-            const qty = numMatch ? parseInt(numMatch[0]) : 1;
-            let cleanSeg = seg.replace(/\d+/g, '').trim();
-            
-            let foundProdId = null;
-            for (let keyword in vocabulary) {
-                if (cleanSeg.includes(keyword)) {
-                    foundProdId = vocabulary[keyword];
-                    break;
-                }
-            }
-            
-            if (foundProdId) {
-                addToCart(foundProdId, qty);
-                itemsAdded.push(`${qty}x ${getMockProductDetail(foundProdId).name}`);
-            }
-        });
-        
-        if (itemsAdded.length > 0) {
-            document.getElementById("voice-status-text").innerText = `Added: ${itemsAdded.join(", ")}`;
-            document.getElementById("voice-status-toast").style.background = "var(--primary-accent)";
-        } else {
-            document.getElementById("voice-status-text").innerText = "Sorry, couldn't match item.";
-            document.getElementById("voice-status-toast").style.background = "var(--ruby-danger)";
-        }
-    }
 
     // Search and Filtering logic
     function trackSearchTerm(query) {
@@ -1873,10 +1861,17 @@
         .catch(err => console.error("Error tracking search:", err));
     }
 
+    function clearHomeSearch() {
+        const input = document.getElementById("search-input-standalone");
+        if (input) {
+            input.value = "";
+        }
+        handleSearch("");
+    }
+
     function handleSearch(query) {
         query = query.toLowerCase().trim();
         
-        // Debounce search tracking API call (1000ms delay)
         if (searchTrackTimeout) clearTimeout(searchTrackTimeout);
         if (query) {
             searchTrackTimeout = setTimeout(() => {
@@ -1884,7 +1879,21 @@
             }, 1000);
         }
         
+        const resultsSection = document.getElementById("search-results-section");
+        const resultsGrid = document.getElementById("search-products-grid");
+        const defaultStorefronts = document.getElementById("home-default-storefronts");
+        const trendingSearches = document.getElementById("home-trending-searches");
+        const clearBtn = document.getElementById("clear-search-btn");
+        
+        if (clearBtn) {
+            clearBtn.style.display = query ? "flex" : "none";
+        }
+        
         if (!query) {
+            if (resultsSection) resultsSection.style.display = "none";
+            if (defaultStorefronts) defaultStorefronts.style.display = "block";
+            if (trendingSearches) trendingSearches.style.display = "block";
+            
             if (activeStorefront === "pharmacy") {
                 if (currentPharmacySubcat) {
                     selectPharmacySubcategory(currentPharmacySubcat);
@@ -1898,43 +1907,25 @@
             return;
         }
         
+        if (defaultStorefronts) defaultStorefronts.style.display = "none";
+        if (trendingSearches) trendingSearches.style.display = "none";
+        
         if (activeStorefront === "pharmacy") {
-            // Search inside pharmacy products (Shop ID 5)
             fetch(`/api/shops/5/products`)
                 .then(res => res.json())
                 .then(data => {
                     const filtered = data.filter(p => p.name.toLowerCase().includes(query));
-                    
-                    // Show in pharmacy panel
-                    document.getElementById("pharmacy-products-panel").style.display = "block";
-                    document.getElementById("current-pharmacy-subcat-name").innerText = `Search Results for "${query}"`;
-                    
-                    pharmacyProductsList = filtered;
-                    currentPharmacySubcat = `Search: ${query}`;
-                    renderPharmacyProducts();
+                    renderFilteredProducts(filtered);
                 });
         } else {
-            if (currentShopId) {
-                const filtered = productsList.filter(p => p.name.toLowerCase().includes(query));
-                renderFilteredProducts(filtered);
-            } else {
-                searchAcrossAllShops(query);
-            }
+            searchAcrossAllShops(query);
         }
     }
     
     function triggerSearch() {
-        const desktopInput = document.getElementById("search-input");
-        const mobileInput = document.getElementById("search-input-mobile");
+        const standaloneInput = document.getElementById("search-input-standalone");
+        let query = standaloneInput ? standaloneInput.value : "";
         
-        let query = "";
-        if (desktopInput && window.getComputedStyle(desktopInput.parentElement).display !== 'none') {
-            query = desktopInput.value;
-        } else if (mobileInput) {
-            query = mobileInput.value;
-        }
-        
-        // Cancel debounced timeout and track immediately
         if (searchTrackTimeout) clearTimeout(searchTrackTimeout);
         if (query.trim()) {
             trackSearchTerm(query.trim());
@@ -1948,186 +1939,95 @@
         Promise.all(promises).then(results => {
             const allProducts = results.flat();
             const filtered = allProducts.filter(p => p.name.toLowerCase().includes(query));
-            if (filtered.length > 0) {
-                const firstMatch = filtered[0];
-                currentShopId = firstMatch.shop_id;
-                
-                document.querySelectorAll(".hamar-category-card").forEach((card, index) => {
-                    if (index + 1 === currentShopId) card.style.border = "2px solid var(--primary-accent)";
-                    else card.style.border = "1px solid transparent";
-                });
-                
-                const shopNames = {
-                    1: "Apna Bazaar Kirana & General",
-                    2: "Bakers Table Cakes",
-                    3: "Fresh & Green Veggies",
-                    4: "ElectroWorld Tech Products"
-                };
-                document.getElementById("current-shop-name").innerText = shopNames[currentShopId];
-                document.getElementById("shop-products-panel").style.display = "block";
-                
-                productsList = results[currentShopId - 1];
-                renderFilteredProducts(filtered.filter(p => p.shop_id === currentShopId));
-            } else {
-                const container = document.getElementById("products-container");
-                document.getElementById("shop-products-panel").style.display = "block";
-                document.getElementById("current-shop-name").innerText = "Search Results";
-                container.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-muted);">No products match "${query}".</div>`;
-            }
+            renderFilteredProducts(filtered);
         });
     }
 
     function renderFilteredProducts(list) {
-        const container = document.getElementById("products-container");
-        container.innerHTML = "";
+        const searchGrid = document.getElementById("search-products-grid");
+        const searchSection = document.getElementById("search-results-section");
         
-        list.forEach(prod => {
-            const card = document.createElement("div");
-            card.className = "product-card fade-in-up";
+        if (searchGrid && searchSection) {
+            searchSection.style.display = "block";
+            searchGrid.innerHTML = "";
             
-            const qty = cart[prod.id] ? cart[prod.id].quantity : 0;
+            if (list.length === 0) {
+                searchGrid.innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; color: var(--text-muted);">No products match your search.</div>`;
+                return;
+            }
             
-            card.innerHTML = `
-                <div>
-                    ${prod.image_path ? 
-                        `<div style="width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow: hidden; border: 1px solid var(--border-color);">
-                            <img src="${prod.image_path}" alt="${prod.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
-                         </div>` : 
-                        `<span style="background: #f1f5f9; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--primary-accent); margin-bottom: 8px;"><i data-lucide="package" style="width: 20px; height: 20px;"></i></span>`
-                    }
-                    <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${prod.name}</h5>
-                    <div class="product-price">₹${prod.price.toFixed(2)}</div>
-                </div>
-                <div style="margin-top: 12px;">
-                    ${qty === 0 ? 
-                        `<button class="btn btn-secondary w-full" style="padding: 8px; font-size: 0.85rem;" onclick="addToCart(${prod.id}, 1)">Add</button>` :
-                        `<div class="product-qty-controls" style="justify-content: space-between;">
-                            <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem;" onclick="changeQty(${prod.id}, -1)">-</button>
-                            <span style="font-weight:700; font-size: 0.95rem;">${qty}</span>
-                            <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; background: var(--primary-light); color: var(--primary-accent);" onclick="changeQty(${prod.id}, 1)">+</button>
-                         </div>`
-                    }
-                </div>
-            `;
-            container.appendChild(card);
-        });
+            list.forEach(prod => {
+                const card = document.createElement("div");
+                card.className = "product-card fade-in-up";
+                card.innerHTML = buildProductCardHtml(prod);
+                searchGrid.appendChild(card);
+            });
+        }
+        
+        // Also fallback to main home shelf if open
+        const homeGrid = document.getElementById("products-container");
+        if (homeGrid && currentShopId) {
+            homeGrid.innerHTML = "";
+            const currentShopFiltered = list.filter(p => p.shop_id === currentShopId);
+            currentShopFiltered.forEach(prod => {
+                const card = document.createElement("div");
+                card.className = "product-card fade-in-up";
+                card.innerHTML = buildProductCardHtml(prod);
+                homeGrid.appendChild(card);
+            });
+        }
+        
         refreshIcons();
     }
 
-    // Direct profile updates & dropdown helpers
-    function openProfileAndFocus(field, event) {
-        if (event) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-        
-        // Open modal if closed
-        const modal = document.getElementById("profile-modal");
-        if (modal.style.display === "none" || !modal.style.display) {
-            toggleProfileModal();
-        }
-        
-        // Focus specific field after rendering animation
-        setTimeout(() => {
-            if (field === 'name') {
-                document.getElementById("profile-name-input").focus();
-            } else if (field === 'address') {
-                document.getElementById("profile-address-input").focus();
-            } else if (field === 'password') {
-                document.getElementById("profile-password-input").focus();
-            }
-        }, 150);
-        
-        // Close dropdown
-        const dropdown = document.getElementById("profile-dropdown");
-        if (dropdown) dropdown.style.display = "none";
-    }
-
-    function triggerAvatarUploadFromDropdown(event) {
-        if (event) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-        
-        // Open modal if closed
-        const modal = document.getElementById("profile-modal");
-        if (modal.style.display === "none" || !modal.style.display) {
-            toggleProfileModal();
-        }
-        
-        // Trigger file select click
-        setTimeout(() => {
-            document.getElementById("avatar-file-input").click();
-        }, 150);
-        
-        // Close dropdown
-        const dropdown = document.getElementById("profile-dropdown");
-        if (dropdown) dropdown.style.display = "none";
-    }
-
-    // Orders History Modal controllers
-    function toggleOrdersHistoryModal() {
-        const modal = document.getElementById("orders-history-modal");
-        if (modal.style.display === "none" || !modal.style.display) {
-            modal.style.display = "flex";
-            modal.classList.add("fade-in-up");
-            loadOrdersHistory();
-        } else {
-            modal.style.display = "none";
-        }
-    }
-
+    // Orders History loader
     function loadOrdersHistory() {
         const listContainer = document.getElementById("orders-history-list");
-        listContainer.innerHTML = "<div style='text-align:center; padding: 20px;'><p>Fetching your orders...</p></div>";
+        if (!listContainer) return;
+        listContainer.innerHTML = "<div style='text-align:center; padding: 20px;'><p>Fetching completed orders...</p></div>";
         
         fetch(`/api/customer/${customerId}/orders`)
             .then(res => res.json())
             .then(orders => {
                 listContainer.innerHTML = "";
-                if (orders.length === 0) {
-                    listContainer.innerHTML = `<div style="text-align: center; padding: 32px 0;"><i data-lucide="shopping-bag" style="width: 40px; height: 40px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 12px; display: inline-block;"></i><p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">You haven't placed any orders yet.</p></div>`;
+                
+                const completedOrders = orders.filter(o => o.status === "DELIVERED" || o.status === "FAILED");
+                
+                if (completedOrders.length === 0) {
+                    listContainer.innerHTML = `<div style="text-align: center; padding: 24px 0;"><i data-lucide="shopping-bag" style="width: 32px; height: 32px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 8px; display: inline-block;"></i><p style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">No completed orders yet.</p></div>`;
                     refreshIcons();
                     return;
                 }
                 
-                orders.forEach(o => {
+                completedOrders.forEach(o => {
                     const card = document.createElement("div");
-                    card.style = "background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 8px;";
+                    card.style = "background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;";
                     
-                    let statusBadgeClass = "badge-status-pending";
-                    if (o.status === "DELIVERED") statusBadgeClass = "badge-status-delivered";
-                    else if (o.status === "ACCEPTED" || o.status === "READY_FOR_PICKUP" || o.status === "OUT_FOR_DELIVERY") statusBadgeClass = "badge-status-ready";
-                    
-                    let actionBtn = "";
-                    if (o.status !== "DELIVERED" && o.status !== "FAILED") {
-                        actionBtn = `<button class="btn btn-primary" style="width: auto; padding: 6px 12px; font-size: 0.8rem; border-radius: 20px; margin-top: 4px;" onclick="trackActiveOrder(${o.id})"><i data-lucide="navigation" style="width: 12px; height: 12px; margin-right: 4px;"></i> Track Live</button>`;
-                    } else {
-                        actionBtn = `<button class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 0.8rem; border-radius: 20px; margin-top: 4px;" onclick="viewOrderItems(${o.id})">View Details</button>`;
+                    let statusBadgeClass = o.status === "DELIVERED" ? "badge-status-delivered" : "badge-status-pending";
+                    if (o.status === "FAILED") {
+                        statusBadgeClass = "badge-status-pending";
                     }
                     
-                    // Format time
                     let timeStr = o.created_at;
                     try {
                         const dateClean = o.created_at.replace(" ", "T").split('.')[0];
                         const date = new Date(dateClean + "Z");
-                        timeStr = date.toLocaleString();
+                        timeStr = date.toLocaleDateString() + " " + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                     } catch(e) {}
 
                     card.innerHTML = `
                         <div class="flex-between">
-                            <span style="font-weight: 800; font-size: 1rem; color: var(--text-primary);">Order #${o.id}</span>
-                            <span class="badge ${statusBadgeClass}">${o.status.replace(/_/g, ' ')}</span>
+                            <span style="font-weight: 800; font-size: 0.9rem; color: var(--text-primary);">Order #${o.id}</span>
+                            <span class="badge ${statusBadgeClass}" style="${o.status === 'FAILED' ? 'background:var(--ruby-light); color:var(--ruby-danger);' : ''}">${o.status}</span>
                         </div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px;">
                             <div><strong>Shop:</strong> ${o.shop_name}</div>
-                            <div><strong>Placed:</strong> ${timeStr}</div>
-                            <div><strong>Total Amount:</strong> ₹${o.total_amount.toFixed(2)}</div>
-                            ${o.status === 'OUT_FOR_DELIVERY' ? `<div><strong>Delivery OTP:</strong> <strong style="color:var(--emerald-green); font-size:1rem; letter-spacing:1px;">${o.delivery_otp}</strong></div>` : ''}
+                            <div><strong>Date:</strong> ${timeStr}</div>
+                            <div><strong>Total:</strong> ₹${o.total_amount.toFixed(2)}</div>
                         </div>
                         <div class="flex-between" style="align-items: center; margin-top: 4px;">
-                            <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}" style="font-size:0.7rem; padding: 3px 8px;">${o.priority_type}</span>
-                            ${actionBtn}
+                            <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}" style="font-size:0.65rem; padding: 2px 6px;">${o.priority_type}</span>
+                            <button class="btn btn-secondary" style="width: auto; padding: 4px 8px; font-size: 0.75rem; border-radius: var(--radius-sm); margin: 0;" onclick="viewOrderItems(${o.id})">Details</button>
                         </div>
                     `;
                     listContainer.appendChild(card);
@@ -2136,17 +2036,8 @@
             })
             .catch(err => {
                 console.error("Error loading order history:", err);
-                listContainer.innerHTML = "<div style='text-align:center; padding: 20px; color: var(--ruby-danger);'><p>Failed to load orders history.</p></div>";
+                listContainer.innerHTML = "<div style='text-align:center; padding: 12px; color: var(--ruby-danger);'><p>Failed to load history.</p></div>";
             });
-    }
-
-    function trackActiveOrder(orderId) {
-        // Close modal
-        document.getElementById("orders-history-modal").style.display = "none";
-        // Start tracking timeline
-        localStorage.setItem(`active_order_${customerId}`, JSON.stringify({ order_id: orderId }));
-        startTracking(orderId);
-        scrollToOrders();
     }
 
     function viewOrderItems(orderId) {
@@ -2188,6 +2079,7 @@
         const file = input.files[0];
         const formData = new FormData();
         formData.append("prescription_image", file);
+        formData.append("customer_id", customerId);
         
         fetch("/api/prescriptions/upload", {
             method: "POST",
@@ -2222,36 +2114,37 @@
                     return;
                 }
                 
-                data.forEach(item => {
+                data.slice(0, 4).forEach(item => { // Show last 4 uploads for a compact mobile view
                     let badgeClass = "badge-pending";
-                    let statusText = "Pending Admin Review";
+                    let statusText = "Pending";
                     if (item.status === 'SENT_TO_VENDOR') {
                         badgeClass = "badge-transit";
-                        statusText = `Sent to ${item.shop_name || 'Chemist'}`;
+                        statusText = "Sent to Chemist";
                     } else if (item.status === 'COMPLETED') {
                         badgeClass = "badge-delivered";
-                        statusText = "Completed / Quoted";
+                        statusText = "Quoted";
                     }
                     
                     let dateStr = item.created_at;
                     try {
                         const cleanD = item.created_at.replace(" ", "T").split(".")[0];
-                        dateStr = new Date(cleanD + "Z").toLocaleString();
+                        const date = new Date(cleanD + "Z");
+                        dateStr = date.toLocaleDateString();
                     } catch(e) {}
                     
                     const row = document.createElement("div");
-                    row.style = "display: flex; align-items: center; justify-content: space-between; padding: 10px; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);";
+                    row.style = "display: flex; align-items: center; justify-content: space-between; padding: 8px; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);";
                     row.innerHTML = `
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <a href="${item.image_path}" target="_blank" title="View full image">
-                                <img src="${item.image_path}" alt="Prescription" style="width: 44px; height: 44px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <a href="${item.image_path}" target="_blank">
+                                <img src="${item.image_path}" alt="Prescription" style="width: 36px; height: 36px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
                             </a>
                             <div>
-                                <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary);">Request #${item.id}</div>
-                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1px;">Uploaded: ${dateStr}</div>
+                                <div style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary);">Req #${item.id}</div>
+                                <div style="font-size: 0.7rem; color: var(--text-muted);">${dateStr}</div>
                             </div>
                         </div>
-                        <span class="status-badge ${badgeClass}" style="font-size:0.75rem;">${statusText}</span>
+                        <span class="status-badge ${badgeClass}" style="font-size:0.7rem; padding: 2px 6px;">${statusText}</span>
                     `;
                     container.appendChild(row);
                 });
