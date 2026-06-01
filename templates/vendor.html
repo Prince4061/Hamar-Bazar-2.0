@@ -1505,8 +1505,8 @@
     <aside class="sidebar" id="sidebar-menu">
         <div>
             <div class="brand-section">
-                <div class="brand-logo">
-                    <i data-lucide="store"></i>
+                <div class="brand-logo" style="background: transparent; width: 42px; height: 42px;">
+                    <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-lg);">
                 </div>
                 <div class="brand-text">
                     <span class="brand-name" title="{{ active_shop.shop_name }}">{{ active_shop.shop_name }}</span>

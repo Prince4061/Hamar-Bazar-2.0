@@ -15,7 +15,7 @@
     {% if session.get('role') and session.get('role') != 'customer' %}
     <div class="simulator-header">
         <div class="brand-section">
-            <span class="brand-badge">HAMAR</span>
+            <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" style="height: 36px; width: 36px; object-fit: cover; border-radius: var(--radius-sm);">
             <span class="brand-title">Hamar Bazaar</span>
         </div>
         <div style="font-weight: 600; color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">

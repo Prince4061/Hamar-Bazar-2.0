@@ -3,12 +3,8 @@
 {% block content %}
 <!-- Custom Header / Top Desktop Nav -->
 <header class="hamar-header">
-    <a href="/customer" class="hamar-logo-section">
-        <svg class="hamar-logo-icon" viewBox="0 0 24 24">
-            <path d="M8 8C8 5.79086 9.79086 4 12 4C14.2091 4 16 5.79086 16 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-            <rect x="4" y="8" width="16" height="13" rx="3.5"/>
-            <path d="M8 16V13C8 12.4477 8.4477 12 9 12C9.5523 12 10 12.4477 10 13V16M10 13C10 12.4477 10.4477 12 11 12C11.5523 12 12 12.4477 12 13V16" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+    <a href="/customer" class="hamar-logo-section" style="display: flex; align-items: center; gap: 8px;">
+        <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" style="height: 36px; width: 36px; object-fit: cover; border-radius: var(--radius-sm);">
         <span class="hamar-logo-text"><span style="color: var(--primary-accent)">Hamar</span><span style="color: var(--text-primary)">Bazaar</span></span>
     </a>
     
@@ -714,7 +710,12 @@
             
             card.innerHTML = `
                 <div>
-                    <span style="background: #ffe4e6; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: #e11d48; margin-bottom: 8px;"><i data-lucide="pill" style="width: 20px; height: 20px;"></i></span>
+                    ${prod.image_path ? 
+                        `<div style="width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow: hidden; border: 1px solid var(--border-color);">
+                            <img src="${prod.image_path}" alt="${prod.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                         </div>` : 
+                        `<span style="background: #ffe4e6; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: #e11d48; margin-bottom: 8px;"><i data-lucide="pill" style="width: 20px; height: 20px;"></i></span>`
+                    }
                     <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${prod.name}</h5>
                     <div class="product-price" style="color: #e11d48;">₹${prod.price.toFixed(2)}</div>
                 </div>
@@ -1049,7 +1050,12 @@
             
             card.innerHTML = `
                 <div>
-                    <span style="background: #f1f5f9; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--primary-accent); margin-bottom: 8px;"><i data-lucide="package" style="width: 20px; height: 20px;"></i></span>
+                    ${prod.image_path ? 
+                        `<div style="width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow: hidden; border: 1px solid var(--border-color);">
+                            <img src="${prod.image_path}" alt="${prod.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                         </div>` : 
+                        `<span style="background: #f1f5f9; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--primary-accent); margin-bottom: 8px;"><i data-lucide="package" style="width: 20px; height: 20px;"></i></span>`
+                    }
                     <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${prod.name}</h5>
                     <div class="product-price">₹${prod.price.toFixed(2)}</div>
                 </div>
@@ -1095,8 +1101,11 @@
             
             card.innerHTML = `
                 <div style="text-align: left;">
-                    <div style="height: 90px; display:flex; align-items:center; justify-content:center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 12px; overflow:hidden;">
-                        <i data-lucide="package" style="width:32px; height:32px; color: var(--text-muted);"></i>
+                    <div style="height: 90px; display:flex; align-items:center; justify-content:center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 12px; overflow:hidden; border: 1px solid var(--border-color);">
+                        ${prod.image_path ? 
+                            `<img src="${prod.image_path}" alt="${prod.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">` :
+                            `<i data-lucide="package" style="width:32px; height:32px; color: var(--text-muted);"></i>`
+                        }
                     </div>
                     <h5 class="product-name" style="font-size: 0.9rem; font-weight:700; color:var(--text-primary); margin-bottom:4px; height:36px; overflow:hidden;">${prod.name}</h5>
                     <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:500;">Pack Size</span>
@@ -1980,7 +1989,12 @@
             
             card.innerHTML = `
                 <div>
-                    <span style="background: #f1f5f9; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--primary-accent); margin-bottom: 8px;"><i data-lucide="package" style="width: 20px; height: 20px;"></i></span>
+                    ${prod.image_path ? 
+                        `<div style="width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow: hidden; border: 1px solid var(--border-color);">
+                            <img src="${prod.image_path}" alt="${prod.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                         </div>` : 
+                        `<span style="background: #f1f5f9; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--primary-accent); margin-bottom: 8px;"><i data-lucide="package" style="width: 20px; height: 20px;"></i></span>`
+                    }
                     <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${prod.name}</h5>
                     <div class="product-price">₹${prod.price.toFixed(2)}</div>
                 </div>

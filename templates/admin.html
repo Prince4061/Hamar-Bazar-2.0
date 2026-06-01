@@ -1296,8 +1296,8 @@
             <div>
                 <!-- Brand logo -->
                 <div class="sidebar-brand">
-                    <div class="brand-logo-glow">
-                        <i data-lucide="shopping-bag"></i>
+                    <div class="brand-logo-glow" style="background: transparent; box-shadow: none; width: 36px; height: 36px;">
+                        <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-md);">
                     </div>
                     <div>
                         <h2 class="brand-logo-text">Mor Bazar</h2>
@@ -2148,6 +2148,11 @@
                         <option value="1">In Stock</option>
                         <option value="0">Out of Stock</option>
                     </select>
+                </div>
+
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Product Image</label>
+                    <input type="file" id="modal-product-image-file" class="form-input-custom" style="width: 100%;" accept="image/*">
                 </div>
             </div>
             <div class="modal-popup-footer">
@@ -3515,6 +3520,7 @@
                 `;
             }
             
+            document.getElementById("modal-product-image-file").value = "";
             document.getElementById("product-modal").style.display = "flex";
         }
 
@@ -3664,6 +3670,7 @@
             document.getElementById("modal-product-available").value = avail ? "1" : "0";
             document.getElementById("modal-shop-select-group").style.display = "none";
             
+            document.getElementById("modal-product-image-file").value = "";
             document.getElementById("product-modal").style.display = "flex";
         }
 
@@ -3677,11 +3684,23 @@
             const name = document.getElementById("modal-product-name").value.trim();
             const price = document.getElementById("modal-product-price").value;
             const shopId = document.getElementById("modal-product-shop").value;
+            const imageFile = document.getElementById("modal-product-image-file").files[0];
             
             if (!name || !price) {
                 showAestheticToast("Product details cannot be empty.", "error");
                 return;
             }
+            
+            const uploadProductImagePromise = (productId) => {
+                if (!imageFile) return Promise.resolve();
+                const formData = new FormData();
+                formData.append("product_image", imageFile);
+                formData.append("product_id", productId);
+                return fetch('/api/admin/products/upload-image', {
+                    method: 'POST',
+                    body: formData
+                }).then(res => res.json());
+            };
             
             if (id) {
                 const p = productsCache.find(item => item.id === parseInt(id));
@@ -3693,9 +3712,15 @@
                 })
                 .then(res => res.json())
                 .then(data => {
-                    showAestheticToast("Catalog product updated.", "success");
-                    closeProductModal();
-                    loadProductCatalog();
+                    uploadProductImagePromise(id).then(() => {
+                        showAestheticToast("Catalog product updated.", "success");
+                        closeProductModal();
+                        loadProductCatalog();
+                    });
+                })
+                .catch(err => {
+                    console.error("Error updating product:", err);
+                    showAestheticToast("Failed to update product.", "error");
                 });
             } else {
                 fetch('/api/admin/products', {
@@ -3705,9 +3730,19 @@
                 })
                 .then(res => res.json())
                 .then(data => {
-                    showAestheticToast("Product added to exclusive catalog.", "success");
-                    closeProductModal();
-                    loadProductCatalog();
+                    if (data.id) {
+                        uploadProductImagePromise(data.id).then(() => {
+                            showAestheticToast("Product added to exclusive catalog.", "success");
+                            closeProductModal();
+                            loadProductCatalog();
+                        });
+                    } else {
+                        showAestheticToast("Failed to add product.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Error adding product:", err);
+                    showAestheticToast("Failed to add product.", "error");
                 });
             }
         }
