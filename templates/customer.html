@@ -344,74 +344,66 @@ html, body {
 
                 <!-- Pharmacy Storefront Wrapper -->
                 <div id="pharmacy-storefront-wrapper" class="hidden-storefront pharmacy-container">
-                    <!-- Pharmacy Hero Banner -->
-                    <div class="hamar-hero-banner mb-md" style="background: radial-gradient(circle at 50% 0%, #ffffff 0%, #ffe4e6 100%);">
-                        <div class="hamar-hero-left">
-                            <div class="hamar-hero-title" style="color: #9f1239; font-size: 1.25rem;">Hamar Pharmacy Hub</div>
-                            <div class="hamar-hero-subtitle" style="margin-top: -12px;"><span style="color: #e11d48">Safe & Certified</span> medicines in 30 min.</div>
-                        </div>
-                        <div class="hamar-hero-right" style="display: flex; align-items: center; justify-content: center;">
-                            <div style="background: #ffe4e6; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #e11d48;">
-                                <i data-lucide="pill" style="width: 32px; height: 32px; stroke-width: 2;"></i>
+                    <!-- Subcategories Grid (Moved to top of pharmacy section) -->
+                    <div class="hamar-section-header" style="margin-top: 0; margin-bottom: 8px;">
+                        <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--text-primary);">Shop Medicines by Need</h3>
+                    </div>
+                    <div class="pharmacy-category-grid" id="pharmacy-subcategory-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px;">
+                        <div class="pharmacy-category-card pain" onclick="selectPharmacySubcategory('Pain Relief')" style="padding: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                            <div>
+                                <div class="pharmacy-category-title" style="font-size: 0.85rem; font-weight: 700;">Pain Relief 🩺</div>
                             </div>
+                            <i data-lucide="flame" style="width: 18px; height: 18px; color: #e11d48;"></i>
+                        </div>
+                        <div class="pharmacy-category-card cold" onclick="selectPharmacySubcategory('Cold & Cough')" style="padding: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                            <div>
+                                <div class="pharmacy-category-title" style="font-size: 0.85rem; font-weight: 700;">Cold & Cough 🤒</div>
+                            </div>
+                            <i data-lucide="thermometer" style="width: 18px; height: 18px; color: #e11d48;"></i>
+                        </div>
+                        <div class="pharmacy-category-card vitamins" onclick="selectPharmacySubcategory('Vitamins')" style="padding: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                            <div>
+                                <div class="pharmacy-category-title" style="font-size: 0.85rem; font-weight: 700;">Vitamins ⚡</div>
+                            </div>
+                            <i data-lucide="sparkles" style="width: 18px; height: 18px; color: #e11d48;"></i>
+                        </div>
+                        <div class="pharmacy-category-card firstaid" onclick="selectPharmacySubcategory('First Aid')" style="padding: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                            <div>
+                                <div class="pharmacy-category-title" style="font-size: 0.85rem; font-weight: 700;">First Aid 🩹</div>
+                            </div>
+                            <i data-lucide="activity" style="width: 18px; height: 18px; color: #e11d48;"></i>
                         </div>
                     </div>
 
                     <!-- Prescription Upload Card -->
-                    <div class="glass-card fade-in-up" style="border-color: rgba(225, 29, 72, 0.15); background: #fffcfc; padding: 16px; margin-top: -12px; margin-bottom: 16px;">
-                        <h4 style="font-size: 0.95rem; font-weight: 800; color: #9f1239; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;"><i data-lucide="image-plus" style="color: #e11d48; width:16px; height:16px;"></i> Upload Prescription / Medicine Image</h4>
-                        <span style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 10px; display: block;">Send us a photo of your prescription or medicine box.</span>
+                    <div class="glass-card fade-in-up" style="border-color: rgba(225, 29, 72, 0.15); background: #fffcfc; padding: 12px;">
+                        <h4 style="font-size: 0.85rem; font-weight: 800; color: #9f1239; display: flex; align-items: center; gap: 6px; margin: 0 0 6px 0;"><i data-lucide="image-plus" style="color: #e11d48; width:16px; height:16px;"></i> Upload Prescription / Medicine Image</h4>
                         
-                        <div onclick="document.getElementById('pharmacy-upload-input').click()" style="border: 2px dashed rgba(225, 29, 72, 0.3); background: rgba(225, 29, 72, 0.02); border-radius: var(--radius-md); padding: 24px; text-align: center; cursor: pointer;">
+                        <div onclick="document.getElementById('pharmacy-upload-input').click()" style="border: 2px dashed rgba(225, 29, 72, 0.2); background: rgba(225, 29, 72, 0.01); border-radius: var(--radius-md); padding: 12px; text-align: center; cursor: pointer;">
                             <input type="file" id="pharmacy-upload-input" accept="image/*" style="display: none;" onchange="handlePharmacyFileSelected(this)">
-                            <i data-lucide="upload-cloud" style="width: 36px; height: 36px; color: #e11d48; margin-bottom: 8px; display: inline-block;"></i>
-                            <p style="font-weight: 700; font-size: 0.82rem; color: var(--text-primary); margin-bottom: 2px;">Click to select or drop image here</p>
+                            <i data-lucide="upload-cloud" style="width: 28px; height: 28px; color: #e11d48; margin-bottom: 4px; display: inline-block;"></i>
+                            <p style="font-weight: 700; font-size: 0.75rem; color: var(--text-primary); margin: 0;">Click here to select/upload prescription</p>
                         </div>
                         
-                        <div id="pharmacy-upload-preview-container" style="display: none; margin-top: 12px; padding: 12px; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-sm); text-align: center;">
-                            <img id="pharmacy-upload-preview-img" src="" alt="Selected Prescription" style="max-height: 150px; max-width: 100%; border-radius: var(--radius-sm); object-fit: contain;">
-                            <div style="display: flex; gap: 8px; justify-content: center; margin-top: 8px;">
-                                <button class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 0.75rem;" onclick="cancelPharmacyUpload()">Cancel</button>
-                                <button class="btn" style="width: auto; padding: 6px 12px; font-size: 0.75rem; background: #e11d48; color: white;" onclick="submitPharmacyPrescription()">Upload to Admin</button>
+                        <div id="pharmacy-upload-preview-container" style="display: none; margin-top: 8px; padding: 8px; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-sm); text-align: center;">
+                            <img id="pharmacy-upload-preview-img" src="" alt="Selected Prescription" style="max-height: 100px; max-width: 100%; border-radius: var(--radius-sm); object-fit: contain;">
+                            <div style="display: flex; gap: 8px; justify-content: center; margin-top: 6px;">
+                                <button class="btn btn-secondary" style="width: auto; padding: 4px 8px; font-size: 0.7rem; margin: 0;" onclick="cancelPharmacyUpload()">Cancel</button>
+                                <button class="btn" style="width: auto; padding: 4px 8px; font-size: 0.7rem; background: #e11d48; color: white; margin: 0;" onclick="submitPharmacyPrescription()">Upload to Admin</button>
                             </div>
                         </div>
                         
-                        <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;">
-                            <h5 style="font-size: 0.85rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">Uploaded Medicines History</h5>
-                            <div id="pharmacy-upload-history-list" style="display: flex; flex-direction: column; gap: 8px;">
-                                <!-- Loaded dynamically -->
+                        <!-- Toggle history button for uploaded prescriptions -->
+                        <div style="margin-top: 8px; text-align: center;">
+                            <button id="toggle-pharmacy-history-btn" onclick="togglePharmacyHistory()" style="background: transparent; border: none; color: #e11d48; font-size: 0.75rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 2px;">
+                                View Prescription Uploads History <i data-lucide="chevron-down" style="width: 12px; height: 12px;"></i>
+                            </button>
+                            
+                            <div id="pharmacy-history-container" style="display: none; margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 8px; text-align: left;">
+                                <div id="pharmacy-upload-history-list" style="display: flex; flex-direction: column; gap: 6px;">
+                                    <!-- Loaded dynamically -->
+                                </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Subcategories Grid -->
-                    <div class="hamar-section-header">
-                        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">Shop Medicines by Need</h3>
-                    </div>
-                    <div class="pharmacy-category-grid" id="pharmacy-subcategory-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                        <div class="pharmacy-category-card pain" onclick="selectPharmacySubcategory('Pain Relief')" style="padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div class="pharmacy-category-title" style="font-size: 0.9rem;">Pain Relief</div>
-                            </div>
-                            <i data-lucide="flame" style="width: 18px; height: 18px; color: #e11d48;"></i>
-                        </div>
-                        <div class="pharmacy-category-card cold" onclick="selectPharmacySubcategory('Cold & Cough')" style="padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div class="pharmacy-category-title" style="font-size: 0.9rem;">Cold & Cough</div>
-                            </div>
-                            <i data-lucide="thermometer" style="width: 18px; height: 18px; color: #e11d48;"></i>
-                        </div>
-                        <div class="pharmacy-category-card vitamins" onclick="selectPharmacySubcategory('Vitamins')" style="padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div class="pharmacy-category-title" style="font-size: 0.9rem;">Vitamins</div>
-                            </div>
-                            <i data-lucide="sparkles" style="width: 18px; height: 18px; color: #e11d48;"></i>
-                        </div>
-                        <div class="pharmacy-category-card firstaid" onclick="selectPharmacySubcategory('First Aid')" style="padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div class="pharmacy-category-title" style="font-size: 0.9rem;">First Aid</div>
-                            </div>
-                            <i data-lucide="activity" style="width: 18px; height: 18px; color: #e11d48;"></i>
                         </div>
                     </div>
 
@@ -2211,6 +2203,19 @@ html, body {
         });
     }
     
+    function togglePharmacyHistory() {
+        const container = document.getElementById("pharmacy-history-container");
+        const btn = document.getElementById("toggle-pharmacy-history-btn");
+        if (container.style.display === "none" || !container.style.display) {
+            container.style.display = "block";
+            btn.innerHTML = `Hide Prescription Uploads History <i data-lucide="chevron-up" style="width: 12px; height: 12px;"></i>`;
+        } else {
+            container.style.display = "none";
+            btn.innerHTML = `View Prescription Uploads History <i data-lucide="chevron-down" style="width: 12px; height: 12px;"></i>`;
+        }
+        if (window.lucide) lucide.createIcons();
+    }
+
     let prescriptionHistoryCache = null;
     function loadPrescriptionHistory() {
         const container = document.getElementById("pharmacy-upload-history-list");
