@@ -2074,6 +2074,31 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Live Search Queries Log Table -->
+                <div class="dashboard-card" style="margin-top: 24px;">
+                    <div class="card-header-row" style="margin-bottom: 16px;">
+                        <h3 class="card-title-text"><i data-lucide="activity" style="color: var(--primary-accent);"></i> Live Search Queries Log</h3>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <input type="text" id="search-log-filter" class="form-input-custom" placeholder="Search by customer or query..." onkeyup="filterSearchLogs()" style="width: 280px; font-size: 0.85rem; padding: 8px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                        </div>
+                    </div>
+                    <div class="table-responsive-wrapper" style="max-height: 400px; overflow-y: auto;">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>Search Time</th>
+                                    <th>Customer ID</th>
+                                    <th>Customer Name</th>
+                                    <th>Exact Query Typed</th>
+                                </tr>
+                            </thead>
+                            <tbody id="search-log-rows">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
         </main>
@@ -2360,6 +2385,7 @@
         };
         let currentTrendPeriod = 'today';
         let allCustomersSearchSummary = [];
+        let recentSearchesData = [];
         let currentSelectedCustomerIdForExport = null;
         
         // Chart variables
@@ -4231,6 +4257,8 @@
                     
                     renderTrendPeriodList();
                     renderCustomerSearchDirectory(data.customers_summary || []);
+                    recentSearchesData = data.recent_searches || [];
+                    renderSearchLogs();
                     
                     if (window.lucide) {
                         lucide.createIcons();
@@ -4342,6 +4370,55 @@
             if (window.lucide) {
                 lucide.createIcons();
             }
+        }
+
+        function renderSearchLogs() {
+            const tbody = document.getElementById('search-log-rows');
+            if (!tbody) return;
+            
+            const filterInput = document.getElementById('search-log-filter');
+            const query = filterInput ? filterInput.value.toLowerCase().trim() : "";
+            
+            const filtered = recentSearchesData.filter(item => {
+                const name = (item.customer_name || '').toLowerCase();
+                const kw = (item.keyword || '').toLowerCase();
+                const idStr = String(item.customer_id || '');
+                return name.includes(query) || kw.includes(query) || idStr.includes(query);
+            });
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                            <i data-lucide="info" style="width: 32px; height: 32px; stroke-width: 1.5; margin-bottom: 8px; display: inline-block;"></i>
+                            <p style="font-weight: 600;">No search log records found</p>
+                        </td>
+                    </tr>
+                `;
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+            
+            tbody.innerHTML = filtered.map(item => `
+                <tr>
+                    <td style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">${item.searched_at_formatted}</td>
+                    <td style="font-weight: 600; color: var(--text-muted);">#${item.customer_id}</td>
+                    <td style="font-weight: 700; color: var(--text-primary);">${item.customer_name}</td>
+                    <td>
+                        <span style="background: rgba(111, 44, 244, 0.08); color: var(--primary-accent); font-weight: 800; padding: 6px 12px; border-radius: 16px; font-size: 0.85rem; font-family: 'Outfit', sans-serif;">
+                            ${item.keyword}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+            
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        }
+        
+        function filterSearchLogs() {
+            renderSearchLogs();
         }
 
         function viewCustomerSearchProfile(customerId) {

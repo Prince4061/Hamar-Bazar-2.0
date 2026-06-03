@@ -2079,13 +2079,35 @@ def get_search_analytics():
             r['last_search_time_formatted'] = '--'
         customers_summary.append(r)
         
+    # 7. Recent Search Logs (latest 100 searches on the platform)
+    cursor.execute('''
+        SELECT sh.id, sh.keyword, sh.searched_at, u.id as customer_id, u.name as customer_name
+        FROM search_history sh
+        JOIN users u ON sh.customer_id = u.id
+        ORDER BY sh.id DESC
+        LIMIT 100
+    ''')
+    recent_searches = []
+    for row in cursor.fetchall():
+        r = dict(row)
+        if r['searched_at']:
+            try:
+                dt = datetime.strptime(r['searched_at'], '%Y-%m-%d %H:%M:%S' if '.' not in r['searched_at'] else '%Y-%m-%d %H:%M:%S.%f')
+                r['searched_at_formatted'] = dt.strftime('%d %b %Y %I:%M %p')
+            except Exception:
+                r['searched_at_formatted'] = r['searched_at']
+        else:
+            r['searched_at_formatted'] = '--'
+        recent_searches.append(r)
+        
     return jsonify({
         'trending': trending,
         'active_searchers': active_searchers,
         'today_top': today_top,
         'weekly_top': weekly_top,
         'monthly_top': monthly_top,
-        'customers_summary': customers_summary
+        'customers_summary': customers_summary,
+        'recent_searches': recent_searches
     })
 
 @app.route('/api/admin/customer/<int:cust_id>/search-profile', methods=['GET'])
