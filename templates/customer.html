@@ -263,7 +263,7 @@ html, body {
         <!-- ==================== SCREEN 1: HOME (EXPLORE) ==================== -->
         <div id="screen-home" class="app-screen active">
             <!-- Active order notification quickcard -->
-            <div id="home-active-order-quickcard" class="glass-card mb-md" style="display: none; border-left: 5px solid var(--primary-accent); padding: 16px; cursor: pointer; margin-bottom: 16px;" onclick="switchTab('orders')">
+            <div id="home-active-order-quickcard" class="glass-card mb-md" style="display: none; border-left: 5px solid var(--primary-accent); padding: 16px; cursor: pointer; margin-bottom: 16px;" onclick="trackActiveOrder()">
                 <div class="flex-between">
                     <span style="font-weight: 800; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; color: var(--text-primary);"><i data-lucide="truck" style="width:16px; height:16px; color: var(--primary-accent);"></i> Active Order is Running</span>
                     <span class="badge badge-status-pending" style="font-size: 0.65rem; padding: 2px 6px; background: var(--primary-light); color: var(--primary-accent);">TRACK LIVE</span>
@@ -782,15 +782,7 @@ html, body {
         if (tabId === 'orders') {
             loadOrdersHistory();
             loadExpenses();
-            
-            // Auto open active tracking if exists, else close tracking view to show list
-            const cachedOrderStr = localStorage.getItem(`active_order_${customerId}`);
-            if (cachedOrderStr) {
-                const cachedOrder = JSON.parse(cachedOrderStr);
-                openTrackingView(cachedOrder.order_id);
-            } else {
-                closeTrackingView();
-            }
+            closeTrackingView();
         } else if (tabId === 'profile') {
             document.getElementById("profile-name-input").value = document.getElementById("customer-navbar-name") ? document.getElementById("customer-navbar-name").innerText.trim() : "";
             document.getElementById("profile-phone-input").value = customerPhone;
@@ -2158,6 +2150,15 @@ html, body {
         if (trackingInterval) {
             clearInterval(trackingInterval);
             trackingInterval = null;
+        }
+    }
+
+    function trackActiveOrder() {
+        switchTab('orders');
+        const cachedOrderStr = localStorage.getItem(`active_order_${customerId}`);
+        if (cachedOrderStr) {
+            const cachedOrder = JSON.parse(cachedOrderStr);
+            openTrackingView(cachedOrder.order_id);
         }
     }
 
