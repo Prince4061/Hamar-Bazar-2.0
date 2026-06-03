@@ -1530,8 +1530,8 @@
                     </div>
                 </section>
 
-                <!-- TABLES & ALERTS CONTAINER -->
-                <section class="dashboard-row-grid">
+                <!-- TABLES CONTAINER -->
+                <section style="display: block;">
                     <!-- Recent Orders -->
                     <div class="dashboard-card">
                         <div class="card-header-row">
@@ -1555,18 +1555,6 @@
                                     <!-- Loaded Dynamically -->
                                 </tbody>
                             </table>
-                        </div>
-                    </div>
-                    
-                    <!-- Inventory Alerts & Predictions -->
-                    <div class="dashboard-card">
-                        <div class="card-header-row">
-                            <h3 class="card-title-text"><i data-lucide="alert-triangle" style="color: var(--amber-warning);"></i> Stock Warnings</h3>
-                            <button class="btn-custom btn-custom-secondary" onclick="switchTab('products')">Inventory</button>
-                        </div>
-                        
-                        <div style="display: flex; flex-direction: column; gap: 12px;" id="dashboard-inventory-alerts-container">
-                            <!-- Loaded Dynamically -->
                         </div>
                     </div>
                 </section>
@@ -2194,8 +2182,8 @@
                 </div>
 
                 <div class="form-group-custom">
-                    <label class="form-label-custom">Product Image</label>
-                    <input type="file" id="modal-product-image-file" class="form-input-custom" style="width: 100%;" accept="image/*">
+                    <label class="form-label-custom">Product Image URL</label>
+                    <input type="text" id="modal-product-image-url" class="form-input-custom" style="width: 100%;" placeholder="e.g. https://example.com/product.png">
                 </div>
             </div>
             <div class="modal-popup-footer">
@@ -2237,8 +2225,8 @@
                 </div>
 
                 <div class="form-group-custom">
-                    <label class="form-label-custom">Category / Shop Image</label>
-                    <input type="file" id="modal-shop-image-file" class="form-input-custom" style="width: 100%;" accept="image/*">
+                    <label class="form-label-custom">Category / Shop Image URL</label>
+                    <input type="text" id="modal-shop-image-url" class="form-input-custom" style="width: 100%;" placeholder="e.g. https://example.com/image.png">
                 </div>
             </div>
             <div class="modal-popup-footer">
@@ -2369,7 +2357,7 @@
     </div>
 
     <!-- Hidden file input for product upload -->
-    <input type="file" id="hidden-image-file-input" style="display: none;" onchange="handleProductImageFileSelected(event)">
+
 
     <!-- TOASTS CONTAINER -->
     <div id="aesthetic-toast-container" class="aesthetic-toast-container"></div>
@@ -3071,6 +3059,7 @@
         // Render Inventory alerts list
         function renderInventoryAlertsList(warnings) {
             const container = document.getElementById("dashboard-inventory-alerts-container");
+            if (!container) return;
             container.innerHTML = "";
             
             if (!warnings || warnings.length === 0) {
@@ -3432,10 +3421,6 @@
                 div.innerHTML = `
                     <div class="product-image-container">
                         ${hasImg ? `<img src="${p.image_path}" alt="${p.name}">` : `<i data-lucide="package" style="width:36px; height:36px; color:var(--text-muted);"></i>`}
-                        <div class="upload-overlay-trigger" onclick="triggerProductImageUpload(${p.id})">
-                            <i data-lucide="camera" style="width:20px;"></i>
-                            <span>Upload Image</span>
-                        </div>
                     </div>
                     <div class="product-title-row">
                         <span class="product-name-txt">${p.name}</span>
@@ -3478,41 +3463,7 @@
             renderProductsCatalogGrid(filtered);
         }
 
-        // Upload product image
-        let activeUploadProductId = null;
-        function triggerProductImageUpload(prodId) {
-            activeUploadProductId = prodId;
-            document.getElementById("hidden-image-file-input").click();
-        }
 
-        function handleProductImageFileSelected(e) {
-            const file = e.target.files[0];
-            if (!file || !activeUploadProductId) return;
-            
-            const formData = new FormData();
-            formData.append("product_image", file);
-            formData.append("product_id", activeUploadProductId);
-            
-            showAestheticToast("Uploading product flat illustration...", "info");
-            
-            fetch('/api/admin/products/upload-image', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) {
-                    showAestheticToast(data.error, "error");
-                } else {
-                    showAestheticToast(data.message, "success");
-                    loadProductCatalog();
-                }
-            })
-            .catch(err => {
-                console.error("Upload error:", err);
-                showAestheticToast("Upload failed.", "error");
-            });
-        }
 
         // Inline Price updating
         function updateProductInlinePrice(prodId, priceVal) {
@@ -3566,7 +3517,7 @@
                 `;
             }
             
-            document.getElementById("modal-product-image-file").value = "";
+            document.getElementById("modal-product-image-url").value = "";
             document.getElementById("product-modal").style.display = "flex";
         }
 
@@ -3577,7 +3528,7 @@
             document.getElementById("modal-shop-category").value = "";
             document.getElementById("modal-shop-commission").value = "5.0";
             document.getElementById("modal-shop-password").value = "";
-            document.getElementById("modal-shop-image-file").value = "";
+            document.getElementById("modal-shop-image-url").value = "";
             document.getElementById("shop-modal").style.display = "flex";
         }
 
@@ -3588,7 +3539,16 @@
             document.getElementById("modal-shop-category").value = category;
             document.getElementById("modal-shop-commission").value = commission;
             document.getElementById("modal-shop-password").value = password;
-            document.getElementById("modal-shop-image-file").value = "";
+            
+            let imagePath = "";
+            if (analyticsData && analyticsData.shops_performance) {
+                const s = analyticsData.shops_performance.find(x => x.shop_id === shopId);
+                if (s) {
+                    imagePath = s.image_path || "";
+                }
+            }
+            document.getElementById("modal-shop-image-url").value = imagePath;
+            
             document.getElementById("shop-modal").style.display = "flex";
         }
 
@@ -3602,7 +3562,7 @@
             const category = document.getElementById("modal-shop-category").value.trim().toUpperCase();
             const commission = document.getElementById("modal-shop-commission").value;
             const password = document.getElementById("modal-shop-password").value.trim();
-            const imageFile = document.getElementById("modal-shop-image-file").files[0];
+            const imageUrl = document.getElementById("modal-shop-image-url").value.trim();
             
             if (!name || !category || !password) {
                 showAestheticToast("Shop Name, Category Code, and Password are required.", "error");
@@ -3614,8 +3574,8 @@
             formData.append("category", category);
             formData.append("commission_pct", commission);
             formData.append("password", password);
-            if (imageFile) {
-                formData.append("shop_image", imageFile);
+            if (imageUrl) {
+                formData.append("shop_image_url", imageUrl);
             }
             
             const isEdit = id ? true : false;
@@ -3721,7 +3681,7 @@
             document.getElementById("modal-product-available").value = p.is_available ? "1" : "0";
             document.getElementById("modal-shop-select-group").style.display = "none";
             
-            document.getElementById("modal-product-image-file").value = "";
+            document.getElementById("modal-product-image-url").value = p.image_path || "";
             document.getElementById("product-modal").style.display = "flex";
         }
 
@@ -3729,32 +3689,21 @@
             document.getElementById("product-modal").style.display = "none";
         }
 
+        function saveProductCatalog() {
             const id = document.getElementById("modal-product-id").value;
             const name = document.getElementById("modal-product-name").value.trim();
             const price = document.getElementById("modal-product-price").value;
             const shopId = document.getElementById("modal-product-shop").value;
             const subcategory = document.getElementById("modal-product-subcategory").value.trim();
             const description = document.getElementById("modal-product-description").value.trim();
-            const imageFile = document.getElementById("modal-product-image-file").files[0];
+            const imageUrl = document.getElementById("modal-product-image-url").value.trim();
             
             if (!name || !price) {
                 showAestheticToast("Product details cannot be empty.", "error");
                 return;
             }
             
-            const uploadProductImagePromise = (productId) => {
-                if (!imageFile) return Promise.resolve();
-                const formData = new FormData();
-                formData.append("product_image", imageFile);
-                formData.append("product_id", productId);
-                return fetch('/api/admin/products/upload-image', {
-                    method: 'POST',
-                    body: formData
-                }).then(res => res.json());
-            };
-            
             if (id) {
-                const p = productsCache.find(item => item.id === parseInt(id));
                 const avail = document.getElementById("modal-product-available").value;
                 fetch(`/api/admin/products/${id}`, {
                     method: 'PUT',
@@ -3763,18 +3712,16 @@
                         name: name, 
                         price: price, 
                         is_available: avail, 
-                        image_path: p ? p.image_path : null,
+                        image_path: imageUrl,
                         subcategory: subcategory,
                         description: description
                     })
                 })
                 .then(res => res.json())
                 .then(data => {
-                    uploadProductImagePromise(id).then(() => {
-                        showAestheticToast("Catalog product updated.", "success");
-                        closeProductModal();
-                        loadProductCatalog();
-                    });
+                    showAestheticToast("Catalog product updated.", "success");
+                    closeProductModal();
+                    loadProductCatalog();
                 })
                 .catch(err => {
                     console.error("Error updating product:", err);
@@ -3788,6 +3735,7 @@
                         shop_id: shopId, 
                         name: name, 
                         price: price,
+                        image_path: imageUrl,
                         subcategory: subcategory,
                         description: description
                     })
@@ -3795,11 +3743,9 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.id) {
-                        uploadProductImagePromise(data.id).then(() => {
-                            showAestheticToast("Product added to exclusive catalog.", "success");
-                            closeProductModal();
-                            loadProductCatalog();
-                        });
+                        showAestheticToast("Product added to exclusive catalog.", "success");
+                        closeProductModal();
+                        loadProductCatalog();
                     } else {
                         showAestheticToast("Failed to add product.", "error");
                     }

@@ -980,6 +980,7 @@ html, body {
 
         if (tabId === 'home') {
             currentShopId = null;
+            clearHomeSearch();
             // Also ensure shop-detail is closed if switching to Bazaar
             const shopDetail = document.getElementById("screen-shop-detail");
             if (shopDetail) {
@@ -1026,6 +1027,7 @@ html, body {
     // Switch storefront display pages
     function showStorePage(page) {
         activeStorefront = page;
+        clearHomeSearch();
         
         const btnGrocery = document.getElementById("btn-switch-grocery");
         const btnPharmacy = document.getElementById("btn-switch-pharmacy");
@@ -2464,6 +2466,8 @@ html, body {
             .catch(err => {
                 console.error("Error loading prescription history:", err);
             });
+    }
+    
     function loadCustomerAboutTeamPhoto() {
         fetch('/api/system/settings')
             .then(res => res.json())

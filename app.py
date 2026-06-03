@@ -60,6 +60,17 @@ def run_migrations():
     conn.commit()
     conn.close()
 
+# Auto-initialize and seed database if it doesn't exist or is empty
+if not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) == 0:
+    try:
+        import database
+        database.init_db()
+        database.seed_db()
+        database.seed_historical_orders()
+        database.seed_search_history()
+    except Exception as e:
+        print("Failed to auto-initialize database:", e)
+
 run_migrations()
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
@@ -1498,12 +1509,34 @@ def admin_update_shop(shop_id):
     if cursor.fetchone():
         return jsonify({'error': f'Category/Shop with code "{category}" already exists.'}), 400
         
+    # Get current image path
+    cursor.execute("SELECT image_path FROM shops WHERE id = ?", (shop_id,))
+    current_shop = cursor.fetchone()
+    image_path = current_shop['image_path'] if current_shop else '/static/images/grocery_basket.png'
+    
+    # Handle image URL from form
+    image_url = data.get('shop_image_url', '').strip()
+    if image_url:
+        image_path = image_url
+        
+    # Handle image upload if form contains files
+    if 'shop_image' in request.files:
+        file = request.files['shop_image']
+        if file and file.filename != '' and allowed_file(file.filename):
+            ext = file.filename.rsplit('.', 1)[1].lower()
+            filename = f"category_{category.lower()}_{int(datetime.now().timestamp())}.{ext}"
+            upload_path = os.path.join(app.root_path, 'static', 'uploads', 'category_pics')
+            os.makedirs(upload_path, exist_ok=True)
+            file_path = os.path.join(upload_path, filename)
+            file.save(file_path)
+            image_path = f"/static/uploads/category_pics/{filename}"
+            
     try:
         cursor.execute('''
             UPDATE shops 
-            SET shop_name = ?, category = ?, commission_pct = ?, password = ? 
+            SET shop_name = ?, category = ?, commission_pct = ?, password = ?, image_path = ? 
             WHERE id = ?
-        ''', (shop_name, category, float(commission_pct), password, shop_id))
+        ''', (shop_name, category, float(commission_pct), password, image_path, shop_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Shop category credentials updated successfully.'})
     except Exception as e:
@@ -1615,6 +1648,12 @@ def admin_add_shop():
         
     # Handle image upload
     image_path = '/static/images/grocery_basket.png' # default placeholder
+    
+    # Check if image URL was provided
+    image_url = request.form.get('shop_image_url', '').strip()
+    if image_url:
+        image_path = image_url
+        
     if 'shop_image' in request.files:
         file = request.files['shop_image']
         if file and file.filename != '' and allowed_file(file.filename):
@@ -1706,18 +1745,11 @@ def admin_modify_product(prod_id):
         subcategory = data.get('subcategory', '')
         description = data.get('description', '')
         
-        if image_path:
-            cursor.execute('''
-                UPDATE products 
-                SET name = ?, price = ?, is_available = ?, image_path = ?, subcategory = ?, description = ? 
-                WHERE id = ?
-            ''', (name, float(price), int(is_available), image_path, subcategory, description, prod_id))
-        else:
-            cursor.execute('''
-                UPDATE products 
-                SET name = ?, price = ?, is_available = ?, subcategory = ?, description = ? 
-                WHERE id = ?
-            ''', (name, float(price), int(is_available), subcategory, description, prod_id))
+        cursor.execute('''
+            UPDATE products 
+            SET name = ?, price = ?, is_available = ?, image_path = ?, subcategory = ?, description = ? 
+            WHERE id = ?
+        ''', (name, float(price), int(is_available), image_path, subcategory, description, prod_id))
         db.commit()
         return jsonify({'message': 'Product updated successfully.'})
 
