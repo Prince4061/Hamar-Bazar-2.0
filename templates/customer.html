@@ -532,21 +532,29 @@ html, body {
 
         <!-- ==================== SCREEN 4: ORDERS ==================== -->
         <div id="screen-orders" class="app-screen">
-            <!-- Screen segment tab switcher -->
-            <div class="store-switcher-container fade-in-up" style="margin-bottom: 20px;">
-                <button class="store-switch-btn active" id="btn-orders-tracking" onclick="switchOrdersSegment('tracking')">
-                    <i data-lucide="truck"></i> Active Tracking
-                </button>
-                <button class="store-switch-btn" id="btn-orders-history" onclick="switchOrdersSegment('history')">
-                    <i data-lucide="history"></i> Order History
-                </button>
+            <!-- Screen A: Unified Orders History List -->
+            <div id="orders-history-list-view" style="text-align: left;">
+                <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 16px; color: var(--text-primary);">Mere Orders</h3>
+                
+                <div class="glass-card" style="padding: 16px;">
+                    <div id="orders-history-list" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Dynamic orders list -->
+                    </div>
+                </div>
             </div>
 
-            <!-- Segment A: Active Order Tracker -->
-            <div id="orders-segment-tracking" style="text-align: left;">
-                <div id="active-order-container" class="glass-card mb-md" style="display: none; border: 2px solid var(--primary-accent); padding: 16px;">
+            <!-- Screen B: Order Tracking Detail View -->
+            <div id="order-tracking-detail-view" style="display: none; text-align: left;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                    <button onclick="closeTrackingView()" style="background: var(--primary-light); color: var(--primary-accent); border: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease;">
+                        <i data-lucide="arrow-left" style="width: 20px; height: 20px; stroke-width: 2.5;"></i>
+                    </button>
+                    <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin: 0; font-family: 'Outfit', sans-serif;">Order Detail & Tracking</h3>
+                </div>
+
+                <div class="glass-card mb-md" style="border: 2px solid var(--primary-accent); padding: 16px;">
                     <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
-                        <span style="font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 4px;"><i data-lucide="package" style="color: var(--primary-accent); width:18px; height:18px;"></i> Active Order <span id="tracking-order-id" class="text-accent">#--</span></span>
+                        <span style="font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 4px;"><i data-lucide="package" style="color: var(--primary-accent); width:18px; height:18px;"></i> Order <span id="tracking-order-id" class="text-accent">#--</span></span>
                         <span id="tracking-order-status" class="badge badge-status-pending">PENDING</span>
                     </div>
                     
@@ -591,22 +599,13 @@ html, body {
                             <span id="delivery-otp-display" style="font-size: 1.15rem; font-weight: 800; color: var(--emerald-green); letter-spacing: 2px;">----</span>
                         </div>
                     </div>
-                </div>
-                
-                <div id="no-active-order-msg" style="text-align: center; padding: 40px 16px; color: var(--text-muted);">
-                    <i data-lucide="package" style="width: 48px; height: 48px; stroke-width: 1.2; color: var(--text-muted); margin-bottom: 12px; display: inline-block;"></i>
-                    <p style="font-weight: 600; font-size: 0.95rem;">No active order running</p>
-                    <p style="font-size: 0.8rem; margin-top: 4px;">Items added to your bag will appear here once checked out.</p>
-                </div>
-            </div>
 
-            <!-- Segment B: Order History -->
-            <div id="orders-segment-history" style="display: none; text-align: left;">
-                <!-- order history list container directly on screen -->
-                <div class="glass-card" style="padding: 16px;">
-                    <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 4px;"><i data-lucide="clipboard-list" style="color: var(--primary-accent); width:16px; height:16px;"></i> Completed Orders</h4>
-                    <div id="orders-history-list" style="display: flex; flex-direction: column; gap: 10px;">
-                        <!-- Dynamic completed orders -->
+                    <!-- Items ordered summary detail inside tracking view -->
+                    <div id="tracking-items-section" style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: var(--radius-md); border-top: 1px dashed var(--border-color);">
+                        <p style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">Items Ordered:</p>
+                        <div id="tracking-items-list" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--text-primary);">
+                            <!-- Dynamic items -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -783,15 +782,14 @@ html, body {
         if (tabId === 'orders') {
             loadOrdersHistory();
             loadExpenses();
-            const cachedOrder = localStorage.getItem(`active_order_${customerId}`);
-            const trackerContainer = document.getElementById("active-order-container");
-            const noActiveMsg = document.getElementById("no-active-order-msg");
-            if (cachedOrder) {
-                if (trackerContainer) trackerContainer.style.display = "block";
-                if (noActiveMsg) noActiveMsg.style.display = "none";
+            
+            // Auto open active tracking if exists, else close tracking view to show list
+            const cachedOrderStr = localStorage.getItem(`active_order_${customerId}`);
+            if (cachedOrderStr) {
+                const cachedOrder = JSON.parse(cachedOrderStr);
+                openTrackingView(cachedOrder.order_id);
             } else {
-                if (trackerContainer) trackerContainer.style.display = "none";
-                if (noActiveMsg) noActiveMsg.style.display = "block";
+                closeTrackingView();
             }
         } else if (tabId === 'profile') {
             document.getElementById("profile-name-input").value = document.getElementById("customer-navbar-name") ? document.getElementById("customer-navbar-name").innerText.trim() : "";
@@ -1661,20 +1659,17 @@ html, body {
                 updateCartUI();
                 localStorage.setItem(`active_order_${customerId}`, JSON.stringify({ order_id: data.order_id }));
                 
-                // Active Order tracked timeline starts
-                startTracking(data.order_id);
-                document.getElementById("home-active-order-quickcard").style.display = "block";
-                
-                // Direct route: switch user automatically to screen-orders
+                // Direct route: switch user automatically to screen-orders and open tracking
                 switchTab('orders');
-                switchOrdersSegment('tracking');
+                openTrackingView(data.order_id);
+                
+                // Show the active order notification card on Home screen
+                document.getElementById("home-active-order-quickcard").style.display = "block";
             }
         });
     }
 
     function startTracking(orderId) {
-        document.getElementById("active-order-container").style.display = "block";
-        document.getElementById("no-active-order-msg").style.display = "none";
         document.getElementById("tracking-order-id").innerText = `#${orderId}`;
         
         if (trackingInterval) clearInterval(trackingInterval);
@@ -1691,6 +1686,17 @@ html, body {
                     const status = data.status;
                     const statusBadge = document.getElementById("tracking-order-status");
                     statusBadge.innerText = status.replace(/_/g, " ");
+                    
+                    // Populate items list
+                    const itemsContainer = document.getElementById("tracking-items-list");
+                    if (itemsContainer && data.items) {
+                        itemsContainer.innerHTML = data.items.map(item => `
+                            <div class="flex-between" style="padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.03);">
+                                <span>• ${item.product_name} <strong>x${item.quantity}</strong></span>
+                                <strong>₹${(item.price * item.quantity).toFixed(0)}</strong>
+                            </div>
+                        `).join("");
+                    }
                     
                     const steps = ["step-pending", "step-accepted", "step-ready", "step-out", "step-delivered"];
                     steps.forEach(s => {
@@ -2074,28 +2080,36 @@ html, body {
     function loadOrdersHistory() {
         const listContainer = document.getElementById("orders-history-list");
         if (!listContainer) return;
-        listContainer.innerHTML = "<div style='text-align:center; padding: 20px;'><p>Fetching completed orders...</p></div>";
+        listContainer.innerHTML = "<div style='text-align:center; padding: 20px;'><p>Fetching orders...</p></div>";
         
         fetch(`/api/customer/${customerId}/orders`)
             .then(res => res.json())
             .then(orders => {
                 listContainer.innerHTML = "";
                 
-                const completedOrders = orders.filter(o => o.status === "DELIVERED" || o.status === "FAILED");
-                
-                if (completedOrders.length === 0) {
-                    listContainer.innerHTML = `<div style="text-align: center; padding: 24px 0;"><i data-lucide="shopping-bag" style="width: 32px; height: 32px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 8px; display: inline-block;"></i><p style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">No completed orders yet.</p></div>`;
+                if (orders.length === 0) {
+                    listContainer.innerHTML = `<div style="text-align: center; padding: 24px 0;"><i data-lucide="shopping-bag" style="width: 32px; height: 32px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 8px; display: inline-block;"></i><p style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">No orders yet.</p></div>`;
                     refreshIcons();
                     return;
                 }
                 
-                completedOrders.forEach(o => {
+                orders.forEach(o => {
                     const card = document.createElement("div");
-                    card.style = "background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;";
+                    card.style = "background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s ease;";
+                    card.onclick = () => openTrackingView(o.id);
                     
-                    let statusBadgeClass = o.status === "DELIVERED" ? "badge-status-delivered" : "badge-status-pending";
-                    if (o.status === "FAILED") {
+                    let statusBadgeClass = "badge-status-pending";
+                    if (o.status === "DELIVERED") {
+                        statusBadgeClass = "badge-status-delivered";
+                    } else if (o.status === "FAILED") {
                         statusBadgeClass = "badge-status-pending";
+                    } else if (o.status === "ACCEPTED" || o.status === "READY_FOR_PICKUP" || o.status === "OUT_FOR_DELIVERY") {
+                        statusBadgeClass = "badge-status-ready";
+                    }
+                    
+                    let statusColorStyle = "";
+                    if (o.status === "FAILED") {
+                        statusColorStyle = "background: var(--ruby-light); color: var(--ruby-danger);";
                     }
                     
                     let timeStr = o.created_at;
@@ -2108,7 +2122,7 @@ html, body {
                     card.innerHTML = `
                         <div class="flex-between">
                             <span style="font-weight: 800; font-size: 0.9rem; color: var(--text-primary);">Order #${o.id}</span>
-                            <span class="badge ${statusBadgeClass}" style="${o.status === 'FAILED' ? 'background:var(--ruby-light); color:var(--ruby-danger);' : ''}">${o.status}</span>
+                            <span class="badge ${statusBadgeClass}" style="${statusColorStyle}">${o.status.replace(/_/g, " ")}</span>
                         </div>
                         <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px;">
                             <div><strong>Shop:</strong> ${o.shop_name}</div>
@@ -2117,7 +2131,7 @@ html, body {
                         </div>
                         <div class="flex-between" style="align-items: center; margin-top: 4px;">
                             <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}" style="font-size:0.65rem; padding: 2px 6px;">${o.priority_type}</span>
-                            <button class="btn btn-secondary" style="width: auto; padding: 4px 8px; font-size: 0.75rem; border-radius: var(--radius-sm); margin: 0;" onclick="viewOrderItems(${o.id})">Details</button>
+                            <span style="font-size: 0.75rem; color: var(--primary-accent); font-weight: 700; display: flex; align-items: center; gap: 2px;">Track Order <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i></span>
                         </div>
                     `;
                     listContainer.appendChild(card);
@@ -2126,20 +2140,25 @@ html, body {
             })
             .catch(err => {
                 console.error("Error loading order history:", err);
-                listContainer.innerHTML = "<div style='text-align:center; padding: 12px; color: var(--ruby-danger);'><p>Failed to load history.</p></div>";
+                listContainer.innerHTML = "<div style='text-align:center; padding: 12px; color: var(--ruby-danger);'><p>Failed to load orders.</p></div>";
             });
     }
 
-    function viewOrderItems(orderId) {
-        fetch(`/api/orders/${orderId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.items) {
-                    const itemsText = data.items.map(item => `• ${item.quantity}x ${item.product_name} (₹${item.price.toFixed(0)})`).join("\n");
-                    alert(`Order #${orderId} Items:\n\n${itemsText}\n\nGrand Total: ₹${data.total_amount.toFixed(2)}`);
-                }
-            })
-            .catch(err => console.error("Error fetching order details for alert:", err));
+    function openTrackingView(orderId) {
+        document.getElementById("orders-history-list-view").style.display = "none";
+        document.getElementById("order-tracking-detail-view").style.display = "block";
+        
+        startTracking(orderId);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function closeTrackingView() {
+        document.getElementById("orders-history-list-view").style.display = "block";
+        document.getElementById("order-tracking-detail-view").style.display = "none";
+        if (trackingInterval) {
+            clearInterval(trackingInterval);
+            trackingInterval = null;
+        }
     }
 
     function handlePharmacyFileSelected(input) {
