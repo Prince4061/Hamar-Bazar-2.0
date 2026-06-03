@@ -671,6 +671,32 @@ html, body {
             </div>
         </div>
 
+        <!-- ==================== SCREEN 6: SHOP PRODUCTS PAGE ==================== -->
+        <div id="screen-shop-detail" class="app-screen">
+            <!-- Header bar with Back button and Shop Name -->
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--border-color); padding-bottom: 14px; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button onclick="goBackToHome()" style="background: var(--primary-light); color: var(--primary-accent); border: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease;">
+                        <i data-lucide="arrow-left" style="width: 20px; height: 20px; stroke-width: 2.5;"></i>
+                    </button>
+                    <h3 id="shop-detail-name" style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin: 0; font-family: 'Outfit', sans-serif;">Shop Name</h3>
+                </div>
+            </div>
+
+            <!-- Search box within the shop -->
+            <div class="search-bar-container" style="margin-bottom: 16px;">
+                <input type="text" id="shop-product-search-input" class="search-bar-input" placeholder="Is shop ke product search karein... 🔍" oninput="filterShopProducts(this.value)" style="flex: 1; border: none; padding: 12px 16px; font-size: 0.95rem; outline: none; background: transparent;">
+                <button class="search-bar-button" style="pointer-events: none;">
+                    <i data-lucide="search" style="width: 18px; height: 18px;"></i>
+                </button>
+            </div>
+
+            <!-- Products listing -->
+            <div class="products-grid" id="shop-detail-products-container">
+                <!-- Dynamically loaded products -->
+            </div>
+        </div>
+
     </div>
     
     <!-- BOTTOM NAV BAR FIXED -->
@@ -743,6 +769,15 @@ html, body {
         const appBody = document.querySelector(".mobile-app-body");
         if (appBody) {
             appBody.scrollTop = 0;
+        }
+
+        if (tabId === 'home') {
+            currentShopId = null;
+            // Also ensure shop-detail is closed if switching to Bazaar
+            const shopDetail = document.getElementById("screen-shop-detail");
+            if (shopDetail) {
+                shopDetail.classList.remove("active");
+            }
         }
         
         if (tabId === 'orders') {
@@ -963,8 +998,11 @@ html, body {
             fetch(`/api/shops/${currentShopId}/products`)
                 .then(res => res.json())
                 .then(data => {
-                    productsList = data;
-                    renderProducts();
+                    const hasChanged = JSON.stringify(data) !== JSON.stringify(productsList);
+                    if (hasChanged) {
+                        productsList = data;
+                        renderCurrentShopProducts();
+                    }
                 })
                 .catch(err => console.error("Error polling category products:", err));
         }
@@ -1152,7 +1190,7 @@ html, body {
         }
     }
 
-    // Displays products of selected category inside the shelf
+    // Displays products of selected category inside the shop detail screen
     function selectCategory(category, shopId) {
         document.querySelectorAll(".hamar-category-card").forEach((card) => {
             card.style.border = "1px solid transparent";
@@ -1164,24 +1202,72 @@ html, body {
 
         currentShopId = shopId;
         
-        // Dynamic bouncy drawer opening
-        const overlay = document.getElementById("shop-products-overlay");
-        const panel = document.getElementById("shop-products-panel");
-        if (overlay) overlay.style.display = "block";
-        if (panel) {
-            panel.style.display = "block";
-            setTimeout(() => panel.classList.add("show"), 10);
+        // Hide other screens and open shop detail page
+        document.querySelectorAll(".app-screen").forEach(screen => {
+            screen.classList.remove("active");
+        });
+        const detailScreen = document.getElementById("screen-shop-detail");
+        if (detailScreen) {
+            detailScreen.classList.add("active");
+        }
+        
+        const searchInput = document.getElementById("shop-product-search-input");
+        if (searchInput) {
+            searchInput.value = "";
         }
         
         fetch(`/api/shops/${shopId}/products`)
             .then(res => res.json())
             .then(data => {
                 productsList = data;
-                renderProducts();
+                renderShopDetailProducts(data);
             });
             
         const shop = shopsCache.find(s => s.id === shopId);
-        document.getElementById("current-shop-name").innerText = shop ? shop.shop_name : "Exclusive Partner Store";
+        document.getElementById("shop-detail-name").innerText = shop ? shop.shop_name : "Exclusive Partner Store";
+        
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function goBackToHome() {
+        document.getElementById("screen-shop-detail").classList.remove("active");
+        document.getElementById("screen-home").classList.add("active");
+        
+        // Reset category borders
+        document.querySelectorAll(".hamar-category-card").forEach(card => card.style.border = "1px solid transparent");
+        currentShopId = null;
+    }
+
+    function filterShopProducts(query) {
+        renderCurrentShopProducts();
+    }
+
+    function renderCurrentShopProducts() {
+        const queryInput = document.getElementById("shop-product-search-input");
+        const query = queryInput ? queryInput.value.trim().toLowerCase() : "";
+        let filtered = productsList;
+        if (query) {
+            filtered = productsList.filter(p => p.name.toLowerCase().includes(query));
+        }
+        renderShopDetailProducts(filtered);
+    }
+
+    function renderShopDetailProducts(products) {
+        const container = document.getElementById("shop-detail-products-container");
+        container.innerHTML = "";
+        
+        if (!products || products.length === 0) {
+            container.innerHTML = `<div style="grid-column: 1/-1; padding: 24px; text-align: center; color: var(--text-secondary); font-weight: 500;">Koi product nahi mila.</div>`;
+            return;
+        }
+
+        products.forEach(prod => {
+            const card = document.createElement("div");
+            card.className = "product-card fade-in-up";
+            card.innerHTML = buildProductCardHtml(prod);
+            container.appendChild(card);
+        });
+        refreshIcons();
     }
 
     // Close category products panel
@@ -1240,7 +1326,12 @@ html, body {
     }
 
     // Renders Recommended horizontal list
+    let recommendedProductsCache = null;
     function renderRecommendedProducts(products) {
+        const hasChanged = JSON.stringify(products) !== JSON.stringify(recommendedProductsCache);
+        if (!hasChanged) return;
+        recommendedProductsCache = products;
+        
         const container = document.getElementById("recommended-products-container");
         container.innerHTML = "";
         
@@ -1381,6 +1472,7 @@ html, body {
 
     function updateCartUI() {
         renderProducts();
+        renderCurrentShopProducts();
         renderPharmacyProducts();
         
         const container = document.getElementById("cart-items-container");
@@ -2101,6 +2193,7 @@ html, body {
         });
     }
     
+    let prescriptionHistoryCache = null;
     function loadPrescriptionHistory() {
         const container = document.getElementById("pharmacy-upload-history-list");
         if (!container) return;
@@ -2108,6 +2201,10 @@ html, body {
         fetch(`/api/prescriptions/customer/${customerId}`)
             .then(res => res.json())
             .then(data => {
+                const hasChanged = JSON.stringify(data) !== JSON.stringify(prescriptionHistoryCache);
+                if (!hasChanged) return;
+                prescriptionHistoryCache = data;
+                
                 container.innerHTML = "";
                 if (data.length === 0) {
                     container.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 12px 0;">No prescription uploads yet.</p>`;
