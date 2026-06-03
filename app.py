@@ -492,7 +492,7 @@ def sync_products():
         return jsonify([])
         
     placeholders = ','.join('?' for _ in product_ids)
-    cursor.execute(f"SELECT id, name, price, is_available, shop_id FROM products WHERE id IN ({placeholders})", product_ids)
+    cursor.execute(f"SELECT id, name, price, is_available, shop_id, subcategory, description, image_path FROM products WHERE id IN ({placeholders})", product_ids)
     products = [dict(row) for row in cursor.fetchall()]
     return jsonify(products)
 
@@ -1676,13 +1676,15 @@ def admin_add_product():
     name = data.get('name')
     price = data.get('price')
     image_path = data.get('image_path')
+    subcategory = data.get('subcategory', '')
+    description = data.get('description', '')
     
     if not shop_id or not name or price is None:
         return jsonify({'error': 'Parameters shop_id, name, and price are required.'}), 400
         
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("INSERT INTO products (shop_id, name, price, image_path) VALUES (?, ?, ?, ?)", (shop_id, name, float(price), image_path))
+    cursor.execute("INSERT INTO products (shop_id, name, price, image_path, subcategory, description) VALUES (?, ?, ?, ?, ?, ?)", (shop_id, name, float(price), image_path, subcategory, description))
     db.commit()
     return jsonify({'message': 'Product added successfully.', 'id': cursor.lastrowid})
 
@@ -1701,19 +1703,21 @@ def admin_modify_product(prod_id):
         price = data.get('price')
         is_available = data.get('is_available', 1)
         image_path = data.get('image_path')
+        subcategory = data.get('subcategory', '')
+        description = data.get('description', '')
         
         if image_path:
             cursor.execute('''
                 UPDATE products 
-                SET name = ?, price = ?, is_available = ?, image_path = ? 
+                SET name = ?, price = ?, is_available = ?, image_path = ?, subcategory = ?, description = ? 
                 WHERE id = ?
-            ''', (name, float(price), int(is_available), image_path, prod_id))
+            ''', (name, float(price), int(is_available), image_path, subcategory, description, prod_id))
         else:
             cursor.execute('''
                 UPDATE products 
-                SET name = ?, price = ?, is_available = ? 
+                SET name = ?, price = ?, is_available = ?, subcategory = ?, description = ? 
                 WHERE id = ?
-            ''', (name, float(price), int(is_available), prod_id))
+            ''', (name, float(price), int(is_available), subcategory, description, prod_id))
         db.commit()
         return jsonify({'message': 'Product updated successfully.'})
 

@@ -2151,6 +2151,16 @@
                 </div>
 
                 <div class="form-group-custom">
+                    <label class="form-label-custom">Product Subcategory (For category filtering or medicine type)</label>
+                    <input type="text" id="modal-product-subcategory" class="form-input-custom" style="width: 100%;" placeholder="e.g. Cold & Cough, Snacks, Beverages">
+                </div>
+
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Product Information / Description</label>
+                    <textarea id="modal-product-description" class="form-input-custom" style="width: 100%; height: 80px; padding: 10px; resize: vertical;" placeholder="e.g. Detailed benefits, usage instructions, or product specifications..."></textarea>
+                </div>
+
+                <div class="form-group-custom">
                     <label class="form-label-custom">Product Image</label>
                     <input type="file" id="modal-product-image-file" class="form-input-custom" style="width: 100%;" accept="image/*">
                 </div>
@@ -3410,7 +3420,7 @@
                         </div>
                         
                         <div style="display:flex; gap:6px;">
-                            <button class="btn-custom btn-custom-secondary" style="padding:6px 10px;" onclick="openEditProductModal(${p.id}, '${(p.name || '').replace(/'/g, "\\'")}', ${p.price}, ${p.is_available})"><i data-lucide="edit-2" style="width:12px;"></i></button>
+                            <button class="btn-custom btn-custom-secondary" style="padding:6px 10px;" onclick="openEditProductModal(${p.id})"><i data-lucide="edit-2" style="width:12px;"></i></button>
                             <button class="btn-custom btn-custom-danger" style="padding:6px 10px;" onclick="deleteProductCatalog(${p.id})"><i data-lucide="trash" style="width:12px;"></i></button>
                         </div>
                     </div>
@@ -3498,6 +3508,8 @@
             document.getElementById("modal-product-id").value = "";
             document.getElementById("modal-product-name").value = "";
             document.getElementById("modal-product-price").value = "";
+            document.getElementById("modal-product-subcategory").value = "";
+            document.getElementById("modal-product-description").value = "";
             document.getElementById("modal-available-group").style.display = "none";
             document.getElementById("modal-shop-select-group").style.display = "block";
             
@@ -3660,14 +3672,19 @@
         }
 
         // Edit Product Dialog Modal
-        function openEditProductModal(id, name, price, avail) {
+        function openEditProductModal(id) {
+            const p = productsCache.find(item => item.id === parseInt(id));
+            if (!p) return;
+            
             document.getElementById("product-modal-title").innerText = "Edit Product Details";
-            document.getElementById("modal-product-id").value = id;
-            document.getElementById("modal-product-name").value = name;
-            document.getElementById("modal-product-price").value = price;
+            document.getElementById("modal-product-id").value = p.id;
+            document.getElementById("modal-product-name").value = p.name || "";
+            document.getElementById("modal-product-price").value = p.price;
+            document.getElementById("modal-product-subcategory").value = p.subcategory || "";
+            document.getElementById("modal-product-description").value = p.description || "";
             
             document.getElementById("modal-available-group").style.display = "block";
-            document.getElementById("modal-product-available").value = avail ? "1" : "0";
+            document.getElementById("modal-product-available").value = p.is_available ? "1" : "0";
             document.getElementById("modal-shop-select-group").style.display = "none";
             
             document.getElementById("modal-product-image-file").value = "";
@@ -3678,12 +3695,12 @@
             document.getElementById("product-modal").style.display = "none";
         }
 
-        // Save Product
-        function saveProductCatalog() {
             const id = document.getElementById("modal-product-id").value;
             const name = document.getElementById("modal-product-name").value.trim();
             const price = document.getElementById("modal-product-price").value;
             const shopId = document.getElementById("modal-product-shop").value;
+            const subcategory = document.getElementById("modal-product-subcategory").value.trim();
+            const description = document.getElementById("modal-product-description").value.trim();
             const imageFile = document.getElementById("modal-product-image-file").files[0];
             
             if (!name || !price) {
@@ -3708,7 +3725,14 @@
                 fetch(`/api/admin/products/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name, price: price, is_available: avail, image_path: p ? p.image_path : null })
+                    body: JSON.stringify({ 
+                        name: name, 
+                        price: price, 
+                        is_available: avail, 
+                        image_path: p ? p.image_path : null,
+                        subcategory: subcategory,
+                        description: description
+                    })
                 })
                 .then(res => res.json())
                 .then(data => {
@@ -3726,7 +3750,13 @@
                 fetch('/api/admin/products', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ shop_id: shopId, name: name, price: price })
+                    body: JSON.stringify({ 
+                        shop_id: shopId, 
+                        name: name, 
+                        price: price,
+                        subcategory: subcategory,
+                        description: description
+                    })
                 })
                 .then(res => res.json())
                 .then(data => {

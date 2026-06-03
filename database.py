@@ -72,9 +72,21 @@ def init_db():
         price REAL NOT NULL,
         is_available BOOLEAN DEFAULT 1,
         subcategory TEXT,
+        description TEXT,
+        image_path TEXT,
         FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE
     )
     ''')
+
+    try:
+        cursor.execute("ALTER TABLE products ADD COLUMN description TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+
+    try:
+        cursor.execute("ALTER TABLE products ADD COLUMN image_path TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
 
     # 4. Delivery Partners Table
     cursor.execute('''
@@ -163,6 +175,11 @@ def init_db():
 
     try:
         cursor.execute("ALTER TABLE products ADD COLUMN subcategory TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+        
+    try:
+        cursor.execute("ALTER TABLE products ADD COLUMN description TEXT")
     except sqlite3.OperationalError:
         pass # Already exists
         
