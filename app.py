@@ -1721,6 +1721,50 @@ def admin_modify_product(prod_id):
         db.commit()
         return jsonify({'message': 'Product updated successfully.'})
 
+# --- System Settings APIs ---
+@app.route('/api/system/settings', methods=['GET'])
+def get_system_settings():
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT key, value FROM system_settings")
+    rows = cursor.fetchall()
+    settings = {row['key']: row['value'] for row in rows}
+    if 'about_team_image' not in settings:
+        settings['about_team_image'] = ''
+    return jsonify(settings)
+
+@app.route('/api/admin/settings/upload-team-photo', methods=['POST'])
+def upload_team_photo():
+    if 'team_photo' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    file = request.files['team_photo']
+    if file.filename == '':
+        return jsonify({'error': 'Empty filename'}), 400
+        
+    if file and allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"team_photo_{int(datetime.now().timestamp())}.{ext}"
+        upload_path = os.path.join(app.root_path, 'static', 'uploads', 'system')
+        os.makedirs(upload_path, exist_ok=True)
+        file_path = os.path.join(upload_path, filename)
+        file.save(file_path)
+        
+        db_path = f"/static/uploads/system/{filename}"
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('about_team_image', ?)", (db_path,))
+        db.commit()
+        return jsonify({'success': True, 'image_path': db_path, 'message': 'Team photo uploaded successfully.'})
+    return jsonify({'error': 'Invalid file type.'}), 400
+
+@app.route('/api/admin/settings/team-photo', methods=['DELETE'])
+def delete_team_photo():
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM system_settings WHERE key = 'about_team_image'")
+    db.commit()
+    return jsonify({'success': True, 'message': 'Team photo deleted successfully.'})
+
 # --- Rider Active Job & Status APIs ---
 @app.route('/api/delivery/rider/<int:rider_id>/active', methods=['GET'])
 def get_rider_active_order(rider_id):

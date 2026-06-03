@@ -222,6 +222,14 @@ def init_db():
         FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
     )
     ''')
+
+    # 10. System Settings Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS system_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )
+    ''')
         
     conn.commit()
     conn.close()

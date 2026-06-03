@@ -1892,6 +1892,39 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- About Us Team Photo Settings -->
+                <div class="dashboard-card" style="margin-top: 20px;">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text"><i data-lucide="users"></i> About Us settings - Team Photo</h3>
+                    </div>
+                    <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                        <!-- Current Team Photo Preview -->
+                        <div style="width: 200px; height: 120px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); background: #f8fafc; display: flex; align-items: center; justify-content: center;">
+                            <img id="admin-about-team-preview" src="" alt="Current Team Photo" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                            <div id="admin-about-team-placeholder" style="color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 10px;">
+                                <i data-lucide="image" style="width: 24px; height: 24px; display: inline-block; margin-bottom: 4px;"></i>
+                                <p style="margin:0;">No Image</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Upload controls -->
+                        <div style="flex: 1; min-width: 200px;">
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">
+                                Upload the photo of the team/developers. This photo will be visible to users under their "My Account" settings inside the "About Us" section.
+                            </p>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="file" id="about-team-upload-file" style="display: none;" accept="image/*" onchange="uploadAboutTeamPhoto(this)">
+                                <label for="about-team-upload-file" class="btn-custom btn-custom-primary" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 16px; margin:0;">
+                                    <i data-lucide="upload" style="width: 14px; height: 14px;"></i> Upload Team Photo
+                                </label>
+                                <button class="btn-custom btn-custom-danger" onclick="deleteAboutTeamPhoto()" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;">
+                                    Delete Photo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- --------------------------------------------------- -->
@@ -2472,6 +2505,7 @@
             } else if (tabId === 'system') {
                 title = "SaaS Security & Core Engine audits";
                 subtitle = "Track API latencies, database file sizes, and security failed logs.";
+                loadAdminAboutTeamPhoto();
             } else if (tabId === 'searches') {
                 title = "Customer Search Tracking & Insights";
                 subtitle = "Analyze customer search intents, trending keywords, and individual histories.";
@@ -4444,6 +4478,73 @@
             }
             window.location.href = `/api/admin/customer/${currentSelectedCustomerIdForExport}/export-pdf`;
             showAestheticToast("Downloading search report PDF...", "info");
+        }
+
+        function loadAdminAboutTeamPhoto() {
+            fetch('/api/system/settings')
+                .then(res => res.json())
+                .then(settings => {
+                    const img = document.getElementById("admin-about-team-preview");
+                    const placeholder = document.getElementById("admin-about-team-placeholder");
+                    if (settings.about_team_image) {
+                        img.src = settings.about_team_image;
+                        img.style.display = "block";
+                        placeholder.style.display = "none";
+                    } else {
+                        img.src = "";
+                        img.style.display = "none";
+                        placeholder.style.display = "block";
+                    }
+                    if (window.lucide) lucide.createIcons();
+                })
+                .catch(err => console.error("Error loading About Us settings:", err));
+        }
+
+        function uploadAboutTeamPhoto(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append("team_photo", file);
+            
+            fetch('/api/admin/settings/upload-team-photo', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showAestheticToast("Team photo uploaded successfully!", "success");
+                    loadAdminAboutTeamPhoto();
+                } else {
+                    showAestheticToast(data.error || "Upload failed.", "error");
+                }
+            })
+            .catch(err => {
+                console.error("Error uploading team photo:", err);
+                showAestheticToast("Failed to upload team photo.", "error");
+            });
+        }
+
+        function deleteAboutTeamPhoto() {
+            aestheticConfirm("Delete the About Us team photo permanently?", () => {
+                fetch('/api/admin/settings/team-photo', {
+                    method: 'DELETE'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAestheticToast("Team photo deleted.", "success");
+                        loadAdminAboutTeamPhoto();
+                    } else {
+                        showAestheticToast("Failed to delete.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Error deleting team photo:", err);
+                    showAestheticToast("Failed to delete team photo.", "error");
+                });
+            });
         }
     </script>
 </body>
