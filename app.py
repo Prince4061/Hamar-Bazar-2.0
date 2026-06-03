@@ -2077,6 +2077,24 @@ def get_search_analytics():
                 r['last_search_time_formatted'] = r['last_search_time']
         else:
             r['last_search_time_formatted'] = '--'
+            
+        # Fetch up to 5 unique recent keywords
+        temp_cursor = db.cursor()
+        temp_cursor.execute('''
+            SELECT keyword FROM search_history 
+            WHERE customer_id = ? 
+            ORDER BY id DESC
+        ''', (r['id'],))
+        seen_kws = set()
+        recent_kws = []
+        for s_row in temp_cursor.fetchall():
+            kw = s_row[0]
+            if kw not in seen_kws:
+                seen_kws.add(kw)
+                recent_kws.append(kw)
+                if len(recent_kws) >= 5:
+                    break
+        r['recent_keywords'] = recent_kws
         customers_summary.append(r)
         
     # 7. Recent Search Logs (latest 100 searches on the platform)

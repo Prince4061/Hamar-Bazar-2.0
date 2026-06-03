@@ -2141,11 +2141,15 @@ html, body {
         if (input) {
             input.value = "";
         }
+        lastTrackedQuery = "";
         handleSearch("");
     }
 
     function handleSearch(query) {
         query = query.toLowerCase().trim();
+        if (!query) {
+            lastTrackedQuery = "";
+        }
         
         if (searchTrackTimeout) clearTimeout(searchTrackTimeout);
         if (query) {
