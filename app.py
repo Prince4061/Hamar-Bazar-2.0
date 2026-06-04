@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, session, g
+from flask import Flask, render_template, request, jsonify, redirect, session, g, send_file
 import sqlite3
 import os
 import random
@@ -2299,5 +2299,72 @@ def export_customer_search_pdf(cust_id):
         headers={"Content-Disposition": f"attachment;filename={filename}"}
     )
 
+@app.route('/api/admin/database/export', methods=['GET'])
+def export_database():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    try:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"hamar_bazar_backup_{timestamp}.db"
+        return send_file(DB_PATH, as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({'error': f"Failed to export database: {str(e)}"}), 500
+
+@app.route('/api/admin/database/import', methods=['POST'])
+def import_database():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    if 'database_file' not in request.files:
+        return jsonify({'error': 'No file part in the request.'}), 400
+        
+    file = request.files['database_file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file.'}), 400
+        
+    if not file.filename.lower().endswith('.db'):
+        return jsonify({'error': 'Invalid file format. Please upload a .db file.'}), 400
+        
+    # Read the first 16 bytes to verify it's a valid SQLite 3 database file
+    header = file.read(16)
+    if header != b'SQLite format 3\x00':
+        return jsonify({'error': 'Invalid file content. The file is not a valid SQLite 3 database.'}), 400
+        
+    # Reset file pointer to the beginning
+    file.seek(0)
+    
+    # Save the file temporarily
+    temp_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temp_import.db')
+    try:
+        file.save(temp_path)
+        
+        # Connect to the source (uploaded file) and target (live file)
+        src_conn = sqlite3.connect(temp_path)
+        dest_conn = sqlite3.connect(DB_PATH)
+        
+        # Perform the backup operation
+        src_conn.backup(dest_conn)
+        
+        src_conn.close()
+        dest_conn.close()
+        
+        # Run migrations just in case
+        run_migrations()
+        
+        # Remove the temporary file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+            
+        return jsonify({'success': True, 'message': 'Database restored successfully!'})
+    except Exception as e:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+        return jsonify({'error': f"Failed to restore database: {str(e)}"}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
+

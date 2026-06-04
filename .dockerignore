@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git/
+.gitignore
+marketplace.db
+static/uploads/profile_pics/profile_*
+static/uploads/prescriptions/*
+static/uploads/payments/*
+temp_import.db
+*.log
