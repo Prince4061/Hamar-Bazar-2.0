@@ -18,10 +18,15 @@
             <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" style="height: 36px; width: 36px; object-fit: cover; border-radius: var(--radius-sm);">
             <span class="brand-title">Hamar Bazaar</span>
         </div>
-        <div style="font-weight: 600; color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
-            {% if session.get('role') == 'vendor' %}<i data-lucide="store" class="icon-inline"></i> Vendor Mode{% endif %}
-            {% if session.get('role') == 'delivery' %}<i data-lucide="bike" class="icon-inline"></i> Delivery Mode{% endif %}
-            {% if session.get('role') == 'admin' %}<i data-lucide="shield" class="icon-inline"></i> Admin Mode{% endif %}
+        <div style="font-weight: 600; color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 16px;">
+            <span style="display: flex; align-items: center; gap: 6px;">
+                {% if session.get('role') == 'vendor' %}<i data-lucide="store" class="icon-inline"></i> Vendor Mode{% endif %}
+                {% if session.get('role') == 'delivery' %}<i data-lucide="bike" class="icon-inline"></i> Delivery Mode{% endif %}
+                {% if session.get('role') == 'admin' %}<i data-lucide="shield" class="icon-inline"></i> Admin Mode{% endif %}
+            </span>
+            <a href="/session/logout" style="color: var(--ruby-danger); text-decoration: none; display: flex; align-items: center; gap: 4px; font-weight: 700; border-left: 1px solid var(--border-color); padding-left: 16px;">
+                <i data-lucide="log-out" style="width: 16px; height: 16px;"></i> Logout
+            </a>
         </div>
     </div>
     {% endif %}
