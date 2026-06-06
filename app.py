@@ -245,6 +245,14 @@ def login():
         if user:
             if user['is_blocked']:
                 return jsonify({'success': False, 'error': 'Your account has been blocked due to suspicious activity. Please contact support.'})
+            # Enforce username verification
+            if user['name'] and user['name'].strip().lower() != username.strip().lower():
+                try:
+                    cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
+                    db.commit()
+                except Exception as e:
+                    print("Failed to log failed login:", e)
+                return jsonify({'success': False, 'error': 'Incorrect username for this mobile number.'})
             # Enforce password verification
             if user['password'] and user['password'] != password:
                 # Record failed login in real table
@@ -306,6 +314,8 @@ def staff_login():
         cursor = db.cursor()
         
         if role == 'admin':
+            if identifier.strip().lower() != 'admin':
+                return jsonify({'success': False, 'error': 'Incorrect username for Admin.'})
             # Admin login
             session['role'] = 'admin'
             session['role_id'] = 0
@@ -338,30 +348,13 @@ def staff_login():
                 shop = cursor.fetchone()
                 
             if shop:
+                if not shop['is_active']:
+                    return jsonify({'success': False, 'error': 'This vendor store is currently inactive. Please contact Admin.'})
                 # Verify password if one is set in the database
                 if shop['password'] and shop['password'] != password:
                     return jsonify({'success': False, 'error': 'Incorrect password for this vendor store.'})
             else:
-                # If shop doesn't exist, dynamically create it to let anyone log in!
-                category = "SHOP_" + identifier.upper().replace(" ", "_")[:10]
-                shop_name = identifier if "shop" in identifier.lower() or "bazaar" in identifier.lower() else f"{identifier} Store"
-                try:
-                    cursor.execute("INSERT INTO shops (shop_name, category, commission_pct, password) VALUES (?, ?, ?, ?)", (shop_name, category, 5.0, password))
-                    db.commit()
-                    cursor.execute("SELECT * FROM shops WHERE id = ?", (cursor.lastrowid,))
-                    shop = cursor.fetchone()
-                    
-                    # Seed default products
-                    cursor.execute("INSERT INTO products (shop_id, name, price) VALUES (?, ?, ?)", (shop['id'], 'Standard Product A', 100.0))
-                    cursor.execute("INSERT INTO products (shop_id, name, price) VALUES (?, ?, ?)", (shop['id'], 'Standard Product B', 200.0))
-                    cursor.execute("INSERT INTO products (shop_id, name, price) VALUES (?, ?, ?)", (shop['id'], 'Standard Product C', 350.0))
-                    db.commit()
-                except Exception as e:
-                    # Check if category exists
-                    cursor.execute("SELECT * FROM shops WHERE category = ?", (category,))
-                    shop = cursor.fetchone()
-                    if not shop:
-                        return jsonify({'success': False, 'error': f'Failed to create vendor: {str(e)}'})
+                return jsonify({'success': False, 'error': 'Vendor store not registered. Please contact Admin.'})
             
             session['role'] = 'vendor'
             session['role_id'] = shop['id']
@@ -390,16 +383,7 @@ def staff_login():
                 if rider['password'] and rider['password'] != password:
                     return jsonify({'success': False, 'error': 'Incorrect password for this delivery rider.'})
             else:
-                rider_name = identifier if "rider" in identifier.lower() or "delivery" in identifier.lower() else f"{identifier} Rider"
-                import random
-                mock_phone = f"9000{random.randint(100000, 999999)}"
-                try:
-                    cursor.execute("INSERT INTO delivery_partners (name, phone, active_orders, availability_status, password) VALUES (?, ?, 0, 'online', ?)", (rider_name, mock_phone, password))
-                    db.commit()
-                    cursor.execute("SELECT * FROM delivery_partners WHERE id = ?", (cursor.lastrowid,))
-                    rider = cursor.fetchone()
-                except Exception as e:
-                    return jsonify({'success': False, 'error': f'Failed to create rider: {str(e)}'})
+                return jsonify({'success': False, 'error': 'Delivery rider not registered. Please contact Admin.'})
                     
             session['role'] = 'delivery'
             session['role_id'] = rider['id']
@@ -465,7 +449,7 @@ def admin_view():
 def get_shops():
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM shops")
+    cursor.execute("SELECT * FROM shops WHERE is_active = 1")
     shops = [dict(row) for row in cursor.fetchall()]
     return jsonify(shops)
 
@@ -473,8 +457,14 @@ def get_shops():
 def get_shop_products(shop_id):
     db = get_db()
     cursor = db.cursor()
-    # If request is from vendor view, show all. If customer, show only available.
+    # Verify shop is active if accessed by a customer
     is_vendor = request.args.get('view_type') == 'vendor'
+    if not is_vendor:
+        cursor.execute("SELECT is_active FROM shops WHERE id = ?", (shop_id,))
+        shop = cursor.fetchone()
+        if not shop or not shop['is_active']:
+            return jsonify({'error': 'Shop is inactive or not found.'}), 404
+            
     if is_vendor:
         cursor.execute("SELECT * FROM products WHERE shop_id = ?", (shop_id,))
     else:
@@ -520,6 +510,12 @@ def place_order():
         
     db = get_db()
     cursor = db.cursor()
+    
+    # Check if shop is active
+    cursor.execute("SELECT is_active FROM shops WHERE id = ?", (shop_id,))
+    shop = cursor.fetchone()
+    if not shop or not shop['is_active']:
+        return jsonify({'error': 'This shop is currently inactive/blocked and cannot accept orders.'}), 400
     
     # Calculate Total Amount & GST
     total_amount = 0.0
@@ -777,6 +773,8 @@ def remove_avatar():
 
 @app.route('/api/vendor/orders/<int:shop_id>', methods=['GET'])
 def get_vendor_orders(shop_id):
+    if session.get('role') != 'vendor' or session.get('role_id') != shop_id:
+        return jsonify({'error': 'Unauthorized.'}), 403
     db = get_db()
     cursor = db.cursor()
     cursor.execute('''
@@ -793,12 +791,16 @@ def get_vendor_orders(shop_id):
 
 @app.route('/api/orders/<int:order_id>/accept', methods=['POST'])
 def accept_order(order_id):
+    if session.get('role') != 'vendor':
+        return jsonify({'error': 'Unauthorized. Please login as vendor.'}), 403
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT status FROM orders WHERE id = ?", (order_id,))
+    cursor.execute("SELECT status, shop_id FROM orders WHERE id = ?", (order_id,))
     order = cursor.fetchone()
     if not order:
         return jsonify({'error': 'Order not found.'}), 404
+    if order['shop_id'] != session.get('role_id'):
+        return jsonify({'error': 'Unauthorized for this shop.'}), 403
     if order['status'] != 'PENDING':
         return jsonify({'error': 'Order already processed.'}), 400
         
@@ -812,12 +814,16 @@ def accept_order(order_id):
 
 @app.route('/api/orders/<int:order_id>/ready', methods=['POST'])
 def ready_order(order_id):
+    if session.get('role') != 'vendor':
+        return jsonify({'error': 'Unauthorized. Please login as vendor.'}), 403
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT status, pickup_otp FROM orders WHERE id = ?", (order_id,))
+    cursor.execute("SELECT status, pickup_otp, shop_id FROM orders WHERE id = ?", (order_id,))
     order = cursor.fetchone()
     if not order:
         return jsonify({'error': 'Order not found.'}), 404
+    if order['shop_id'] != session.get('role_id'):
+        return jsonify({'error': 'Unauthorized for this shop.'}), 403
     if order['status'] != 'ACCEPTED':
         return jsonify({'error': 'Order must be ACCEPTED first.'}), 400
         
@@ -834,18 +840,30 @@ def ready_order(order_id):
 
 @app.route('/api/vendor/products/toggle', methods=['POST'])
 def toggle_product_availability():
+    if session.get('role') != 'vendor':
+        return jsonify({'error': 'Unauthorized. Please login as vendor.'}), 403
     data = request.json
     product_id = data.get('product_id')
     is_available = data.get('is_available')
     
     db = get_db()
     cursor = db.cursor()
+    # verify product belongs to vendor's shop
+    cursor.execute("SELECT shop_id FROM products WHERE id = ?", (product_id,))
+    prod = cursor.fetchone()
+    if not prod:
+        return jsonify({'error': 'Product not found.'}), 404
+    if prod['shop_id'] != session.get('role_id'):
+        return jsonify({'error': 'Unauthorized for this product.'}), 403
+        
     cursor.execute("UPDATE products SET is_available = ? WHERE id = ?", (is_available, product_id))
     db.commit()
     return jsonify({'message': 'Product availability updated.'})
 
 @app.route('/api/vendor/low-stock-prediction/<int:shop_id>', methods=['GET'])
 def get_low_stock_prediction(shop_id):
+    if session.get('role') != 'vendor' or session.get('role_id') != shop_id:
+        return jsonify({'error': 'Unauthorized.'}), 403
     # Frequently sold items low-stock prediction logic (INT-004)
     # We rank items that have been ordered the most, advising stock re-supply.
     db = get_db()
@@ -873,6 +891,8 @@ def get_low_stock_prediction(shop_id):
 
 @app.route('/api/delivery/pool', methods=['GET'])
 def get_delivery_pool():
+    if session.get('role') != 'delivery':
+        return jsonify({'error': 'Unauthorized. Please login as delivery partner.'}), 403
     db = get_db()
     cursor = db.cursor()
     cursor.execute('''
@@ -889,20 +909,29 @@ def get_delivery_pool():
 @app.route('/api/orders/<int:order_id>/claim', methods=['POST'])
 def claim_delivery(order_id):
     # Cooldown & assign claim (INT-003, ADMIN-003)
+    if session.get('role') != 'delivery':
+        return jsonify({'error': 'Unauthorized. Please login as delivery partner.'}), 403
+        
     data = request.json
     rider_id = data.get('delivery_boy_id')
     
     if not rider_id:
         return jsonify({'error': 'Delivery Rider ID is required.'}), 400
         
+    if int(rider_id) != session.get('role_id'):
+        return jsonify({'error': 'Rider ID mismatch with session.'}), 403
+        
     db = get_db()
     cursor = db.cursor()
     
-    # 1. Check Cooldown
-    cursor.execute("SELECT cooldown_until FROM delivery_partners WHERE id = ?", (rider_id,))
+    # 1. Check Cooldown & Active Orders Limit
+    cursor.execute("SELECT cooldown_until, active_orders FROM delivery_partners WHERE id = ?", (rider_id,))
     rider = cursor.fetchone()
     if not rider:
         return jsonify({'error': 'Rider not found.'}), 404
+        
+    if rider['active_orders'] and rider['active_orders'] >= 1:
+        return jsonify({'error': 'You already have an active delivery job.'}), 400
         
     if rider['cooldown_until']:
         cooldown_dt = datetime.strptime(rider['cooldown_until'], '%Y-%m-%d %H:%M:%S' if '.' not in rider['cooldown_until'] else '%Y-%m-%d %H:%M:%S.%f')
@@ -946,10 +975,15 @@ def claim_delivery(order_id):
 
 @app.route('/api/orders/<int:order_id>/verify-pickup', methods=['POST'])
 def verify_pickup(order_id):
+    if session.get('role') != 'delivery':
+        return jsonify({'error': 'Unauthorized. Please login as delivery partner.'}), 403
     data = request.json
     entered_otp = data.get('otp')
     rider_id = data.get('delivery_boy_id')
     
+    if not rider_id or int(rider_id) != session.get('role_id'):
+        return jsonify({'error': 'Rider ID mismatch with session.'}), 403
+        
     db = get_db()
     cursor = db.cursor()
     cursor.execute("SELECT pickup_otp, status, delivery_boy_id FROM orders WHERE id = ?", (order_id,))
@@ -957,7 +991,7 @@ def verify_pickup(order_id):
     
     if not order:
         return jsonify({'error': 'Order not found.'}), 404
-    if order['delivery_boy_id'] != rider_id:
+    if order['delivery_boy_id'] != int(rider_id):
         return jsonify({'error': 'This order is not assigned to you.'}), 403
     if order['status'] != 'READY_FOR_PICKUP':
         return jsonify({'error': 'Order status must be READY FOR PICKUP.'}), 400
@@ -971,10 +1005,15 @@ def verify_pickup(order_id):
 
 @app.route('/api/orders/<int:order_id>/verify-delivery', methods=['POST'])
 def verify_delivery(order_id):
+    if session.get('role') != 'delivery':
+        return jsonify({'error': 'Unauthorized. Please login as delivery partner.'}), 403
     data = request.json
     entered_otp = data.get('otp')
     rider_id = data.get('delivery_boy_id')
     
+    if not rider_id or int(rider_id) != session.get('role_id'):
+        return jsonify({'error': 'Rider ID mismatch with session.'}), 403
+        
     db = get_db()
     cursor = db.cursor()
     cursor.execute("SELECT delivery_otp, status, delivery_boy_id FROM orders WHERE id = ?", (order_id,))
@@ -982,14 +1021,14 @@ def verify_delivery(order_id):
     
     if not order:
         return jsonify({'error': 'Order not found.'}), 404
-    if order['delivery_boy_id'] != rider_id:
+    if order['delivery_boy_id'] != int(rider_id):
         return jsonify({'error': 'This order is not assigned to you.'}), 403
     if order['status'] != 'OUT_FOR_DELIVERY':
         return jsonify({'error': 'Order status must be OUT FOR DELIVERY.'}), 400
         
     if order['delivery_otp'] == entered_otp:
         cursor.execute("UPDATE orders SET status = 'DELIVERED', delivered_at = CURRENT_TIMESTAMP WHERE id = ?", (order_id,))
-        cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (rider_id,))
+        cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (int(rider_id),))
         db.commit()
         return jsonify({'message': 'Delivery OTP verified! Order successfully DELIVERED.'})
     else:
@@ -1800,6 +1839,8 @@ def delete_team_photo():
 # --- Rider Active Job & Status APIs ---
 @app.route('/api/delivery/rider/<int:rider_id>/active', methods=['GET'])
 def get_rider_active_order(rider_id):
+    if session.get('role') != 'delivery' or session.get('role_id') != rider_id:
+        return jsonify({'error': 'Unauthorized.'}), 403
     db = get_db()
     cursor = db.cursor()
     cursor.execute('''
@@ -1814,6 +1855,8 @@ def get_rider_active_order(rider_id):
 
 @app.route('/api/delivery/rider/<int:rider_id>/status', methods=['GET'])
 def get_rider_status(rider_id):
+    if session.get('role') != 'delivery' or session.get('role_id') != rider_id:
+        return jsonify({'error': 'Unauthorized.'}), 403
     db = get_db()
     cursor = db.cursor()
     cursor.execute("SELECT cooldown_until, active_orders, availability_status FROM delivery_partners WHERE id = ?", (rider_id,))

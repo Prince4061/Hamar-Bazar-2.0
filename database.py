@@ -167,19 +167,9 @@ def init_db():
     )
     ''')
     
-    # Migrations for is_active in shops and image_path in products
-    try:
-        cursor.execute("ALTER TABLE products ADD COLUMN image_path TEXT")
-    except sqlite3.OperationalError:
-        pass # Already exists
-
+    # Migrations for subcategory in products
     try:
         cursor.execute("ALTER TABLE products ADD COLUMN subcategory TEXT")
-    except sqlite3.OperationalError:
-        pass # Already exists
-        
-    try:
-        cursor.execute("ALTER TABLE products ADD COLUMN description TEXT")
     except sqlite3.OperationalError:
         pass # Already exists
         
