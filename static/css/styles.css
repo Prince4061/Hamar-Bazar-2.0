@@ -3059,4 +3059,167 @@ body.theme-customer .app-container {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04) !important;
 }
 
+/* ==========================================================================
+   Mobile Simulator Frame for Customer & Rider on Desktop View
+   ========================================================================== */
+@media (min-width: 1025px) {
+    body.theme-customer, body.theme-delivery {
+        background: radial-gradient(circle at center, #1e1b4b 0%, #09090b 100%) !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        min-height: 100vh !important;
+        padding-bottom: 0 !important;
+        overflow: hidden !important;
+    }
+    
+    body.theme-customer .simulator-header, body.theme-delivery .simulator-header {
+        display: none !important;
+    }
+
+    body.theme-customer .mobile-device-simulator-wrapper, body.theme-delivery .mobile-device-simulator-wrapper {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        width: 100% !important;
+        height: 100vh !important;
+        position: relative !important;
+    }
+
+    .mobile-device-phone-frame {
+        width: 410px !important;
+        height: 860px !important;
+        border: 12px solid #18181b !important;
+        border-radius: 48px !important;
+        background: #ffffff !important;
+        box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 
+                    0 0 0 2px rgba(255, 255, 255, 0.1),
+                    0 0 30px 10px rgba(111, 44, 244, 0.15) !important;
+        overflow: hidden !important;
+        position: relative !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Phone Status Bar */
+    .mobile-phone-status-bar {
+        height: 40px !important;
+        background: #ffffff !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 0 28px !important;
+        font-size: 0.85rem !important;
+        font-weight: 700 !important;
+        color: #09090b !important;
+        border-bottom: 1px solid #f4f4f5 !important;
+        user-select: none !important;
+        z-index: 100 !important;
+        flex-shrink: 0 !important;
+    }
+    .mobile-phone-status-bar .phone-icons {
+        display: flex !important;
+        gap: 6px !important;
+        align-items: center;
+    }
+
+    /* Phone Screen Content */
+    .mobile-phone-screen-content {
+        flex: 1 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        background: var(--bg-main) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        position: relative !important;
+    }
+    
+    /* Scrollbar for phone screen */
+    .mobile-phone-screen-content::-webkit-scrollbar {
+        width: 6px !important;
+    }
+    .mobile-phone-screen-content::-webkit-scrollbar-track {
+        background: transparent !important;
+    }
+    .mobile-phone-screen-content::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.1) !important;
+        border-radius: 10px !important;
+    }
+    .mobile-phone-screen-content::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.2) !important;
+    }
+
+    /* Home Indicator */
+    .mobile-phone-home-indicator {
+        height: 24px !important;
+        background: #ffffff !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        flex-shrink: 0 !important;
+        z-index: 100 !important;
+        border-top: 1px solid #f4f4f5 !important;
+    }
+    .mobile-phone-home-indicator::after {
+        content: '' !important;
+        width: 120px !important;
+        height: 5px !important;
+        background: #27272a !important;
+        border-radius: 10px !important;
+    }
+
+    /* Override app-container styling inside simulator */
+    body.theme-customer .app-container, body.theme-delivery .app-container {
+        padding: 16px 12px !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        gap: 16px !important;
+        animation: none !important;
+        min-height: 100% !important;
+        padding-bottom: 80px !important; /* space for bottom nav bar */
+    }
+
+    /* Adjust bottom nav in simulator */
+    body.theme-customer .mobile-bottom-nav, body.theme-delivery .mobile-bottom-nav {
+        position: absolute !important;
+        bottom: 24px !important; /* align above home indicator */
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        z-index: 1000 !important;
+        border-radius: 0 !important;
+        border-top: 1px solid var(--border-color) !important;
+        box-shadow: 0 -4px 15px rgba(0,0,0,0.03) !important;
+        height: 60px !important;
+    }
+}
+
+/* Ensure mobile layout works on actual mobile phones */
+@media (max-width: 1024px) {
+    .mobile-device-simulator-wrapper {
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+    }
+    .mobile-device-phone-frame {
+        width: 100% !important;
+        height: auto !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        display: block !important;
+    }
+    .mobile-phone-status-bar {
+        display: none !important;
+    }
+    .mobile-phone-home-indicator {
+        display: none !important;
+    }
+    .mobile-phone-screen-content {
+        display: block !important;
+        overflow: visible !important;
+        height: auto !important;
+    }
+}
+
 

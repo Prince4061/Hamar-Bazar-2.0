@@ -12,7 +12,7 @@
 <body class="theme-{% if session.get('role') == 'vendor' %}vendor{% elif session.get('role') == 'delivery' %}delivery{% elif session.get('role') == 'admin' %}admin{% else %}customer{% endif %} fade-in-up">
 
     <!-- Top Navbar for generic branding (if needed) -->
-    {% if session.get('role') and session.get('role') != 'customer' %}
+    {% if session.get('role') and session.get('role') != 'customer' and session.get('role') != 'delivery' %}
     <div class="simulator-header">
         <div class="brand-section">
             <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" style="height: 36px; width: 36px; object-fit: cover; border-radius: var(--radius-sm);">
@@ -21,7 +21,6 @@
         <div style="font-weight: 600; color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 16px;">
             <span style="display: flex; align-items: center; gap: 6px;">
                 {% if session.get('role') == 'vendor' %}<i data-lucide="store" class="icon-inline"></i> Vendor Mode{% endif %}
-                {% if session.get('role') == 'delivery' %}<i data-lucide="bike" class="icon-inline"></i> Delivery Mode{% endif %}
                 {% if session.get('role') == 'admin' %}<i data-lucide="shield" class="icon-inline"></i> Admin Mode{% endif %}
             </span>
             <a href="/session/logout" style="color: var(--ruby-danger); text-decoration: none; display: flex; align-items: center; gap: 4px; font-weight: 700; border-left: 1px solid var(--border-color); padding-left: 16px;">
@@ -31,10 +30,46 @@
     </div>
     {% endif %}
 
+    {% if session.get('role') in ['customer', 'delivery'] and request.path not in ['/login', '/staff-login'] %}
+    <div class="mobile-device-simulator-wrapper">
+        <div class="mobile-device-phone-frame">
+            <div class="mobile-phone-status-bar">
+                <span class="phone-time" id="simulator-phone-time">12:30</span>
+                <span class="phone-icons">
+                    <i data-lucide="wifi" style="width: 14px; height: 14px; display: inline-block;"></i>
+                    <i data-lucide="signal" style="width: 14px; height: 14px; display: inline-block; margin-left: 4px;"></i>
+                    <i data-lucide="battery" style="width: 16px; height: 16px; display: inline-block; margin-left: 4px;"></i>
+                </span>
+            </div>
+            <div class="mobile-phone-screen-content">
+                <div class="app-container">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+            <div class="mobile-phone-home-indicator"></div>
+        </div>
+    </div>
+    <script>
+        function updateSimulatorTime() {
+            const el = document.getElementById('simulator-phone-time');
+            if (el) {
+                const now = new Date();
+                let hours = now.getHours();
+                let minutes = now.getMinutes();
+                hours = hours < 10 ? '0' + hours : hours;
+                minutes = minutes < 10 ? '0' + minutes : minutes;
+                el.innerText = `${hours}:${minutes}`;
+            }
+        }
+        setInterval(updateSimulatorTime, 1000);
+        updateSimulatorTime();
+    </script>
+    {% else %}
     <div class="{% if request.path in ['/login', '/staff-login'] %}login-container-wrapper{% else %}app-container{% endif %}">
         <!-- Render page contents -->
         {% block content %}{% endblock %}
     </div>
+    {% endif %}
 
     <!-- Mobile Bottom Navigation (Only for logged-in users) -->
     {% if session.get('role') %}
