@@ -6,6 +6,38 @@
     <title>{{ session.get('name', 'Apna Bazaar') }} - Vendor Dashboard</title>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- CSRF Protection Fetch Interceptor -->
+    <script>
+        (function() {
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options) {
+                options = options || {};
+                const method = (options.method || 'GET').toUpperCase();
+                if (method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH') {
+                    options.headers = options.headers || {};
+                    const csrfToken = "{{ csrf_token() }}";
+                    if (window.Headers && options.headers instanceof Headers) {
+                        options.headers.set('X-CSRFToken', csrfToken);
+                    } else if (Array.isArray(options.headers)) {
+                        let found = false;
+                        for (let i = 0; i < options.headers.length; i++) {
+                            if (options.headers[i][0].toLowerCase() === 'x-csrftoken') {
+                                options.headers[i][1] = csrfToken;
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            options.headers.push(['X-CSRFToken', csrfToken]);
+                        }
+                    } else {
+                        options.headers['X-CSRFToken'] = csrfToken;
+                    }
+                }
+                return originalFetch(url, options);
+            };
+        })();
+    </script>
     <!-- Plus Jakarta Sans Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

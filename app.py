@@ -4,10 +4,21 @@ import os
 import random
 import re
 from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from flask_wtf.csrf import CSRFProtect, CSRFError
 
 app = Flask(__name__)
-app.secret_key = 'hyperlocal_monopolistic_secret_key_12345'
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'marketplace.db')
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'hyperlocal_monopolistic_secret_key_12345')
+DB_PATH = os.environ.get('DATABASE_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'marketplace.db'))
+
+csrf = CSRFProtect(app)
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    if request.path.startswith('/api/') or request.is_json or request.headers.get('Accept') == 'application/json':
+        return jsonify({'error': 'CSRF token missing or invalid.', 'details': e.description}), 400
+    return f"<h3>CSRF Error: {e.description}</h3><p>Please refresh the page and try again.</p>", 400
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'profile_pics')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -19,7 +30,11 @@ PAY_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'st
 os.makedirs(PAY_UPLOAD_FOLDER, exist_ok=True)
 
 def run_migrations():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+    except Exception as e:
+        print("Failed to set WAL mode:", e)
     cursor = conn.cursor()
     try:
         cursor.execute("ALTER TABLE orders ADD COLUMN payment_mode TEXT DEFAULT 'COD'")
@@ -80,8 +95,12 @@ def allowed_file(filename):
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect(DB_PATH)
+        db = g._database = sqlite3.connect(DB_PATH, timeout=30.0)
         db.row_factory = sqlite3.Row
+        try:
+            db.execute("PRAGMA journal_mode=WAL;")
+        except Exception as e:
+            print("Failed to set WAL mode:", e)
     return db
 
 @app.teardown_appcontext
@@ -151,15 +170,16 @@ def check_and_flag_suspicious_user(user_id, db):
     db.commit()
 
 @app.before_request
-def check_user_blocked():
-    # Exclude static assets and session logout from checking to avoid infinite loops or blocking assets
-    if request.path.startswith('/static/') or request.path == '/session/logout' or request.path == '/login':
+def check_user_and_shop_status():
+    # Skip checking for static files
+    if request.path.startswith('/static/'):
         return
         
+    db = get_db()
+    cursor = db.cursor()
+    
     if session.get('role') == 'customer' and session.get('role_id'):
         try:
-            db = get_db()
-            cursor = db.cursor()
             cursor.execute("SELECT is_blocked FROM users WHERE id = ?", (session['role_id'],))
             row = cursor.fetchone()
             if row and row['is_blocked']:
@@ -169,12 +189,28 @@ def check_user_blocked():
                 return redirect('/login?error=blocked')
         except Exception as e:
             print("Failed to run check_user_blocked:", e)
+            
+    elif session.get('role') == 'vendor' and session.get('role_id'):
+        try:
+            cursor.execute("SELECT is_active FROM shops WHERE id = ?", (session['role_id'],))
+            row = cursor.fetchone()
+            if not row or not row['is_active']:
+                session.clear()
+                if request.path.startswith('/api/'):
+                    return jsonify({'error': 'Unauthorized: Your vendor store is inactive.'}), 403
+                return redirect('/staff-login?error=inactive')
+        except Exception as e:
+            print("Failed to run check_shop_active:", e)
 
 # -------------------------------------------------------------
 # Role Switcher & Mock Session
 # -------------------------------------------------------------
 @app.route('/session/switch')
 def switch_session():
+    # Only allowed in debug mode, or if logged in as admin
+    if not app.debug and session.get('role') != 'admin':
+        return "Access denied: Session switching is disabled in production.", 403
+        
     role = request.args.get('role', 'customer')
     role_id = request.args.get('id', '1')
     
@@ -258,7 +294,9 @@ def login():
                     print("Failed to log failed login:", e)
                 return jsonify({'success': False, 'error': 'Incorrect username for this mobile number.'})
             # Enforce password verification
-            if user['password'] and user['password'] != password:
+            if not user['password']:
+                return jsonify({'success': False, 'error': 'Account configuration error (missing password). Please contact support.'})
+            if not check_password_hash(user['password'], password):
                 # Record failed login in real table
                 try:
                     cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
@@ -280,7 +318,8 @@ def login():
             # This implements "anyone can login by their credentials"
             new_address = "Sector 4, Local Area"
             try:
-                cursor.execute("INSERT INTO users (name, phone, address, password) VALUES (?, ?, ?, ?)", (username, phone, new_address, password))
+                hashed_pass = generate_password_hash(password)
+                cursor.execute("INSERT INTO users (name, phone, address, password) VALUES (?, ?, ?, ?)", (username, phone, new_address, hashed_pass))
                 db.commit()
                 # Get the newly created user
                 new_id = cursor.lastrowid
@@ -320,6 +359,14 @@ def staff_login():
         if role == 'admin':
             if identifier.strip().lower() != 'admin':
                 return jsonify({'success': False, 'error': 'Incorrect username for Admin.'})
+            admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin123')
+            if password != admin_pass:
+                try:
+                    cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", ('admin', request.remote_addr))
+                    db.commit()
+                except Exception as e:
+                    print("Failed to log failed login:", e)
+                return jsonify({'success': False, 'error': 'Incorrect password for Admin.'})
             # Admin login
             session['role'] = 'admin'
             session['role_id'] = 0
@@ -355,7 +402,14 @@ def staff_login():
                 if not shop['is_active']:
                     return jsonify({'success': False, 'error': 'This vendor store is currently inactive. Please contact Admin.'})
                 # Verify password if one is set in the database
-                if shop['password'] and shop['password'] != password:
+                if not shop['password']:
+                    return jsonify({'success': False, 'error': 'Vendor store configuration error (missing password). Please contact Admin.'})
+                if not check_password_hash(shop['password'], password):
+                    try:
+                        cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
+                        db.commit()
+                    except Exception as e:
+                        print("Failed to log failed login:", e)
                     return jsonify({'success': False, 'error': 'Incorrect password for this vendor store.'})
             else:
                 return jsonify({'success': False, 'error': 'Vendor store not registered. Please contact Admin.'})
@@ -383,7 +437,14 @@ def staff_login():
                 rider = cursor.fetchone()
                 
             if rider:
-                if rider['password'] and rider['password'] != password:
+                if not rider['password']:
+                    return jsonify({'success': False, 'error': 'Delivery rider configuration error (missing password). Please contact Admin.'})
+                if not check_password_hash(rider['password'], password):
+                    try:
+                        cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
+                        db.commit()
+                    except Exception as e:
+                        print("Failed to log failed login:", e)
                     return jsonify({'success': False, 'error': 'Incorrect password for this delivery rider.'})
             else:
                 return jsonify({'success': False, 'error': 'Delivery rider not registered. Please contact Admin.'})
@@ -418,6 +479,14 @@ def vendor_view():
         
     db = get_db()
     cursor = db.cursor()
+    # Enforce shop activity check
+    shop_id = session.get('role_id')
+    cursor.execute("SELECT is_active FROM shops WHERE id = ?", (shop_id,))
+    shop = cursor.fetchone()
+    if not shop or not shop['is_active']:
+        session.clear()
+        return redirect('/staff-login?error=inactive')
+        
     cursor.execute("SELECT * FROM shops")
     shops = cursor.fetchall()
     
@@ -511,6 +580,10 @@ def place_order():
     if not customer_id or not shop_id or not items:
         return jsonify({'error': 'Missing checkout parameters.'}), 400
         
+    # Prevent IDOR: Check that the logged-in user matches the customer_id placing the order
+    if session.get('role') != 'customer' or session.get('role_id') != int(customer_id):
+        return jsonify({'error': 'Unauthorized: You cannot place an order for another user.'}), 403
+        
     db = get_db()
     cursor = db.cursor()
     
@@ -525,8 +598,14 @@ def place_order():
     products_details = []
     
     for item in items:
-        prod_id = item['product_id']
-        qty = int(item['quantity'])
+        prod_id = item.get('product_id')
+        try:
+            qty = int(item.get('quantity', 0))
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Quantity must be a valid integer.'}), 400
+        if qty <= 0:
+            return jsonify({'error': 'Quantity must be a positive integer greater than zero.'}), 400
+            
         cursor.execute("SELECT price, name, is_available FROM products WHERE id = ? AND shop_id = ?", (prod_id, shop_id))
         prod = cursor.fetchone()
         if not prod:
@@ -599,6 +678,23 @@ def get_order_details(order_id):
     if not order:
         return jsonify({'error': 'Order not found.'}), 404
         
+    # Prevent IDOR: Ensure caller is authorized (Customer, Shop Vendor, Delivery Rider, or Admin)
+    role = session.get('role')
+    role_id = session.get('role_id')
+    
+    is_authorized = False
+    if role == 'admin':
+        is_authorized = True
+    elif role == 'customer' and role_id == order['customer_id']:
+        is_authorized = True
+    elif role == 'vendor' and role_id == order['shop_id']:
+        is_authorized = True
+    elif role == 'delivery' and role_id == order['delivery_boy_id']:
+        is_authorized = True
+        
+    if not is_authorized:
+        return jsonify({'error': 'Forbidden: You do not have permission to view this order.'}), 403
+        
     # Get Items
     cursor.execute('''
         SELECT oi.*, p.name as product_name
@@ -620,6 +716,11 @@ def get_order_details(order_id):
 
 @app.route('/api/customer/<int:customer_id>/expenses', methods=['GET'])
 def get_customer_expenses(customer_id):
+    # Prevent IDOR: Check that the logged-in user matches the customer_id
+    if session.get('role') != 'admin':
+        if session.get('role') != 'customer' or session.get('role_id') != customer_id:
+            return jsonify({'error': 'Forbidden: You cannot view expenses of other customers.'}), 403
+
     # Spending insights by category (INT-009)
     db = get_db()
     cursor = db.cursor()
@@ -648,6 +749,11 @@ def get_customer_expenses(customer_id):
 
 @app.route('/api/customer/<int:customer_id>/orders', methods=['GET'])
 def get_customer_orders(customer_id):
+    # Prevent IDOR: Check that the logged-in user matches the customer_id
+    if session.get('role') != 'admin':
+        if session.get('role') != 'customer' or session.get('role_id') != customer_id:
+            return jsonify({'error': 'Forbidden: You cannot view orders of other customers.'}), 403
+
     db = get_db()
     cursor = db.cursor()
     cursor.execute('''

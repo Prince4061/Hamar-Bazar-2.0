@@ -1,11 +1,16 @@
 import sqlite3
 import os
+from werkzeug.security import generate_password_hash
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'marketplace.db')
+DB_PATH = os.environ.get('DATABASE_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'marketplace.db'))
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+    except Exception as e:
+        print("Failed to set WAL mode:", e)
     return conn
 
 def init_db():
@@ -237,10 +242,12 @@ def seed_db():
     ]
     for user in users_data:
         try:
-            cursor.execute('INSERT INTO users (name, phone, address, password) VALUES (?, ?, ?, ?)', user)
+            hashed = generate_password_hash(user[3])
+            cursor.execute('INSERT INTO users (name, phone, address, password) VALUES (?, ?, ?, ?)', (user[0], user[1], user[2], hashed))
         except sqlite3.IntegrityError:
-            # Update password for existing users to ensure they have the default password
-            cursor.execute('UPDATE users SET password = ? WHERE phone = ?', ('password123', user[1]))
+            # Update password for existing users to ensure they have the default password (hashed)
+            hashed = generate_password_hash('password123')
+            cursor.execute('UPDATE users SET password = ? WHERE phone = ?', (hashed, user[1]))
             
     # Seed Shops
     shops_data = [
@@ -253,9 +260,11 @@ def seed_db():
     ]
     for shop in shops_data:
         try:
-            cursor.execute('INSERT INTO shops (shop_name, category, commission_pct, password, image_path) VALUES (?, ?, ?, ?, ?)', shop)
+            hashed = generate_password_hash(shop[3])
+            cursor.execute('INSERT INTO shops (shop_name, category, commission_pct, password, image_path) VALUES (?, ?, ?, ?, ?)', (shop[0], shop[1], shop[2], hashed, shop[4]))
         except sqlite3.IntegrityError:
-            cursor.execute('UPDATE shops SET shop_name = ?, password = ?, image_path = ? WHERE category = ?', (shop[0], shop[3], shop[4], shop[1]))
+            hashed = generate_password_hash(shop[3])
+            cursor.execute('UPDATE shops SET shop_name = ?, password = ?, image_path = ? WHERE category = ?', (shop[0], hashed, shop[4], shop[1]))
             
     conn.commit()
     
@@ -325,9 +334,11 @@ def seed_db():
     ]
     for partner in partners_data:
         try:
-            cursor.execute('INSERT INTO delivery_partners (name, phone, active_orders, availability_status, password) VALUES (?, ?, ?, ?, ?)', partner)
+            hashed = generate_password_hash(partner[4])
+            cursor.execute('INSERT INTO delivery_partners (name, phone, active_orders, availability_status, password) VALUES (?, ?, ?, ?, ?)', (partner[0], partner[1], partner[2], partner[3], hashed))
         except sqlite3.IntegrityError:
-            cursor.execute('UPDATE delivery_partners SET password = ? WHERE phone = ?', ('password123', partner[1]))
+            hashed = generate_password_hash(partner[4])
+            cursor.execute('UPDATE delivery_partners SET password = ? WHERE phone = ?', (hashed, partner[1]))
             
     conn.commit()
     conn.close()

@@ -8,6 +8,38 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- CSRF Protection Fetch Interceptor -->
+    <script>
+        (function() {
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options) {
+                options = options || {};
+                const method = (options.method || 'GET').toUpperCase();
+                if (method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH') {
+                    options.headers = options.headers || {};
+                    const csrfToken = "{{ csrf_token() }}";
+                    if (window.Headers && options.headers instanceof Headers) {
+                        options.headers.set('X-CSRFToken', csrfToken);
+                    } else if (Array.isArray(options.headers)) {
+                        let found = false;
+                        for (let i = 0; i < options.headers.length; i++) {
+                            if (options.headers[i][0].toLowerCase() === 'x-csrftoken') {
+                                options.headers[i][1] = csrfToken;
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            options.headers.push(['X-CSRFToken', csrfToken]);
+                        }
+                    } else {
+                        options.headers['X-CSRFToken'] = csrfToken;
+                    }
+                }
+                return originalFetch(url, options);
+            };
+        })();
+    </script>
 </head>
 <body class="{% if request.path in ['/login', '/staff-login'] %}theme-login{% else %}theme-{% if session.get('role') == 'vendor' %}vendor{% elif session.get('role') == 'delivery' %}delivery{% elif session.get('role') == 'admin' %}admin{% else %}customer{% endif %}{% endif %} fade-in-up">
 

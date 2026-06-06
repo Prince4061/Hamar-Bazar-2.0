@@ -15,6 +15,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Configure SQLite data directory volume for database persistence
+ENV DATABASE_PATH=/data/marketplace.db
+RUN mkdir -p /data
+VOLUME /data
+
 # Expose the Flask port
 EXPOSE 5001
 
