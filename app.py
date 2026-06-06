@@ -237,6 +237,10 @@ def login():
         if not phone or not username:
             return jsonify({'success': False, 'error': 'Mobile number and username are required.'})
             
+        # Validate phone contains only digits and is exactly 10 digits
+        if not phone.isdigit() or len(phone) != 10:
+            return jsonify({'success': False, 'error': 'Please enter a valid 10-digit mobile number containing only numbers.'})
+            
         db = get_db()
         cursor = db.cursor()
         cursor.execute("SELECT * FROM users WHERE phone = ?", (phone,))
@@ -1598,6 +1602,10 @@ def admin_add_delivery_partner():
     if not name or not phone or not password:
         return jsonify({'error': 'Name, Phone Number, and Password are required.'}), 400
         
+    # Validate phone contains only digits and is exactly 10 digits
+    if not phone.isdigit() or len(phone) != 10:
+        return jsonify({'error': 'Please enter a valid 10-digit phone number containing only numbers.'}), 400
+        
     db = get_db()
     cursor = db.cursor()
     
@@ -1632,6 +1640,10 @@ def admin_update_delivery_partner(rider_id):
     
     if not name or not phone or not password:
         return jsonify({'error': 'Name, Phone Number, and Password are required.'}), 400
+        
+    # Validate phone contains only digits and is exactly 10 digits
+    if not phone.isdigit() or len(phone) != 10:
+        return jsonify({'error': 'Please enter a valid 10-digit phone number containing only numbers.'}), 400
         
     db = get_db()
     cursor = db.cursor()
