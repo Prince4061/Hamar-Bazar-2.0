@@ -9,7 +9,7 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="theme-{% if session.get('role') == 'vendor' %}vendor{% elif session.get('role') == 'delivery' %}delivery{% elif session.get('role') == 'admin' %}admin{% else %}customer{% endif %} fade-in-up">
+<body class="{% if request.path in ['/login', '/staff-login'] %}theme-login{% else %}theme-{% if session.get('role') == 'vendor' %}vendor{% elif session.get('role') == 'delivery' %}delivery{% elif session.get('role') == 'admin' %}admin{% else %}customer{% endif %}{% endif %} fade-in-up">
 
     <!-- Top Navbar for generic branding (if needed) -->
     {% if session.get('role') and session.get('role') != 'customer' and session.get('role') != 'delivery' %}
