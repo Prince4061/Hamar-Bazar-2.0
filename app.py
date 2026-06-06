@@ -362,20 +362,19 @@ def staff_login():
             return jsonify({'success': True, 'redirect': '/vendor'})
             
         elif role == 'delivery':
-            # Normalize common delivery boy aliases to seeded riders
-            norm_id = identifier.lower().strip()
-            if norm_id in ['rahul', 'rahul rider', 'rider1', '1']:
-                identifier = 'Rahul Rider'
-            elif norm_id in ['amit', 'amit express', 'rider2', '2']:
-                identifier = 'Amit Express'
-            elif norm_id in ['vicky', 'vicky speedster', 'rider3', '3']:
-                identifier = 'Vicky Speedster'
-
             rider = None
-            if identifier.isdigit():
+            # 1. Try to find by exact phone number match (removing spaces/dashes)
+            clean_identifier = identifier.strip().replace(" ", "").replace("-", "")
+            cursor.execute("SELECT * FROM delivery_partners WHERE phone = ?", (clean_identifier,))
+            rider = cursor.fetchone()
+            
+            # 2. If not found by phone, and it is a digit, try by ID
+            if not rider and identifier.isdigit():
                 cursor.execute("SELECT * FROM delivery_partners WHERE id = ?", (int(identifier),))
                 rider = cursor.fetchone()
-            else:
+                
+            # 3. If still not found, try flexible name match
+            if not rider:
                 cursor.execute("SELECT * FROM delivery_partners WHERE name LIKE ?", (f"%{identifier}%",))
                 rider = cursor.fetchone()
                 
