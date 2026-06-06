@@ -42,9 +42,14 @@
                 </span>
             </div>
             <div class="mobile-phone-screen-content">
-                <div class="app-container">
-                    {% block content %}{% endblock %}
-                </div>
+    {% endif %}
+
+    <div class="{% if request.path in ['/login', '/staff-login'] %}login-container-wrapper{% else %}app-container{% endif %}">
+        <!-- Render page contents (Defined exactly once to avoid Jinja TemplateAssertionError) -->
+        {% block content %}{% endblock %}
+    </div>
+
+    {% if session.get('role') in ['customer', 'delivery'] and request.path not in ['/login', '/staff-login'] %}
             </div>
             <div class="mobile-phone-home-indicator"></div>
         </div>
@@ -64,11 +69,6 @@
         setInterval(updateSimulatorTime, 1000);
         updateSimulatorTime();
     </script>
-    {% else %}
-    <div class="{% if request.path in ['/login', '/staff-login'] %}login-container-wrapper{% else %}app-container{% endif %}">
-        <!-- Render page contents -->
-        {% block content %}{% endblock %}
-    </div>
     {% endif %}
 
     <!-- Mobile Bottom Navigation (Only for logged-in users) -->
