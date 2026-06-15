@@ -149,3 +149,6 @@ marketplace.db-journal
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Project credentials
+credential.md
