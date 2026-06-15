@@ -593,8 +593,16 @@ def place_order():
                 'price': prod['price']
             })
             
-        # Delivery Fee & Grand Total Calculation matching mockup (Free above 199, else 15)
-        delivery_fee = 15.0 if total_amount < 199.0 else 0.0
+        # Delivery Fee & Grand Total Calculation from database settings (default: Free above 199, else 15)
+        cursor.execute("SELECT value FROM system_settings WHERE key = 'delivery_fee_flat'")
+        fee_row = cursor.fetchone()
+        delivery_fee_flat = float(fee_row['value']) if fee_row else 15.0
+
+        cursor.execute("SELECT value FROM system_settings WHERE key = 'delivery_fee_threshold'")
+        thresh_row = cursor.fetchone()
+        delivery_fee_threshold = float(thresh_row['value']) if thresh_row else 199.0
+
+        delivery_fee = delivery_fee_flat if total_amount < delivery_fee_threshold else 0.0
         grand_total = total_amount + delivery_fee
         gst_amount = 0.0 # GST is inclusive in item prices
         
@@ -1909,7 +1917,28 @@ def get_system_settings():
     settings = {row['key']: row['value'] for row in rows}
     if 'about_team_image' not in settings:
         settings['about_team_image'] = ''
+    if 'delivery_fee_flat' not in settings:
+        settings['delivery_fee_flat'] = '15.0'
+    if 'delivery_fee_threshold' not in settings:
+        settings['delivery_fee_threshold'] = '199.0'
     return jsonify(settings)
+
+@app.route('/api/admin/settings/update', methods=['POST'])
+def update_system_settings():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    
+    data = request.json or {}
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        for key, val in data.items():
+            if key in ['delivery_fee_flat', 'delivery_fee_threshold']:
+                cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", (key, str(val)))
+        db.commit()
+        return jsonify({'success': True, 'message': 'System settings updated successfully.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to update settings: {str(e)}'}), 500
 
 @app.route('/api/admin/settings/upload-team-photo', methods=['POST'])
 def upload_team_photo():

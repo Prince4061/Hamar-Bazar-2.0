@@ -548,7 +548,7 @@ html, body {
                 <button id="checkout-submit-btn" class="btn btn-primary mt-md w-full" style="font-size: 0.95rem; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: var(--radius-md);" onclick="checkoutOrder()">Checkout <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i></button>
                 
                 <div class="cart-promo-badge" style="font-size: 0.7rem; margin-top: 10px; padding: 6px; justify-content: center; background: var(--primary-light); color: var(--primary-accent); border-radius: var(--radius-sm); border: none;">
-                    <i data-lucide="shield-check" style="width: 12px; height: 12px;"></i> ₹199 se upar ke orders par Delivery bilkul Free!
+                    <i data-lucide="shield-check" style="width: 12px; height: 12px;"></i> <span id="delivery-promo-text">₹199 se upar ke orders par Delivery bilkul Free!</span>
                 </div>
             </div>
         </div>
@@ -818,6 +818,8 @@ html, body {
     let currentShopId = null;
     let productsList = [];
     let cart = {}; // product_id -> {name, price, quantity}
+    let deliveryFeeFlat = 15.0;
+    let deliveryFeeThreshold = 199.0;
     let trackingInterval = null;
     let isCartEditMode = false;
 
@@ -1093,6 +1095,7 @@ html, body {
 
     // Load active order and seed cart to match mockup
     document.addEventListener("DOMContentLoaded", () => {
+        loadDeliveryFeeSettings();
         const cachedOrder = localStorage.getItem(`active_order_${customerId}`);
         if (cachedOrder) {
             startTracking(JSON.parse(cachedOrder).order_id);
@@ -1732,7 +1735,7 @@ html, body {
             recBox.style.display = "none";
         }
         
-        const deliveryFee = subtotal >= 199 ? 0 : 15;
+        const deliveryFee = subtotal >= deliveryFeeThreshold ? 0 : deliveryFeeFlat;
         const grand = subtotal + deliveryFee;
         
         document.getElementById("cart-subtotal").innerText = `₹${subtotal.toFixed(2)}`;
@@ -2490,6 +2493,34 @@ html, body {
                 if (window.lucide) lucide.createIcons();
             })
             .catch(err => console.error("Error loading About Us team photo:", err));
+    }
+
+    function updateDeliveryPromoText() {
+        const promoTextEl = document.getElementById("delivery-promo-text");
+        if (!promoTextEl) return;
+        if (deliveryFeeFlat === 0) {
+            promoTextEl.innerText = "Delivery bilkul Free hai sabhi orders par!";
+        } else if (deliveryFeeThreshold > 0) {
+            promoTextEl.innerText = `₹${deliveryFeeThreshold.toFixed(0)} se upar ke orders par Delivery bilkul Free!`;
+        } else {
+            promoTextEl.innerText = `Delivery charge ₹${deliveryFeeFlat.toFixed(0)} lagega sabhi orders par.`;
+        }
+    }
+
+    function loadDeliveryFeeSettings() {
+        return fetch('/api/system/settings')
+            .then(res => res.json())
+            .then(settings => {
+                if (settings.delivery_fee_flat !== undefined) {
+                    deliveryFeeFlat = parseFloat(settings.delivery_fee_flat);
+                }
+                if (settings.delivery_fee_threshold !== undefined) {
+                    deliveryFeeThreshold = parseFloat(settings.delivery_fee_threshold);
+                }
+                updateDeliveryPromoText();
+                updateCartUI();
+            })
+            .catch(err => console.error("Error loading delivery settings:", err));
     }
 </script>
 {% endblock %}

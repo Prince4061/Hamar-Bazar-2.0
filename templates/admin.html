@@ -1938,6 +1938,43 @@
                     </div>
                 </div>
 
+                <!-- Delivery Charge Settings -->
+                <div class="dashboard-card" style="margin-top: 20px;">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text"><i data-lucide="truck"></i> Delivery Charge Settings</h3>
+                        <span class="status-badge badge-accepted" style="font-weight: 700;">Live Configuration</span>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <form id="delivery-settings-form" onsubmit="saveDeliverySettings(event)">
+                            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px;">
+                                <div style="flex: 1; min-width: 200px;">
+                                    <label for="delivery-fee-flat" style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px;">
+                                        Delivery Charge (₹)
+                                    </label>
+                                    <input type="number" id="delivery-fee-flat" class="form-input-staff" style="width: 100%;" min="0" step="1" required placeholder="e.g. 15">
+                                    <span style="font-size: 0.75rem; color: var(--text-muted);">Standard charge applied to orders. Set to 0 to make all deliveries free.</span>
+                                </div>
+                                <div style="flex: 1; min-width: 200px;">
+                                    <label for="delivery-fee-threshold" style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px;">
+                                        Free Delivery Threshold (₹)
+                                    </label>
+                                    <input type="number" id="delivery-fee-threshold" class="form-input-staff" style="width: 100%;" min="0" step="1" required placeholder="e.g. 199">
+                                    <span style="font-size: 0.75rem; color: var(--text-muted);">Orders above this amount get free delivery.</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">
+                                    <input type="checkbox" id="delivery-free-all-toggle" style="width: 16px; height: 16px; accent-color: var(--primary-accent);" onchange="toggleFreeDeliveryCheckbox(this)">
+                                    Make Delivery FREE for all orders
+                                </label>
+                                <button type="submit" class="btn-custom btn-custom-primary" style="margin: 0; padding: 10px 24px; display: inline-flex; align-items: center; gap: 6px;">
+                                    <i data-lucide="save" style="width: 16px; height: 16px;"></i> Save Settings
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
                 <!-- About Us Team Photo Settings -->
                 <div class="dashboard-card" style="margin-top: 20px;">
                     <div class="card-header-row">
@@ -4578,9 +4615,68 @@
                         img.style.display = "none";
                         placeholder.style.display = "block";
                     }
+
+                    // Populate delivery charge settings
+                    const feeFlat = parseFloat(settings.delivery_fee_flat || 15.0);
+                    const feeThresh = parseFloat(settings.delivery_fee_threshold || 199.0);
+                    
+                    document.getElementById("delivery-fee-flat").value = feeFlat;
+                    document.getElementById("delivery-fee-threshold").value = feeThresh;
+                    
+                    const freeToggle = document.getElementById("delivery-free-all-toggle");
+                    if (feeFlat === 0) {
+                        freeToggle.checked = true;
+                        document.getElementById("delivery-fee-flat").disabled = true;
+                    } else {
+                        freeToggle.checked = false;
+                        document.getElementById("delivery-fee-flat").disabled = false;
+                    }
+
                     if (window.lucide) lucide.createIcons();
                 })
                 .catch(err => console.error("Error loading About Us settings:", err));
+        }
+
+        function toggleFreeDeliveryCheckbox(checkbox) {
+            const feeInput = document.getElementById("delivery-fee-flat");
+            if (checkbox.checked) {
+                feeInput.dataset.previousValue = feeInput.value;
+                feeInput.value = 0;
+                feeInput.disabled = true;
+            } else {
+                feeInput.value = feeInput.dataset.previousValue || 15;
+                feeInput.disabled = false;
+            }
+        }
+
+        function saveDeliverySettings(event) {
+            event.preventDefault();
+            const feeFlat = parseFloat(document.getElementById("delivery-fee-flat").value) || 0;
+            const feeThresh = parseFloat(document.getElementById("delivery-fee-threshold").value) || 0;
+            
+            fetch('/api/admin/settings/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    delivery_fee_flat: feeFlat,
+                    delivery_fee_threshold: feeThresh
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showAestheticToast("Delivery settings saved successfully!", "success");
+                    loadAdminAboutTeamPhoto();
+                } else {
+                    showAestheticToast(data.error || "Save failed.", "error");
+                }
+            })
+            .catch(err => {
+                console.error("Error saving delivery settings:", err);
+                showAestheticToast("Failed to save delivery settings.", "error");
+            });
         }
 
         function uploadAboutTeamPhoto(input) {

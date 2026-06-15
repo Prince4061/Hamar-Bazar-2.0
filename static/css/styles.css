@@ -285,7 +285,7 @@ body {
     .login-grid {
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 8px;
         justify-content: center;
         align-items: center;
         max-width: 480px;
@@ -326,6 +326,20 @@ body {
     .grocery-basket-img-container {
         display: none !important;
     }
+    .mobile-grocery-basket-container {
+        display: flex !important;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        max-width: 100px;
+        margin: 4px auto 0px auto;
+        animation: mobileFloat 3.5s ease-in-out infinite;
+    }
+    .mobile-grocery-basket-vector {
+        width: 100%;
+        height: auto;
+        filter: drop-shadow(0 8px 16px rgba(111, 44, 244, 0.15));
+    }
     .staff-role-descriptions {
         display: none !important;
     }
@@ -344,7 +358,7 @@ body {
         padding: 24px 16px;
     }
     .login-card-desktop {
-        padding: 32px 24px !important;
+        padding: 20px 24px 32px 24px !important;
         max-width: 100% !important;
         box-shadow: var(--shadow-premium) !important;
     }
@@ -606,6 +620,16 @@ body {
     0% { transform: translateY(0px); }
     50% { transform: translateY(-10px); }
     100% { transform: translateY(0px); }
+}
+
+.mobile-grocery-basket-container {
+    display: none;
+}
+
+@keyframes mobileFloat {
+    0% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-8px) rotate(1deg); }
+    100% { transform: translateY(0px) rotate(0deg); }
 }
 
 /* Right Panel: Mockup & Desktop Form Inputs */

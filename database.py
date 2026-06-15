@@ -266,9 +266,13 @@ def seed_db():
             ON CONFLICT (phone) DO UPDATE SET password = EXCLUDED.password
         ''', (partner[0], partner[1], partner[2], partner[3], hashed))
             
+    # Seed system settings for delivery fee defaults
+    cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('delivery_fee_flat', '15.0')")
+    cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('delivery_fee_threshold', '199.0')")
+
     conn.commit()
     conn.close()
-    print("Database seeded successfully with exclusive shops, products, users, and riders!")
+    print("Database seeded successfully with exclusive shops, products, users, riders, and system settings!")
 
 def seed_historical_orders():
     import random
