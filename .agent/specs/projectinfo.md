@@ -10,7 +10,6 @@ Welcome to the **Hamar Bazar 2.0** specifications and project documentation. Thi
 * **Database Backend**: SQLite (`marketplace.db`)
 * **Frontend**: HTML5, Vanilla CSS, JavaScript, Jinja2 Templates
 * **Security & Auth**: CSRF Protection (`Flask-WTF`), hashed passwords (`werkzeug.security`), role-based session validation, and brute-force protection
-* **Containerization & Deployment**: Docker, Docker Compose, Hostinger VPS
 
 ---
 
@@ -119,20 +118,10 @@ erDiagram
 
 ---
 
-## 🚀 Running & Deploying the Project
+## 🚀 Running the Project
 
 ### Local Development (Windows)
 * Double-click [run.bat](file:///G:/Final%20Hamar%20Bazar%20Project/Hamar-Bazar-2.0/run.bat). It will install packages via pip, setup the database tables, seed initial history data, and host the app at **`http://127.0.0.1:5001`**.
-
-### Production VPS Deployment (Hostinger)
-* Packaged via [Dockerfile](file:///G:/Final%20Hamar%20Bazar%20Project/Hamar-Bazar-2.0/Dockerfile) and pushed to Docker Hub:
-  ```bash
-  docker build -t your_username/hamar-bazar-2.0:latest .
-  docker push your_username/hamar-bazar-2.0:latest
-  ```
-* VPS pulls the image via [docker-compose.prod.yml](file:///G:/Final%20Hamar%20Bazar%20Project/Hamar-Bazar-2.0/docker-compose.prod.yml) mapping two volumes:
-  - `/data` for databases (`DATABASE_PATH=/data/marketplace.db`).
-  - `/app/static/uploads` for customer payment screenshots, profile pics, and prescriptions.
 
 ---
 
