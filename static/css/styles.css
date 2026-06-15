@@ -1967,13 +1967,20 @@ body.theme-customer .app-container {
     justify-content: space-between !important;
     padding: 12px 18px !important;
     border-radius: 24px !important; /* Bubbly card shape */
-    border: 2px solid transparent !important;
+    border: 2px solid var(--border-color);
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.02);
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important; /* Spring transition! */
     cursor: pointer !important;
     position: relative !important;
     height: 90px !important; /* Compact unified height */
     overflow: hidden !important;
     text-align: left !important;
+}
+.hamar-category-card:hover {
+    transform: translateY(-6px) scale(1.03) !important;
+    box-shadow: 0 16px 32px rgba(111, 44, 244, 0.15);
+    border-color: rgba(111, 44, 244, 0.3);
 }
 
 /* Glowing Neon Bouncy Hover states for kids view */

@@ -2205,12 +2205,19 @@ html, body {
     }
     
     function searchAcrossAllShops(query) {
-        const promises = [1, 2, 3, 4].map(id => fetch(`/api/shops/${id}/products`).then(res => res.json()));
-        Promise.all(promises).then(results => {
-            const allProducts = results.flat();
-            const filtered = allProducts.filter(p => p.name.toLowerCase().includes(query));
-            renderFilteredProducts(filtered);
-        });
+        fetch('/api/shops')
+            .then(res => res.json())
+            .then(shops => {
+                const promises = shops.map(s => fetch(`/api/shops/${s.id}/products`).then(res => res.json()));
+                Promise.all(promises).then(results => {
+                    const allProducts = results.flat().filter(p => p && !p.error);
+                    const filtered = allProducts.filter(p => p.name.toLowerCase().includes(query));
+                    renderFilteredProducts(filtered);
+                });
+            })
+            .catch(err => {
+                console.error("Failed to fetch shops for global search:", err);
+            });
     }
 
     function renderFilteredProducts(list) {

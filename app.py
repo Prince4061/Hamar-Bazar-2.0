@@ -1654,11 +1654,17 @@ def admin_update_shop(shop_id):
             image_path = f"/static/uploads/category_pics/{filename}"
             
     try:
+        # Avoid double-hashing if the pre-filled hash is submitted unchanged
+        if password.startswith(('scrypt:', 'pbkdf2:sha256:', 'pbkdf2:')):
+            hashed_password = password
+        else:
+            hashed_password = generate_password_hash(password)
+            
         cursor.execute('''
             UPDATE shops 
             SET shop_name = ?, category = ?, commission_pct = ?, password = ?, image_path = ? 
             WHERE id = ?
-        ''', (shop_name, category, float(commission_pct), password, image_path, shop_id))
+        ''', (shop_name, category, float(commission_pct), hashed_password, image_path, shop_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Shop category credentials updated successfully.'})
     except Exception as e:
@@ -1796,10 +1802,11 @@ def admin_add_shop():
             image_path = f"/static/uploads/category_pics/{filename}"
             
     try:
+        hashed_password = generate_password_hash(password)
         cursor.execute('''
             INSERT INTO shops (shop_name, category, commission_pct, password, image_path, is_active)
             VALUES (?, ?, ?, ?, ?, 1)
-        ''', (shop_name, category, float(commission_pct), password, image_path))
+        ''', (shop_name, category, float(commission_pct), hashed_password, image_path))
         db.commit()
         
         # Dynamic seeding of 3 starter products for the new shop
