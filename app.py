@@ -501,7 +501,7 @@ def get_shop_products(shop_id):
     if is_vendor:
         cursor.execute("SELECT * FROM products WHERE shop_id = ?", (shop_id,))
     else:
-        cursor.execute("SELECT * FROM products WHERE shop_id = ? AND is_available = 1", (shop_id,))
+        cursor.execute("SELECT * FROM products WHERE shop_id = ? AND is_available = TRUE", (shop_id,))
     products = [dict(row) for row in cursor.fetchall()]
     return jsonify(products)
 
@@ -914,7 +914,7 @@ def toggle_product_availability():
         return jsonify({'error': 'Unauthorized. Please login as vendor.'}), 403
     data = request.json
     product_id = data.get('product_id')
-    is_available = data.get('is_available')
+    is_available = bool(data.get('is_available'))
     
     db = get_db()
     cursor = db.cursor()
@@ -1500,7 +1500,7 @@ def get_admin_analytics():
         SELECT p.name, s.shop_name
         FROM products p
         JOIN shops s ON p.shop_id = s.id
-        WHERE p.is_available = 0
+        WHERE p.is_available = FALSE
         LIMIT 5
     ''')
     out_of_stock = [dict(row) for row in cursor.fetchall()]
@@ -1857,7 +1857,7 @@ def admin_modify_product(prod_id):
         data = request.json
         name = data.get('name')
         price = data.get('price')
-        is_available = data.get('is_available', 1)
+        is_available = bool(data.get('is_available', True))
         image_path = data.get('image_path')
         subcategory = data.get('subcategory', '')
         description = data.get('description', '')
@@ -1866,7 +1866,7 @@ def admin_modify_product(prod_id):
             UPDATE products 
             SET name = ?, price = ?, is_available = ?, image_path = ?, subcategory = ?, description = ? 
             WHERE id = ?
-        ''', (name, float(price), int(is_available), image_path, subcategory, description, prod_id))
+        ''', (name, float(price), is_available, image_path, subcategory, description, prod_id))
         db.commit()
         return jsonify({'message': 'Product updated successfully.'})
 
