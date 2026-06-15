@@ -125,7 +125,7 @@
                     </div>
 
                     <div class="form-group" style="position: relative;">
-                        <input type="password" id="customer-password" class="form-input-staff" placeholder="Enter Password" required>
+                        <input type="password" id="customer-password" class="form-input-staff" placeholder="Enter up to 6-digit password" pattern="\d{1,6}" title="Password must be 1 to 6 digits" maxlength="6" required>
                         <span class="password-toggle-eye" onclick="toggleCustomerPasswordVisibility()">
                             <i data-lucide="eye" style="width: 18px; height: 18px;"></i>
                         </span>
