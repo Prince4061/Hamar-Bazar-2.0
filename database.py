@@ -1,91 +1,16 @@
-import psycopg2
-import psycopg2.extensions
-import psycopg2.extras
+import sqlite3
 import os
 from werkzeug.security import generate_password_hash
 
-# Read Supabase environment parameters with defaults
-SUPABASE_DB_HOST = os.environ.get('SUPABASE_DB_HOST', 'db.luljqzatlklwsdwiohxg.supabase.co')
-SUPABASE_DB_PORT = os.environ.get('SUPABASE_DB_PORT', '5432')
-SUPABASE_DB_NAME = os.environ.get('SUPABASE_DB_NAME', 'postgres')
-SUPABASE_DB_USER = os.environ.get('SUPABASE_DB_USER', 'hamar_bazar_user')
-SUPABASE_DB_PASSWORD = os.environ.get('SUPABASE_DB_PASSWORD', 'HamarBazarPass123!')
-
-class SQLiteCompatibleCursor(psycopg2.extras.DictCursor):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._lastrowid = None
-
-    @property
-    def lastrowid(self):
-        return self._lastrowid
-
-    def execute(self, query, vars=None):
-        if query:
-            q_upper = query.strip().upper()
-            if q_upper.startswith("PRAGMA"):
-                return None
-            if q_upper == "BEGIN TRANSACTION" or q_upper == "BEGIN":
-                return None
-            if q_upper == "ROLLBACK":
-                self.connection.rollback()
-                return None
-            if q_upper == "COMMIT":
-                self.connection.commit()
-                return None
-            
-            # Replace SQLite style "?" placeholders with PostgreSQL style "%s"
-            query = query.replace('?', '%s')
-            
-            is_insert = q_upper.startswith("INSERT")
-            if is_insert:
-                if "RETURNING" not in q_upper:
-                    clean_query = query.strip()
-                    if clean_query.endswith(";"):
-                        clean_query = clean_query[:-1]
-                    query = clean_query + " RETURNING id"
-                
-                super().execute(query, vars)
-                try:
-                    row = self.fetchone()
-                    if row:
-                        self._lastrowid = row[0]
-                except Exception:
-                    self._lastrowid = None
-                return self
-                
-        super().execute(query, vars)
-        return self
-        
-    def executemany(self, query, vars_list):
-        if query:
-            query = query.replace('?', '%s')
-        return super().executemany(query, vars_list)
-
-class SQLiteCompatibleConnection(psycopg2.extensions.connection):
-    @property
-    def row_factory(self):
-        return None
-    @row_factory.setter
-    def row_factory(self, value):
-        pass
-        
-    def execute(self, query, vars=None):
-        cur = self.cursor()
-        cur.execute(query, vars)
-        return cur
+# Read SQLite environment parameters with defaults
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_PATH = os.environ.get('DATABASE_PATH', os.path.join(BASE_DIR, 'marketplace.db'))
 
 def get_db_connection():
-    conn = psycopg2.connect(
-        host=SUPABASE_DB_HOST,
-        port=SUPABASE_DB_PORT,
-        database=SUPABASE_DB_NAME,
-        user=SUPABASE_DB_USER,
-        password=SUPABASE_DB_PASSWORD,
-        sslmode='require',
-        connection_factory=SQLiteCompatibleConnection
-    )
-    conn.cursor_factory = SQLiteCompatibleCursor
+    conn = sqlite3.connect(DATABASE_PATH)
+    # Enable foreign keys
+    conn.execute("PRAGMA foreign_keys = ON;")
+    conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
@@ -95,7 +20,7 @@ def init_db():
     # 1. Users Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         phone TEXT UNIQUE NOT NULL,
         address TEXT NOT NULL,
@@ -110,7 +35,7 @@ def init_db():
     # 2. Shops Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS shops (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         shop_name TEXT NOT NULL,
         category TEXT UNIQUE NOT NULL,
         commission_pct REAL DEFAULT 5.0,
@@ -123,7 +48,7 @@ def init_db():
     # 3. Products Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS products (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         shop_id INTEGER NOT NULL,
         name TEXT NOT NULL,
         price REAL NOT NULL,
@@ -138,7 +63,7 @@ def init_db():
     # 4. Delivery Partners Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS delivery_partners (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         phone TEXT UNIQUE NOT NULL,
         active_orders INTEGER DEFAULT 0,
@@ -151,7 +76,7 @@ def init_db():
     # 5. Orders Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS orders (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         customer_id INTEGER NOT NULL,
         shop_id INTEGER NOT NULL,
         delivery_boy_id INTEGER,
@@ -178,7 +103,7 @@ def init_db():
     # 6. Order Items Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS order_items (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         order_id INTEGER NOT NULL,
         product_id INTEGER NOT NULL,
         quantity INTEGER NOT NULL,
@@ -191,7 +116,7 @@ def init_db():
     # 7. Failed Logins Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS failed_logins (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         username TEXT NOT NULL,
         ip_address TEXT NOT NULL
@@ -201,7 +126,7 @@ def init_db():
     # 8. Prescription Requests Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS prescription_requests (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         customer_id INTEGER NOT NULL,
         image_path TEXT NOT NULL,
         status TEXT DEFAULT 'PENDING',
@@ -215,7 +140,7 @@ def init_db():
     # 9. Search History Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS search_history (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         customer_id INTEGER NOT NULL,
         keyword TEXT NOT NULL,
         searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -233,7 +158,7 @@ def init_db():
     
     conn.commit()
     conn.close()
-    print("Database tables created successfully!")
+    print("SQLite database tables created successfully!")
 
 def seed_db():
     conn = get_db_connection()

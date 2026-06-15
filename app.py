@@ -28,6 +28,8 @@ os.makedirs(PRESC_UPLOAD_FOLDER, exist_ok=True)
 PAY_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'payments')
 os.makedirs(PAY_UPLOAD_FOLDER, exist_ok=True)
 
+DB_PATH = database.DATABASE_PATH
+
 def run_migrations():
     # Tables are fully managed and created in Supabase.
     # We call database.init_db() to ensure schema completeness.
@@ -532,95 +534,100 @@ def sync_products():
 
 @app.route('/api/orders/place', methods=['POST'])
 def place_order():
-    data = request.json
-    customer_id = data.get('customer_id')
-    shop_id = data.get('shop_id')
-    items = data.get('items', []) # List of {product_id, quantity}
-    priority_type = data.get('priority_type', 'NORMAL').upper()
-    
-    if not customer_id or not shop_id or not items:
-        return jsonify({'error': 'Missing checkout parameters.'}), 400
+    try:
+        data = request.json
+        customer_id = data.get('customer_id')
+        shop_id = data.get('shop_id')
+        items = data.get('items', []) # List of {product_id, quantity}
+        priority_type = data.get('priority_type', 'NORMAL').upper()
         
-    # Prevent IDOR: Check that the logged-in user matches the customer_id placing the order
-    if session.get('role') != 'customer' or session.get('role_id') != int(customer_id):
-        return jsonify({'error': 'Unauthorized: You cannot place an order for another user.'}), 403
-        
-    db = get_db()
-    cursor = db.cursor()
-    
-    # Check if shop is active
-    cursor.execute("SELECT is_active FROM shops WHERE id = ?", (shop_id,))
-    shop = cursor.fetchone()
-    if not shop or not shop['is_active']:
-        return jsonify({'error': 'This shop is currently inactive/blocked and cannot accept orders.'}), 400
-    
-    # Calculate Total Amount & GST
-    total_amount = 0.0
-    products_details = []
-    
-    for item in items:
-        prod_id = item.get('product_id')
-        try:
-            qty = int(item.get('quantity', 0))
-        except (ValueError, TypeError):
-            return jsonify({'error': 'Quantity must be a valid integer.'}), 400
-        if qty <= 0:
-            return jsonify({'error': 'Quantity must be a positive integer greater than zero.'}), 400
+        if not customer_id or not shop_id or not items:
+            return jsonify({'error': 'Missing checkout parameters.'}), 400
             
-        cursor.execute("SELECT price, name, is_available FROM products WHERE id = ? AND shop_id = ?", (prod_id, shop_id))
-        prod = cursor.fetchone()
-        if not prod:
-            return jsonify({'error': f'Product {prod_id} not found in this shop.'}), 400
-        if not prod['is_available']:
-            return jsonify({'error': f"Product '{prod['name']}' is out of stock."}), 400
-        item_total = prod['price'] * qty
-        total_amount += item_total
-        products_details.append({
-            'product_id': prod_id,
-            'quantity': qty,
-            'price': prod['price']
-        })
+        # Prevent IDOR: Check that the logged-in user matches the customer_id placing the order
+        if session.get('role') != 'customer' or session.get('role_id') != int(customer_id):
+            return jsonify({'error': 'Unauthorized: You cannot place an order for another user.'}), 403
+            
+        db = get_db()
+        cursor = db.cursor()
         
-    # Delivery Fee & Grand Total Calculation matching mockup (Free above 199, else 15)
-    delivery_fee = 15.0 if total_amount < 199.0 else 0.0
-    grand_total = total_amount + delivery_fee
-    gst_amount = 0.0 # GST is inclusive in item prices
-    
-    payment_mode = data.get('payment_mode', 'COD').upper()
-    payment_screenshot = data.get('payment_screenshot')
-    status = 'AWAITING_PAYMENT_APPROVAL' if payment_mode == 'ONLINE' else 'PENDING'
-    
-    # Generate OTPs (4 digits numeric)
-    pickup_otp = f"{random.randint(1000, 9999)}"
-    delivery_otp = f"{random.randint(1000, 9999)}"
-    
-    # Insert Order Master record
-    cursor.execute('''
-        INSERT INTO orders (customer_id, shop_id, total_amount, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (customer_id, shop_id, grand_total, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot))
-    
-    order_id = cursor.lastrowid
-    
-    # Insert Order Items
-    for pd in products_details:
+        # Check if shop is active
+        cursor.execute("SELECT is_active FROM shops WHERE id = ?", (shop_id,))
+        shop = cursor.fetchone()
+        if not shop or not shop['is_active']:
+            return jsonify({'error': 'This shop is currently inactive/blocked and cannot accept orders.'}), 400
+        
+        # Calculate Total Amount & GST
+        total_amount = 0.0
+        products_details = []
+        
+        for item in items:
+            prod_id = item.get('product_id')
+            try:
+                qty = int(item.get('quantity', 0))
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Quantity must be a valid integer.'}), 400
+            if qty <= 0:
+                return jsonify({'error': 'Quantity must be a positive integer greater than zero.'}), 400
+                
+            cursor.execute("SELECT price, name, is_available FROM products WHERE id = ? AND shop_id = ?", (prod_id, shop_id))
+            prod = cursor.fetchone()
+            if not prod:
+                return jsonify({'error': f'Product {prod_id} not found in this shop.'}), 400
+            if not prod['is_available']:
+                return jsonify({'error': f"Product '{prod['name']}' is out of stock."}), 400
+            item_total = prod['price'] * qty
+            total_amount += item_total
+            products_details.append({
+                'product_id': prod_id,
+                'quantity': qty,
+                'price': prod['price']
+            })
+            
+        # Delivery Fee & Grand Total Calculation matching mockup (Free above 199, else 15)
+        delivery_fee = 15.0 if total_amount < 199.0 else 0.0
+        grand_total = total_amount + delivery_fee
+        gst_amount = 0.0 # GST is inclusive in item prices
+        
+        payment_mode = data.get('payment_mode', 'COD').upper()
+        payment_screenshot = data.get('payment_screenshot')
+        status = 'AWAITING_PAYMENT_APPROVAL' if payment_mode == 'ONLINE' else 'PENDING'
+        
+        # Generate OTPs (4 digits numeric)
+        pickup_otp = f"{random.randint(1000, 9999)}"
+        delivery_otp = f"{random.randint(1000, 9999)}"
+        
+        # Insert Order Master record
         cursor.execute('''
-            INSERT INTO order_items (order_id, product_id, quantity, price)
-            VALUES (?, ?, ?, ?)
-        ''', (order_id, pd['product_id'], pd['quantity'], pd['price']))
+            INSERT INTO orders (customer_id, shop_id, total_amount, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (customer_id, shop_id, grand_total, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot))
         
-    db.commit()
-    
-    # Run security checks to flag suspicious user
-    check_and_flag_suspicious_user(customer_id, db)
-    
-    return jsonify({
-        'message': 'Order placed successfully!' if status == 'PENDING' else 'Payment verification pending!',
-        'order_id': order_id,
-        'pickup_otp': pickup_otp, # Kept for debugging/testing visibility if needed
-        'delivery_otp': delivery_otp,
-        'status': status
-    })
+        order_id = cursor.lastrowid
+        
+        # Insert Order Items
+        for pd in products_details:
+            cursor.execute('''
+                INSERT INTO order_items (order_id, product_id, quantity, price)
+                VALUES (?, ?, ?, ?)
+            ''', (order_id, pd['product_id'], pd['quantity'], pd['price']))
+            
+        db.commit()
+        
+        # Run security checks to flag suspicious user
+        check_and_flag_suspicious_user(customer_id, db)
+        
+        return jsonify({
+            'message': 'Order placed successfully!' if status == 'PENDING' else 'Payment verification pending!',
+            'order_id': order_id,
+            'pickup_otp': pickup_otp, # Kept for debugging/testing visibility if needed
+            'delivery_otp': delivery_otp,
+            'status': status
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Internal Server Error: {str(e)}'}), 500
 
 @app.route('/api/orders/<int:order_id>', methods=['GET'])
 def get_order_details(order_id):
@@ -750,7 +757,13 @@ def update_profile():
     db = get_db()
     cursor = db.cursor()
     try:
-        cursor.execute("UPDATE users SET name = ?, address = ?, password = ? WHERE id = ?", (name, address, password, int(customer_id)))
+        # Avoid double-hashing if the pre-filled hash is submitted unchanged
+        if password.startswith(('scrypt:', 'pbkdf2:sha256:', 'pbkdf2:')):
+            hashed_password = password
+        else:
+            hashed_password = generate_password_hash(password)
+            
+        cursor.execute("UPDATE users SET name = ?, address = ?, password = ? WHERE id = ?", (name, address, hashed_password, int(customer_id)))
         db.commit()
         session['name'] = name
         return jsonify({'success': True, 'message': 'Profile updated successfully.'})
@@ -2424,19 +2437,51 @@ def export_customer_search_pdf(cust_id):
 def export_database():
     if session.get('role') != 'admin':
         return jsonify({'error': 'Unauthorized.'}), 403
-        
-    return jsonify({
-        'error': 'Database export feature is designed for local SQLite backups. When connected to Supabase PostgreSQL, please manage backups directly from the Supabase console.'
-    }), 400
+    try:
+        if os.path.exists(DB_PATH):
+            return send_file(DB_PATH, as_attachment=True, download_name='marketplace.db')
+        else:
+            return jsonify({'error': 'Database file not found.'}), 404
+    except Exception as e:
+        return jsonify({'error': f'Failed to export database: {str(e)}'}), 500
 
 @app.route('/api/admin/database/import', methods=['POST'])
 def import_database():
     if session.get('role') != 'admin':
         return jsonify({'error': 'Unauthorized.'}), 403
         
-    return jsonify({
-        'error': 'Database import feature is designed for local SQLite backups. When connected to Supabase PostgreSQL, please manage imports and migrations directly from the Supabase console.'
-    }), 400
+    if 'database' not in request.files:
+        return jsonify({'error': 'No database file uploaded.'}), 400
+        
+    file = request.files['database']
+    if file.filename == '':
+        return jsonify({'error': 'Empty filename.'}), 400
+        
+    try:
+        import sqlite3
+        temp_path = DB_PATH + ".temp"
+        file.save(temp_path)
+        
+        # Test if it is a valid SQLite database
+        try:
+            temp_conn = sqlite3.connect(temp_path)
+            temp_conn.execute("SELECT count(*) FROM sqlite_master;")
+            temp_conn.close()
+        except Exception:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            return jsonify({'error': 'Invalid database file format. Must be a valid SQLite database.'}), 400
+            
+        # Overwrite the actual database
+        close_connection(None)
+        
+        if os.path.exists(DB_PATH):
+            os.remove(DB_PATH)
+        os.rename(temp_path, DB_PATH)
+        
+        return jsonify({'success': True, 'message': 'Database imported successfully! Page will reload.'})
+    except Exception as e:
+        return jsonify({'error': f'Import failed: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

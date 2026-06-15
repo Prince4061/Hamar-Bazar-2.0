@@ -10,12 +10,8 @@ services:
       - hamar_bazar_data:/data
       - hamar_bazar_uploads:/app/static/uploads
     environment:
-      - SUPABASE_DB_HOST=aws-1-ap-southeast-2.pooler.supabase.com
-      - SUPABASE_DB_PORT=5432
-      - SUPABASE_DB_NAME=postgres
-      - SUPABASE_DB_USER=postgres.luljqzatlklwsdwiohxg
-      - SUPABASE_DB_PASSWORD=hamarbazarai
-      - FLASK_SECRET_KEY=hyperlocal_monopolistic_secret_key_12345  # Change this to a random secure key in production
+      - DATABASE_PATH=/data/marketplace.db
+      - FLASK_SECRET_KEY=hyperlocal_monopolistic_secret_key_12345
     restart: always
 
 volumes:
