@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  web:
+    image: prince4061/hamar-bazar-2.0:latest  # Replace with your actual Docker Hub image name if different
+    container_name: hamar-bazar-web
+    ports:
+      - "80:5001"  # Maps port 80 of Hostinger VPS to port 5001 of the Flask app
+    volumes:
+      - hamar_bazar_data:/data
+      - hamar_bazar_uploads:/app/static/uploads
+    environment:
+      - SUPABASE_DB_HOST=db.luljqzatlklwsdwiohxg.supabase.co
+      - SUPABASE_DB_PORT=5432
+      - SUPABASE_DB_NAME=postgres
+      - SUPABASE_DB_USER=hamar_bazar_user
+      - SUPABASE_DB_PASSWORD=HamarBazarPass123!
+      - FLASK_SECRET_KEY=hyperlocal_monopolistic_secret_key_12345  # Change this to a random secure key in production
+    restart: always
+
+volumes:
+  hamar_bazar_data:
+  hamar_bazar_uploads:

@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: hamar-bazar-web
+    ports:
+      - "5001:5001"
+    volumes:
+      - hamar_bazar_data:/data
+      - hamar_bazar_uploads:/app/static/uploads
+    environment:
+      - SUPABASE_DB_HOST=db.luljqzatlklwsdwiohxg.supabase.co
+      - SUPABASE_DB_PORT=5432
+      - SUPABASE_DB_NAME=postgres
+      - SUPABASE_DB_USER=hamar_bazar_user
+      - SUPABASE_DB_PASSWORD=HamarBazarPass123!
+      - FLASK_SECRET_KEY=hyperlocal_monopolistic_secret_key_12345
+    restart: always
+
+volumes:
+  hamar_bazar_data:
+  hamar_bazar_uploads:
+

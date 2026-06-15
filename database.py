@@ -1,16 +1,91 @@
-import sqlite3
+import psycopg2
+import psycopg2.extensions
+import psycopg2.extras
 import os
 from werkzeug.security import generate_password_hash
 
-DB_PATH = os.environ.get('DATABASE_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'marketplace.db'))
+# Read Supabase environment parameters with defaults
+SUPABASE_DB_HOST = os.environ.get('SUPABASE_DB_HOST', 'db.luljqzatlklwsdwiohxg.supabase.co')
+SUPABASE_DB_PORT = os.environ.get('SUPABASE_DB_PORT', '5432')
+SUPABASE_DB_NAME = os.environ.get('SUPABASE_DB_NAME', 'postgres')
+SUPABASE_DB_USER = os.environ.get('SUPABASE_DB_USER', 'hamar_bazar_user')
+SUPABASE_DB_PASSWORD = os.environ.get('SUPABASE_DB_PASSWORD', 'HamarBazarPass123!')
+
+class SQLiteCompatibleCursor(psycopg2.extras.DictCursor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._lastrowid = None
+
+    @property
+    def lastrowid(self):
+        return self._lastrowid
+
+    def execute(self, query, vars=None):
+        if query:
+            q_upper = query.strip().upper()
+            if q_upper.startswith("PRAGMA"):
+                return None
+            if q_upper == "BEGIN TRANSACTION" or q_upper == "BEGIN":
+                return None
+            if q_upper == "ROLLBACK":
+                self.connection.rollback()
+                return None
+            if q_upper == "COMMIT":
+                self.connection.commit()
+                return None
+            
+            # Replace SQLite style "?" placeholders with PostgreSQL style "%s"
+            query = query.replace('?', '%s')
+            
+            is_insert = q_upper.startswith("INSERT")
+            if is_insert:
+                if "RETURNING" not in q_upper:
+                    clean_query = query.strip()
+                    if clean_query.endswith(";"):
+                        clean_query = clean_query[:-1]
+                    query = clean_query + " RETURNING id"
+                
+                super().execute(query, vars)
+                try:
+                    row = self.fetchone()
+                    if row:
+                        self._lastrowid = row[0]
+                except Exception:
+                    self._lastrowid = None
+                return self
+                
+        super().execute(query, vars)
+        return self
+        
+    def executemany(self, query, vars_list):
+        if query:
+            query = query.replace('?', '%s')
+        return super().executemany(query, vars_list)
+
+class SQLiteCompatibleConnection(psycopg2.extensions.connection):
+    @property
+    def row_factory(self):
+        return None
+    @row_factory.setter
+    def row_factory(self, value):
+        pass
+        
+    def execute(self, query, vars=None):
+        cur = self.cursor()
+        cur.execute(query, vars)
+        return cur
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH, timeout=30.0)
-    conn.row_factory = sqlite3.Row
-    try:
-        conn.execute("PRAGMA journal_mode=WAL;")
-    except Exception as e:
-        print("Failed to set WAL mode:", e)
+    conn = psycopg2.connect(
+        host=SUPABASE_DB_HOST,
+        port=SUPABASE_DB_PORT,
+        database=SUPABASE_DB_NAME,
+        user=SUPABASE_DB_USER,
+        password=SUPABASE_DB_PASSWORD,
+        sslmode='require',
+        connection_factory=SQLiteCompatibleConnection
+    )
+    conn.cursor_factory = SQLiteCompatibleCursor
     return conn
 
 def init_db():
@@ -20,7 +95,7 @@ def init_db():
     # 1. Users Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         phone TEXT UNIQUE NOT NULL,
         address TEXT NOT NULL,
@@ -32,71 +107,38 @@ def init_db():
     )
     ''')
     
-    # Migration helpers for existing databases
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN profile_pic TEXT")
-    except sqlite3.OperationalError:
-        pass # Already exists
-        
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN password TEXT")
-    except sqlite3.OperationalError:
-        pass # Already exists
-
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN is_blocked INTEGER DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass # Already exists
-
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN is_suspicious INTEGER DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass # Already exists
-
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN suspicion_reasons TEXT")
-    except sqlite3.OperationalError:
-        pass # Already exists
-    
     # 2. Shops Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS shops (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         shop_name TEXT NOT NULL,
         category TEXT UNIQUE NOT NULL,
-        commission_pct REAL DEFAULT 5.0
+        commission_pct REAL DEFAULT 5.0,
+        is_active INTEGER DEFAULT 1,
+        password TEXT,
+        image_path TEXT
     )
     ''')
     
     # 3. Products Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         shop_id INTEGER NOT NULL,
         name TEXT NOT NULL,
         price REAL NOT NULL,
-        is_available BOOLEAN DEFAULT 1,
+        is_available BOOLEAN DEFAULT TRUE,
         subcategory TEXT,
         description TEXT,
         image_path TEXT,
         FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE
     )
     ''')
-
-    try:
-        cursor.execute("ALTER TABLE products ADD COLUMN description TEXT")
-    except sqlite3.OperationalError:
-        pass # Already exists
-
-    try:
-        cursor.execute("ALTER TABLE products ADD COLUMN image_path TEXT")
-    except sqlite3.OperationalError:
-        pass # Already exists
-
+    
     # 4. Delivery Partners Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS delivery_partners (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         phone TEXT UNIQUE NOT NULL,
         active_orders INTEGER DEFAULT 0,
@@ -105,17 +147,11 @@ def init_db():
         password TEXT
     )
     ''')
-
-    try:
-        cursor.execute("ALTER TABLE delivery_partners ADD COLUMN password TEXT")
-    except sqlite3.OperationalError:
-        pass
-
     
-    # 5. Orders Table (State Machine Master)
+    # 5. Orders Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS orders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         customer_id INTEGER NOT NULL,
         shop_id INTEGER NOT NULL,
         delivery_boy_id INTEGER,
@@ -139,20 +175,10 @@ def init_db():
     )
     ''')
     
-    try:
-        cursor.execute("ALTER TABLE orders ADD COLUMN payment_mode TEXT DEFAULT 'COD'")
-    except sqlite3.OperationalError:
-        pass # Already exists
-        
-    try:
-        cursor.execute("ALTER TABLE orders ADD COLUMN payment_screenshot TEXT")
-    except sqlite3.OperationalError:
-        pass # Already exists
-
     # 6. Order Items Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS order_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         order_id INTEGER NOT NULL,
         product_id INTEGER NOT NULL,
         quantity INTEGER NOT NULL,
@@ -165,38 +191,17 @@ def init_db():
     # 7. Failed Logins Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS failed_logins (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         username TEXT NOT NULL,
         ip_address TEXT NOT NULL
     )
     ''')
     
-    # Migrations for subcategory in products
-    try:
-        cursor.execute("ALTER TABLE products ADD COLUMN subcategory TEXT")
-    except sqlite3.OperationalError:
-        pass # Already exists
-        
-    try:
-        cursor.execute("ALTER TABLE shops ADD COLUMN is_active INTEGER DEFAULT 1")
-    except sqlite3.OperationalError:
-        pass # Already exists
-        
-    try:
-        cursor.execute("ALTER TABLE shops ADD COLUMN password TEXT")
-    except sqlite3.OperationalError:
-        pass # Already exists
-
-    try:
-        cursor.execute("ALTER TABLE shops ADD COLUMN image_path TEXT")
-    except sqlite3.OperationalError:
-        pass # Already exists
-        
     # 8. Prescription Requests Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS prescription_requests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         customer_id INTEGER NOT NULL,
         image_path TEXT NOT NULL,
         status TEXT DEFAULT 'PENDING',
@@ -210,14 +215,14 @@ def init_db():
     # 9. Search History Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS search_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         customer_id INTEGER NOT NULL,
         keyword TEXT NOT NULL,
         searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
     )
     ''')
-
+    
     # 10. System Settings Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS system_settings (
@@ -225,7 +230,7 @@ def init_db():
         value TEXT
     )
     ''')
-        
+    
     conn.commit()
     conn.close()
     print("Database tables created successfully!")
@@ -241,13 +246,11 @@ def seed_db():
         ('Charlie Gupta', '7654321098', 'Penthouse B, Skyline Heights, Main Road', 'password123')
     ]
     for user in users_data:
-        try:
-            hashed = generate_password_hash(user[3])
-            cursor.execute('INSERT INTO users (name, phone, address, password) VALUES (?, ?, ?, ?)', (user[0], user[1], user[2], hashed))
-        except sqlite3.IntegrityError:
-            # Update password for existing users to ensure they have the default password (hashed)
-            hashed = generate_password_hash('password123')
-            cursor.execute('UPDATE users SET password = ? WHERE phone = ?', (hashed, user[1]))
+        hashed = generate_password_hash(user[3])
+        cursor.execute('''
+            INSERT INTO users (name, phone, address, password) VALUES (?, ?, ?, ?)
+            ON CONFLICT (phone) DO UPDATE SET password = EXCLUDED.password
+        ''', (user[0], user[1], user[2], hashed))
             
     # Seed Shops
     shops_data = [
@@ -255,16 +258,15 @@ def seed_db():
         ('Apna Cakes & Bakery', 'CAKES', 6.0, 'password123', '/static/images/cake_category.png'),
         ('Fresh & Green Vegetables', 'VEGGIES', 4.0, 'password123', '/static/images/veggies_category.png'),
         ('ElectroWorld Solutions', 'ELECTRONICS', 10.0, 'password123', '/static/images/electronics_category.png'),
-        ('City Medicos & Pharmacy', 'PHARMACY', 7.0, 'password123', '/static/images/pharmacy_category.png'),
-        ('Hamar Tech Hub (Gadgets & Accessories)', 'TECH', 8.0, 'password123', '/static/images/tech_category.png')
+        ('City Medicos & Pharmacy', 'PHARMACY', 7.0, 'password123', '/static/images/default_category.png'),
+        ('Hamar Tech Hub (Gadgets & Accessories)', 'TECH', 8.0, 'password123', '/static/images/default_category.png')
     ]
     for shop in shops_data:
-        try:
-            hashed = generate_password_hash(shop[3])
-            cursor.execute('INSERT INTO shops (shop_name, category, commission_pct, password, image_path) VALUES (?, ?, ?, ?, ?)', (shop[0], shop[1], shop[2], hashed, shop[4]))
-        except sqlite3.IntegrityError:
-            hashed = generate_password_hash(shop[3])
-            cursor.execute('UPDATE shops SET shop_name = ?, password = ?, image_path = ? WHERE category = ?', (shop[0], hashed, shop[4], shop[1]))
+        hashed = generate_password_hash(shop[3])
+        cursor.execute('''
+            INSERT INTO shops (shop_name, category, commission_pct, password, image_path) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (category) DO UPDATE SET shop_name = EXCLUDED.shop_name, password = EXCLUDED.password, image_path = EXCLUDED.image_path
+        ''', (shop[0], shop[1], shop[2], hashed, shop[4]))
             
     conn.commit()
     
@@ -333,12 +335,11 @@ def seed_db():
         ('Vicky Speedster', '9000000003', 0, 'offline', 'password123')
     ]
     for partner in partners_data:
-        try:
-            hashed = generate_password_hash(partner[4])
-            cursor.execute('INSERT INTO delivery_partners (name, phone, active_orders, availability_status, password) VALUES (?, ?, ?, ?, ?)', (partner[0], partner[1], partner[2], partner[3], hashed))
-        except sqlite3.IntegrityError:
-            hashed = generate_password_hash(partner[4])
-            cursor.execute('UPDATE delivery_partners SET password = ? WHERE phone = ?', (hashed, partner[1]))
+        hashed = generate_password_hash(partner[4])
+        cursor.execute('''
+            INSERT INTO delivery_partners (name, phone, active_orders, availability_status, password) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (phone) DO UPDATE SET password = EXCLUDED.password
+        ''', (partner[0], partner[1], partner[2], partner[3], hashed))
             
     conn.commit()
     conn.close()
