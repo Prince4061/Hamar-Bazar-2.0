@@ -270,26 +270,40 @@ body {
     }
 }
 
+/* Mobile-only Login Header/Links (Hidden on Desktop) */
+.mobile-brand-header {
+    display: none;
+}
+.auto-signup-note {
+    display: none;
+}
+.mobile-staff-login-link-container {
+    display: none;
+}
+.mobile-customer-login-link-container {
+    display: none;
+}
+
 @media (max-width: 960px) {
     .login-grid {
         display: flex;
-        flex-direction: column-reverse;
-        gap: 30px;
+        flex-direction: column;
+        gap: 20px;
+        justify-content: center;
+        align-items: center;
+        max-width: 480px;
+        margin: auto;
     }
     .login-left-panel {
-        text-align: center;
-        align-items: center;
+        display: none !important;
     }
-    .delivery-hero-text h1 {
-        text-align: center !important;
-        font-size: 2.25rem !important;
+    .login-top-bar {
+        display: none !important;
     }
-    .hero-desc {
-        text-align: center !important;
-        font-size: 0.95rem !important;
-    }
-    .features-checklist {
+    .login-page-wrapper {
         justify-content: center;
+        align-items: center;
+        padding: 16px !important;
     }
     .app-container {
         padding: 24px 16px;
@@ -297,9 +311,78 @@ body {
     .login-card-desktop {
         padding: 32px 24px !important;
         max-width: 100% !important;
+        box-shadow: var(--shadow-premium) !important;
     }
     .grocery-basket-img-container {
         display: none !important;
+    }
+    .mobile-brand-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .mobile-brand-logo {
+        width: 44px;
+        height: 44px;
+        object-fit: cover;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-soft);
+    }
+    .mobile-brand-info {
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+    }
+    .mobile-brand-name {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        line-height: 1.2;
+    }
+    .mobile-brand-tagline {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+    .auto-signup-note {
+        display: block;
+        font-size: 0.85rem;
+        color: var(--emerald-green);
+        font-weight: 600;
+        text-align: center;
+        margin-top: -16px;
+        margin-bottom: 24px;
+        background: var(--emerald-light);
+        padding: 6px 12px;
+        border-radius: var(--radius-sm);
+    }
+    .mobile-staff-login-link-container,
+    .mobile-customer-login-link-container {
+        display: block;
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-color);
+        text-align: center;
+    }
+    .mobile-staff-login-link,
+    .mobile-customer-login-link {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .mobile-staff-login-link span {
+        color: var(--primary-accent);
+        font-weight: 700;
+    }
+    .mobile-customer-login-link {
+        color: var(--primary-accent);
+        font-weight: 700;
     }
 }
 

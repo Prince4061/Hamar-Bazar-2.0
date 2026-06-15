@@ -102,8 +102,18 @@
 
             <!-- Main Desktop Card -->
             <div class="login-card-desktop">
+                <!-- Mobile Only Brand Header -->
+                <div class="mobile-brand-header">
+                    <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" class="mobile-brand-logo">
+                    <div class="mobile-brand-info">
+                        <span class="mobile-brand-name">Hamar Bazaar</span>
+                        <span class="mobile-brand-tagline">Sab kuch, aapke paas!</span>
+                    </div>
+                </div>
+
                 <h2 class="card-title-main">Welcome to Hamar Bazaar</h2>
                 <p class="card-subtitle-main">Login / Signup to continue</p>
+                <p class="auto-signup-note">New users will be registered automatically</p>
 
                 <!-- Input Form -->
                 <form id="customer-login-form" onsubmit="handleCustomerLogin(event)">
@@ -133,10 +143,14 @@
                     <button type="submit" class="btn-send-otp">Login</button>
                 </form>
 
-
                 <div class="terms-footer">
                     By continuing, you agree to our<br>
                     <a href="#" onclick="alert('Terms and Conditions simulated.')">Terms & Conditions</a> and <a href="#" onclick="alert('Privacy Policy simulated.')">Privacy Policy</a>
+                </div>
+
+                <!-- Mobile Only Staff Login Link -->
+                <div class="mobile-staff-login-link-container">
+                    <a href="/staff-login" class="mobile-staff-login-link">Are you a store partner or rider? <span>Staff Login →</span></a>
                 </div>
             </div>
 

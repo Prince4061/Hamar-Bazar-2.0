@@ -70,6 +70,15 @@
         <!-- Right Side: Staff Login Card -->
         <div class="login-right-panel">
             <div class="login-card-desktop">
+                <!-- Mobile Only Brand Header -->
+                <div class="mobile-brand-header">
+                    <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" class="mobile-brand-logo">
+                    <div class="mobile-brand-info">
+                        <span class="mobile-brand-name">Hamar Bazaar</span>
+                        <span class="mobile-brand-tagline">Staff Operations</span>
+                    </div>
+                </div>
+
                 <h2 class="card-title-main">Staff Login</h2>
                 <p class="card-subtitle-main">Please login to continue</p>
 
@@ -116,6 +125,11 @@
 
                     <button type="submit" class="btn-staff-login">Login</button>
                 </form>
+
+                <!-- Mobile Only Customer Login Link -->
+                <div class="mobile-customer-login-link-container">
+                    <a href="/login" class="mobile-customer-login-link">← Go to Customer Shopping Portal</a>
+                </div>
             </div>
         </div>
     </div>
