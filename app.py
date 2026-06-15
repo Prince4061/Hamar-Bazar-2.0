@@ -1626,7 +1626,7 @@ def get_admin_analytics():
 @app.route('/api/admin/shops/<int:shop_id>/update', methods=['POST'])
 def admin_update_shop(shop_id):
     if session.get('role') != 'admin':
-        return jsonify({'error': 'Unauthorized.'}), 403
+        return jsonify({'error': f"Unauthorized. Your current session role is '{session.get('role') or 'Guest'}'. Please log in as Admin."}), 403
         
     if request.is_json:
         data = request.json
@@ -1691,7 +1691,7 @@ def admin_update_shop(shop_id):
 @app.route('/api/admin/delivery/add', methods=['POST'])
 def admin_add_delivery_partner():
     if session.get('role') != 'admin':
-        return jsonify({'error': 'Unauthorized.'}), 403
+        return jsonify({'error': f"Unauthorized. Your current session role is '{session.get('role') or 'Guest'}'. Please log in as Admin."}), 403
         
     if request.is_json:
         data = request.json
@@ -1730,7 +1730,7 @@ def admin_add_delivery_partner():
 @app.route('/api/admin/delivery/<int:rider_id>/update', methods=['POST'])
 def admin_update_delivery_partner(rider_id):
     if session.get('role') != 'admin':
-        return jsonify({'error': 'Unauthorized.'}), 403
+        return jsonify({'error': f"Unauthorized. Your current session role is '{session.get('role') or 'Guest'}'. Please log in as Admin."}), 403
         
     if request.is_json:
         data = request.json
@@ -1781,7 +1781,7 @@ def toggle_shop_active(shop_id):
 @app.route('/api/admin/shops/add', methods=['POST'])
 def admin_add_shop():
     if session.get('role') != 'admin':
-        return jsonify({'error': 'Unauthorized.'}), 403
+        return jsonify({'error': f"Unauthorized. Your current session role is '{session.get('role') or 'Guest'}'. Please log in as Admin."}), 403
         
     shop_name = request.form.get('shop_name', '').strip()
     category = request.form.get('category', '').strip().upper()
