@@ -187,6 +187,11 @@
         const identifier = document.getElementById("staff-identifier").value;
         const password = document.getElementById("staff-password").value;
         const errorDiv = document.getElementById("login-error-msg");
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        
+        const originalBtnText = submitBtn.innerText;
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Logging in...";
         
         errorDiv.style.display = "none";
         
@@ -200,15 +205,19 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                alert(`Logged in as ${role.toUpperCase()} (Simulated). Redirecting...`);
+                // Immediate redirect without blocking alert
                 window.location.href = data.redirect;
             } else {
+                submitBtn.disabled = false;
+                submitBtn.innerText = originalBtnText;
                 errorDiv.innerText = data.error;
                 errorDiv.style.display = "block";
             }
         })
         .catch(err => {
             console.error("Staff Login error:", err);
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalBtnText;
             errorDiv.innerText = "Connection error. Please try again.";
             errorDiv.style.display = "block";
         });

@@ -176,6 +176,11 @@
         const usernameInput = document.getElementById("customer-username").value;
         const passwordInput = document.getElementById("customer-password").value;
         const errorDiv = document.getElementById("login-error-msg");
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        
+        const originalBtnText = submitBtn.innerText;
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Logging in...";
         
         errorDiv.style.display = "none";
         
@@ -189,15 +194,19 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                alert("Logged in successfully! Redirecting...");
+                // Immediate redirect without blocking alert
                 window.location.href = data.redirect;
             } else {
+                submitBtn.disabled = false;
+                submitBtn.innerText = originalBtnText;
                 errorDiv.innerText = data.error;
                 errorDiv.style.display = "block";
             }
         })
         .catch(err => {
             console.error("Login error:", err);
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalBtnText;
             errorDiv.innerText = "Connection error. Please try again.";
             errorDiv.style.display = "block";
         });
