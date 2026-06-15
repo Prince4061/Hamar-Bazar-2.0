@@ -233,7 +233,16 @@ def login():
         elif phone.startswith('91') and len(phone) > 10:
             phone = phone[2:]
             
+        # Ensure username contains only alphabetic characters (no numbers)
+        # Ensure phone and username are provided
         if not phone or not username:
+            # Validate username: only letters and spaces allowed
+            if not username.replace(' ', '').isalpha():
+                return jsonify({'success': False, 'error': 'Username must contain only letters.'})
+            return jsonify({'success': False, 'error': 'Mobile number and username are required.'})
+            # Validate username: only letters and spaces allowed
+            if not username.replace(' ', '').isalpha():
+                return jsonify({'success': False, 'error': 'Username must contain only letters.'})
             return jsonify({'success': False, 'error': 'Mobile number and username are required.'})
             
         # Validate phone contains only digits and is exactly 10 digits
