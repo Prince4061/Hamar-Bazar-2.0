@@ -950,6 +950,11 @@ html, body {
 
     // Tab Screen Switcher Function
     function switchTab(tabId) {
+    // Ensure cart UI is refreshed when navigating to the Cart tab
+    if (tabId === 'cart') {
+        updateCartUI();
+    }
+            // Refresh cart UI when switching to the cart tab to ensure items are displayed correctly
         document.querySelectorAll(".app-screen").forEach(screen => {
             screen.classList.remove("active");
         });
@@ -972,6 +977,17 @@ html, body {
         }
 
         if (tabId === 'home') {
+        // Reset any shop context and ensure home data is loaded
+        currentShopId = null;
+        currentPharmacySubcat = null;
+        // Refresh categories and any home‑specific data
+        try { loadCategories(); } catch (e) { console.error('Error loading categories on home:', e); }
+        // Optionally reload products for the default shop (id 1) if needed
+        // fetch('/api/shops/1/products')
+        //     .then(r=>r.json()).then(data=>{productsList=data; renderCurrentShopProducts();});
+
+        // Refresh cart UI to keep badge/count up‑to‑date when returning from the Bag view
+        updateCartUI();
             currentShopId = null;
             clearHomeSearch();
             // Also ensure shop-detail is closed if switching to Bazaar
@@ -1394,6 +1410,13 @@ html, body {
     }
 
     function filterShopProducts(query) {
+        query = query.toLowerCase().trim();
+        if (searchTrackTimeout) clearTimeout(searchTrackTimeout);
+        if (query) {
+            searchTrackTimeout = setTimeout(() => {
+                trackSearchTerm(query);
+            }, 1000);
+        }
         renderCurrentShopProducts();
     }
 
@@ -1763,6 +1786,12 @@ html, body {
     }
 
     function checkoutOrder() {
+    // Ensure we have a valid customer ID before proceeding
+    if (!customerId) {
+        console.error('checkoutOrder: customerId is undefined');
+        alert('Session error. Please refresh the page and try again.');
+        return;
+    }
         const address = document.getElementById("address-input").value.trim();
         if (!address) {
             alert("Please enter a delivery address.");
@@ -1833,8 +1862,22 @@ html, body {
                 localStorage.setItem(`active_order_${customerId}`, JSON.stringify({ order_id: data.order_id }));
                 
                 // Direct route: switch user automatically to screen-orders and open tracking
-                switchTab('orders');
-                openTrackingView(data.order_id);
+                try {
+                    switchTab('orders');
+                } catch (e) {
+                    console.error('Error switching to orders tab:', e);
+                }
+                if (data.order_id) {
+                    try {
+                        openTrackingView(data.order_id);
+                    } catch (e) {
+                        console.error('Error opening tracking view:', e);
+                    }
+                } else {
+                    console.warn('No order_id returned from checkout');
+                    // Fallback: stay on Home screen
+                    try { switchTab('home'); } catch (_) {}
+                }
                 
                 // Show the active order notification card on Home screen
                 document.getElementById("home-active-order-quickcard").style.display = "block";

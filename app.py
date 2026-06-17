@@ -19,6 +19,14 @@ def handle_csrf_error(e):
         return jsonify({'error': 'CSRF token missing or invalid.', 'details': e.description}), 400
     return f"<h3>CSRF Error: {e.description}</h3><p>Please refresh the page and try again.</p>", 400
 
+@app.after_request
+def add_header(response):
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'profile_pics')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
