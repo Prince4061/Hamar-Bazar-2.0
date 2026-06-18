@@ -152,3 +152,6 @@ Thumbs.db
 
 # Project credentials
 credential.md
+
+# Uploaded user files
+static/uploads/

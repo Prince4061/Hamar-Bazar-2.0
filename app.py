@@ -1925,6 +1925,8 @@ def get_system_settings():
     settings = {row['key']: row['value'] for row in rows}
     if 'about_team_image' not in settings:
         settings['about_team_image'] = ''
+    if 'admin_qr_code' not in settings:
+        settings['admin_qr_code'] = ''
     if 'delivery_fee_flat' not in settings:
         settings['delivery_fee_flat'] = '15.0'
     if 'delivery_fee_threshold' not in settings:
@@ -1974,11 +1976,49 @@ def upload_team_photo():
 
 @app.route('/api/admin/settings/team-photo', methods=['DELETE'])
 def delete_team_photo():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
     db = get_db()
     cursor = db.cursor()
     cursor.execute("DELETE FROM system_settings WHERE key = 'about_team_image'")
     db.commit()
     return jsonify({'success': True, 'message': 'Team photo deleted successfully.'})
+
+@app.route('/api/admin/settings/upload-qr-code', methods=['POST'])
+def upload_qr_code():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    if 'qr_code' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    file = request.files['qr_code']
+    if file.filename == '':
+        return jsonify({'error': 'Empty filename'}), 400
+        
+    if file and allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"admin_qr_{int(datetime.now().timestamp())}.{ext}"
+        upload_path = os.path.join(app.root_path, 'static', 'uploads', 'system')
+        os.makedirs(upload_path, exist_ok=True)
+        file_path = os.path.join(upload_path, filename)
+        file.save(file_path)
+        
+        db_path = f"/static/uploads/system/{filename}"
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('admin_qr_code', ?)", (db_path,))
+        db.commit()
+        return jsonify({'success': True, 'image_path': db_path, 'message': 'Admin QR code uploaded successfully.'})
+    return jsonify({'error': 'Invalid file type.'}), 400
+
+@app.route('/api/admin/settings/qr-code', methods=['DELETE'])
+def delete_qr_code():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM system_settings WHERE key = 'admin_qr_code'")
+    db.commit()
+    return jsonify({'success': True, 'message': 'Admin QR code deleted successfully.'})
 
 # --- Rider Active Job & Status APIs ---
 @app.route('/api/delivery/rider/<int:rider_id>/active', methods=['GET'])

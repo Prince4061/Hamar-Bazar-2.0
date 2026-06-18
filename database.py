@@ -269,6 +269,7 @@ def seed_db():
     # Seed system settings for delivery fee defaults
     cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('delivery_fee_flat', '15.0')")
     cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('delivery_fee_threshold', '199.0')")
+    cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('admin_qr_code', '/static/images/upi_qr_mockup.jpg')")
 
     conn.commit()
     conn.close()

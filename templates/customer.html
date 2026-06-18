@@ -512,6 +512,15 @@ html, body {
                 
                 <!-- Screenshot upload for online payment -->
                 <div id="payment-screenshot-container" style="margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+                    <!-- QR Code Display Area -->
+                    <div id="checkout-qr-code-section" style="display: none; text-align: center; margin-bottom: 16px; padding: 16px; background: var(--primary-light); border-radius: var(--radius-sm); border: 1.5px solid var(--primary-accent); box-shadow: var(--shadow-sm);">
+                        <p style="font-size: 0.8rem; font-weight: 800; color: var(--primary-accent); margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                            <i data-lucide="qr-code" style="width: 16px; height: 16px;"></i> Scan & Pay UPI
+                        </p>
+                        <img id="checkout-qr-code-img" src="" style="width: 140px; height: 140px; object-fit: contain; margin: 0 auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); display: block; background: #fff; padding: 6px;">
+                        <span style="font-size: 0.65rem; color: var(--text-secondary); display: block; margin-top: 8px; font-weight: 500;">Is QR code ko scan karke payment karein aur neeche screenshot upload karein.</span>
+                    </div>
+
                     <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">Payment Screenshot Upload Karein</label>
                     <div onclick="document.getElementById('payment-screenshot-input').click()" style="border: 2px dashed var(--primary-accent); background: var(--primary-light); border-radius: var(--radius-sm); padding: 16px; text-align: center; cursor: pointer;">
                         <input type="file" id="payment-screenshot-input" accept="image/*" style="display: none;" onchange="handlePaymentScreenshotSelected(this)">
@@ -1295,6 +1304,21 @@ html, body {
 
     // Toggle Payment selection UI
     let uploadedScreenshotPath = null;
+    let adminQRCodePath = "";
+
+    function renderAdminQRCodeInCheckout() {
+        const qrSection = document.getElementById("checkout-qr-code-section");
+        const qrImg = document.getElementById("checkout-qr-code-img");
+        if (qrSection && qrImg) {
+            if (adminQRCodePath) {
+                qrImg.src = adminQRCodePath;
+                qrSection.style.display = "block";
+            } else {
+                qrImg.src = "";
+                qrSection.style.display = "none";
+            }
+        }
+    }
 
     function selectPaymentMode(mode) {
         document.getElementById("payment-input").value = mode;
@@ -1304,6 +1328,9 @@ html, body {
         const container = document.getElementById("payment-screenshot-container");
         if (container) {
             container.style.display = mode === 'ONLINE' ? 'block' : 'none';
+        }
+        if (mode === 'ONLINE') {
+            renderAdminQRCodeInCheckout();
         }
     }
 
@@ -2560,8 +2587,12 @@ html, body {
                 if (settings.delivery_fee_threshold !== undefined) {
                     deliveryFeeThreshold = parseFloat(settings.delivery_fee_threshold);
                 }
+                if (settings.admin_qr_code !== undefined) {
+                    adminQRCodePath = settings.admin_qr_code;
+                }
                 updateDeliveryPromoText();
                 updateCartUI();
+                renderAdminQRCodeInCheckout();
             })
             .catch(err => console.error("Error loading delivery settings:", err));
     }

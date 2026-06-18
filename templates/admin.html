@@ -2007,6 +2007,39 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Online Payment QR Code Settings -->
+                <div class="dashboard-card" style="margin-top: 20px;">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text"><i data-lucide="qr-code"></i> Online Payment - Admin QR Code</h3>
+                    </div>
+                    <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                        <!-- Current QR Code Preview -->
+                        <div style="width: 150px; height: 150px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); background: #f8fafc; display: flex; align-items: center; justify-content: center;">
+                            <img id="admin-qr-preview" src="" alt="Current QR Code" style="width: 100%; height: 100%; object-fit: contain; display: none;">
+                            <div id="admin-qr-placeholder" style="color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 10px;">
+                                <i data-lucide="image" style="width: 24px; height: 24px; display: inline-block; margin-bottom: 4px;"></i>
+                                <p style="margin:0;">No QR Code</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Upload controls -->
+                        <div style="flex: 1; min-width: 200px;">
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">
+                                Upload the store's UPI payment QR code image. This QR code will be displayed to customers who choose "Online UPI" during checkout. Customers can then scan it and upload their payment receipt screenshot.
+                            </p>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="file" id="admin-qr-upload-file" style="display: none;" accept="image/*" onchange="uploadAdminQRCode(this)">
+                                <label for="admin-qr-upload-file" class="btn-custom btn-custom-primary" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 16px; margin:0;">
+                                    <i data-lucide="upload" style="width: 14px; height: 14px;"></i> Upload QR Code
+                                </label>
+                                <button class="btn-custom btn-custom-danger" onclick="deleteAdminQRCode()" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;">
+                                    Delete QR Code
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- --------------------------------------------------- -->
@@ -4616,6 +4649,20 @@
                         placeholder.style.display = "block";
                     }
 
+                    const qrImg = document.getElementById("admin-qr-preview");
+                    const qrPlaceholder = document.getElementById("admin-qr-placeholder");
+                    if (qrImg && qrPlaceholder) {
+                        if (settings.admin_qr_code) {
+                            qrImg.src = settings.admin_qr_code;
+                            qrImg.style.display = "block";
+                            qrPlaceholder.style.display = "none";
+                        } else {
+                            qrImg.src = "";
+                            qrImg.style.display = "none";
+                            qrPlaceholder.style.display = "block";
+                        }
+                    }
+
                     // Populate delivery charge settings
                     const feeFlat = parseFloat(settings.delivery_fee_flat || 15.0);
                     const feeThresh = parseFloat(settings.delivery_fee_threshold || 199.0);
@@ -4786,6 +4833,55 @@
                 .catch(err => {
                     console.error("Error deleting team photo:", err);
                     showAestheticToast("Failed to delete team photo.", "error");
+                });
+            });
+        }
+
+        function uploadAdminQRCode(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append("qr_code", file);
+            
+            showAestheticToast("Uploading QR Code...", "info");
+            
+            fetch('/api/admin/settings/upload-qr-code', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showAestheticToast("QR Code uploaded successfully!", "success");
+                    loadAdminAboutTeamPhoto();
+                } else {
+                    showAestheticToast(data.error || "Upload failed.", "error");
+                }
+            })
+            .catch(err => {
+                console.error("Error uploading QR code:", err);
+                showAestheticToast("Failed to upload QR code.", "error");
+            });
+        }
+
+        function deleteAdminQRCode() {
+            aestheticConfirm("Delete the admin payment QR code permanently?", () => {
+                fetch('/api/admin/settings/qr-code', {
+                    method: 'DELETE'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAestheticToast("QR Code deleted.", "success");
+                        loadAdminAboutTeamPhoto();
+                    } else {
+                        showAestheticToast("Failed to delete.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Error deleting QR code:", err);
+                    showAestheticToast("Failed to delete QR code.", "error");
                 });
             });
         }
