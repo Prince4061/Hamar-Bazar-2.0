@@ -9,7 +9,27 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 import database
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'hyperlocal_monopolistic_secret_key_12345')
+
+# Secure secret key handling for production
+secret_key_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.secret_key')
+if os.environ.get('FLASK_SECRET_KEY'):
+    app.secret_key = os.environ.get('FLASK_SECRET_KEY')
+else:
+    if os.path.exists(secret_key_path):
+        try:
+            with open(secret_key_path, 'r') as f:
+                app.secret_key = f.read().strip()
+        except Exception:
+            app.secret_key = 'hyperlocal_monopolistic_secret_key_12345'
+    else:
+        import secrets
+        key = secrets.token_hex(32)
+        try:
+            with open(secret_key_path, 'w') as f:
+                f.write(key)
+        except Exception:
+            pass
+        app.secret_key = key
 
 csrf = CSRFProtect(app)
 
@@ -79,6 +99,20 @@ def close_connection(exception):
     db = getattr(g, '_database', None)
     if db is not None:
         db.close()
+
+@app.context_processor
+def inject_global_settings():
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT key, value FROM system_settings")
+        rows = cursor.fetchall()
+        settings = {row['key']: row['value'] for row in rows}
+    except Exception:
+        settings = {}
+    if 'app_logo' not in settings or not settings['app_logo']:
+        settings['app_logo'] = '/static/images/app_logo.jpg'
+    return {'system_settings': settings}
 
 def check_and_flag_suspicious_user(user_id, db):
     cursor = db.cursor()
@@ -234,6 +268,9 @@ def login():
         phone = data.get('phone', '').strip().replace(" ", "").replace("-", "")
         username = data.get('username', '').strip()
         password = data.get('password', '').strip()
+        security_question = data.get('security_question', '').strip()
+        security_answer = data.get('security_answer', '').strip().lower()
+        action = data.get('action', 'login').strip().lower()
         
         # Remove country code +91 if present
         if phone.startswith('+91'):
@@ -241,70 +278,58 @@ def login():
         elif phone.startswith('91') and len(phone) > 10:
             phone = phone[2:]
             
-        # Ensure username contains only alphabetic characters (no numbers)
         # Ensure phone and username are provided
         if not phone or not username:
-            # Validate username: only letters and spaces allowed
-            if not username.replace(' ', '').isalpha():
-                return jsonify({'success': False, 'error': 'Username must contain only letters.'})
             return jsonify({'success': False, 'error': 'Mobile number and username are required.'})
-            # Validate username: only letters and spaces allowed
-            if not username.replace(' ', '').isalpha():
-                return jsonify({'success': False, 'error': 'Username must contain only letters.'})
-            return jsonify({'success': False, 'error': 'Mobile number and username are required.'})
+            
+        # Validate username: only letters and spaces allowed
+        if not username.replace(' ', '').isalpha():
+            return jsonify({'success': False, 'error': 'Username must contain only letters.'})
             
         # Validate phone contains only digits and is exactly 10 digits
         if not phone.isdigit() or len(phone) != 10:
-            return jsonify({'success': False, 'error': 'Please enter a valid 10-digit mobile number containing only numbers.'})
+            return jsonify({'success': False, 'error': 'Please enter a valid 10-digit mobile number.'})
             
         db = get_db()
         cursor = db.cursor()
+        
+        # Rate-limiting brute-force block check (max 5 failed attempts within last 15 mins)
+        fifteen_mins_ago = (datetime.now() - timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
+        try:
+            cursor.execute("""
+                SELECT COUNT(*) FROM failed_logins 
+                WHERE (username = ? OR ip_address = ?) AND timestamp >= ?
+            """, (phone or username, request.remote_addr, fifteen_mins_ago))
+            failed_count = cursor.fetchone()[0]
+            if failed_count >= 5:
+                return jsonify({'success': False, 'error': 'Too many failed login attempts. Please try again after 15 minutes.'})
+        except Exception as e:
+            print("Failed to query failed logins:", e)
+            
         cursor.execute("SELECT * FROM users WHERE phone = ?", (phone,))
         user = cursor.fetchone()
         
-        if user:
-            if user['is_blocked']:
-                return jsonify({'success': False, 'error': 'Your account has been blocked due to suspicious activity. Please contact support.'})
-            # Enforce username verification
-            if user['name'] and user['name'].strip().lower() != username.strip().lower():
-                try:
-                    cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
-                    db.commit()
-                except Exception as e:
-                    print("Failed to log failed login:", e)
-                return jsonify({'success': False, 'error': 'Incorrect username for this mobile number.'})
-            # Enforce password verification
-            if not user['password']:
-                return jsonify({'success': False, 'error': 'Account configuration error (missing password). Please contact support.'})
-            if not check_password_hash(user['password'], password):
-                # Record failed login in real table
-                try:
-                    cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
-                    db.commit()
-                except Exception as e:
-                    print("Failed to log failed login:", e)
-                return jsonify({'success': False, 'error': 'Incorrect password for this account.'})
+        if action == 'register':
+            if user:
+                return jsonify({'success': False, 'error': 'This mobile number is already registered. Please login instead.'})
             
-            # Keep credentials updated / validated
-            check_and_flag_suspicious_user(user['id'], db)
-            
-            session['role'] = 'customer'
-            session['role_id'] = user['id']
-            session['name'] = user['name']
-            session['profile_pic'] = user['profile_pic']
-            return jsonify({'success': True, 'redirect': '/customer'})
-        else:
-            # Dynamically register/create a new customer if phone number doesn't exist
-            # This implements "anyone can login by their credentials"
+            if len(password) < 4 or len(password) > 20:
+                return jsonify({'success': False, 'error': 'Password must be between 4 and 20 characters.'})
+                
+            if not security_question or not security_answer:
+                return jsonify({'success': False, 'error': 'Security question and answer are required for registration.'})
+                
             new_address = "Sector 4, Local Area"
             try:
                 hashed_pass = generate_password_hash(password)
-                cursor.execute("INSERT INTO users (name, phone, address, password) VALUES (?, ?, ?, ?)", (username, phone, new_address, hashed_pass))
+                cursor.execute(
+                    "INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)",
+                    (username, phone, new_address, hashed_pass, security_question, security_answer)
+                )
                 db.commit()
-                # Get the newly created user
                 new_id = cursor.lastrowid
                 
-                # Run fraud check on registration!
+                # Run fraud check on registration
                 check_and_flag_suspicious_user(new_id, db)
                 
                 cursor.execute("SELECT * FROM users WHERE id = ?", (new_id,))
@@ -318,7 +343,108 @@ def login():
             except Exception as e:
                 return jsonify({'success': False, 'error': f'Failed to create user: {str(e)}'})
                 
+        else: # login
+            if not user:
+                return jsonify({'success': False, 'error': 'This mobile number is not registered. Click "New User? Sign up" to register first.'})
+                
+            if user['is_blocked']:
+                return jsonify({'success': False, 'error': 'Your account has been blocked due to suspicious activity. Please contact support.'})
+                
+            # Enforce username verification
+            if user['name'] and user['name'].strip().lower() != username.strip().lower():
+                try:
+                    cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
+                    db.commit()
+                except Exception as e:
+                    print("Failed to log failed login:", e)
+                return jsonify({'success': False, 'error': 'Incorrect username for this mobile number.'})
+                
+            # Enforce password verification
+            if not user['password']:
+                return jsonify({'success': False, 'error': 'Account configuration error (missing password). Please contact support.'})
+                
+            if not check_password_hash(user['password'], password):
+                try:
+                    cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
+                    db.commit()
+                except Exception as e:
+                    print("Failed to log failed login:", e)
+                return jsonify({'success': False, 'error': 'Incorrect password for this account.'})
+                
+            # Keep credentials updated / validated
+            check_and_flag_suspicious_user(user['id'], db)
+            
+            session['role'] = 'customer'
+            session['role_id'] = user['id']
+            session['name'] = user['name']
+            session['profile_pic'] = user['profile_pic']
+            return jsonify({'success': True, 'redirect': '/customer'})
+                
     return render_template('login.html')
+
+@app.route('/api/check-phone', methods=['GET'])
+def check_phone():
+    phone = request.args.get('phone', '').strip().replace(" ", "").replace("-", "")
+    if phone.startswith('+91'):
+        phone = phone[3:]
+    elif phone.startswith('91') and len(phone) > 10:
+        phone = phone[2:]
+        
+    if not phone or len(phone) != 10:
+        return jsonify({'exists': False, 'error': 'Invalid phone number'})
+        
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT name, security_question FROM users WHERE phone = ?", (phone,))
+    row = cursor.fetchone()
+    if row:
+        return jsonify({
+            'exists': True,
+            'name': row['name'],
+            'security_question': row['security_question'] or ""
+        })
+    return jsonify({'exists': False})
+
+@app.route('/api/forgot-password', methods=['POST'])
+def forgot_password():
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+    phone = data.get('phone', '').strip().replace(" ", "").replace("-", "")
+    answer = data.get('security_answer', '').strip().lower()
+    new_password = data.get('new_password', '').strip()
+    
+    if phone.startswith('+91'):
+        phone = phone[3:]
+    elif phone.startswith('91') and len(phone) > 10:
+        phone = phone[2:]
+        
+    if not phone or not answer or not new_password:
+        return jsonify({'success': False, 'error': 'Phone number, Security Answer, and New Password are required.'}), 400
+        
+    if len(new_password) < 4 or len(new_password) > 20:
+        return jsonify({'success': False, 'error': 'Password must be between 4 and 20 characters.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, security_answer FROM users WHERE phone = ?", (phone,))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({'success': False, 'error': 'User not found.'}), 404
+        
+    db_answer = row['security_answer']
+    if not db_answer:
+        return jsonify({'success': False, 'error': 'Security question was not set for this account. Please contact Admin.'}), 400
+        
+    if db_answer.strip().lower() != answer:
+        return jsonify({'success': False, 'error': 'Incorrect security answer.'}), 400
+        
+    hashed_pass = generate_password_hash(new_password)
+    cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_pass, row['id']))
+    db.commit()
+    
+    return jsonify({'success': True, 'message': 'Password reset successfully!'})
 @app.route('/staff-login', methods=['GET', 'POST'])
 def staff_login():
     if request.method == 'POST':
@@ -339,7 +465,25 @@ def staff_login():
         if role == 'admin':
             if identifier.strip().lower() != 'admin':
                 return jsonify({'success': False, 'error': 'Incorrect username for Admin.'})
-            admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin123')
+            
+            # Secure admin password retrieval
+            admin_pass = os.environ.get('ADMIN_PASSWORD')
+            if not admin_pass:
+                admin_pass_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.admin_password')
+                if os.path.exists(admin_pass_path):
+                    try:
+                        with open(admin_pass_path, 'r') as f:
+                            admin_pass = f.read().strip()
+                    except Exception:
+                        admin_pass = 'admin123'
+                else:
+                    admin_pass = 'admin123'
+                    try:
+                        with open(admin_pass_path, 'w') as f:
+                            f.write(admin_pass)
+                    except Exception:
+                        pass
+                        
             if password != admin_pass:
                 try:
                     cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", ('admin', request.remote_addr))
@@ -384,7 +528,7 @@ def staff_login():
                 # Verify password if one is set in the database
                 if not shop['password']:
                     return jsonify({'success': False, 'error': 'Vendor store configuration error (missing password). Please contact Admin.'})
-                if not check_password_hash(shop['password'], password):
+                if shop['password'] != password and not check_password_hash(shop['password'], password):
                     try:
                         cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
                         db.commit()
@@ -419,7 +563,7 @@ def staff_login():
             if rider:
                 if not rider['password']:
                     return jsonify({'success': False, 'error': 'Delivery rider configuration error (missing password). Please contact Admin.'})
-                if not check_password_hash(rider['password'], password):
+                if rider['password'] != password and not check_password_hash(rider['password'], password):
                     try:
                         cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
                         db.commit()
@@ -772,9 +916,11 @@ def update_profile():
     name = data.get('name', '').strip()
     address = data.get('address', '').strip()
     password = data.get('password', '').strip()
+    security_question = data.get('security_question', '').strip()
+    security_answer = data.get('security_answer', '').strip().lower()
     
-    if not customer_id or not name or not address or not password:
-        return jsonify({'error': 'Name, Address, Password and Customer ID are required.'}), 400
+    if not customer_id or not name or not address or not security_question or not security_answer:
+        return jsonify({'error': 'Name, Address, Security Question, Security Answer and Customer ID are required.'}), 400
         
     if int(customer_id) != session.get('role_id'):
         return jsonify({'error': 'Unauthorized. Customer ID does not match session.'}), 403
@@ -782,13 +928,11 @@ def update_profile():
     db = get_db()
     cursor = db.cursor()
     try:
-        # Avoid double-hashing if the pre-filled hash is submitted unchanged
-        if password.startswith(('scrypt:', 'pbkdf2:sha256:', 'pbkdf2:')):
-            hashed_password = password
-        else:
+        if password:
             hashed_password = generate_password_hash(password)
-            
-        cursor.execute("UPDATE users SET name = ?, address = ?, password = ? WHERE id = ?", (name, address, hashed_password, int(customer_id)))
+            cursor.execute("UPDATE users SET name = ?, address = ?, password = ?, security_question = ?, security_answer = ? WHERE id = ?", (name, address, hashed_password, security_question, security_answer, int(customer_id)))
+        else:
+            cursor.execute("UPDATE users SET name = ?, address = ?, security_question = ?, security_answer = ? WHERE id = ?", (name, address, security_question, security_answer, int(customer_id)))
         db.commit()
         session['name'] = name
         return jsonify({'success': True, 'message': 'Profile updated successfully.'})
@@ -1056,6 +1200,10 @@ def claim_delivery(order_id):
         db.execute("ROLLBACK")
         return jsonify({'error': 'Order not found.'}), 404
         
+    if order['status'] != 'READY_FOR_PICKUP':
+        db.execute("ROLLBACK")
+        return jsonify({'error': 'Order is not ready for pickup.'}), 400
+        
     if order['delivery_boy_id'] is not None:
         db.execute("ROLLBACK")
         return jsonify({'error': 'Order already claimed by another rider.'}), 400
@@ -1240,6 +1388,87 @@ def reject_order_payment(order_id):
     ''', (order_id,))
     db.commit()
     return jsonify({'success': True, 'message': 'Payment screenshot rejected. Order marked as FAILED.'})
+
+# --- Admin Force Control APIs ---
+
+@app.route('/api/admin/orders/<int:order_id>/force-accept', methods=['POST'])
+def admin_force_accept_order(order_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    data = request.json or {}
+    new_shop_id = data.get('shop_id')
+    
+    db = get_db()
+    cursor = db.cursor()
+    
+    if new_shop_id:
+        cursor.execute("SELECT id FROM shops WHERE id = ?", (new_shop_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Selected shop does not exist.'}), 400
+        cursor.execute("UPDATE orders SET shop_id = ?, status = 'ACCEPTED', accepted_at = CURRENT_TIMESTAMP WHERE id = ?", (new_shop_id, order_id))
+    else:
+        cursor.execute("UPDATE orders SET status = 'ACCEPTED', accepted_at = CURRENT_TIMESTAMP WHERE id = ?", (order_id,))
+        
+    db.commit()
+    return jsonify({'success': True, 'message': 'Order accepted successfully by Admin.'})
+
+@app.route('/api/admin/orders/<int:order_id>/force-allot', methods=['POST'])
+def admin_force_allot_order(order_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    data = request.json or {}
+    rider_id = data.get('rider_id')
+    
+    if not rider_id:
+        return jsonify({'error': 'Rider ID is required.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    # Check if rider exists
+    cursor.execute("SELECT id, active_orders, availability_status FROM delivery_partners WHERE id = ?", (rider_id,))
+    rider = cursor.fetchone()
+    if not rider:
+        return jsonify({'error': 'Rider not found.'}), 400
+        
+    # Get current order details
+    cursor.execute("SELECT status, delivery_boy_id FROM orders WHERE id = ?", (order_id,))
+    order = cursor.fetchone()
+    if not order:
+        return jsonify({'error': 'Order not found.'}), 404
+        
+    old_rider_id = order['delivery_boy_id']
+    
+    db.execute("BEGIN TRANSACTION")
+    try:
+        if old_rider_id and old_rider_id != int(rider_id):
+            cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (old_rider_id,))
+        
+        # If the order is pending/awaiting payment, change it to accepted/ready_for_pickup
+        new_status = order['status']
+        if order['status'] in ['PENDING', 'ACCEPTED', 'AWAITING_PAYMENT_APPROVAL']:
+            new_status = 'READY_FOR_PICKUP'
+        
+        cursor.execute('''
+            UPDATE orders 
+            SET delivery_boy_id = ?, assigned_at = CURRENT_TIMESTAMP, status = ?
+            WHERE id = ?
+        ''', (rider_id, new_status, order_id))
+        
+        # Increment the new rider's active orders
+        cursor.execute('''
+            UPDATE delivery_partners 
+            SET active_orders = active_orders + 1
+            WHERE id = ?
+        ''', (rider_id,))
+        
+        db.commit()
+        return jsonify({'success': True, 'message': 'Rider allotted successfully by Admin.'})
+    except Exception as e:
+        db.execute("ROLLBACK")
+        return jsonify({'error': f'Failed to allot rider: {str(e)}'}), 500
 
 # --- Admin Security Checker APIs ---
 
@@ -1679,17 +1908,11 @@ def admin_update_shop(shop_id):
             image_path = f"/static/uploads/category_pics/{filename}"
             
     try:
-        # Avoid double-hashing if the pre-filled hash is submitted unchanged
-        if password.startswith(('scrypt:', 'pbkdf2:sha256:', 'pbkdf2:')):
-            hashed_password = password
-        else:
-            hashed_password = generate_password_hash(password)
-            
         cursor.execute('''
             UPDATE shops 
             SET shop_name = ?, category = ?, commission_pct = ?, password = ?, image_path = ? 
             WHERE id = ?
-        ''', (shop_name, category, float(commission_pct), hashed_password, image_path, shop_id))
+        ''', (shop_name, category, float(commission_pct), password, image_path, shop_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Shop category credentials updated successfully.'})
     except Exception as e:
@@ -1827,11 +2050,10 @@ def admin_add_shop():
             image_path = f"/static/uploads/category_pics/{filename}"
             
     try:
-        hashed_password = generate_password_hash(password)
         cursor.execute('''
             INSERT INTO shops (shop_name, category, commission_pct, password, image_path, is_active)
             VALUES (?, ?, ?, ?, ?, 1)
-        ''', (shop_name, category, float(commission_pct), hashed_password, image_path))
+        ''', (shop_name, category, float(commission_pct), password, image_path))
         db.commit()
         
         # Dynamic seeding of 3 starter products for the new shop
@@ -1927,6 +2149,8 @@ def get_system_settings():
         settings['about_team_image'] = ''
     if 'admin_qr_code' not in settings:
         settings['admin_qr_code'] = ''
+    if 'app_logo' not in settings:
+        settings['app_logo'] = ''
     if 'delivery_fee_flat' not in settings:
         settings['delivery_fee_flat'] = '15.0'
     if 'delivery_fee_threshold' not in settings:
@@ -2020,6 +2244,42 @@ def delete_qr_code():
     db.commit()
     return jsonify({'success': True, 'message': 'Admin QR code deleted successfully.'})
 
+@app.route('/api/admin/settings/upload-logo', methods=['POST'])
+def upload_app_logo():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    if 'app_logo' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    file = request.files['app_logo']
+    if file.filename == '':
+        return jsonify({'error': 'Empty filename'}), 400
+        
+    if file and allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"app_logo_{int(datetime.now().timestamp())}.{ext}"
+        upload_path = os.path.join(app.root_path, 'static', 'uploads', 'system')
+        os.makedirs(upload_path, exist_ok=True)
+        file_path = os.path.join(upload_path, filename)
+        file.save(file_path)
+        
+        db_path = f"/static/uploads/system/{filename}"
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('app_logo', ?)", (db_path,))
+        db.commit()
+        return jsonify({'success': True, 'image_path': db_path, 'message': 'App logo uploaded successfully.'})
+    return jsonify({'error': 'Invalid file type.'}), 400
+
+@app.route('/api/admin/settings/logo', methods=['DELETE'])
+def delete_app_logo():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM system_settings WHERE key = 'app_logo'")
+    db.commit()
+    return jsonify({'success': True, 'message': 'App logo deleted successfully.'})
+
 # --- Rider Active Job & Status APIs ---
 @app.route('/api/delivery/rider/<int:rider_id>/active', methods=['GET'])
 def get_rider_active_order(rider_id):
@@ -2052,6 +2312,10 @@ def get_rider_status(rider_id):
 # --- Cooldown timer reset route (For easy debugging/demo) ---
 @app.route('/api/delivery/rider/<int:rider_id>/reset-cooldown', methods=['POST'])
 def reset_rider_cooldown(rider_id):
+    # Only allow Admin or the delivery rider themselves to reset the cooldown
+    if session.get('role') != 'admin' and (session.get('role') != 'delivery' or session.get('role_id') != rider_id):
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
     db = get_db()
     cursor = db.cursor()
     cursor.execute("UPDATE delivery_partners SET cooldown_until = NULL, active_orders = 0 WHERE id = ?", (rider_id,))

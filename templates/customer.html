@@ -280,7 +280,7 @@ html, body {
     <!-- App Mobile Header -->
     <header class="app-mobile-header">
         <a href="/customer" class="hamar-logo-section" style="display: flex; align-items: center; gap: 8px;">
-            <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" style="height: 32px; width: 32px; object-fit: cover; border-radius: var(--radius-sm);">
+            <img src="{{ system_settings.app_logo }}" alt="Hamar Bazaar Logo" style="height: 32px; width: 32px; object-fit: cover; border-radius: var(--radius-sm);">
             <span class="hamar-logo-text" style="font-size: 1.15rem; font-weight: 800;"><span style="color: var(--primary-accent)">Hamar</span><span style="color: var(--text-primary)">Bazaar</span></span>
         </a>
     </header>
@@ -667,8 +667,25 @@ html, body {
                 </div>
 
                 <div class="form-group" style="margin-bottom: 16px;">
-                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Password</label>
-                    <input type="password" id="profile-password-input" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem;" placeholder="Enter password" required>
+                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Password (Leave blank to keep current password)</label>
+                    <input type="password" id="profile-password-input" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem;" placeholder="Enter new password (optional)">
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Security Question (Password Recovery ke liye)</label>
+                    <select id="profile-question-select" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem; background: white; border: 1px solid var(--border-color); border-radius: var(--radius-sm);" required>
+                        <option value="">Select a security question</option>
+                        <option value="What is your childhood nickname?">What is your childhood nickname?</option>
+                        <option value="What is your favorite color?">What is your favorite color?</option>
+                        <option value="What is the name of your first school?">What is the name of your first school?</option>
+                        <option value="In which city were you born?">In which city were you born?</option>
+                        <option value="What is your pet's name?">What is your pet's name?</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Security Answer</label>
+                    <input type="text" id="profile-answer-input" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem;" placeholder="Enter security answer" required>
                 </div>
                 
                 <button class="btn btn-primary w-full" style="padding: 10px; font-size: 0.9rem; border-radius: var(--radius-sm);" onclick="saveProfile()">Save Changes</button>
@@ -823,6 +840,8 @@ html, body {
     const customerId = {{ active_user_id }};
     let customerPhone = "";
     let customerPassword = "";
+    let customerSecurityQuestion = "";
+    let customerSecurityAnswer = "";
     let customerProfilePic = {{ (session.get('profile_pic') or '') | tojson }};
     let currentShopId = null;
     let productsList = [];
@@ -1014,7 +1033,9 @@ html, body {
             document.getElementById("profile-name-input").value = document.getElementById("customer-navbar-name") ? document.getElementById("customer-navbar-name").innerText.trim() : "";
             document.getElementById("profile-phone-input").value = customerPhone;
             document.getElementById("profile-address-input").value = document.getElementById("sidebar-address-display").innerText.trim();
-            document.getElementById("profile-password-input").value = customerPassword;
+            document.getElementById("profile-password-input").value = "";
+            document.getElementById("profile-question-select").value = customerSecurityQuestion;
+            document.getElementById("profile-answer-input").value = customerSecurityAnswer;
             loadCustomerAboutTeamPhoto();
         }
     }
@@ -1139,6 +1160,8 @@ html, body {
                 
                 customerPhone = {{ u.phone | tojson }};
                 customerPassword = {{ (u.password or '') | tojson }};
+                customerSecurityQuestion = {{ (u.security_question or '') | tojson }};
+                customerSecurityAnswer = {{ (u.security_answer or '') | tojson }};
             {% endif %}
         {% endfor %}
         
@@ -2134,12 +2157,14 @@ html, body {
         const nameInput = document.getElementById("profile-name-input").value.trim();
         const addressInput = document.getElementById("profile-address-input").value.trim();
         const passwordInput = document.getElementById("profile-password-input").value.trim();
+        const questionInput = document.getElementById("profile-question-select").value.trim();
+        const answerInput = document.getElementById("profile-answer-input").value.trim();
         const errorDiv = document.getElementById("profile-error-msg");
         
         errorDiv.style.display = "none";
         
-        if (!nameInput || !addressInput || !passwordInput) {
-            errorDiv.innerText = "Name, Address and Password are required.";
+        if (!nameInput || !addressInput || !questionInput || !answerInput) {
+            errorDiv.innerText = "Name, Address, Security Question and Answer are required.";
             errorDiv.style.display = "block";
             return;
         }
@@ -2153,7 +2178,9 @@ html, body {
                 customer_id: customerId,
                 name: nameInput,
                 address: addressInput,
-                password: passwordInput
+                password: passwordInput,
+                security_question: questionInput,
+                security_answer: answerInput
             })
         })
         .then(res => res.json())
@@ -2162,7 +2189,12 @@ html, body {
                 // Update frontend models
                 document.getElementById("sidebar-address-display").innerText = addressInput;
                 document.getElementById("address-input").value = addressInput;
-                customerPassword = passwordInput;
+                if (passwordInput) {
+                    customerPassword = passwordInput;
+                }
+                customerSecurityQuestion = questionInput;
+                customerSecurityAnswer = answerInput;
+                document.getElementById("profile-password-input").value = "";
                 alert("Profile updated successfully!");
                 refreshIcons();
             } else {

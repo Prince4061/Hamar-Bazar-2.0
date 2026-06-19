@@ -7,9 +7,14 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.environ.get('DATABASE_PATH', os.path.join(BASE_DIR, 'marketplace.db'))
 
 def get_db_connection():
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(DATABASE_PATH, timeout=30.0)
     # Enable foreign keys
     conn.execute("PRAGMA foreign_keys = ON;")
+    # Enable Write-Ahead Logging (WAL) for better concurrent performance
+    try:
+        conn.execute("PRAGMA journal_mode = WAL;")
+    except sqlite3.OperationalError:
+        pass
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -28,9 +33,21 @@ def init_db():
         password TEXT,
         is_blocked INTEGER DEFAULT 0,
         is_suspicious INTEGER DEFAULT 0,
-        suspicion_reasons TEXT
+        suspicion_reasons TEXT,
+        security_question TEXT,
+        security_answer TEXT
     )
     ''')
+    
+    # Migrate existing databases by adding security columns if missing
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN security_question TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN security_answer TEXT")
+    except sqlite3.OperationalError:
+        pass
     
     # 2. Shops Table
     cursor.execute('''
@@ -166,16 +183,16 @@ def seed_db():
     
     # Seed Users
     users_data = [
-        ('Alice Sharma', '9876543210', 'Flat 101, Sunshine Apartments, Sector 4', 'password123'),
-        ('Bob Verma', '8765432109', 'House 23, Green Valley Colony, Road 2', 'password123'),
-        ('Charlie Gupta', '7654321098', 'Penthouse B, Skyline Heights, Main Road', 'password123')
+        ('Alice Sharma', '9876543210', 'Flat 101, Sunshine Apartments, Sector 4', 'password123', 'What is your favorite color?', 'blue'),
+        ('Bob Verma', '8765432109', 'House 23, Green Valley Colony, Road 2', 'password123', 'What is your childhood nickname?', 'bobby'),
+        ('Charlie Gupta', '7654321098', 'Penthouse B, Skyline Heights, Main Road', 'password123', 'In which city were you born?', 'delhi')
     ]
     for user in users_data:
         hashed = generate_password_hash(user[3])
         cursor.execute('''
-            INSERT INTO users (name, phone, address, password) VALUES (?, ?, ?, ?)
-            ON CONFLICT (phone) DO UPDATE SET password = EXCLUDED.password
-        ''', (user[0], user[1], user[2], hashed))
+            INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT (phone) DO UPDATE SET password = EXCLUDED.password, security_question = EXCLUDED.security_question, security_answer = EXCLUDED.security_answer
+        ''', (user[0], user[1], user[2], hashed, user[4], user[5]))
             
     # Seed Shops
     shops_data = [
@@ -187,11 +204,10 @@ def seed_db():
         ('Hamar Tech Hub (Gadgets & Accessories)', 'TECH', 8.0, 'password123', '/static/images/default_category.png')
     ]
     for shop in shops_data:
-        hashed = generate_password_hash(shop[3])
         cursor.execute('''
             INSERT INTO shops (shop_name, category, commission_pct, password, image_path) VALUES (?, ?, ?, ?, ?)
             ON CONFLICT (category) DO UPDATE SET shop_name = EXCLUDED.shop_name, password = EXCLUDED.password, image_path = EXCLUDED.image_path
-        ''', (shop[0], shop[1], shop[2], hashed, shop[4]))
+        ''', (shop[0], shop[1], shop[2], shop[3], shop[4]))
             
     conn.commit()
     
@@ -260,11 +276,10 @@ def seed_db():
         ('Vicky Speedster', '9000000003', 0, 'offline', 'password123')
     ]
     for partner in partners_data:
-        hashed = generate_password_hash(partner[4])
         cursor.execute('''
             INSERT INTO delivery_partners (name, phone, active_orders, availability_status, password) VALUES (?, ?, ?, ?, ?)
             ON CONFLICT (phone) DO UPDATE SET password = EXCLUDED.password
-        ''', (partner[0], partner[1], partner[2], partner[3], hashed))
+        ''', (partner[0], partner[1], partner[2], partner[3], partner[4]))
             
     # Seed system settings for delivery fee defaults
     cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('delivery_fee_flat', '15.0')")

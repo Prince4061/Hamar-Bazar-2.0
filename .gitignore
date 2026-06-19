@@ -155,3 +155,7 @@ credential.md
 
 # Uploaded user files
 static/uploads/
+
+# Local credentials
+.secret_key
+.admin_password

@@ -5,7 +5,7 @@
     <!-- Top Nav Action -->
     <div class="login-top-bar">
         <a href="/staff-login" class="btn-top-switch">Staff Login (Admin/Vendor/Rider) <i data-lucide="arrow-right" class="icon-inline" style="margin-left: 4px; margin-right: 0;"></i></a>
-        <button class="btn-signup-top" onclick="alert('Signup is automatic! Just enter any phone number to login/signup.')">New User? Sign up</button>
+        <button class="btn-signup-top" id="toggle-signup-btn" onclick="toggleAuthMode(event)">New User? Sign up</button>
     </div>
 
     <!-- Main Grid Content -->
@@ -14,7 +14,7 @@
         <div class="login-left-panel">
             <div class="brand-header">
                 <div class="mor-bazar-logo-container" style="background: transparent; padding: 0; width: 56px; height: 56px;">
-                    <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-md);">
+                    <img src="{{ system_settings.app_logo }}" alt="Hamar Bazaar Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-md);">
                 </div>
                 <div class="brand-text-group">
                     <span class="brand-name-main">Hamar Bazaar</span>
@@ -81,7 +81,7 @@
                 <div class="mobile-mockup-bezel">
                     <div class="mobile-mockup-screen">
                         <div class="mobile-screen-header">
-                            <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" style="width: 28px; height: 28px; object-fit: cover; border-radius: var(--radius-sm);">
+                            <img src="{{ system_settings.app_logo }}" alt="Hamar Bazaar Logo" style="width: 28px; height: 28px; object-fit: cover; border-radius: var(--radius-sm);">
                             <span style="font-weight: 700; color: #5e17eb; font-size: 0.95rem;">Hamar Bazaar</span>
                         </div>
                         <span class="mobile-screen-tagline">Sab kuch, aapke paas!</span>
@@ -106,9 +106,9 @@
 
             <!-- Main Desktop Card -->
             <div class="login-card-desktop">
-                <h2 class="card-title-main">Welcome to Hamar Bazaar</h2>
-                <p class="card-subtitle-main">Login / Signup to continue</p>
-                <p class="auto-signup-note">New users will be registered automatically</p>
+                <h2 class="card-title-main" id="login-card-title">Welcome to Hamar Bazaar</h2>
+                <p class="card-subtitle-main" id="login-card-subtitle">Login to continue</p>
+                <p class="auto-signup-note" id="login-card-note" style="display:none;"></p>
 
                 <!-- Input Form -->
                 <form id="customer-login-form" onsubmit="handleCustomerLogin(event)">
@@ -128,14 +128,37 @@
                         <input type="text" id="customer-username" class="form-input-staff" placeholder="Enter Username (no numbers)" pattern="[^0-9]*" title="Username must not contain numbers" required>
                     </div>
 
-                    <div class="form-group" style="position: relative;">
-                        <input type="password" id="customer-password" class="form-input-staff" placeholder="Enter up to 6-digit password" pattern="\d{1,6}" title="Password must be 1 to 6 digits" maxlength="6" required>
+                    <div class="form-group" style="position: relative; margin-bottom: 8px;">
+                        <input type="password" id="customer-password" class="form-input-staff" placeholder="Password (4-20 characters)" minlength="4" maxlength="20" required>
                         <span class="password-toggle-eye" onclick="toggleCustomerPasswordVisibility()">
                             <i data-lucide="eye" style="width: 18px; height: 18px;"></i>
                         </span>
                     </div>
 
-                    <button type="submit" class="btn-send-otp">Login</button>
+                    <div id="forgot-password-link-wrapper" style="display: none; text-align: right; margin-top: -4px; margin-bottom: 12px;">
+                        <a href="#" onclick="showForgotPasswordModal(event)" style="font-size: 0.8rem; color: var(--primary-accent); font-weight: 700; text-decoration: none;">Forgot Password?</a>
+                    </div>
+
+                    <div id="registration-fields-wrapper" style="display: none; border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 12px; margin-bottom: 12px;">
+                        <p class="auto-signup-note" style="margin-bottom: 12px; color: var(--primary-accent); font-weight: 700; font-size:0.75rem;">Registration Details (Choose Security Question):</p>
+                        
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <select id="customer-security-question" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem; background: white; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                                <option value="">Select a security question</option>
+                                <option value="What is your childhood nickname?">What is your childhood nickname?</option>
+                                <option value="What is your favorite color?">What is your favorite color?</option>
+                                <option value="What is the name of your first school?">What is the name of your first school?</option>
+                                <option value="In which city were you born?">In which city were you born?</option>
+                                <option value="What is your pet's name?">What is your pet's name?</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <input type="text" id="customer-security-answer" class="form-input-staff" placeholder="Enter security answer">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-send-otp" id="submit-login-btn">Login</button>
                 </form>
 
                 <div class="terms-footer">
@@ -153,7 +176,43 @@
     </div>
 </div>
 
+<!-- Forgot Password Modal -->
+<div id="forgot-password-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; padding: 16px;">
+    <div class="login-card-desktop" style="max-width: 400px; width: 100%; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); background: white;">
+        <button onclick="closeForgotPasswordModal()" style="position: absolute; top: 12px; right: 12px; border: none; background: transparent; font-size: 1.5rem; font-weight: 700; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; font-family: 'Outfit', sans-serif;">Reset Password</h3>
+        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px;">Apna security question verify karke password reset karein.</p>
+        
+        <div id="forgot-error-msg" class="login-error-alert" style="display: none; margin-bottom: 12px;"></div>
+        <div id="forgot-success-msg" class="login-error-alert" style="display: none; margin-bottom: 12px; background: #e6fcf5; color: #0ca678; border-color: #c3fae8;"></div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+            <label style="font-weight: 700; font-size: 0.8rem; display: block; margin-bottom: 4px; color: var(--text-secondary);">Mobile Number</label>
+            <input type="tel" id="forgot-phone" class="form-input-staff" readonly style="background: #f1f5f9; cursor: not-allowed; width: 100%; padding: 10px; font-size:0.9rem;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+            <label style="font-weight: 700; font-size: 0.8rem; display: block; margin-bottom: 4px; color: var(--text-secondary);">Security Question</label>
+            <input type="text" id="forgot-question-display" class="form-input-staff" readonly style="background: #f1f5f9; cursor: not-allowed; width: 100%; padding: 10px; font-size:0.9rem;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+            <label style="font-weight: 700; font-size: 0.8rem; display: block; margin-bottom: 4px; color: var(--text-secondary);">Security Answer</label>
+            <input type="text" id="forgot-answer" class="form-input-staff" placeholder="Enter answer" style="width: 100%; padding: 10px; font-size:0.9rem;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 16px;">
+            <label style="font-weight: 700; font-size: 0.8rem; display: block; margin-bottom: 4px; color: var(--text-secondary);">New Password (1-6 digits)</label>
+            <input type="password" id="forgot-new-password" class="form-input-staff" placeholder="Enter new 1-6 digit password" pattern="\d{1,6}" maxlength="6" style="width: 100%; padding: 10px; font-size:0.9rem;">
+        </div>
+
+        <button onclick="submitForgotPassword()" class="btn-send-otp" style="width: 100%; padding: 12px; margin-top: 8px;">Reset Password & Login</button>
+    </div>
+</div>
+
 <script>
+    let isSignUpMode = false;
+
     document.addEventListener("DOMContentLoaded", () => {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('error') === 'blocked') {
@@ -163,7 +222,108 @@
                 errorDiv.style.display = "block";
             }
         }
+
+        // Check if phone exists on input change
+        const phoneField = document.getElementById("customer-phone");
+        if (phoneField) {
+            phoneField.addEventListener("input", checkPhoneNumber);
+        }
     });
+
+    function toggleAuthMode(event) {
+        if (event) event.preventDefault();
+        isSignUpMode = !isSignUpMode;
+        
+        const title = document.getElementById("login-card-title");
+        const subtitle = document.getElementById("login-card-subtitle");
+        const topBtn = document.getElementById("toggle-signup-btn");
+        const regWrapper = document.getElementById("registration-fields-wrapper");
+        const forgotLink = document.getElementById("forgot-password-link-wrapper");
+        const submitBtn = document.getElementById("submit-login-btn");
+        const questionSelect = document.getElementById("customer-security-question");
+        const answerInput = document.getElementById("customer-security-answer");
+        const errorDiv = document.getElementById("login-error-msg");
+        
+        errorDiv.style.display = "none";
+        
+        if (isSignUpMode) {
+            title.innerText = "Sign Up for Hamar Bazaar";
+            subtitle.innerText = "Create a new account to continue";
+            topBtn.innerText = "Existing User? Login";
+            regWrapper.style.display = "block";
+            questionSelect.setAttribute("required", "required");
+            answerInput.setAttribute("required", "required");
+            forgotLink.style.display = "none";
+            submitBtn.innerText = "Sign Up";
+        } else {
+            title.innerText = "Welcome to Hamar Bazaar";
+            subtitle.innerText = "Login to continue";
+            topBtn.innerText = "New User? Sign up";
+            regWrapper.style.display = "none";
+            questionSelect.removeAttribute("required");
+            answerInput.removeAttribute("required");
+            submitBtn.innerText = "Login";
+        }
+        checkPhoneNumber();
+    }
+
+    function checkPhoneNumber() {
+        const phoneField = document.getElementById("customer-phone");
+        if (!phoneField) return;
+        
+        let phone = phoneField.value.trim().replace(/\s+/g, '').replace(/-/g, '');
+        if (phone.startsWith('+91')) {
+            phone = phone.substring(3);
+        } else if (phone.startsWith('91') && phone.length > 10) {
+            phone = phone.substring(2);
+        }
+        
+        const regWrapper = document.getElementById("registration-fields-wrapper");
+        const forgotLink = document.getElementById("forgot-password-link-wrapper");
+        const errorDiv = document.getElementById("login-error-msg");
+        const submitBtn = document.getElementById("submit-login-btn");
+        
+        if (phone.length === 10 && /^\d+$/.test(phone)) {
+            fetch(`/api/check-phone?phone=${phone}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.exists) {
+                    if (isSignUpMode) {
+                        errorDiv.innerText = "This mobile number is already registered. Please Login.";
+                        errorDiv.style.display = "block";
+                        submitBtn.disabled = true;
+                    } else {
+                        errorDiv.style.display = "none";
+                        submitBtn.disabled = false;
+                        forgotLink.style.display = "block";
+                        
+                        // Prefill registered username if empty
+                        const usernameField = document.getElementById("customer-username");
+                        if (usernameField && !usernameField.value.trim()) {
+                            usernameField.value = data.name || "";
+                        }
+                    }
+                } else {
+                    if (isSignUpMode) {
+                        errorDiv.style.display = "none";
+                        submitBtn.disabled = false;
+                    } else {
+                        errorDiv.innerText = "This mobile number is not registered yet. Click 'New User? Sign up' to register.";
+                        errorDiv.style.display = "block";
+                        submitBtn.disabled = true;
+                        forgotLink.style.display = "none";
+                    }
+                }
+            })
+            .catch(err => console.error("Error checking phone number:", err));
+        } else {
+            errorDiv.style.display = "none";
+            submitBtn.disabled = false;
+            if (!isSignUpMode) {
+                forgotLink.style.display = "none";
+            }
+        }
+    }
 
     function toggleCustomerPasswordVisibility() {
         const pwdInput = document.getElementById("customer-password");
@@ -180,25 +340,35 @@
         const usernameInput = document.getElementById("customer-username").value;
         const passwordInput = document.getElementById("customer-password").value;
         const errorDiv = document.getElementById("login-error-msg");
-        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const submitBtn = document.getElementById("submit-login-btn");
+        
+        const qSelect = document.getElementById("customer-security-question");
+        const aInput = document.getElementById("customer-security-answer");
         
         const originalBtnText = submitBtn.innerText;
         submitBtn.disabled = true;
-        submitBtn.innerText = "Logging in...";
+        submitBtn.innerText = isSignUpMode ? "Signing up..." : "Logging in...";
         
         errorDiv.style.display = "none";
+        
+        let bodyParams = `phone=${encodeURIComponent(phoneInput)}&username=${encodeURIComponent(usernameInput)}&password=${encodeURIComponent(passwordInput)}&action=${isSignUpMode ? 'register' : 'login'}`;
+        if (qSelect && qSelect.value && isSignUpMode) {
+            bodyParams += `&security_question=${encodeURIComponent(qSelect.value)}`;
+        }
+        if (aInput && aInput.value && isSignUpMode) {
+            bodyParams += `&security_answer=${encodeURIComponent(aInput.value)}`;
+        }
         
         fetch("/login", {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded"
             },
-            body: `phone=${encodeURIComponent(phoneInput)}&username=${encodeURIComponent(usernameInput)}&password=${encodeURIComponent(passwordInput)}`
+            body: bodyParams
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                // Immediate redirect without blocking alert
                 window.location.href = data.redirect;
             } else {
                 submitBtn.disabled = false;
@@ -212,6 +382,107 @@
             submitBtn.disabled = false;
             submitBtn.innerText = originalBtnText;
             errorDiv.innerText = "Connection error. Please try again.";
+            errorDiv.style.display = "block";
+        });
+    }
+
+    // --- Forgot Password Modal Functions ---
+    function showForgotPasswordModal(event) {
+        if (event) event.preventDefault();
+        let phone = document.getElementById("customer-phone").value.trim().replace(/\s+/g, '').replace(/-/g, '');
+        if (phone.startsWith('+91')) {
+            phone = phone.substring(3);
+        } else if (phone.startsWith('91') && phone.length > 10) {
+            phone = phone.substring(2);
+        }
+        
+        if (!phone || phone.length !== 10 || !/^\d+$/.test(phone)) {
+            alert("Pehle input field me apna sahi 10-digit mobile number enter karein.");
+            return;
+        }
+
+        fetch(`/api/check-phone?phone=${phone}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.exists) {
+                document.getElementById("forgot-phone").value = phone;
+                document.getElementById("forgot-question-display").value = data.security_question || "Security Question is not configured for this account. Contact Admin.";
+                document.getElementById("forgot-answer").value = "";
+                document.getElementById("forgot-new-password").value = "";
+                document.getElementById("forgot-error-msg").style.display = "none";
+                document.getElementById("forgot-success-msg").style.display = "none";
+                
+                document.getElementById("forgot-password-modal").style.display = "flex";
+            } else {
+                alert("Yeh mobile number registered nahi hai.");
+            }
+        })
+        .catch(err => {
+            console.error("Error fetching question:", err);
+            alert("Connection error. Try again.");
+        });
+    }
+
+    function closeForgotPasswordModal() {
+        document.getElementById("forgot-password-modal").style.display = "none";
+    }
+
+    function submitForgotPassword() {
+        const phone = document.getElementById("forgot-phone").value;
+        const answer = document.getElementById("forgot-answer").value.trim();
+        const newPassword = document.getElementById("forgot-new-password").value.trim();
+        const errorDiv = document.getElementById("forgot-error-msg");
+        const successDiv = document.getElementById("forgot-success-msg");
+
+        errorDiv.style.display = "none";
+        successDiv.style.display = "none";
+
+        if (!answer || !newPassword) {
+            errorDiv.innerText = "Security Answer aur New Password dono zaroori hain.";
+            errorDiv.style.display = "block";
+            return;
+        }
+
+        if (newPassword.length < 4 || newPassword.length > 20) {
+            errorDiv.innerText = "New Password 4 se 20 characters ka hona chahiye.";
+            errorDiv.style.display = "block";
+            return;
+        }
+
+        fetch("/api/forgot-password", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                phone: phone,
+                security_answer: answer,
+                new_password: newPassword
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                successDiv.innerText = "Password reset ho gaya hai! Logging in...";
+                successDiv.style.display = "block";
+                
+                // Auto prefill login form and submit
+                document.getElementById("customer-password").value = newPassword;
+                setTimeout(() => {
+                    closeForgotPasswordModal();
+                    // Set auth mode back to Login (false) before submitting
+                    isSignUpMode = false;
+                    document.getElementById("submit-login-btn").disabled = false;
+                    document.getElementById("customer-login-form").dispatchEvent(new Event('submit'));
+                }, 1500);
+            } else {
+                errorDiv.innerText = data.error || "Reset verify karne me fail hua.";
+                errorDiv.style.display = "block";
+            }
+        })
+        .catch(err => {
+            console.error("Forgot password API error:", err);
+            errorDiv.innerText = "Server communication failure.";
             errorDiv.style.display = "block";
         });
     }

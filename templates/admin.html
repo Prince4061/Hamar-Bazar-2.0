@@ -1329,7 +1329,7 @@
                 <!-- Brand logo -->
                 <div class="sidebar-brand">
                     <div class="brand-logo-glow" style="background: transparent; box-shadow: none; width: 36px; height: 36px;">
-                        <img src="{{ url_for('static', filename='images/app_logo.jpg') }}" alt="Hamar Bazaar Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-md);">
+                        <img src="{{ system_settings.app_logo }}" alt="Hamar Bazaar Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-md);">
                     </div>
                     <div>
                         <h2 class="brand-logo-text">Mor Bazar</h2>
@@ -1657,6 +1657,7 @@
                                     <th>Status</th>
                                     <th>Handshake OTPs</th>
                                     <th>System Logs / Failure Reasons</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="orders-full-rows">
@@ -2040,6 +2041,39 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- App Logo Settings -->
+                <div class="dashboard-card" style="margin-top: 20px;">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text"><i data-lucide="image"></i> App Logo - Login & General Branding</h3>
+                    </div>
+                    <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                        <!-- Current Logo Preview -->
+                        <div style="width: 100px; height: 100px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); background: #f8fafc; display: flex; align-items: center; justify-content: center;">
+                            <img id="admin-logo-preview" src="" alt="Current App Logo" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                            <div id="admin-logo-placeholder" style="color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 10px;">
+                                <i data-lucide="image" style="width: 24px; height: 24px; display: inline-block; margin-bottom: 4px;"></i>
+                                <p style="margin:0;">No Logo</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Upload controls -->
+                        <div style="flex: 1; min-width: 200px;">
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">
+                                Upload a custom logo to brand the application. This logo will appear on the customer login page, staff login gateway, and all navigation headers.
+                            </p>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="file" id="admin-logo-upload-file" style="display: none;" accept="image/*" onchange="uploadAppLogo(this)">
+                                <label for="admin-logo-upload-file" class="btn-custom btn-custom-primary" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 16px; margin:0;">
+                                    <i data-lucide="upload" style="width: 14px; height: 14px;"></i> Upload Custom Logo
+                                </label>
+                                <button class="btn-custom btn-custom-danger" onclick="deleteAppLogo()" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;">
+                                    Reset Logo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- --------------------------------------------------- -->
@@ -2279,6 +2313,82 @@
             
             <div class="notification-list" id="alerts-list-container">
                 <!-- Loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- --------------------------------------------------- -->
+    <!-- ADMIN FORCE ORDER CONTROL MODAL -->
+    <!-- --------------------------------------------------- -->
+    <div class="modal-popup-overlay" id="admin-order-modal" style="display:none; justify-content: center; align-items: center; z-index: 1100;">
+        <div class="modal-popup-card" style="max-width: 600px; width: 90%;">
+            <div class="modal-popup-header">
+                <h3>Force Manage Order <span id="admin-modal-order-id"></span></h3>
+                <button class="drawer-close" onclick="closeAdminOrderModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-popup-body" style="display: flex; flex-direction: column; gap: 16px; max-height: 70vh; overflow-y: auto;">
+                
+                <!-- Customer Details -->
+                <div style="background: var(--surface-bg-alt); padding: 12px; border-radius: var(--radius-md);">
+                    <h4 style="margin-bottom: 8px; color: var(--primary-accent); display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 700;">
+                        <i data-lucide="user" style="width:16px; height:16px; display:inline-block; vertical-align:-3px;"></i> Customer Details
+                    </h4>
+                    <p style="font-size:0.85rem; margin-bottom: 4px;"><strong>Name:</strong> <span id="admin-modal-cust-name"></span></p>
+                    <p style="font-size:0.85rem; margin-bottom: 4px;"><strong>Phone:</strong> <span id="admin-modal-cust-phone"></span></p>
+                    <p style="font-size:0.85rem; margin-bottom: 0;"><strong>Address:</strong> <span id="admin-modal-cust-address"></span></p>
+                </div>
+                
+                <!-- Order items and status -->
+                <div>
+                    <h4 style="margin-bottom: 8px; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 700;">
+                        <i data-lucide="shopping-bag" style="width:16px; height:16px; display:inline-block; vertical-align:-3px;"></i> Order Items & Status
+                    </h4>
+                    <p style="font-size:0.85rem; margin-bottom: 6px;">
+                        <strong>Current Status:</strong> <span class="status-badge" id="admin-modal-order-status"></span>
+                        <span style="margin-left: 10px;"><strong>Amount:</strong> <span id="admin-modal-order-amount" style="font-weight: 700; color: var(--primary-accent);"></span></span>
+                    </p>
+                    <div id="admin-modal-items-list" style="font-size:0.8rem; padding: 10px; background: var(--border-color-light); border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 4px;">
+                        <!-- Items rendered here -->
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color-light); margin: 4px 0;">
+
+                <!-- Vendor Shop Reassignment / Force Accept -->
+                <div>
+                    <h4 style="margin-bottom: 8px; color: var(--accent-orange); display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 700;">
+                        <i data-lucide="store" style="width:16px; height:16px; display:inline-block; vertical-align:-3px;"></i> Force Accept Order (Optionally Change Vendor Shop)
+                    </h4>
+                    <div class="form-group-custom" style="margin-bottom: 10px;">
+                        <label class="form-label-custom">Select Vendor Shop</label>
+                        <select class="form-select-custom" style="width: 100%;" id="admin-modal-shop-select">
+                            <!-- Shop options loaded dynamically -->
+                        </select>
+                    </div>
+                    <button class="btn-custom btn-custom-primary" style="width: 100%; background: var(--accent-orange); border-color: var(--accent-orange);" onclick="submitAdminForceAccept()">
+                        Force Accept Order for Selected Shop
+                    </button>
+                </div>
+
+                <!-- Delivery Rider Allotment -->
+                <div>
+                    <h4 style="margin-bottom: 8px; color: var(--emerald-green); display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 700;">
+                        <i data-lucide="bike" style="width:16px; height:16px; display:inline-block; vertical-align:-3px;"></i> Force Allot Delivery Rider (Without Approval)
+                    </h4>
+                    <div class="form-group-custom" style="margin-bottom: 10px;">
+                        <label class="form-label-custom">Select Delivery Partner</label>
+                        <select class="form-select-custom" style="width: 100%;" id="admin-modal-rider-select">
+                            <!-- Rider options loaded dynamically -->
+                        </select>
+                    </div>
+                    <button class="btn-custom btn-custom-primary" style="width: 100%; background: var(--emerald-green); border-color: var(--emerald-green);" onclick="submitAdminForceAllot()">
+                        Force Allot Selected Rider
+                    </button>
+                </div>
+
+            </div>
+            <div class="modal-popup-footer">
+                <button class="btn-custom btn-custom-secondary" onclick="closeAdminOrderModal()">Close</button>
             </div>
         </div>
     </div>
@@ -3259,37 +3369,46 @@
             container.innerHTML = "";
             
             if (orders.length === 0) {
-                container.innerHTML = `<tr><td colspan="9" class="empty-state-card"><i data-lucide="package-open" class="empty-state-icon"></i><p>No transaction feeds found.</p></td></tr>`;
+                container.innerHTML = `<tr><td colspan="10" class="empty-state-card"><i data-lucide="package-open" class="empty-state-icon"></i><p>No transaction feeds found.</p></td></tr>`;
                 return;
-            }
-            
-            orders.forEach(o => {
-                let badgeClass = "badge-pending";
-                if (o.status === 'ACCEPTED') badgeClass = "badge-accepted";
-                else if (o.status === 'READY_FOR_PICKUP') badgeClass = "badge-ready";
-                else if (o.status === 'OUT_FOR_DELIVERY') badgeClass = "badge-transit";
-                else if (o.status === 'DELIVERED') badgeClass = "badge-delivered";
-                else if (o.status === 'FAILED') badgeClass = "badge-failed";
-                
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td style="font-weight:700;">#ORD${o.id}</td>
-                    <td style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${o.created_at}</td>
-                    <td style="font-weight:600;">${o.customer_name}</td>
-                    <td>${o.shop_name}</td>
-                    <td style="font-weight:700; color:var(--primary-accent);">₹${o.total_amount.toFixed(2)}</td>
-                    <td><span class="status-badge ${o.priority_type === 'URGENT' ? 'badge-priority' : 'badge-pending'}">${o.priority_type}</span></td>
-                    <td><span class="status-badge ${badgeClass}">${o.status.replace(/_/g, ' ')}</span></td>
-                    <td style="font-family:monospace; font-weight:700; font-size:0.8rem; color:var(--text-secondary);">
-                        P: ${o.pickup_otp || '--'} | D: ${o.delivery_otp || '--'}
-                    </td>
-                    <td>
-                        ${o.failure_reason ? `<span style="color:var(--ruby-danger); font-weight:600;"><i data-lucide="x-circle" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:3px;"></i>${o.failure_reason}</span>` : `<span style="color:var(--emerald-green); font-weight:600;"><i data-lucide="check-circle" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:3px;"></i>Handover stable</span>`}
-                    </td>
-                `;
-                container.appendChild(tr);
-            });
-        }
+              }
+              
+              orders.forEach(o => {
+                  let badgeClass = "badge-pending";
+                  if (o.status === 'ACCEPTED') badgeClass = "badge-accepted";
+                  else if (o.status === 'READY_FOR_PICKUP') badgeClass = "badge-ready";
+                  else if (o.status === 'OUT_FOR_DELIVERY') badgeClass = "badge-transit";
+                  else if (o.status === 'DELIVERED') badgeClass = "badge-delivered";
+                  else if (o.status === 'FAILED') badgeClass = "badge-failed";
+                  
+                  const tr = document.createElement("tr");
+                  tr.innerHTML = `
+                      <td style="font-weight:700;">#ORD${o.id}</td>
+                      <td style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${o.created_at}</td>
+                      <td style="font-weight:600;">${o.customer_name}</td>
+                      <td>${o.shop_name}</td>
+                      <td style="font-weight:700; color:var(--primary-accent);">₹${o.total_amount.toFixed(2)}</td>
+                      <td><span class="status-badge ${o.priority_type === 'URGENT' ? 'badge-priority' : 'badge-pending'}">${o.priority_type}</span></td>
+                      <td><span class="status-badge ${badgeClass}">${o.status.replace(/_/g, ' ')}</span></td>
+                      <td style="font-family:monospace; font-weight:700; font-size:0.8rem; color:var(--text-secondary);">
+                          P: ${o.pickup_otp || '--'} | D: ${o.delivery_otp || '--'}
+                      </td>
+                      <td>
+                          ${o.failure_reason ? `<span style="color:var(--ruby-danger); font-weight:600;"><i data-lucide="x-circle" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:3px;"></i>${o.failure_reason}</span>` : `<span style="color:var(--emerald-green); font-weight:600;"><i data-lucide="check-circle" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:3px;"></i>Handover stable</span>`}
+                      </td>
+                      <td>
+                          <button class="btn-custom btn-custom-primary" style="padding: 4px 8px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;" onclick="openAdminOrderManager(${o.id})">
+                              <i data-lucide="settings" style="width:12px; height:12px;"></i> Manage
+                          </button>
+                      </td>
+                  `;
+                  container.appendChild(tr);
+              });
+              
+              if (window.lucide) {
+                  window.lucide.createIcons();
+              }
+          }
 
         // Filter Orders Table
         function filterOrdersTable() {
@@ -4663,6 +4782,20 @@
                         }
                     }
 
+                    const logoImg = document.getElementById("admin-logo-preview");
+                    const logoPlaceholder = document.getElementById("admin-logo-placeholder");
+                    if (logoImg && logoPlaceholder) {
+                        if (settings.app_logo) {
+                            logoImg.src = settings.app_logo;
+                            logoImg.style.display = "block";
+                            logoPlaceholder.style.display = "none";
+                        } else {
+                            logoImg.src = "/static/images/app_logo.jpg";
+                            logoImg.style.display = "block";
+                            logoPlaceholder.style.display = "none";
+                        }
+                    }
+
                     // Populate delivery charge settings
                     const feeFlat = parseFloat(settings.delivery_fee_flat || 15.0);
                     const feeThresh = parseFloat(settings.delivery_fee_threshold || 199.0);
@@ -4883,6 +5016,208 @@
                     console.error("Error deleting QR code:", err);
                     showAestheticToast("Failed to delete QR code.", "error");
                 });
+            });
+        }
+
+        function uploadAppLogo(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append("app_logo", file);
+            
+            showAestheticToast("Uploading App Logo...", "info");
+            
+            fetch('/api/admin/settings/upload-logo', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showAestheticToast("App logo updated successfully!", "success");
+                    loadAdminAboutTeamPhoto();
+                } else {
+                    showAestheticToast(data.error || "Upload failed.", "error");
+                }
+            })
+            .catch(err => {
+                console.error("Error uploading logo:", err);
+                showAestheticToast("Failed to upload app logo.", "error");
+            });
+        }
+        function deleteAppLogo() {
+            aestheticConfirm("Are you sure you want to reset to the default app logo?", () => {
+                fetch('/api/admin/settings/logo', {
+                    method: 'DELETE'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAestheticToast("App logo reset to default.", "success");
+                        loadAdminAboutTeamPhoto();
+                    } else {
+                        showAestheticToast("Failed to reset logo.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Error deleting app logo:", err);
+                    showAestheticToast("Failed to reset app logo.", "error");
+                });
+            });
+        }
+
+        // Admin Order Manager Functions
+        let activeAdminOrderId = null;
+
+        function openAdminOrderManager(orderId) {
+            activeAdminOrderId = orderId;
+            document.getElementById("admin-modal-order-id").innerText = `#ORD${orderId}`;
+            
+            // Show loading placeholders
+            document.getElementById("admin-modal-cust-name").innerText = "Loading...";
+            document.getElementById("admin-modal-cust-phone").innerText = "Loading...";
+            document.getElementById("admin-modal-cust-address").innerText = "Loading...";
+            document.getElementById("admin-modal-order-status").innerText = "Loading...";
+            document.getElementById("admin-modal-order-amount").innerText = "Loading...";
+            document.getElementById("admin-modal-items-list").innerHTML = "<div style='color:var(--text-muted);'>Fetching order item payloads...</div>";
+            
+            // Populate shop select options
+            const shopSelect = document.getElementById("admin-modal-shop-select");
+            shopSelect.innerHTML = "";
+            if (analyticsData && analyticsData.shops_performance) {
+                analyticsData.shops_performance.forEach(s => {
+                    const opt = document.createElement("option");
+                    opt.value = s.shop_id;
+                    opt.innerText = `${s.shop_name} (${s.category})`;
+                    shopSelect.appendChild(opt);
+                });
+            }
+            
+            // Populate rider select options
+            const riderSelect = document.getElementById("admin-modal-rider-select");
+            riderSelect.innerHTML = "<option value=''>-- Select Rider --</option>";
+            if (analyticsData && analyticsData.riders_status) {
+                analyticsData.riders_status.forEach(r => {
+                    const opt = document.createElement("option");
+                    opt.value = r.id;
+                    const statusText = r.availability_status === 'online' ? 'Online' : 'Offline';
+                    opt.innerText = `${r.name} (${statusText} | Active: ${r.active_orders})`;
+                    riderSelect.appendChild(opt);
+                });
+            }
+            
+            // Fetch full order details
+            fetch(`/api/orders/${orderId}`)
+                .then(res => {
+                    if (!res.ok) throw new Error("Unauthorized or not found");
+                    return res.json();
+                })
+                .then(data => {
+                    document.getElementById("admin-modal-cust-name").innerText = data.customer_name || 'N/A';
+                    document.getElementById("admin-modal-cust-phone").innerText = data.customer_phone || 'N/A';
+                    document.getElementById("admin-modal-cust-address").innerText = data.customer_address || 'N/A';
+                    
+                    const statusBadge = document.getElementById("admin-modal-order-status");
+                    statusBadge.innerText = data.status.replace(/_/g, ' ');
+                    statusBadge.className = 'status-badge';
+                    
+                    let badgeClass = "badge-pending";
+                    if (data.status === 'ACCEPTED') badgeClass = "badge-accepted";
+                    else if (data.status === 'READY_FOR_PICKUP') badgeClass = "badge-ready";
+                    else if (data.status === 'OUT_FOR_DELIVERY') badgeClass = "badge-transit";
+                    else if (data.status === 'DELIVERED') badgeClass = "badge-delivered";
+                    else if (data.status === 'FAILED') badgeClass = "badge-failed";
+                    statusBadge.classList.add(badgeClass);
+                    
+                    document.getElementById("admin-modal-order-amount").innerText = `₹${data.total_amount.toFixed(2)}`;
+                    
+                    if (data.shop_id) shopSelect.value = data.shop_id;
+                    if (data.delivery_boy_id) riderSelect.value = data.delivery_boy_id;
+                    
+                    const itemsContainer = document.getElementById("admin-modal-items-list");
+                    itemsContainer.innerHTML = "";
+                    if (data.items && data.items.length > 0) {
+                        data.items.forEach(item => {
+                            const div = document.createElement("div");
+                            div.style.display = "flex";
+                            div.style.justifyContent = "space-between";
+                            div.style.borderBottom = "1px dashed var(--border-color-light)";
+                            div.style.paddingBottom = "4px";
+                            div.innerHTML = `
+                                <span>${item.product_name} <strong>x${item.quantity}</strong></span>
+                                <span>₹${(item.price * item.quantity).toFixed(2)}</span>
+                            `;
+                            itemsContainer.appendChild(div);
+                        });
+                    } else {
+                        itemsContainer.innerHTML = "<div style='color:var(--text-muted);'>No items.</div>";
+                    }
+                    
+                    if (window.lucide) window.lucide.createIcons();
+                })
+                .catch(err => {
+                    showAestheticToast("Error loading order: " + err.message, "danger");
+                    closeAdminOrderModal();
+                });
+                
+            document.getElementById("admin-order-modal").style.display = "flex";
+        }
+
+        function closeAdminOrderModal() {
+            document.getElementById("admin-order-modal").style.display = "none";
+            activeAdminOrderId = null;
+        }
+
+        function submitAdminForceAccept() {
+            if (!activeAdminOrderId) return;
+            const shopId = document.getElementById("admin-modal-shop-select").value;
+            
+            fetch(`/api/admin/orders/${activeAdminOrderId}/force-accept`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shop_id: shopId })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    showAestheticToast(data.error, "error");
+                } else {
+                    showAestheticToast(data.message || "Order force accepted.", "success");
+                    loadAllAnalytics(false);
+                    closeAdminOrderModal();
+                }
+            })
+            .catch(err => {
+                showAestheticToast("Failed to process request: " + err, "error");
+            });
+        }
+
+        function submitAdminForceAllot() {
+            if (!activeAdminOrderId) return;
+            const riderId = document.getElementById("admin-modal-rider-select").value;
+            if (!riderId) {
+                showAestheticToast("Please select a delivery rider.", "warning");
+                return;
+            }
+            
+            fetch(`/api/admin/orders/${activeAdminOrderId}/force-allot`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rider_id: riderId })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    showAestheticToast(data.error, "error");
+                } else {
+                    showAestheticToast(data.message || "Rider allotted successfully.", "success");
+                    loadAllAnalytics(false);
+                    closeAdminOrderModal();
+                }
+            })
+            .catch(err => {
+                showAestheticToast("Failed to process request: " + err, "error");
             });
         }
     </script>
