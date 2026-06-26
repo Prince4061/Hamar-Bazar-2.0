@@ -2195,6 +2195,13 @@ html, body {
             return;
         }
         
+        const nameRegex = /^[A-Za-z\s]+$/;
+        if (!nameRegex.test(nameInput)) {
+            errorDiv.innerText = "Username must contain only letters and spaces.";
+            errorDiv.style.display = "block";
+            return;
+        }
+        
         fetch("/api/customer/profile/update", {
             method: "POST",
             headers: {

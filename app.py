@@ -969,6 +969,9 @@ def update_profile():
     if not customer_id or not name or not address or not security_question or not security_answer:
         return jsonify({'error': 'Name, Address, Security Question, Security Answer and Customer ID are required.'}), 400
         
+    if not name.replace(' ', '').isalpha():
+        return jsonify({'error': 'Username must contain only letters.'}), 400
+        
     if int(customer_id) != session.get('role_id'):
         return jsonify({'error': 'Unauthorized. Customer ID does not match session.'}), 403
         
