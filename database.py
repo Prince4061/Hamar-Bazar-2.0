@@ -202,11 +202,10 @@ def seed_db():
         ('Charlie Gupta', '7654321098', 'Penthouse B, Skyline Heights, Main Road', 'password123', 'In which city were you born?', 'delhi')
     ]
     for user in users_data:
-        hashed = generate_password_hash(user[3])
         cursor.execute('''
             INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT (phone) DO UPDATE SET password = EXCLUDED.password, security_question = EXCLUDED.security_question, security_answer = EXCLUDED.security_answer
-        ''', (user[0], user[1], user[2], hashed, user[4], user[5]))
+        ''', (user[0], user[1], user[2], user[3], user[4], user[5]))
             
     # Seed Shops
     shops_data = [

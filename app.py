@@ -334,7 +334,7 @@ def login():
                 
             new_address = "Sector 4, Local Area"
             try:
-                hashed_pass = generate_password_hash(password)
+                hashed_pass = password
                 cursor.execute(
                     "INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)",
                     (username, phone, new_address, hashed_pass, security_question, security_answer)
@@ -373,7 +373,7 @@ def login():
                 default_question = "What is your favorite color?"
                 default_answer = "blue"
                 try:
-                    hashed_pass = generate_password_hash(password)
+                    hashed_pass = password
                     cursor.execute(
                         "INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)",
                         (username, phone, new_address, hashed_pass, default_question, default_answer)
@@ -418,7 +418,7 @@ def login():
             if not user['password']:
                 return jsonify({'success': False, 'error': 'Account configuration error (missing password). Please contact support.'})
                 
-            if not check_password_hash(user['password'], password):
+            if user['password'] != password:
                 try:
                     cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
                     db.commit()
@@ -502,7 +502,7 @@ def forgot_password():
     if db_answer.strip().lower() != answer:
         return jsonify({'success': False, 'error': 'Incorrect security answer.'}), 400
         
-    hashed_pass = generate_password_hash(new_password)
+    hashed_pass = new_password
     cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_pass, row['id']))
     db.commit()
     
@@ -591,7 +591,7 @@ def staff_login():
                 # Verify password if one is set in the database
                 if not shop['password']:
                     return jsonify({'success': False, 'error': 'Vendor store configuration error (missing password). Please contact Admin.'})
-                if shop['password'] != password and not check_password_hash(shop['password'], password):
+                if shop['password'] != password:
                     try:
                         cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
                         db.commit()
@@ -627,7 +627,7 @@ def staff_login():
             if rider:
                 if not rider['password']:
                     return jsonify({'success': False, 'error': 'Delivery rider configuration error (missing password). Please contact Admin.'})
-                if rider['password'] != password and not check_password_hash(rider['password'], password):
+                if rider['password'] != password:
                     try:
                         cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
                         db.commit()
@@ -997,7 +997,7 @@ def update_profile():
     cursor = db.cursor()
     try:
         if password:
-            hashed_password = generate_password_hash(password)
+            hashed_password = password
             cursor.execute("UPDATE users SET name = ?, address = ?, password = ?, security_question = ?, security_answer = ? WHERE id = ?", (name, address, hashed_password, security_question, security_answer, int(customer_id)))
         else:
             cursor.execute("UPDATE users SET name = ?, address = ?, security_question = ?, security_answer = ? WHERE id = ?", (name, address, security_question, security_answer, int(customer_id)))
@@ -1610,6 +1610,18 @@ def unblock_user(user_id):
     db.commit()
     return jsonify({'success': True, 'message': 'User account has been unblocked successfully.'})
 
+@app.route('/api/admin/users/<int:user_id>/update', methods=['POST'])
+def update_user_credentials(user_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    data = request.json
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("UPDATE users SET name = ?, phone = ?, password = ? WHERE id = ?", 
+                   (data.get('name'), data.get('phone'), data.get('password'), user_id))
+    db.commit()
+    return jsonify({'success': True, 'message': 'User credentials updated successfully.'})
 # --- Admin APIs ---
 
 @app.route('/api/admin/analytics', methods=['GET'])

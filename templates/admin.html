@@ -1413,6 +1413,11 @@
                             <i data-lucide="users"></i> User Info
                         </a>
                     </li>
+                    <li>
+                        <a class="menu-item-link" href="/session/logout" style="color: var(--ruby-danger);">
+                            <i data-lucide="log-out"></i> Log Out
+                        </a>
+                    </li>
                 </ul>
             </div>
             
@@ -2348,6 +2353,7 @@
                                     <th>Mobile Number</th>
                                     <th>Password</th>
                                     <th>Location (Address)</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="registered-users-rows">
@@ -2532,6 +2538,35 @@
 
     <!-- --------------------------------------------------- -->
     <!-- ADD/EDIT SHOP CATEGORY MODAL -->
+    <!-- Edit User Modal -->
+    <div class="modal-popup-overlay" id="user-modal">
+        <div class="modal-popup-card">
+            <div class="modal-popup-header">
+                <h3>Edit User Credentials</h3>
+                <button class="drawer-close" onclick="closeUserModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-popup-body">
+                <input type="hidden" id="modal-user-id">
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Name</label>
+                    <input type="text" id="modal-user-name" class="form-input-custom" style="width: 100%;">
+                </div>
+                
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Phone</label>
+                    <input type="text" id="modal-user-phone" class="form-input-custom" style="width: 100%;">
+                </div>
+
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Password</label>
+                    <input type="text" id="modal-user-password" class="form-input-custom" style="width: 100%;">
+                </div>
+                
+                <button class="btn-custom btn-custom-primary" style="width: 100%; margin-top: 10px;" onclick="saveUserModal()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <!-- --------------------------------------------------- -->
     <div class="modal-popup-overlay" id="shop-modal">
         <div class="modal-popup-card">
@@ -3767,11 +3802,14 @@
                             <td style="font-family:monospace; font-weight:600;">${user.phone}</td>
                             <td style="font-family:monospace; color:var(--ruby-danger); font-weight:600;">${user.password || '-'}</td>
                             <td style="font-size:0.8rem; color:var(--text-secondary);">${user.address || '-'}</td>
+                            <td>
+                                <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="openEditUserModal(${user.id}, '${(user.name || '').replace(/'/g, "\\'")}', '${(user.phone || '').replace(/'/g, "\\'")}', '${(user.password || '').replace(/'/g, "\\'")}')"><i data-lucide="edit-2" style="width:12px; height:12px;"></i> Edit</button>
+                            </td>
                         `;
                         registeredUsersContainer.appendChild(tr);
                     });
                 } else {
-                    registeredUsersContainer.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-muted);">No users found</td></tr>`;
+                    registeredUsersContainer.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color: var(--text-muted);">No users found</td></tr>`;
                 }
             }
         }
@@ -3919,6 +3957,50 @@
             document.getElementById("modal-shop-password").value = "";
             document.getElementById("modal-shop-image-url").value = "";
             document.getElementById("shop-modal").style.display = "flex";
+        }
+
+        function openEditUserModal(id, name, phone, password) {
+            document.getElementById("modal-user-id").value = id;
+            document.getElementById("modal-user-name").value = name;
+            document.getElementById("modal-user-phone").value = phone;
+            document.getElementById("modal-user-password").value = password;
+            document.getElementById("user-modal").style.display = "flex";
+        }
+        
+        function closeUserModal() {
+            document.getElementById("user-modal").style.display = "none";
+        }
+        
+        function saveUserModal() {
+            const id = document.getElementById("modal-user-id").value;
+            const data = {
+                name: document.getElementById("modal-user-name").value,
+                phone: document.getElementById("modal-user-phone").value,
+                password: document.getElementById("modal-user-password").value
+            };
+            
+            fetch(`/api/admin/users/${id}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+                },
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    showAestheticToast(res.message, "success");
+                    closeUserModal();
+                    loadAllAnalytics(false);
+                } else {
+                    showAestheticToast(res.error, "error");
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showAestheticToast("An error occurred.", "error");
+            });
         }
 
         function openEditShopModal(shopId, name, category, commission, password) {
