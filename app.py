@@ -2258,7 +2258,7 @@ def admin_add_product():
     cursor = db.cursor()
     cursor.execute("INSERT INTO products (shop_id, name, price, image_path, subcategory, description) VALUES (?, ?, ?, ?, ?, ?)", (shop_id, name, float(price), image_path, subcategory, description))
     db.commit()
-    return jsonify({'message': 'Product added successfully.', 'id': cursor.lastrowid})
+    return jsonify({'success': True, 'message': 'Product added successfully.', 'id': cursor.lastrowid})
 
 @app.route('/api/admin/products/<int:prod_id>', methods=['PUT', 'DELETE'])
 def admin_modify_product(prod_id):
@@ -2267,7 +2267,7 @@ def admin_modify_product(prod_id):
     if request.method == 'DELETE':
         cursor.execute("DELETE FROM products WHERE id = ?", (prod_id,))
         db.commit()
-        return jsonify({'message': 'Product deleted successfully.'})
+        return jsonify({'success': True, 'message': 'Product deleted successfully.'})
         
     elif request.method == 'PUT':
         data = request.json
@@ -2278,13 +2278,9 @@ def admin_modify_product(prod_id):
         subcategory = data.get('subcategory', '')
         description = data.get('description', '')
         
-        cursor.execute('''
-            UPDATE products 
-            SET name = ?, price = ?, is_available = ?, image_path = ?, subcategory = ?, description = ? 
-            WHERE id = ?
-        ''', (name, float(price), is_available, image_path, subcategory, description, prod_id))
+        cursor.execute("UPDATE products SET name = ?, price = ?, is_available = ?, image_path = ?, subcategory = ?, description = ? WHERE id = ?", (name, float(price), is_available, image_path, subcategory, description, prod_id))
         db.commit()
-        return jsonify({'message': 'Product updated successfully.'})
+        return jsonify({'success': True, 'message': 'Product updated successfully.'})
 
 # --- System Settings APIs ---
 @app.route('/api/system/settings', methods=['GET'])

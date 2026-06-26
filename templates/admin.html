@@ -4213,9 +4213,10 @@
                 })
                 .then(res => res.json())
                 .then(data => {
-                    if (data.id) {
+                    if (data.id || data.success) {
                         showAestheticToast("Product added to exclusive catalog.", "success");
                         closeProductModal();
+                        document.getElementById("product-shop-filter").value = shopId;
                         loadProductCatalog();
                     } else {
                         showAestheticToast("Failed to add product.", "error");
