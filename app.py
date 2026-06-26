@@ -1600,17 +1600,38 @@ def get_admin_analytics():
     db = get_db()
     cursor = db.cursor()
     
+    date_filter = request.args.get('range', 'All')
+    date_where = ""
+    now_dt = datetime.now()
+    if date_filter == 'Today':
+        start = now_dt.strftime('%Y-%m-%d 00:00:00')
+        end = now_dt.strftime('%Y-%m-%d 23:59:59')
+        date_where = f" AND created_at BETWEEN '{start}' AND '{end}' "
+    elif date_filter == 'Yesterday':
+        yesterday = now_dt - timedelta(days=1)
+        start = yesterday.strftime('%Y-%m-%d 00:00:00')
+        end = yesterday.strftime('%Y-%m-%d 23:59:59')
+        date_where = f" AND created_at BETWEEN '{start}' AND '{end}' "
+    elif date_filter == 'Month to Date':
+        start = now_dt.strftime('%Y-%m-01 00:00:00')
+        end = now_dt.strftime('%Y-%m-%d 23:59:59')
+        date_where = f" AND created_at BETWEEN '{start}' AND '{end}' "
+    elif date_filter == 'Last 7 Days':
+        start = (now_dt - timedelta(days=7)).strftime('%Y-%m-%d 00:00:00')
+        end = now_dt.strftime('%Y-%m-%d 23:59:59')
+        date_where = f" AND created_at BETWEEN '{start}' AND '{end}' "
+
     # 1. High level aggregate stats
-    cursor.execute("SELECT COUNT(id) FROM orders WHERE status = 'DELIVERED'")
+    cursor.execute(f"SELECT COUNT(id) FROM orders WHERE status = 'DELIVERED'{date_where}")
     delivered_count = cursor.fetchone()[0] or 0
     
-    cursor.execute("SELECT COUNT(id) FROM orders WHERE status = 'FAILED' OR failure_reason IS NOT NULL")
+    cursor.execute(f"SELECT COUNT(id) FROM orders WHERE (status = 'FAILED' OR failure_reason IS NOT NULL){date_where}")
     failed_count = cursor.fetchone()[0] or 0
     
-    cursor.execute("SELECT SUM(total_amount) FROM orders WHERE status = 'DELIVERED'")
+    cursor.execute(f"SELECT SUM(total_amount) FROM orders WHERE status = 'DELIVERED'{date_where}")
     total_rev = cursor.fetchone()[0] or 0.0
     
-    cursor.execute("SELECT SUM(total_amount * (SELECT commission_pct FROM shops s WHERE s.id = orders.shop_id) / 100.0) FROM orders WHERE status = 'DELIVERED'")
+    cursor.execute(f"SELECT SUM(total_amount * (SELECT commission_pct FROM shops s WHERE s.id = orders.shop_id) / 100.0) FROM orders WHERE status = 'DELIVERED'{date_where}")
     total_comm = cursor.fetchone()[0] or 0.0
     
     # Extra base stats
@@ -1627,17 +1648,17 @@ def get_admin_analytics():
     total_vendors = cursor.fetchone()[0] or 0
     
     # Order Status counts
-    cursor.execute("SELECT COUNT(*) FROM orders WHERE status = 'PENDING'")
+    cursor.execute(f"SELECT COUNT(*) FROM orders WHERE status = 'PENDING'{date_where}")
     pending_count = cursor.fetchone()[0] or 0
-    cursor.execute("SELECT COUNT(*) FROM orders WHERE status = 'ACCEPTED'")
+    cursor.execute(f"SELECT COUNT(*) FROM orders WHERE status = 'ACCEPTED'{date_where}")
     accepted_count = cursor.fetchone()[0] or 0
-    cursor.execute("SELECT COUNT(*) FROM orders WHERE status = 'READY_FOR_PICKUP'")
+    cursor.execute(f"SELECT COUNT(*) FROM orders WHERE status = 'READY_FOR_PICKUP'{date_where}")
     ready_count = cursor.fetchone()[0] or 0
-    cursor.execute("SELECT COUNT(*) FROM orders WHERE status = 'OUT_FOR_DELIVERY'")
+    cursor.execute(f"SELECT COUNT(*) FROM orders WHERE status = 'OUT_FOR_DELIVERY'{date_where}")
     transit_count = cursor.fetchone()[0] or 0
-    cursor.execute("SELECT COUNT(*) FROM orders WHERE priority_type = 'URGENT'")
+    cursor.execute(f"SELECT COUNT(*) FROM orders WHERE priority_type = 'URGENT'{date_where}")
     urgent_count = cursor.fetchone()[0] or 0
-    cursor.execute("SELECT COUNT(*) FROM orders WHERE status = 'AWAITING_PAYMENT_APPROVAL'")
+    cursor.execute(f"SELECT COUNT(*) FROM orders WHERE status = 'AWAITING_PAYMENT_APPROVAL'{date_where}")
     awaiting_payment_count = cursor.fetchone()[0] or 0
     
     # Today vs Yesterday

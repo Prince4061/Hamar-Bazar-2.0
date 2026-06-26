@@ -2830,7 +2830,7 @@
                 showLoadingState();
             }
             
-            fetch('/api/admin/analytics')
+            fetch(`/api/admin/analytics?range=${encodeURIComponent(dateRange)}`)
                 .then(res => res.json())
                 .then(data => {
                     analyticsData = data;
