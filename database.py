@@ -6,6 +6,11 @@ from werkzeug.security import generate_password_hash
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.environ.get('DATABASE_PATH', os.path.join(BASE_DIR, 'marketplace.db'))
 
+# Ensure parent directory of database exists (critical for Docker volumes)
+db_dir = os.path.dirname(DATABASE_PATH)
+if db_dir:
+    os.makedirs(db_dir, exist_ok=True)
+
 def get_db_connection():
     conn = sqlite3.connect(DATABASE_PATH, timeout=30.0)
     # Enable foreign keys

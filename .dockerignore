@@ -1,0 +1,17 @@
+.git
+.gitignore
+.venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.db
+marketplace.db
+.secret_key
+.admin_password
+.agents
+.gemini
+Dockerfile
+.dockerignore
+*log
+*db-journal

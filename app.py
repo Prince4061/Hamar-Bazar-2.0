@@ -9,6 +9,7 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 import database
 
 app = Flask(__name__)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)
 
 # Secure secret key handling for production
 secret_key_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.secret_key')
@@ -219,6 +220,7 @@ def switch_session():
     role = request.args.get('role', 'customer')
     role_id = request.args.get('id', '1')
     
+    session.permanent = True
     session['role'] = role
     session['role_id'] = int(role_id)
     
@@ -247,6 +249,17 @@ def switch_session():
 def logout():
     session.clear()
     return redirect('/login')
+
+# -------------------------------------------------------------
+# PWA Routes
+# -------------------------------------------------------------
+@app.route('/sw.js')
+def serve_service_worker():
+    return send_file(os.path.join(app.root_path, 'static', 'sw.js'), mimetype='application/javascript')
+
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_file(os.path.join(app.root_path, 'static', 'manifest.json'), mimetype='application/json')
 
 # -------------------------------------------------------------
 # Views Pages
@@ -335,6 +348,7 @@ def login():
                 cursor.execute("SELECT * FROM users WHERE id = ?", (new_id,))
                 user = cursor.fetchone()
                 
+                session.permanent = True
                 session['role'] = 'customer'
                 session['role_id'] = user['id']
                 session['name'] = user['name']
@@ -345,7 +359,36 @@ def login():
                 
         else: # login
             if not user:
-                return jsonify({'success': False, 'error': 'This mobile number is not registered. Click "New User? Sign up" to register first.'})
+                # Auto-register user on first login
+                if len(password) < 4 or len(password) > 20:
+                    return jsonify({'success': False, 'error': 'Password must be between 4 and 20 characters.'})
+                
+                new_address = "Sector 4, Local Area"
+                default_question = "What is your favorite color?"
+                default_answer = "blue"
+                try:
+                    hashed_pass = generate_password_hash(password)
+                    cursor.execute(
+                        "INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)",
+                        (username, phone, new_address, hashed_pass, default_question, default_answer)
+                    )
+                    db.commit()
+                    new_id = cursor.lastrowid
+                    
+                    # Run fraud check on registration
+                    check_and_flag_suspicious_user(new_id, db)
+                    
+                    cursor.execute("SELECT * FROM users WHERE id = ?", (new_id,))
+                    user = cursor.fetchone()
+                    
+                    session.permanent = True
+                    session['role'] = 'customer'
+                    session['role_id'] = user['id']
+                    session['name'] = user['name']
+                    session['profile_pic'] = user['profile_pic']
+                    return jsonify({'success': True, 'redirect': '/customer'})
+                except Exception as e:
+                    return jsonify({'success': False, 'error': f'Failed to auto-register user: {str(e)}'})
                 
             if user['is_blocked']:
                 return jsonify({'success': False, 'error': 'Your account has been blocked due to suspicious activity. Please contact support.'})
@@ -374,6 +417,7 @@ def login():
             # Keep credentials updated / validated
             check_and_flag_suspicious_user(user['id'], db)
             
+            session.permanent = True
             session['role'] = 'customer'
             session['role_id'] = user['id']
             session['name'] = user['name']
@@ -492,6 +536,7 @@ def staff_login():
                     print("Failed to log failed login:", e)
                 return jsonify({'success': False, 'error': 'Incorrect password for Admin.'})
             # Admin login
+            session.permanent = True
             session['role'] = 'admin'
             session['role_id'] = 0
             session['name'] = 'Super Admin'
@@ -538,6 +583,7 @@ def staff_login():
             else:
                 return jsonify({'success': False, 'error': 'Vendor store not registered. Please contact Admin.'})
             
+            session.permanent = True
             session['role'] = 'vendor'
             session['role_id'] = shop['id']
             session['name'] = shop['shop_name']
@@ -573,6 +619,7 @@ def staff_login():
             else:
                 return jsonify({'success': False, 'error': 'Delivery rider not registered. Please contact Admin.'})
                     
+            session.permanent = True
             session['role'] = 'delivery'
             session['role_id'] = rider['id']
             session['name'] = rider['name']
@@ -938,6 +985,29 @@ def update_profile():
         return jsonify({'success': True, 'message': 'Profile updated successfully.'})
     except Exception as e:
         return jsonify({'error': f'Failed to update profile: {str(e)}'}), 500
+
+
+@app.route('/api/customer/address/update', methods=['POST'])
+def update_customer_address():
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Please login as customer.'}), 403
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+    address = data.get('address', '').strip()
+    if not address:
+        return jsonify({'error': 'Address is required.'}), 400
+    
+    customer_id = session.get('role_id')
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("UPDATE users SET address = ? WHERE id = ?", (address, customer_id))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Delivery address updated successfully in profile.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to update address: {str(e)}'}), 500
 
 
 @app.route('/api/customer/profile/upload_avatar', methods=['POST'])

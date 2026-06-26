@@ -289,6 +289,7 @@
             .then(data => {
                 if (data.exists) {
                     if (isSignUpMode) {
+                        errorDiv.className = "login-error-alert";
                         errorDiv.innerText = "This mobile number is already registered. Please Login.";
                         errorDiv.style.display = "block";
                         submitBtn.disabled = true;
@@ -308,9 +309,11 @@
                         errorDiv.style.display = "none";
                         submitBtn.disabled = false;
                     } else {
-                        errorDiv.innerText = "This mobile number is not registered yet. Click 'New User? Sign up' to register.";
+                        // Unregistered phone under login mode: show friendly info note and enable submit
+                        errorDiv.className = "login-info-alert";
+                        errorDiv.innerText = "Naya number lagta hai! Direct Login karke account auto-create ho jaega.";
                         errorDiv.style.display = "block";
-                        submitBtn.disabled = true;
+                        submitBtn.disabled = false;
                         forgotLink.style.display = "none";
                     }
                 }
@@ -373,6 +376,7 @@
             } else {
                 submitBtn.disabled = false;
                 submitBtn.innerText = originalBtnText;
+                errorDiv.className = "login-error-alert";
                 errorDiv.innerText = data.error;
                 errorDiv.style.display = "block";
             }
@@ -381,6 +385,7 @@
             console.error("Login error:", err);
             submitBtn.disabled = false;
             submitBtn.innerText = originalBtnText;
+            errorDiv.className = "login-error-alert";
             errorDiv.innerText = "Connection error. Please try again.";
             errorDiv.style.display = "block";
         });

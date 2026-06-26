@@ -1,0 +1,20 @@
+services:
+  hamar-bazar:
+    image: princekaushik9926/hamar-bazar:latest
+    container_name: hamar-bazar-container
+    restart: always
+    ports:
+      - "8080:5001"
+    environment:
+      - FLASK_SECRET_KEY=your_secure_flask_secret_key_here
+      - ADMIN_PASSWORD=admin123
+      - DATABASE_PATH=/app/data/marketplace.db
+    volumes:
+      - db_data:/app/data
+      - uploads_data:/app/static/uploads
+      - downloads_data:/app/static/downloads
+
+volumes:
+  db_data:
+  uploads_data:
+  downloads_data:

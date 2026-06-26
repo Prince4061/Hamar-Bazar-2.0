@@ -1405,9 +1405,30 @@ html, body {
     function changeDeliveryAddress() {
         const currentAddr = document.getElementById("sidebar-address-display").innerText;
         const newAddr = prompt("Update Delivery Address:", currentAddr);
-        if (newAddr && newAddr.trim()) {
-            document.getElementById("sidebar-address-display").innerText = newAddr.trim();
-            document.getElementById("address-input").value = newAddr.trim();
+        if (newAddr && newAddr.trim() !== "") {
+            const trimmedAddr = newAddr.trim();
+            // Call API to persist in DB
+            fetch('/api/customer/address/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ address: trimmedAddr })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById("sidebar-address-display").innerText = trimmedAddr;
+                    document.getElementById("address-input").value = trimmedAddr;
+                    showAestheticToast("Delivery address updated successfully!");
+                } else {
+                    showAestheticToast(data.error || "Failed to update address.", "error");
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showAestheticToast("Network error. Failed to update address.", "error");
+            });
         }
     }
 

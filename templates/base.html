@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Hamar Bazaar - Hyperlocal Delivery</title>
+    <!-- PWA Manifest & Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#5e17eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Hamar Bazaar">
+    <link rel="apple-touch-icon" href="/static/images/app_logo.jpg">
     <!-- Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <!-- Lucide Icons -->
@@ -155,6 +162,15 @@
         document.addEventListener("DOMContentLoaded", () => {
             refreshIcons();
         });
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                .then((reg) => console.log('Service Worker registered with scope: ', reg.scope))
+                .catch((err) => console.error('Service Worker registration failed: ', err));
+            });
+        }
 
         // --- Aesthetic Notification System ---
         // Auto-detect message type based on keywords
