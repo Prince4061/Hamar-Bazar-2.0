@@ -838,6 +838,7 @@ html, body {
 <!-- Client Actions Javascript Logic -->
 <script>
     const customerId = {{ active_user_id }};
+    let customerName = "";
     let customerPhone = "";
     let customerPassword = "";
     let customerSecurityQuestion = "";
@@ -1030,7 +1031,7 @@ html, body {
             loadExpenses();
             closeTrackingView();
         } else if (tabId === 'profile') {
-            document.getElementById("profile-name-input").value = document.getElementById("customer-navbar-name") ? document.getElementById("customer-navbar-name").innerText.trim() : "";
+            document.getElementById("profile-name-input").value = customerName;
             document.getElementById("profile-phone-input").value = customerPhone;
             document.getElementById("profile-address-input").value = document.getElementById("sidebar-address-display").innerText.trim();
             document.getElementById("profile-password-input").value = "";
@@ -1158,6 +1159,7 @@ html, body {
                 const addressDisplay = document.getElementById("sidebar-address-display");
                 if (addressDisplay) addressDisplay.innerText = {{ u.address | tojson }};
                 
+                customerName = {{ u.name | tojson }};
                 customerPhone = {{ u.phone | tojson }};
                 customerPassword = {{ (u.password or '') | tojson }};
                 customerSecurityQuestion = {{ (u.security_question or '') | tojson }};
@@ -1967,6 +1969,9 @@ html, body {
                 .then(data => {
                     if (data.error) {
                         clearInterval(trackingInterval);
+                        localStorage.removeItem(`active_order_${customerId}`);
+                        const quickCard = document.getElementById("home-active-order-quickcard");
+                        if (quickCard) quickCard.style.display = "none";
                         return;
                     }
                     
@@ -2208,6 +2213,7 @@ html, body {
         .then(data => {
             if (data.success) {
                 // Update frontend models
+                customerName = nameInput;
                 document.getElementById("sidebar-address-display").innerText = addressInput;
                 document.getElementById("address-input").value = addressInput;
                 if (passwordInput) {
@@ -2438,7 +2444,11 @@ html, body {
                         </div>
                         <div class="flex-between" style="align-items: center; margin-top: 4px;">
                             <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}" style="font-size:0.65rem; padding: 2px 6px;">${o.priority_type}</span>
+                            ${o.status !== 'DELIVERED' && o.status !== 'FAILED' ? `
                             <span style="font-size: 0.75rem; color: var(--primary-accent); font-weight: 700; display: flex; align-items: center; gap: 2px;">Track Order <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i></span>
+                            ` : `
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">View Details <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i></span>
+                            `}
                         </div>
                     `;
                     listContainer.appendChild(card);
