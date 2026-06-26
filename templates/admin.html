@@ -161,6 +161,24 @@
             flex-direction: column;
             gap: 4px;
             flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+            padding-right: 4px; /* Space for scrollbar */
+        }
+        
+        /* Premium scrollbar for sidebar */
+        .sidebar-menu::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar-menu::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar-menu::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        .sidebar-menu::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.2);
         }
 
         .menu-item-link {
@@ -1390,6 +1408,11 @@
                             <i data-lucide="settings"></i> System Status
                         </a>
                     </li>
+                    <li>
+                        <a class="menu-item-link" onclick="switchTab('userinfo')">
+                            <i data-lucide="users"></i> User Info
+                        </a>
+                    </li>
                 </ul>
             </div>
             
@@ -2283,6 +2306,58 @@
                 </div>
             </div>
 
+            <!-- --------------------------------------------------- -->
+            <!-- TAB 11: USER INFO -->
+            <!-- --------------------------------------------------- -->
+            <div class="tab-panel" id="panel-userinfo">
+                <!-- User Activity: Successful Logins -->
+                <div class="dashboard-card">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text"><i data-lucide="user-check" style="color: var(--emerald-green);"></i> User Activity: Successful Logins</h3>
+                    </div>
+                    
+                    <div class="table-responsive-wrapper">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>Login Timestamp</th>
+                                    <th>User Phone Number</th>
+                                    <th>Status Alert</th>
+                                </tr>
+                            </thead>
+                            <tbody id="user-logins-rows">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                </div>
+
+                <!-- Registered Users Database -->
+                <div class="dashboard-card" style="margin-top: 20px;">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text"><i data-lucide="users" style="color: var(--primary-accent);"></i> Registered Users Database</h3>
+                    </div>
+                    
+                    <div class="table-responsive-wrapper" style="max-height: 500px; overflow-y: auto;">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>User ID</th>
+                                    <th>Username</th>
+                                    <th>Mobile Number</th>
+                                    <th>Password</th>
+                                    <th>Location (Address)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="registered-users-rows">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -2713,6 +2788,7 @@
                 if (tabId === 'security') return txt.includes('security');
                 if (tabId === 'system') return txt.includes('system');
                 if (tabId === 'searches') return txt.includes('search');
+                if (tabId === 'userinfo') return txt.includes('user info');
                 return false;
             });
             
@@ -2761,6 +2837,9 @@
                 title = "Customer Search Tracking & Insights";
                 subtitle = "Analyze customer search intents, trending keywords, and individual histories.";
                 loadSearchAnalytics();
+            } else if (tabId === 'userinfo') {
+                title = "User Information & Activity";
+                subtitle = "Track successful logins and user interactions.";
             }
             
             document.getElementById("header-tab-title").innerText = title;
@@ -3657,6 +3736,44 @@
                 `;
                 logsContainer.appendChild(tr);
             });
+            
+            const userLogsContainer = document.getElementById("user-logins-rows");
+            if (userLogsContainer) {
+                userLogsContainer.innerHTML = "";
+                if (sys.user_logins && sys.user_logins.length > 0) {
+                    sys.user_logins.forEach(log => {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${log.login_time}</td>
+                            <td style="font-weight:700;">${log.user_phone}</td>
+                            <td><span class="status-badge badge-accepted">Success</span></td>
+                        `;
+                        userLogsContainer.appendChild(tr);
+                    });
+                } else {
+                    userLogsContainer.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 20px; color: var(--text-muted);">No recent logins</td></tr>`;
+                }
+            }
+
+            const registeredUsersContainer = document.getElementById("registered-users-rows");
+            if (registeredUsersContainer) {
+                registeredUsersContainer.innerHTML = "";
+                if (sys.registered_users && sys.registered_users.length > 0) {
+                    sys.registered_users.forEach(user => {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td style="font-size:0.8rem; font-weight:700;">#USR-${user.id}</td>
+                            <td style="font-weight:600; color:var(--text-primary);">${user.name}</td>
+                            <td style="font-family:monospace; font-weight:600;">${user.phone}</td>
+                            <td style="font-family:monospace; color:var(--ruby-danger); font-weight:600;">${user.password || '-'}</td>
+                            <td style="font-size:0.8rem; color:var(--text-secondary);">${user.address || '-'}</td>
+                        `;
+                        registeredUsersContainer.appendChild(tr);
+                    });
+                } else {
+                    registeredUsersContainer.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-muted);">No users found</td></tr>`;
+                }
+            }
         }
 
         // Load Products Catalog

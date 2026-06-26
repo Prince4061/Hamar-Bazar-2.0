@@ -145,6 +145,15 @@ def init_db():
     )
     ''')
     
+    # 7b. User Logins Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS user_logins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_phone TEXT NOT NULL,
+        login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+    
     # 8. Prescription Requests Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS prescription_requests (

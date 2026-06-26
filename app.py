@@ -345,6 +345,12 @@ def login():
                 # Run fraud check on registration
                 check_and_flag_suspicious_user(new_id, db)
                 
+                try:
+                    cursor.execute("INSERT INTO user_logins (user_phone) VALUES (?)", (phone,))
+                    db.commit()
+                except Exception as e:
+                    print("Failed to log registration login:", e)
+                
                 cursor.execute("SELECT * FROM users WHERE id = ?", (new_id,))
                 user = cursor.fetchone()
                 
@@ -377,6 +383,12 @@ def login():
                     
                     # Run fraud check on registration
                     check_and_flag_suspicious_user(new_id, db)
+                    
+                    try:
+                        cursor.execute("INSERT INTO user_logins (user_phone) VALUES (?)", (phone,))
+                        db.commit()
+                    except Exception as e:
+                        print("Failed to log auto-register login:", e)
                     
                     cursor.execute("SELECT * FROM users WHERE id = ?", (new_id,))
                     user = cursor.fetchone()
@@ -416,6 +428,12 @@ def login():
                 
             # Keep credentials updated / validated
             check_and_flag_suspicious_user(user['id'], db)
+            
+            try:
+                cursor.execute("INSERT INTO user_logins (user_phone) VALUES (?)", (phone,))
+                db.commit()
+            except Exception as e:
+                print("Failed to log user login:", e)
             
             session.permanent = True
             session['role'] = 'customer'
@@ -1847,12 +1865,37 @@ def get_admin_analytics():
     # Actual request processing latency
     latency_ms = round((datetime.now() - start_time).total_seconds() * 1000.0, 1)
 
+    # Get user logins
+    try:
+        cursor.execute('''
+            SELECT id, user_phone, login_time
+            FROM user_logins
+            ORDER BY id DESC
+            LIMIT 20
+        ''')
+        user_logins_db = [dict(row) for row in cursor.fetchall()]
+    except Exception:
+        user_logins_db = []
+
+    # Get registered users
+    try:
+        cursor.execute('''
+            SELECT id, name, phone, address, password 
+            FROM users 
+            ORDER BY id ASC
+        ''')
+        registered_users = [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        registered_users = []
+
     system_health = {
         'db_size_kb': db_size_kb,
         'api_latency': f"{latency_ms}ms",
         'server_uptime': '99.99%',
         'db_activity': db_activity,
-        'failed_logins': failed_logins_db
+        'failed_logins': failed_logins_db,
+        'user_logins': user_logins_db,
+        'registered_users': registered_users
     }
     
     # 13. Real-time Stock Warnings / Low Stock predictions
