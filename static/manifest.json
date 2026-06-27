@@ -2,7 +2,8 @@
   "name": "Hamar Bazaar",
   "short_name": "HamarBazaar",
   "description": "Hyperlocal Grocery & General Marketplace",
-  "start_url": "/login",
+  "id": "/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#5e17eb",
@@ -19,6 +20,26 @@
       "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Customer Store",
+      "short_name": "Customer",
+      "url": "/customer",
+      "icons": [{ "src": "/static/images/app_logo.jpg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Vendor Portal",
+      "short_name": "Vendor",
+      "url": "/vendor",
+      "icons": [{ "src": "/static/images/app_logo.jpg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Delivery Panel",
+      "short_name": "Delivery",
+      "url": "/delivery",
+      "icons": [{ "src": "/static/images/app_logo.jpg", "sizes": "192x192" }]
     }
   ]
 }
