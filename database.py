@@ -200,6 +200,32 @@ def init_db():
         FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
     )
     ''')
+
+    # 12. Service Providers Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS service_providers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        service_type TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+
+    # 13. Service Reviews Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS service_reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider_id INTEGER NOT NULL,
+        customer_id INTEGER NOT NULL,
+        rating INTEGER NOT NULL,
+        comment TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (provider_id) REFERENCES service_providers(id) ON DELETE CASCADE,
+        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    ''')
     
     conn.commit()
     conn.close()
@@ -329,9 +355,29 @@ def seed_db():
         # Wireless bluetooth earbuds (id=20)
         cursor.execute("INSERT INTO product_reviews (product_id, customer_id, rating, comment) VALUES (20, 2, 5, 'Value for money product, sound quality is great.')")
 
+    # Seed Service Providers
+    cursor.execute("SELECT COUNT(*) FROM service_providers")
+    sp_count = cursor.fetchone()[0]
+    if sp_count == 0:
+        sp_data = [
+            ('Ramesh Kumar', 'Plumber', '9876543211', 'leakage repair, pipe fittings, tap repair and installation with 5 years experience'),
+            ('Amit Singh', 'Electrician', '9876543212', 'complete house wiring, fan installation, switchboard repair, appliance troubleshooting'),
+            ('Sonu Verma', 'Carpenter', '9876543213', 'sofa making, wooden door installations, cupboard repairs, wooden furniture polishing'),
+            ('Ravi Yadav', 'Plumber', '9876543214', 'drainage blockage cleaning, kitchen sink fittings, water tank cleaning services'),
+            ('Manoj Sen', 'Electrician', '9876543215', 'inverter installation, geyser installation, light fittings, short circuit fixing')
+        ]
+        for name, s_type, phone, desc in sp_data:
+            cursor.execute("INSERT INTO service_providers (name, service_type, phone, description) VALUES (?, ?, ?, ?)", (name, s_type, phone, desc))
+            
+        # Seed Service Reviews (Alice = 1, Bob = 2, Charlie = 3)
+        cursor.execute("INSERT INTO service_reviews (provider_id, customer_id, rating, comment) VALUES (1, 1, 5, 'Ramesh did an excellent job. Quick and highly professional!')")
+        cursor.execute("INSERT INTO service_reviews (provider_id, customer_id, rating, comment) VALUES (1, 2, 4, 'Punctual and resolved our pipeline leakage quickly.')")
+        cursor.execute("INSERT INTO service_reviews (provider_id, customer_id, rating, comment) VALUES (2, 3, 5, 'Amit is a very knowledgeable electrician. Recommended!')")
+        cursor.execute("INSERT INTO service_reviews (provider_id, customer_id, rating, comment) VALUES (3, 1, 4, 'Sonu fixed my wooden door lock perfectly.')")
+
     conn.commit()
     conn.close()
-    print("Database seeded successfully with exclusive shops, products, users, riders, and system settings!")
+    print("Database seeded successfully with exclusive shops, products, users, riders, services, and system settings!")
 
 def seed_historical_orders():
     import random

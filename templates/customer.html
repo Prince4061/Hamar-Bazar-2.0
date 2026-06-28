@@ -643,6 +643,25 @@ html, body {
             </div>
         </div>
 
+        <!-- ==================== SCREEN 6: SERVICES ==================== -->
+        <div id="screen-services" class="app-screen" style="text-align: left;">
+            <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 12px; color: var(--text-primary);">Local Services</h3>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.4;">Need help with repairs or fittings? Contact local verified service providers below.</p>
+            
+            <!-- Category Filter Tabs -->
+            <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 16px; scrollbar-width: none;">
+                <button onclick="filterServices('All')" class="btn-custom active service-filter-btn" id="filter-all" style="padding: 6px 14px; font-size: 0.78rem; font-weight:700; white-space: nowrap; margin:0; border-radius:100px;">All</button>
+                <button onclick="filterServices('Plumber')" class="btn-custom service-filter-btn" id="filter-plumber" style="padding: 6px 14px; font-size: 0.78rem; font-weight:700; white-space: nowrap; margin:0; border-radius:100px;">Plumber</button>
+                <button onclick="filterServices('Electrician')" class="btn-custom service-filter-btn" id="filter-electrician" style="padding: 6px 14px; font-size: 0.78rem; font-weight:700; white-space: nowrap; margin:0; border-radius:100px;">Electrician</button>
+                <button onclick="filterServices('Carpenter')" class="btn-custom service-filter-btn" id="filter-carpenter" style="padding: 6px 14px; font-size: 0.78rem; font-weight:700; white-space: nowrap; margin:0; border-radius:100px;">Carpenter</button>
+            </div>
+
+            <!-- Services List Grid -->
+            <div id="services-list-container" style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 24px;">
+                <!-- Dynamically loaded service providers -->
+            </div>
+        </div>
+
         <!-- ==================== SCREEN 5: PROFILE ==================== -->
         <div id="screen-profile" class="app-screen">
             <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 16px; color: var(--text-primary); text-align: left;">My Account</h3>
@@ -767,6 +786,10 @@ html, body {
             <i data-lucide="home"></i>
             <span>Bazaar</span>
         </button>
+        <button class="bottom-nav-item" onclick="switchTab('services')" id="nav-services">
+            <i data-lucide="wrench"></i>
+            <span>Services</span>
+        </button>
         <button class="bottom-nav-item" onclick="switchTab('cart')" id="nav-cart">
             <div class="cart-icon-wrapper" style="position: relative;">
                 <i data-lucide="shopping-cart"></i>
@@ -789,6 +812,69 @@ html, body {
 <div id="profile-modal" style="display: none;"></div>
 <div id="orders-history-modal" style="display: none;"></div>
 <div id="expense-modal" style="display: none;"></div>
+
+<!-- Service Reviews Modal -->
+<div id="service-reviews-modal" class="modal-popup-overlay" style="display: none;" onclick="closeServiceReviewsModal()">
+    <div style="background: white; width: 100%; max-width: 440px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; border: 1px solid var(--border-color); animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);" onclick="event.stopPropagation()">
+        
+        <!-- Header -->
+        <div style="padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <span id="service-modal-type" style="font-size: 0.72rem; font-weight: 750; background: var(--primary-light); color: var(--primary-accent); padding: 4px 10px; border-radius: var(--radius-sm); text-transform: uppercase;">Category</span>
+                <h3 id="service-modal-name" style="font-size: 1.2rem; font-weight: 800; color: var(--text-primary); margin: 4px 0 0 0; font-family: 'Outfit', sans-serif;">Provider Name</h3>
+            </div>
+            <button onclick="closeServiceReviewsModal()" style="width: 36px; height: 36px; border-radius: 50%; background: #f1f5f9; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i data-lucide="x" style="width: 20px; height: 20px; color: var(--text-primary);"></i>
+            </button>
+        </div>
+        
+        <!-- Scrollable Content -->
+        <div style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
+            <!-- Description -->
+            <div>
+                <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); margin: 0 0 4px 0;">Work Details</h4>
+                <p id="service-modal-desc" style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin: 0;">Description here...</p>
+            </div>
+            
+            <!-- Contact Box -->
+            <div style="background: var(--primary-light); border: 1px solid var(--primary-glow); border-radius: var(--radius-md); padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="font-size: 0.7rem; color: var(--text-secondary); display: block; font-weight: 600;">Phone Number</span>
+                    <strong id="service-modal-phone" style="font-size: 0.95rem; color: var(--text-primary);">9876543210</strong>
+                </div>
+                <a id="service-modal-call-btn" href="tel:" class="btn" style="background: var(--primary-accent); color: white; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.78rem; font-weight: 700; margin: 0; width: auto; border: none; border-radius: var(--radius-sm); text-decoration: none;">
+                    <i data-lucide="phone" style="width: 14px; height: 14px;"></i> Call Now
+                </a>
+            </div>
+
+            <!-- Reviews list and submission -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 14px; display: flex; flex-direction: column; gap: 10px;">
+                <h4 style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="star" style="width: 16px; height: 16px; color: var(--amber-warning); fill: var(--amber-warning);"></i> Work Reviews & Ratings
+                </h4>
+                
+                <!-- Review Input Form (Only for logged in customers) -->
+                <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                    <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary);">Write a Work Review:</span>
+                    <div style="display: flex; align-items: center; gap: 8px;" id="service-review-stars-container">
+                        <span onclick="setServiceReviewRating(1)" class="service-star-select" data-star="1" style="cursor: pointer; color: var(--text-muted); display: inline-flex; align-items: center;"><i data-lucide="star" style="width: 20px; height: 20px;"></i></span>
+                        <span onclick="setServiceReviewRating(2)" class="service-star-select" data-star="2" style="cursor: pointer; color: var(--text-muted); display: inline-flex; align-items: center;"><i data-lucide="star" style="width: 20px; height: 20px;"></i></span>
+                        <span onclick="setServiceReviewRating(3)" class="service-star-select" data-star="3" style="cursor: pointer; color: var(--text-muted); display: inline-flex; align-items: center;"><i data-lucide="star" style="width: 20px; height: 20px;"></i></span>
+                        <span onclick="setServiceReviewRating(4)" class="service-star-select" data-star="4" style="cursor: pointer; color: var(--text-muted); display: inline-flex; align-items: center;"><i data-lucide="star" style="width: 20px; height: 20px;"></i></span>
+                        <span onclick="setServiceReviewRating(5)" class="service-star-select" data-star="5" style="cursor: pointer; color: var(--text-muted); display: inline-flex; align-items: center;"><i data-lucide="star" style="width: 20px; height: 20px;"></i></span>
+                    </div>
+                    <textarea id="service-review-comment-input" class="form-input-staff" style="width: 100%; height: 50px; resize: none; padding: 6px; font-size: 0.8rem;" placeholder="Write your feedback here..."></textarea>
+                    <button onclick="submitServiceReview()" class="btn" style="align-self: flex-end; padding: 6px 12px; font-size: 0.78rem; font-weight: 700; width: auto; margin: 0; background: var(--primary-accent); color: white; border: none; border-radius: var(--radius-sm);">Submit</button>
+                </div>
+
+                <!-- Reviews list container -->
+                <div id="service-modal-reviews-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; padding-right: 4px;">
+                    <!-- Dynamically loaded service reviews -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Beautiful Product Details Modal (Amazon Style) -->
 <div id="product-detail-modal" class="modal-popup-overlay" style="display: none;" onclick="closeProductDetailModal()">
@@ -885,6 +971,12 @@ html, body {
     // Search Intelligence Tracking States
     let searchTrackTimeout = null;
     let lastTrackedQuery = "";
+
+    // Local Services State Variables
+    let currentServiceProviders = [];
+    let activeServiceFilter = "All";
+    let currentDetailServiceProviderId = null;
+    let currentServiceReviewRating = 0;
 
     // Product Detail Modal Controller States & Actions
     let currentDetailProductId = null;
@@ -1182,6 +1274,8 @@ html, body {
             document.getElementById("profile-question-select").value = customerSecurityQuestion;
             document.getElementById("profile-answer-input").value = customerSecurityAnswer;
             loadCustomerAboutTeamPhoto();
+        } else if (tabId === 'services') {
+            loadLocalServices();
         }
     }
 
@@ -2810,6 +2904,223 @@ html, body {
                 renderAdminQRCodeInCheckout();
             })
             .catch(err => console.error("Error loading delivery settings:", err));
+    }
+    // --- Local Services Helper Functions ---
+    function loadLocalServices() {
+        const container = document.getElementById("services-list-container");
+        if (!container) return;
+        container.innerHTML = "<div style='text-align:center; padding: 20px;'><p style='color:var(--text-secondary); font-size:0.85rem;'>Fetching service providers...</p></div>";
+        
+        fetch('/api/services')
+        .then(res => res.json())
+        .then(data => {
+            currentServiceProviders = data;
+            renderLocalServices();
+        })
+        .catch(err => {
+            console.error("Error fetching services:", err);
+            container.innerHTML = "<div style='text-align:center; padding: 20px;'><p style='color:var(--ruby-danger); font-size:0.85rem;'>Failed to load services directory.</p></div>";
+        });
+    }
+
+    function renderLocalServices() {
+        const container = document.getElementById("services-list-container");
+        if (!container) return;
+        container.innerHTML = "";
+        
+        const filtered = currentServiceProviders.filter(p => {
+            if (activeServiceFilter === "All") return true;
+            return p.service_type.toLowerCase() === activeServiceFilter.toLowerCase();
+        });
+        
+        if (filtered.length === 0) {
+            container.innerHTML = `<div style="text-align: center; padding: 32px 0;"><i data-lucide="wrench" style="width:36px; height:36px; color:var(--text-muted); margin-bottom:8px; display:inline-block;"></i><p style="color:var(--text-muted); font-size:0.85rem; font-weight:600;">No providers available under "${activeServiceFilter}".</p></div>`;
+            if (window.lucide) lucide.createIcons();
+            return;
+        }
+        
+        filtered.forEach(p => {
+            const card = document.createElement("div");
+            card.style = "background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-sm); transition: all 0.2s ease;";
+            
+            let ratingStars = "";
+            const ratingNum = parseFloat(p.avg_rating);
+            if (ratingNum > 0) {
+                ratingStars = `<span style="font-size:0.78rem; font-weight:750; color:var(--amber-warning); display:inline-flex; align-items:center; gap:2px;">${ratingNum.toFixed(1)} <i data-lucide="star" style="width:12px; height:12px; fill:var(--amber-warning); stroke:var(--amber-warning);"></i> (${p.review_count} reviews)</span>`;
+            } else {
+                ratingStars = `<span style="font-size:0.75rem; color:var(--text-muted); font-weight:500;">No ratings yet</span>`;
+            }
+            
+            card.innerHTML = `
+                <div class="flex-between" style="align-items: flex-start;">
+                    <div>
+                        <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0;">${p.name}</h4>
+                        <span style="font-size: 0.7rem; font-weight:750; background: var(--primary-light); color: var(--primary-accent); padding: 2px 8px; border-radius: 6px; display:inline-block; margin-top:4px; text-transform: uppercase; border: 1px solid var(--primary-glow);">${p.service_type}</span>
+                    </div>
+                    ${ratingStars}
+                </div>
+                
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 2px 0; line-height:1.45;">${p.description || 'No work description provided.'}</p>
+                
+                <div style="display: flex; gap: 8px; margin-top: 6px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                    <a href="tel:${p.phone}" class="btn" style="flex: 1; padding: 8px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0; text-decoration: none; border-radius: var(--radius-sm); margin: 0;">
+                        <i data-lucide="phone" style="width: 14px; height: 14px;"></i> Call Provider
+                    </a>
+                    <button onclick="openServiceReviewsModal(${p.id})" class="btn" style="flex: 1; padding: 8px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: var(--primary-light); color: var(--primary-accent); border: 1px solid var(--primary-glow); border-radius: var(--radius-sm); margin: 0; cursor: pointer;">
+                        <i data-lucide="message-square" style="width: 14px; height: 14px;"></i> Reviews (${p.review_count})
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function filterServices(category) {
+        activeServiceFilter = category;
+        document.querySelectorAll(".service-filter-btn").forEach(btn => {
+            btn.classList.remove("active");
+        });
+        
+        const btnMap = {
+            'All': 'filter-all',
+            'Plumber': 'filter-plumber',
+            'Electrician': 'filter-electrician',
+            'Carpenter': 'filter-carpenter'
+        };
+        const activeBtn = document.getElementById(btnMap[category]);
+        if (activeBtn) activeBtn.classList.add("active");
+        renderLocalServices();
+    }
+
+    function openServiceReviewsModal(providerId) {
+        const provider = currentServiceProviders.find(p => p.id === providerId);
+        if (!provider) return;
+        
+        currentDetailServiceProviderId = provider.id;
+        document.getElementById("service-modal-name").innerText = provider.name;
+        document.getElementById("service-modal-type").innerText = provider.service_type;
+        document.getElementById("service-modal-desc").innerText = provider.description || 'No work description provided.';
+        document.getElementById("service-modal-phone").innerText = provider.phone;
+        document.getElementById("service-modal-call-btn").href = `tel:${provider.phone}`;
+        
+        setServiceReviewRating(0);
+        document.getElementById("service-review-comment-input").value = "";
+        
+        document.getElementById("service-reviews-modal").style.display = "flex";
+        loadServiceReviews(provider.id);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function closeServiceReviewsModal() {
+        document.getElementById("service-reviews-modal").style.display = "none";
+        currentDetailServiceProviderId = null;
+    }
+
+    function setServiceReviewRating(rating) {
+        currentServiceReviewRating = rating;
+        const stars = document.querySelectorAll('#service-review-stars-container .service-star-select');
+        stars.forEach((star, index) => {
+            const starIcon = star.querySelector('svg') || star;
+            if (index < rating) {
+                star.style.color = "var(--amber-warning)";
+                if (starIcon) {
+                    starIcon.style.fill = "var(--amber-warning)";
+                    starIcon.style.stroke = "var(--amber-warning)";
+                }
+            } else {
+                star.style.color = "var(--text-muted)";
+                if (starIcon) {
+                    starIcon.style.fill = "none";
+                    starIcon.style.stroke = "currentColor";
+                }
+            }
+        });
+    }
+
+    function loadServiceReviews(providerId) {
+        const listContainer = document.getElementById("service-modal-reviews-list");
+        if (!listContainer) return;
+        listContainer.innerHTML = "<p style='font-size:0.75rem; color:var(--text-muted); text-align:center;'>Loading reviews...</p>";
+        
+        fetch(`/api/services/${providerId}/reviews`)
+        .then(res => res.json())
+        .then(reviews => {
+            listContainer.innerHTML = "";
+            if (reviews.length === 0) {
+                listContainer.innerHTML = "<p style='font-size:0.78rem; color:var(--text-muted); text-align:center; font-weight:500; margin: 8px 0;'>No reviews yet for this provider.</p>";
+                return;
+            }
+            
+            reviews.forEach(r => {
+                const row = document.createElement("div");
+                row.style = "border-bottom: 1px solid rgba(0,0,0,0.04); padding-bottom: 6px; display: flex; flex-direction: column; gap: 2px;";
+                
+                let starsHtml = "";
+                for (let i = 0; i < 5; i++) {
+                    if (i < r.rating) {
+                        starsHtml += `<i data-lucide="star" style="width: 12px; height: 12px; color: var(--amber-warning); fill: var(--amber-warning); display: inline-block;"></i>`;
+                    } else {
+                        starsHtml += `<i data-lucide="star" style="width: 12px; height: 12px; color: var(--text-muted); display: inline-block;"></i>`;
+                    }
+                }
+                
+                row.innerHTML = `
+                    <div class="flex-between" style="align-items: center;">
+                        <span style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary);">${r.reviewer_name}</span>
+                        <span style="font-size: 0.7rem; color: var(--text-muted);">${r.date_formatted}</span>
+                    </div>
+                    <div style="display: flex; gap: 2px; align-items: center; margin: 1px 0;">
+                        ${starsHtml}
+                    </div>
+                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0; line-height: 1.35;">${r.comment}</p>
+                `;
+                listContainer.appendChild(row);
+            });
+            if (window.lucide) lucide.createIcons();
+        })
+        .catch(err => {
+            console.error("Error loading service reviews:", err);
+            listContainer.innerHTML = "<p style='font-size:0.75rem; color:var(--ruby-danger); text-align:center;'>Failed to load reviews.</p>";
+        });
+    }
+
+    function submitServiceReview() {
+        if (!currentDetailServiceProviderId) return;
+        const comment = document.getElementById("service-review-comment-input").value.trim();
+        if (currentServiceReviewRating === 0) {
+            alert("Please select a star rating first.");
+            return;
+        }
+        if (!comment) {
+            alert("Please enter your review feedback comment.");
+            return;
+        }
+        
+        fetch(`/api/services/${currentDetailServiceProviderId}/reviews`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                rating: currentServiceReviewRating,
+                comment: comment
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAestheticToast("Review submitted successfully!", "success");
+                document.getElementById("service-review-comment-input").value = "";
+                setServiceReviewRating(0);
+                loadServiceReviews(currentDetailServiceProviderId);
+                loadLocalServices();
+            } else {
+                alert(data.error || "Failed to submit review.");
+            }
+        })
+        .catch(err => {
+            console.error("Error submitting service review:", err);
+            alert("Connection error. Please try again.");
+        });
     }
 </script>
 {% endblock %}

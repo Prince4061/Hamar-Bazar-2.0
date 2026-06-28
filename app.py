@@ -3371,6 +3371,197 @@ def delete_review_by_admin(review_id):
     except Exception as e:
         return jsonify({'error': f'Failed to delete review: {str(e)}'}), 500
 
+# --- Service Providers & Reviews Endpoints ---
+
+@app.route('/api/services', methods=['GET'])
+def get_service_providers():
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute('''
+            SELECT sp.id, sp.name, sp.service_type, sp.phone, sp.description, sp.created_at,
+                   COALESCE(AVG(sr.rating), 0) as avg_rating,
+                   COUNT(sr.id) as review_count
+            FROM service_providers sp
+            LEFT JOIN service_reviews sr ON sp.id = sr.provider_id
+            GROUP BY sp.id
+            ORDER BY avg_rating DESC, sp.name ASC
+        ''')
+        providers = [dict(row) for row in cursor.fetchall()]
+        return jsonify(providers)
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch services: {str(e)}'}), 500
+
+@app.route('/api/admin/services', methods=['POST'])
+def add_service_provider():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    if request.is_json:
+        data = request.json or {}
+    else:
+        data = request.form or {}
+        
+    name = data.get('name', '').strip()
+    service_type = data.get('service_type', '').strip()
+    phone = data.get('phone', '').strip()
+    description = data.get('description', '').strip()
+    
+    if not name or not service_type or not phone:
+        return jsonify({'error': 'Name, service type, and phone are required.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute('''
+            INSERT INTO service_providers (name, service_type, phone, description)
+            VALUES (?, ?, ?, ?)
+        ''', (name, service_type, phone, description))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Service provider added successfully!'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to add service provider: {str(e)}'}), 500
+
+@app.route('/api/admin/services/<int:provider_id>/delete', methods=['POST'])
+def delete_service_provider(provider_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id FROM service_providers WHERE id = ?", (provider_id,))
+        sp = cursor.fetchone()
+        if not sp:
+            return jsonify({'error': 'Service provider not found.'}), 404
+            
+        cursor.execute("DELETE FROM service_providers WHERE id = ?", (provider_id,))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Service provider deleted successfully.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to delete service provider: {str(e)}'}), 500
+
+@app.route('/api/services/<int:provider_id>/reviews', methods=['GET'])
+def get_service_reviews(provider_id):
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute('''
+            SELECT sr.id, sr.rating, sr.comment, sr.created_at, u.name as reviewer_name
+            FROM service_reviews sr
+            JOIN users u ON sr.customer_id = u.id
+            WHERE sr.provider_id = ?
+            ORDER BY sr.id DESC
+        ''', (provider_id,))
+        reviews = []
+        for row in cursor.fetchall():
+            r = dict(row)
+            if r['created_at']:
+                try:
+                    dt = datetime.strptime(r['created_at'], '%Y-%m-%d %H:%M:%S' if '.' not in r['created_at'] else '%Y-%m-%d %H:%M:%S.%f')
+                    r['date_formatted'] = dt.strftime('%d %b %Y')
+                except Exception:
+                    r['date_formatted'] = r['created_at']
+            else:
+                r['date_formatted'] = '--'
+            reviews.append(r)
+        return jsonify(reviews)
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch reviews: {str(e)}'}), 500
+
+@app.route('/api/services/<int:provider_id>/reviews', methods=['POST'])
+def add_service_review(provider_id):
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Only logged-in customers can submit reviews.'}), 403
+        
+    customer_id = session.get('role_id')
+    
+    if request.is_json:
+        data = request.json or {}
+    else:
+        data = request.form or {}
+        
+    try:
+        rating = int(data.get('rating', 0))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Rating must be a valid integer between 1 and 5.'}), 400
+        
+    comment = data.get('comment', '').strip()
+    
+    if rating < 1 or rating > 5:
+        return jsonify({'error': 'Rating must be between 1 and 5 stars.'}), 400
+        
+    if not comment:
+        return jsonify({'error': 'Review comment cannot be empty.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT name FROM service_providers WHERE id = ?", (provider_id,))
+        sp = cursor.fetchone()
+        if not sp:
+            return jsonify({'error': 'Service provider not found.'}), 404
+            
+        cursor.execute('''
+            INSERT INTO service_reviews (provider_id, customer_id, rating, comment)
+            VALUES (?, ?, ?, ?)
+        ''', (provider_id, customer_id, rating, comment))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Review submitted successfully!'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to save review: {str(e)}'}), 500
+
+@app.route('/api/admin/service-reviews', methods=['GET'])
+def get_all_service_reviews():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute('''
+            SELECT sr.id, sr.rating, sr.comment, sr.created_at,
+                   sp.name as provider_name, sp.service_type, u.name as reviewer_name
+            FROM service_reviews sr
+            JOIN service_providers sp ON sr.provider_id = sp.id
+            JOIN users u ON sr.customer_id = u.id
+            ORDER BY sr.id DESC
+        ''')
+        reviews = []
+        for row in cursor.fetchall():
+            r = dict(row)
+            if r['created_at']:
+                try:
+                    dt = datetime.strptime(r['created_at'], '%Y-%m-%d %H:%M:%S' if '.' not in r['created_at'] else '%Y-%m-%d %H:%M:%S.%f')
+                    r['date_formatted'] = dt.strftime('%d %b %Y')
+                except Exception:
+                    r['date_formatted'] = r['created_at']
+            else:
+                r['date_formatted'] = '--'
+            reviews.append(r)
+        return jsonify(reviews)
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch reviews: {str(e)}'}), 500
+
+@app.route('/api/admin/service-reviews/<int:review_id>/delete', methods=['POST'])
+def delete_service_review(review_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id FROM service_reviews WHERE id = ?", (review_id,))
+        review = cursor.fetchone()
+        if not review:
+            return jsonify({'error': 'Review not found.'}), 404
+            
+        cursor.execute("DELETE FROM service_reviews WHERE id = ?", (review_id,))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Service review deleted successfully.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to delete service review: {str(e)}'}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
 
