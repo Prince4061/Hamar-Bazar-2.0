@@ -182,6 +182,11 @@
             const laterBtn = document.getElementById('pwa-later-btn');
             const closeBtn = document.getElementById('pwa-install-close');
             const iosInstructions = document.getElementById('pwa-ios-instructions');
+            const androidInstructions = document.getElementById('pwa-android-instructions');
+
+            // Detect mobile browser environment
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 1024;
 
             // Detect if already installed/standalone mode
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
@@ -204,13 +209,52 @@
                 }
             }
 
-            // Listen for beforeinstallprompt (Android / Chrome / Desktop)
+            // Configure prompt view display based on capabilities
+            function configurePromptUI() {
+                if (!pwaPrompt) return;
+                
+                if (isIOS) {
+                    if (installBtn) installBtn.style.display = 'none';
+                    if (iosInstructions) iosInstructions.style.display = 'flex';
+                    if (androidInstructions) androidInstructions.style.display = 'none';
+                    if (laterBtn) laterBtn.textContent = 'Got it';
+                } else if (!deferredPrompt) {
+                    // On mobile, but no direct prompt event fired yet: show manual Android guide
+                    if (installBtn) installBtn.style.display = 'none';
+                    if (iosInstructions) iosInstructions.style.display = 'none';
+                    if (androidInstructions) androidInstructions.style.display = 'flex';
+                    if (laterBtn) laterBtn.textContent = 'Got it';
+                } else {
+                    // Direct install is available
+                    if (installBtn) installBtn.style.display = 'block';
+                    if (iosInstructions) iosInstructions.style.display = 'none';
+                    if (androidInstructions) androidInstructions.style.display = 'none';
+                    if (laterBtn) laterBtn.textContent = 'Later';
+                }
+            }
+
+            // Trigger popup on mobile after a short delay on page load
+            if (isMobile && !isStandalone && !isRecentlyDismissed()) {
+                setTimeout(() => {
+                    if (pwaPrompt) {
+                        configurePromptUI();
+                        pwaPrompt.style.display = 'block';
+                        setTimeout(() => {
+                            pwaPrompt.classList.add('show');
+                        }, 100);
+                    }
+                }, 2000);
+            }
+
+            // Listen for beforeinstallprompt (Android / Chrome Mobile)
             window.addEventListener('beforeinstallprompt', (e) => {
                 e.preventDefault();
                 deferredPrompt = e;
 
-                if (!isStandalone && !isRecentlyDismissed()) {
+                // Only prompt if on a mobile device/width
+                if (isMobile && !isStandalone && !isRecentlyDismissed()) {
                     if (pwaPrompt) {
+                        configurePromptUI();
                         pwaPrompt.style.display = 'block';
                         setTimeout(() => {
                             pwaPrompt.classList.add('show');
@@ -244,23 +288,6 @@
                     localStorage.setItem('pwa-prompt-dismissed-time', Date.now().toString());
                     dismissPWAPrompt();
                 });
-            }
-
-            // Detect iOS & Safari for custom manual install instructions
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
-            if (isIOS && isSafari && !isStandalone && !isRecentlyDismissed()) {
-                if (pwaPrompt && iosInstructions && installBtn) {
-                    installBtn.style.display = 'none'; // direct install button is not supported on iOS
-                    iosInstructions.style.display = 'flex'; // show step-by-step guidance
-                    if (laterBtn) laterBtn.textContent = 'Got it';
-                    
-                    pwaPrompt.style.display = 'block';
-                    setTimeout(() => {
-                        pwaPrompt.classList.add('show');
-                    }, 1500); // minor delay for aesthetic entry
-                }
             }
 
             // Successful installation log
@@ -445,6 +472,22 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     </span>
                     <span class="pwa-step-text">Scroll down and select <strong>'Add to Home Screen'</strong>.</span>
+                </div>
+            </div>
+
+            <!-- Instructions for Android / General Mobile -->
+            <div id="pwa-android-instructions" class="pwa-ios-instructions" style="display: none;">
+                <div class="pwa-instruction-step">
+                    <span class="pwa-step-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                    </span>
+                    <span class="pwa-step-text">Tap the browser menu button (<strong>three dots ⋮</strong>) at the top-right corner.</span>
+                </div>
+                <div class="pwa-instruction-step">
+                    <span class="pwa-step-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    </span>
+                    <span class="pwa-step-text">Select <strong>'Install App'</strong> or <strong>'Add to Home Screen'</strong>.</span>
                 </div>
             </div>
 

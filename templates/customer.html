@@ -826,6 +826,32 @@ html, body {
                 </h4>
                 <p id="detail-modal-desc" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin: 0; white-space: pre-wrap;">No details available for this product.</p>
             </div>
+
+            <!-- Product Reviews Section -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 14px; display: flex; flex-direction: column; gap: 10px;">
+                <h4 style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="star" style="width: 16px; height: 16px; color: var(--amber-warning); fill: var(--amber-warning);"></i> Reviews & Ratings
+                </h4>
+                
+                <!-- Review Input Form (Only for logged in customers) -->
+                <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                    <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary);">Write a Review:</span>
+                    <div style="display: flex; align-items: center; gap: 8px;" id="review-stars-container">
+                        <span onclick="setReviewRating(1)" class="review-star-select" data-star="1" style="cursor: pointer; color: var(--text-muted); display: inline-flex; align-items: center;"><i data-lucide="star" style="width: 20px; height: 20px;"></i></span>
+                        <span onclick="setReviewRating(2)" class="review-star-select" data-star="2" style="cursor: pointer; color: var(--text-muted); display: inline-flex; align-items: center;"><i data-lucide="star" style="width: 20px; height: 20px;"></i></span>
+                        <span onclick="setReviewRating(3)" class="review-star-select" data-star="3" style="cursor: pointer; color: var(--text-muted); display: inline-flex; align-items: center;"><i data-lucide="star" style="width: 20px; height: 20px;"></i></span>
+                        <span onclick="setReviewRating(4)" class="review-star-select" data-star="4" style="cursor: pointer; color: var(--text-muted); display: inline-flex; align-items: center;"><i data-lucide="star" style="width: 20px; height: 20px;"></i></span>
+                        <span onclick="setReviewRating(5)" class="review-star-select" data-star="5" style="cursor: pointer; color: var(--text-muted); display: inline-flex; align-items: center;"><i data-lucide="star" style="width: 20px; height: 20px;"></i></span>
+                    </div>
+                    <textarea id="review-comment-input" class="form-input-staff" style="width: 100%; height: 50px; resize: none; padding: 6px; font-size: 0.8rem;" placeholder="Write your feedback here..."></textarea>
+                    <button onclick="submitProductReview()" class="btn" style="align-self: flex-end; padding: 6px 12px; font-size: 0.78rem; font-weight: 700; width: auto; margin: 0; background: var(--primary-accent); color: white; border: none; border-radius: var(--radius-sm);">Submit</button>
+                </div>
+
+                <!-- Reviews list container -->
+                <div id="detail-modal-reviews-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; padding-right: 4px;">
+                    <!-- Reviews dynamic list -->
+                </div>
+            </div>
         </div>
         
         <!-- Action Row (Add/Quantity Selector) -->
@@ -862,6 +888,7 @@ html, body {
 
     // Product Detail Modal Controller States & Actions
     let currentDetailProductId = null;
+    let currentReviewRating = 0;
     
     function showProductDetailModal(prodId) {
         let prod = productsList.find(p => p.id === prodId);
@@ -915,11 +942,128 @@ html, body {
             imgElem.src = "/static/placeholder_product.png";
         }
         
+        // Reset review inputs and load product reviews
+        try {
+            setReviewRating(0);
+            const reviewInput = document.getElementById("review-comment-input");
+            if (reviewInput) reviewInput.value = "";
+            loadProductReviews(prod.id);
+        } catch (e) {
+            console.error("Error preparing reviews UI:", e);
+        }
+        
         const modal = document.getElementById("product-detail-modal");
         modal.style.display = "flex";
         
         renderDetailModalActionBar(prod);
         if (window.lucide) lucide.createIcons();
+    }
+
+    // --- Product Reviews Helper Functions ---
+    function setReviewRating(rating) {
+        currentReviewRating = rating;
+        const stars = document.querySelectorAll('.review-star-select');
+        stars.forEach((star, index) => {
+            const starIcon = star.querySelector('svg') || star;
+            if (index < rating) {
+                star.style.color = "var(--amber-warning)";
+                if (starIcon) {
+                    starIcon.style.fill = "var(--amber-warning)";
+                    starIcon.style.stroke = "var(--amber-warning)";
+                }
+            } else {
+                star.style.color = "var(--text-muted)";
+                if (starIcon) {
+                    starIcon.style.fill = "none";
+                    starIcon.style.stroke = "currentColor";
+                }
+            }
+        });
+    }
+
+    function loadProductReviews(prodId) {
+        const listContainer = document.getElementById("detail-modal-reviews-list");
+        if (!listContainer) return;
+        listContainer.innerHTML = "<p style='font-size:0.75rem; color:var(--text-muted); text-align:center;'>Loading reviews...</p>";
+        
+        fetch(`/api/products/${prodId}/reviews`)
+        .then(res => res.json())
+        .then(reviews => {
+            listContainer.innerHTML = "";
+            if (reviews.length === 0) {
+                listContainer.innerHTML = "<p style='font-size:0.78rem; color:var(--text-muted); text-align:center; font-weight:500; margin: 8px 0;'>No reviews yet. Be the first to write one!</p>";
+                return;
+            }
+            
+            reviews.forEach(r => {
+                const row = document.createElement("div");
+                row.style = "border-bottom: 1px solid rgba(0,0,0,0.04); padding-bottom: 6px; display: flex; flex-direction: column; gap: 2px;";
+                
+                let starsHtml = "";
+                for (let i = 0; i < 5; i++) {
+                    if (i < r.rating) {
+                        starsHtml += `<i data-lucide="star" style="width: 12px; height: 12px; color: var(--amber-warning); fill: var(--amber-warning); display: inline-block;"></i>`;
+                    } else {
+                        starsHtml += `<i data-lucide="star" style="width: 12px; height: 12px; color: var(--text-muted); display: inline-block;"></i>`;
+                    }
+                }
+                
+                row.innerHTML = `
+                    <div class="flex-between" style="align-items: center;">
+                        <span style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary);">${r.reviewer_name}</span>
+                        <span style="font-size: 0.7rem; color: var(--text-muted);">${r.date_formatted}</span>
+                    </div>
+                    <div style="display: flex; gap: 2px; align-items: center; margin: 1px 0;">
+                        ${starsHtml}
+                    </div>
+                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0; line-height: 1.35;">${r.comment}</p>
+                `;
+                listContainer.appendChild(row);
+            });
+            
+            if (window.lucide) lucide.createIcons();
+        })
+        .catch(err => {
+            console.error("Error loading reviews:", err);
+            listContainer.innerHTML = "<p style='font-size:0.75rem; color:var(--ruby-danger); text-align:center;'>Failed to load reviews.</p>";
+        });
+    }
+
+    function submitProductReview() {
+        if (!currentDetailProductId) return;
+        const comment = document.getElementById("review-comment-input").value.trim();
+        if (currentReviewRating === 0) {
+            alert("Please select a star rating first.");
+            return;
+        }
+        if (!comment) {
+            alert("Please enter a review comment.");
+            return;
+        }
+        
+        fetch(`/api/products/${currentDetailProductId}/reviews`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                rating: currentReviewRating,
+                comment: comment
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAestheticToast("Review submitted successfully!", "success");
+                document.getElementById("review-comment-input").value = "";
+                setReviewRating(0);
+                loadProductReviews(currentDetailProductId);
+            } else {
+                alert(data.error || "Failed to submit review.");
+            }
+        })
+        .catch(err => {
+            console.error("Error submitting review:", err);
+            alert("Connection error. Please try again.");
+        });
     }
     
     function renderDetailModalActionBar(prod) {
@@ -2483,6 +2627,7 @@ html, body {
             clearInterval(trackingInterval);
             trackingInterval = null;
         }
+        loadOrdersHistory(); // Reload history to sync and update status (like DELIVERED)
     }
 
     function trackActiveOrder() {

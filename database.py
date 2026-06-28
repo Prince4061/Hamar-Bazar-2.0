@@ -187,6 +187,20 @@ def init_db():
     )
     ''')
     
+    # 11. Product Reviews Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS product_reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        customer_id INTEGER NOT NULL,
+        rating INTEGER NOT NULL,
+        comment TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    ''')
+    
     conn.commit()
     conn.close()
     print("SQLite database tables created successfully!")
@@ -298,6 +312,22 @@ def seed_db():
     cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('delivery_fee_flat', '15.0')")
     cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('delivery_fee_threshold', '199.0')")
     cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('admin_qr_code', '/static/images/upi_qr_mockup.jpg')")
+    
+    # Seed some product reviews (Check if already seeded to avoid duplicates)
+    cursor.execute("SELECT COUNT(*) FROM product_reviews")
+    reviews_count = cursor.fetchone()[0]
+    if reviews_count == 0:
+        # We need product IDs and customer IDs.
+        # Alice (id=1), Bob (id=2), Charlie (id=3)
+        # Let's seed for Amul Milk (id=1)
+        cursor.execute("INSERT INTO product_reviews (product_id, customer_id, rating, comment) VALUES (1, 1, 5, 'Very fresh and good quality milk!')")
+        cursor.execute("INSERT INTO product_reviews (product_id, customer_id, rating, comment) VALUES (1, 2, 4, 'Always delivered cold. Recommended.')")
+        # Chocolate Truffle Cake (id=6)
+        cursor.execute("INSERT INTO product_reviews (product_id, customer_id, rating, comment) VALUES (6, 3, 5, 'Best chocolate cake in town! Super soft and tasty.')")
+        # Potato (id=11)
+        cursor.execute("INSERT INTO product_reviews (product_id, customer_id, rating, comment) VALUES (11, 1, 4, 'Aloo fresh the aur size bhi accha tha.')")
+        # Wireless bluetooth earbuds (id=20)
+        cursor.execute("INSERT INTO product_reviews (product_id, customer_id, rating, comment) VALUES (20, 2, 5, 'Value for money product, sound quality is great.')")
 
     conn.commit()
     conn.close()

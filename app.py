@@ -4,6 +4,10 @@ import random
 import re
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+import threading
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from flask_wtf.csrf import CSRFProtect, CSRFError
 import database
@@ -174,6 +178,161 @@ def check_and_flag_suspicious_user(user_id, db):
     else:
         cursor.execute("UPDATE users SET is_suspicious = 0, suspicion_reasons = NULL WHERE id = ?", (user_id,))
     db.commit()
+
+def send_order_email_sync(order_id):
+    try:
+        db = database.get_db_connection()
+        cursor = db.cursor()
+        
+        # Get SMTP details from database
+        cursor.execute("SELECT value FROM system_settings WHERE key = 'smtp_email'")
+        smtp_email_row = cursor.fetchone()
+        cursor.execute("SELECT value FROM system_settings WHERE key = 'smtp_password'")
+        smtp_password_row = cursor.fetchone()
+        cursor.execute("SELECT value FROM system_settings WHERE key = 'admin_notification_email'")
+        admin_email_row = cursor.fetchone()
+        
+        smtp_email = smtp_email_row['value'] if smtp_email_row else os.environ.get('SMTP_EMAIL')
+        smtp_password = smtp_password_row['value'] if smtp_password_row else os.environ.get('SMTP_PASSWORD')
+        admin_email = admin_email_row['value'] if admin_email_row else os.environ.get('ADMIN_NOTIFICATION_EMAIL')
+        
+        if not smtp_email or not smtp_password or not admin_email:
+            print("Email notification skipped: SMTP configurations or Admin Email is missing.")
+            db.close()
+            return
+            
+        # Fetch order details
+        cursor.execute("""
+            SELECT o.id, o.total_amount, o.priority_type, o.status, o.payment_mode, o.created_at, 
+                   u.name as customer_name, u.phone as customer_phone, u.address as customer_address,
+                   s.shop_name
+            FROM orders o
+            JOIN users u ON o.customer_id = u.id
+            JOIN shops s ON o.shop_id = s.id
+            WHERE o.id = ?
+        """, (order_id,))
+        order = cursor.fetchone()
+        if not order:
+            db.close()
+            return
+            
+        # Fetch order items
+        cursor.execute("""
+            SELECT oi.quantity, oi.price, p.name as product_name
+            FROM order_items oi
+            JOIN products p ON oi.product_id = p.id
+            WHERE oi.order_id = ?
+        """, (order_id,))
+        items = cursor.fetchall()
+        
+        # Build Email Content
+        subject = f"New Order Placed: #ORD{order_id} - {order['shop_name']}"
+        
+        body_html = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+                <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">New Order Placed!</h2>
+                <p>Hello Admin,</p>
+                <p>A new order has been placed on Hamar Bazar. Here are the details:</p>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                    <tr style="background-color: #ecf0f1;">
+                        <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Order Info</th>
+                        <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Details</th>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Order ID:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">#ORD{order['id']}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Shop:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{order['shop_name']}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Customer Name:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{order['customer_name']}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Customer Phone:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{order['customer_phone']}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Delivery Address:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{order['customer_address']}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Priority:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><span style="color: {'#e74c3c' if order['priority_type'] == 'URGENT' else '#2ecc71'}; font-weight: bold;">{order['priority_type']}</span></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Payment Mode:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{order['payment_mode']}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Total Amount:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #2c3e50;">₹{order['total_amount']:.2f}</td>
+                    </tr>
+                </table>
+                
+                <h3 style="color: #2c3e50;">Order Items:</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #34495e; color: white;">
+                            <th style="padding: 10px; text-align: left;">Item Name</th>
+                            <th style="padding: 10px; text-align: center;">Qty</th>
+                            <th style="padding: 10px; text-align: right;">Price</th>
+                            <th style="padding: 10px; text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        """
+        for item in items:
+            total_price = item['quantity'] * item['price']
+            body_html += f"""
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{item['product_name']}</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">{item['quantity']}</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₹{item['price']:.2f}</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₹{total_price:.2f}</td>
+                        </tr>
+            """
+        body_html += f"""
+                    </tbody>
+                </table>
+                <br>
+                <p style="font-size: 0.9em; color: #7f8c8d; border-top: 1px solid #ddd; padding-top: 10px;">
+                    This is an automated notification from Hamar Bazar 2.0 system. Please do not reply.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = smtp_email
+        msg['To'] = admin_email
+        msg.attach(MIMEText(body_html, 'html'))
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.starttls()
+        server.login(smtp_email, smtp_password)
+        server.sendmail(smtp_email, admin_email, msg.as_string())
+        server.quit()
+        print(f"Email notification for Order #{order_id} sent successfully.")
+        db.close()
+    except Exception as e:
+        print(f"Error sending order notification email: {str(e)}")
+        try:
+            db.close()
+        except:
+            pass
+
+def send_order_email_async(order_id):
+    thread = threading.Thread(target=send_order_email_sync, args=(order_id,))
+    thread.daemon = True
+    thread.start()
 
 @app.before_request
 def check_user_and_shop_status():
@@ -847,6 +1006,9 @@ def place_order():
             ''', (order_id, pd['product_id'], pd['quantity'], pd['price']))
             
         db.commit()
+        
+        # Trigger asynchronous Gmail notification for admin
+        send_order_email_async(order_id)
         
         # Run security checks to flag suspicious user
         check_and_flag_suspicious_user(customer_id, db)
@@ -1560,6 +1722,98 @@ def admin_force_allot_order(order_id):
     except Exception as e:
         db.execute("ROLLBACK")
         return jsonify({'error': f'Failed to allot rider: {str(e)}'}), 500
+
+@app.route('/api/admin/orders/<int:order_id>/change-status', methods=['POST'])
+def admin_change_order_status(order_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    data = request.json or {}
+    new_status = data.get('status')
+    
+    valid_statuses = ['PENDING', 'ACCEPTED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED', 'FAILED']
+    if new_status not in valid_statuses:
+        return jsonify({'error': f'Invalid status: {new_status}'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    # Check if order exists
+    cursor.execute("SELECT * FROM orders WHERE id = ?", (order_id,))
+    order = cursor.fetchone()
+    if not order:
+        return jsonify({'error': 'Order not found.'}), 404
+        
+    old_status = order['status']
+    rider_id = order['delivery_boy_id']
+    
+    db.execute("BEGIN TRANSACTION")
+    try:
+        # Update status
+        cursor.execute("UPDATE orders SET status = ? WHERE id = ?", (new_status, order_id))
+        
+        # Also set timestamps depending on status changes
+        if new_status == 'ACCEPTED' and not order['accepted_at']:
+            cursor.execute("UPDATE orders SET accepted_at = CURRENT_TIMESTAMP WHERE id = ?", (order_id,))
+        elif new_status == 'READY_FOR_PICKUP' and not order['ready_at']:
+            cursor.execute("UPDATE orders SET ready_at = CURRENT_TIMESTAMP WHERE id = ?", (order_id,))
+        elif new_status == 'OUT_FOR_DELIVERY' and not order['assigned_at']:
+            cursor.execute("UPDATE orders SET assigned_at = CURRENT_TIMESTAMP WHERE id = ?", (order_id,))
+        elif new_status == 'DELIVERED' and not order['delivered_at']:
+            cursor.execute("UPDATE orders SET delivered_at = CURRENT_TIMESTAMP WHERE id = ?", (order_id,))
+            
+        # Adjust rider's active_orders count if applicable
+        if rider_id:
+            active_states = ['ACCEPTED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY']
+            old_is_active = old_status in active_states
+            new_is_active = new_status in active_states
+            
+            if old_is_active and not new_is_active:
+                # Decrement
+                cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (rider_id,))
+            elif not old_is_active and new_is_active:
+                # Increment
+                cursor.execute("UPDATE delivery_partners SET active_orders = active_orders + 1 WHERE id = ?", (rider_id,))
+                
+        db.commit()
+        return jsonify({'success': True, 'message': f'Order status successfully changed to {new_status}.'})
+    except Exception as e:
+        db.execute("ROLLBACK")
+        return jsonify({'error': f'Failed to update order status: {str(e)}'}), 500
+
+@app.route('/api/admin/orders/<int:order_id>/delete', methods=['POST'])
+def admin_delete_order(order_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    # Check if order exists
+    cursor.execute("SELECT status, delivery_boy_id FROM orders WHERE id = ?", (order_id,))
+    order = cursor.fetchone()
+    if not order:
+        return jsonify({'error': 'Order not found.'}), 404
+        
+    old_status = order['status']
+    rider_id = order['delivery_boy_id']
+    
+    db.execute("BEGIN TRANSACTION")
+    try:
+        # If order was active and has a rider, decrement active_orders
+        if rider_id:
+            active_states = ['ACCEPTED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY']
+            if old_status in active_states:
+                cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (rider_id,))
+                
+        # Delete order (order_items deleted by CASCADE)
+        cursor.execute("DELETE FROM orders WHERE id = ?", (order_id,))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Order deleted successfully.'})
+    except Exception as e:
+        db.execute("ROLLBACK")
+        return jsonify({'error': f'Failed to delete order: {str(e)}'}), 500
+
 
 # --- Admin Security Checker APIs ---
 
@@ -2300,6 +2554,12 @@ def get_system_settings():
         settings['delivery_fee_flat'] = '15.0'
     if 'delivery_fee_threshold' not in settings:
         settings['delivery_fee_threshold'] = '199.0'
+    if 'smtp_email' not in settings:
+        settings['smtp_email'] = ''
+    if 'smtp_password' not in settings:
+        settings['smtp_password'] = ''
+    if 'admin_notification_email' not in settings:
+        settings['admin_notification_email'] = ''
     return jsonify(settings)
 
 @app.route('/api/admin/settings/update', methods=['POST'])
@@ -2312,7 +2572,7 @@ def update_system_settings():
     cursor = db.cursor()
     try:
         for key, val in data.items():
-            if key in ['delivery_fee_flat', 'delivery_fee_threshold']:
+            if key in ['delivery_fee_flat', 'delivery_fee_threshold', 'smtp_email', 'smtp_password', 'admin_notification_email']:
                 cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", (key, str(val)))
         db.commit()
         return jsonify({'success': True, 'message': 'System settings updated successfully.'})
@@ -2984,6 +3244,132 @@ def import_database():
         return jsonify({'success': True, 'message': 'Database imported successfully! Page will reload.'})
     except Exception as e:
         return jsonify({'error': f'Import failed: {str(e)}'}), 500
+
+# --- Product Reviews Endpoints ---
+
+@app.route('/api/products/<int:product_id>/reviews', methods=['GET'])
+def get_product_reviews(product_id):
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute('''
+            SELECT r.id, r.rating, r.comment, r.created_at, u.name as reviewer_name
+            FROM product_reviews r
+            JOIN users u ON r.customer_id = u.id
+            WHERE r.product_id = ?
+            ORDER BY r.id DESC
+        ''', (product_id,))
+        reviews = []
+        for row in cursor.fetchall():
+            r = dict(row)
+            # Format datetime
+            if r['created_at']:
+                try:
+                    dt = datetime.strptime(r['created_at'], '%Y-%m-%d %H:%M:%S' if '.' not in r['created_at'] else '%Y-%m-%d %H:%M:%S.%f')
+                    r['date_formatted'] = dt.strftime('%d %b %Y')
+                except Exception:
+                    r['date_formatted'] = r['created_at']
+            else:
+                r['date_formatted'] = '--'
+            reviews.append(r)
+        return jsonify(reviews)
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch reviews: {str(e)}'}), 500
+
+@app.route('/api/products/<int:product_id>/reviews', methods=['POST'])
+def add_product_review(product_id):
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Only logged-in customers can submit reviews.'}), 403
+        
+    customer_id = session.get('role_id')
+    
+    if request.is_json:
+        data = request.json or {}
+    else:
+        data = request.form or {}
+        
+    try:
+        rating = int(data.get('rating', 0))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Rating must be a valid integer between 1 and 5.'}), 400
+        
+    comment = data.get('comment', '').strip()
+    
+    if rating < 1 or rating > 5:
+        return jsonify({'error': 'Rating must be between 1 and 5 stars.'}), 400
+        
+    if not comment:
+        return jsonify({'error': 'Review comment cannot be empty.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        # Check if product exists
+        cursor.execute("SELECT name FROM products WHERE id = ?", (product_id,))
+        prod = cursor.fetchone()
+        if not prod:
+            return jsonify({'error': 'Product not found.'}), 404
+            
+        cursor.execute('''
+            INSERT INTO product_reviews (product_id, customer_id, rating, comment)
+            VALUES (?, ?, ?, ?)
+        ''', (product_id, customer_id, rating, comment))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Review submitted successfully!'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to save review: {str(e)}'}), 500
+
+# --- Admin Reviews Management Endpoints ---
+
+@app.route('/api/admin/reviews', methods=['GET'])
+def get_all_reviews_for_admin():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute('''
+            SELECT r.id, r.rating, r.comment, r.created_at, u.name as reviewer_name, p.name as product_name
+            FROM product_reviews r
+            JOIN users u ON r.customer_id = u.id
+            JOIN products p ON r.product_id = p.id
+            ORDER BY r.id DESC
+        ''')
+        reviews = []
+        for row in cursor.fetchall():
+            r = dict(row)
+            if r['created_at']:
+                try:
+                    dt = datetime.strptime(r['created_at'], '%Y-%m-%d %H:%M:%S' if '.' not in r['created_at'] else '%Y-%m-%d %H:%M:%S.%f')
+                    r['date_formatted'] = dt.strftime('%d %b %Y %H:%M')
+                except Exception:
+                    r['date_formatted'] = r['created_at']
+            else:
+                r['date_formatted'] = '--'
+            reviews.append(r)
+        return jsonify(reviews)
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch reviews: {str(e)}'}), 500
+
+@app.route('/api/admin/reviews/<int:review_id>/delete', methods=['POST'])
+def delete_review_by_admin(review_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id FROM product_reviews WHERE id = ?", (review_id,))
+        review = cursor.fetchone()
+        if not review:
+            return jsonify({'error': 'Review not found.'}), 404
+            
+        cursor.execute("DELETE FROM product_reviews WHERE id = ?", (review_id,))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Review deleted successfully.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to delete review: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

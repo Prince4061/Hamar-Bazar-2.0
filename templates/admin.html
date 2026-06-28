@@ -1404,6 +1404,11 @@
                         </a>
                     </li>
                     <li>
+                        <a class="menu-item-link" onclick="switchTab('reviews')">
+                            <i data-lucide="star"></i> Reviews Manage
+                        </a>
+                    </li>
+                    <li>
                         <a class="menu-item-link" onclick="switchTab('system')">
                             <i data-lucide="settings"></i> System Status
                         </a>
@@ -1967,10 +1972,10 @@
                     </div>
                 </div>
 
-                <!-- Delivery Charge Settings -->
+                <!-- Delivery & SMTP Email Settings -->
                 <div class="dashboard-card" style="margin-top: 20px;">
                     <div class="card-header-row">
-                        <h3 class="card-title-text"><i data-lucide="truck"></i> Delivery Charge Settings</h3>
+                        <h3 class="card-title-text"><i data-lucide="truck"></i> Delivery & SMTP Email Notification Settings</h3>
                         <span class="status-badge badge-accepted" style="font-weight: 700;">Live Configuration</span>
                     </div>
                     <div style="margin-top: 15px;">
@@ -1991,6 +1996,39 @@
                                     <span style="font-size: 0.75rem; color: var(--text-muted);">Orders above this amount get free delivery.</span>
                                 </div>
                             </div>
+                            
+                            <!-- SMTP settings inputs -->
+                            <div style="border-top: 1px dashed var(--border-color-light); margin: 20px 0; padding-top: 15px;">
+                                <h4 style="margin-bottom: 12px; color: var(--primary-accent); display: flex; align-items: center; gap: 6px; font-size: 0.9rem; font-weight: 700;">
+                                    <i data-lucide="mail" style="width:16px; height:16px;"></i> Gmail SMTP Notification Settings
+                                </h4>
+                                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px;">
+                                    <div style="flex: 1; min-width: 250px;">
+                                        <label for="smtp-email" style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px;">
+                                            Gmail SMTP Sender Email
+                                        </label>
+                                        <input type="email" id="smtp-email" class="form-input-staff" style="width: 100%;" placeholder="your-email@gmail.com">
+                                        <span style="font-size: 0.75rem; color: var(--text-muted);">The Gmail address used to send notifications (requires App Password).</span>
+                                    </div>
+                                    <div style="flex: 1; min-width: 250px;">
+                                        <label for="smtp-password" style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px;">
+                                            Gmail App Password (16 characters)
+                                        </label>
+                                        <input type="password" id="smtp-password" class="form-input-staff" style="width: 100%;" placeholder="e.g. abcd efgh ijkl mnop">
+                                        <span style="font-size: 0.75rem; color: var(--text-muted);">Must be a 16-character Google App Password (not your account password).</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px;">
+                                    <div style="flex: 1; min-width: 250px;">
+                                        <label for="admin-notification-email" style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px;">
+                                            Recipient Admin Email
+                                        </label>
+                                        <input type="email" id="admin-notification-email" class="form-input-staff" style="width: 100%;" placeholder="admin-email@gmail.com">
+                                        <span style="font-size: 0.75rem; color: var(--text-muted);">The destination email address where order details will be sent.</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                                 <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">
                                     <input type="checkbox" id="delivery-free-all-toggle" style="width: 16px; height: 16px; accent-color: var(--primary-accent);" onchange="toggleFreeDeliveryCheckbox(this)">
@@ -2336,7 +2374,6 @@
                         </table>
                     </div>
                 </div>
-                </div>
 
                 <!-- Registered Users Database -->
                 <div class="dashboard-card" style="margin-top: 20px;">
@@ -2360,6 +2397,22 @@
                                 <!-- Loaded dynamically -->
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- --------------------------------------------------- -->
+            <!-- TAB 12: REVIEWS MANAGEMENT -->
+            <!-- --------------------------------------------------- -->
+            <div class="tab-panel" id="panel-reviews">
+                <div class="dashboard-card">
+                    <div class="card-header-row" style="margin-bottom: 20px;">
+                        <h3 class="card-title-text"><i data-lucide="star" style="color: var(--amber-warning);"></i> Customer Reviews Feed</h3>
+                        <button onclick="loadAdminReviews()" class="btn-custom" style="padding: 6px 12px; font-size: 0.75rem; margin: 0; display: inline-flex; align-items: center; gap: 4px; background: var(--primary-light); color: var(--primary-accent); border: 1px solid var(--primary-glow);"><i data-lucide="refresh-cw" style="width:12px; height:12px;"></i> Refresh Feed</button>
+                    </div>
+                    
+                    <div id="admin-reviews-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; max-height: 600px; overflow-y: auto; padding: 4px;">
+                        <!-- Review cards loaded dynamically -->
                     </div>
                 </div>
             </div>
@@ -2464,6 +2517,40 @@
                     </div>
                     <button class="btn-custom btn-custom-primary" style="width: 100%; background: var(--emerald-green); border-color: var(--emerald-green);" onclick="submitAdminForceAllot()">
                         Force Allot Selected Rider
+                    </button>
+                </div>
+
+                <!-- Force Update Order Status -->
+                <div>
+                    <h4 style="margin-bottom: 8px; color: var(--primary-accent); display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 700;">
+                        <i data-lucide="edit" style="width:16px; height:16px; display:inline-block; vertical-align:-3px;"></i> Force Update Order Status
+                    </h4>
+                    <div class="form-group-custom" style="margin-bottom: 10px;">
+                        <label class="form-label-custom">Select New Status</label>
+                        <select class="form-select-custom" style="width: 100%;" id="admin-modal-status-select">
+                            <option value="PENDING">Pending</option>
+                            <option value="ACCEPTED">Accepted</option>
+                            <option value="READY_FOR_PICKUP">Ready For Pickup</option>
+                            <option value="OUT_FOR_DELIVERY">Out For Delivery</option>
+                            <option value="DELIVERED">Delivered</option>
+                            <option value="FAILED">Failed</option>
+                        </select>
+                    </div>
+                    <button class="btn-custom btn-custom-primary" style="width: 100%;" onclick="submitAdminStatusChange()">
+                        Update Order Status
+                    </button>
+                </div>
+
+                <!-- Danger Zone (Delete Order) -->
+                <div style="border: 1px solid rgba(239, 68, 68, 0.3); padding: 12px; border-radius: var(--radius-md); background: var(--ruby-light);">
+                    <h4 style="margin-bottom: 8px; color: var(--ruby-danger); display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 700;">
+                        <i data-lucide="alert-triangle" style="width:16px; height:16px; display:inline-block; vertical-align:-3px;"></i> Danger Zone
+                    </h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
+                        Deleting this order will permanently erase it and its items from the database. This action cannot be undone.
+                    </p>
+                    <button class="btn-custom btn-custom-danger" style="width: 100%;" onclick="deleteAdminOrder()">
+                        <i data-lucide="trash-2" style="width:14px; height:14px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i> Delete Order Permanent
                     </button>
                 </div>
 
@@ -2823,6 +2910,7 @@
                 if (tabId === 'security') return txt.includes('security');
                 if (tabId === 'system') return txt.includes('system');
                 if (tabId === 'searches') return txt.includes('search');
+                if (tabId === 'reviews') return txt.includes('reviews');
                 if (tabId === 'userinfo') return txt.includes('user info');
                 return false;
             });
@@ -2872,6 +2960,10 @@
                 title = "Customer Search Tracking & Insights";
                 subtitle = "Analyze customer search intents, trending keywords, and individual histories.";
                 loadSearchAnalytics();
+            } else if (tabId === 'reviews') {
+                title = "Product Reviews & Ratings Management";
+                subtitle = "Audit customer product reviews and delete spam or inappropriate comments.";
+                loadAdminReviews();
             } else if (tabId === 'userinfo') {
                 title = "User Information & Activity";
                 subtitle = "Track successful logins and user interactions.";
@@ -5003,6 +5095,11 @@
                     document.getElementById("delivery-fee-flat").value = feeFlat;
                     document.getElementById("delivery-fee-threshold").value = feeThresh;
                     
+                    // Populate SMTP email settings
+                    document.getElementById("smtp-email").value = settings.smtp_email || '';
+                    document.getElementById("smtp-password").value = settings.smtp_password || '';
+                    document.getElementById("admin-notification-email").value = settings.admin_notification_email || '';
+                    
                     const freeToggle = document.getElementById("delivery-free-all-toggle");
                     if (feeFlat === 0) {
                         freeToggle.checked = true;
@@ -5033,6 +5130,9 @@
             event.preventDefault();
             const feeFlat = parseFloat(document.getElementById("delivery-fee-flat").value) || 0;
             const feeThresh = parseFloat(document.getElementById("delivery-fee-threshold").value) || 0;
+            const smtpEmail = document.getElementById("smtp-email").value.trim();
+            const smtpPassword = document.getElementById("smtp-password").value.trim();
+            const adminEmail = document.getElementById("admin-notification-email").value.trim();
             
             fetch('/api/admin/settings/update', {
                 method: 'POST',
@@ -5041,7 +5141,10 @@
                 },
                 body: JSON.stringify({
                     delivery_fee_flat: feeFlat,
-                    delivery_fee_threshold: feeThresh
+                    delivery_fee_threshold: feeThresh,
+                    smtp_email: smtpEmail,
+                    smtp_password: smtpPassword,
+                    admin_notification_email: adminEmail
                 })
             })
             .then(res => res.json())
@@ -5334,6 +5437,7 @@
                     
                     if (data.shop_id) shopSelect.value = data.shop_id;
                     if (data.delivery_boy_id) riderSelect.value = data.delivery_boy_id;
+                    if (data.status) document.getElementById("admin-modal-status-select").value = data.status;
                     
                     const itemsContainer = document.getElementById("admin-modal-items-list");
                     itemsContainer.innerHTML = "";
@@ -5418,6 +5522,154 @@
             })
             .catch(err => {
                 showAestheticToast("Failed to process request: " + err, "error");
+            });
+        }
+
+        function submitAdminStatusChange() {
+            if (!activeAdminOrderId) return;
+            const newStatus = document.getElementById("admin-modal-status-select").value;
+            
+            fetch(`/api/admin/orders/${activeAdminOrderId}/change-status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    showAestheticToast(data.error, "error");
+                } else {
+                    showAestheticToast(data.message || "Order status updated successfully.", "success");
+                    loadAllAnalytics(false);
+                    closeAdminOrderModal();
+                }
+            })
+            .catch(err => {
+                showAestheticToast("Failed to update status: " + err, "error");
+            });
+        }
+
+        function deleteAdminOrder() {
+            if (!activeAdminOrderId) return;
+            if (!confirm("Are you sure you want to permanently delete this order? This action cannot be undone.")) {
+                return;
+            }
+            
+            fetch(`/api/admin/orders/${activeAdminOrderId}/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    showAestheticToast(data.error, "error");
+                } else {
+                    showAestheticToast(data.message || "Order deleted successfully.", "success");
+                    loadAllAnalytics(false);
+                    closeAdminOrderModal();
+                }
+            })
+            .catch(err => {
+                showAestheticToast("Failed to delete order: " + err, "error");
+            });
+        }
+
+        // --- Admin Reviews Management Functions ---
+        function loadAdminReviews() {
+            const gridContainer = document.getElementById("admin-reviews-grid");
+            if (!gridContainer) return;
+            gridContainer.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px;"><p style="color: var(--text-secondary); font-weight:600;">Loading product reviews...</p></div>`;
+            
+            fetch('/api/admin/reviews')
+                .then(res => res.json())
+                .then(reviews => {
+                    gridContainer.innerHTML = "";
+                    if (reviews.length === 0) {
+                        gridContainer.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px;"><p style="color:var(--text-muted); font-weight: 500;">No product reviews found in database.</p></div>`;
+                        return;
+                    }
+                    
+                    reviews.forEach(r => {
+                        const card = document.createElement("div");
+                        card.id = `admin-review-card-${r.id}`;
+                        card.style = "background: white; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 16px; display: flex; flex-direction: column; gap: 12px; justify-content: space-between; box-shadow: var(--shadow-sm); transition: all 0.2s ease;";
+                        
+                        let starsHtml = "";
+                        for (let i = 0; i < 5; i++) {
+                            if (i < r.rating) {
+                                starsHtml += `<i data-lucide="star" style="width: 14px; height: 14px; color: var(--amber-warning); fill: var(--amber-warning); display: inline-block;"></i>`;
+                            } else {
+                                starsHtml += `<i data-lucide="star" style="width: 14px; height: 14px; color: var(--text-muted); display: inline-block;"></i>`;
+                            }
+                        }
+                        
+                        card.innerHTML = `
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <div class="flex-between" style="align-items: flex-start; border-bottom: 1px dashed var(--border-color); padding-bottom: 8px;">
+                                    <div>
+                                        <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0; line-height:1.3;">${r.product_name}</h4>
+                                        <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">Review ID: #${r.id}</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 2px; background: var(--amber-light); padding: 2px 6px; border-radius: 6px; border: 1px solid #fde68a;">
+                                        <span style="font-size: 0.78rem; font-weight: 800; color: var(--amber-warning);">${r.rating}</span>
+                                        <i data-lucide="star" style="width: 12px; height: 12px; color: var(--amber-warning); fill: var(--amber-warning);"></i>
+                                    </div>
+                                </div>
+                                
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px; margin-top: 4px;">
+                                    <div><strong>By Customer:</strong> <span style="color: var(--text-primary); font-weight: 600;">${r.reviewer_name}</span></div>
+                                    <div><strong>Date:</strong> <span style="font-size:0.75rem;">${r.date_formatted}</span></div>
+                                </div>
+                                
+                                <div style="background: #f8fafc; padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-top: 4px;">
+                                    <p style="font-size: 0.82rem; line-height: 1.45; color: var(--text-primary); margin: 0; font-style: italic; word-break: break-word;">
+                                        "${r.comment}"
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
+                                <button onclick="deleteReviewByAdmin(${r.id})" class="btn-custom" style="padding: 6px 12px; font-size: 0.78rem; margin: 0; background: var(--ruby-light); color: var(--ruby-danger); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: var(--radius-md); font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Delete Review
+                                </button>
+                            </div>
+                        `;
+                        gridContainer.appendChild(card);
+                    });
+                    if (window.lucide) lucide.createIcons();
+                })
+                .catch(err => {
+                    console.error("Error loading reviews:", err);
+                    gridContainer.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--ruby-danger);"><p>Failed to load reviews from server.</p></div>`;
+                });
+        }
+
+        function deleteReviewByAdmin(reviewId) {
+            aestheticConfirm(`Are you sure you want to delete review #${reviewId}? This action cannot be undone.`, () => {
+                fetch(`/api/admin/reviews/${reviewId}/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAestheticToast(data.message || "Review deleted.", "success");
+                        // Remove from DOM dynamically
+                        const card = document.getElementById(`admin-review-card-${reviewId}`);
+                        if (card) card.remove();
+                        // If empty, reload list
+                        const gridContainer = document.getElementById("admin-reviews-grid");
+                        if (gridContainer && gridContainer.children.length === 0) {
+                            loadAdminReviews();
+                        }
+                    } else {
+                        showAestheticToast(data.error || "Failed to delete review.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Error deleting review:", err);
+                    showAestheticToast("Network error. Failed to delete review.", "error");
+                });
             });
         }
     </script>
