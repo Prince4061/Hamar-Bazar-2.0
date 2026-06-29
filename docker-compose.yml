@@ -1,10 +1,10 @@
 services:
   hamar-bazar:
-    image: princekaushik9926/hamar-bazar:latest
+    image: princekaushik9926/hamar-bazar:v3
     container_name: hamar-bazar-container
     restart: always
-    ports:
-      - "8080:5001"
+    networks:
+      - traefik_public
     environment:
       - FLASK_SECRET_KEY=your_secure_flask_secret_key_here
       - ADMIN_PASSWORD=admin123
@@ -13,6 +13,18 @@ services:
       - db_data:/app/data
       - uploads_data:/app/static/uploads
       - downloads_data:/app/static/downloads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_public"
+      - "traefik.http.routers.hamarbazar.entrypoints=web,websecure"
+      - "traefik.http.routers.hamarbazar.rule=Host(`shop.hamarai.in`)"
+      - "traefik.http.routers.hamarbazar.tls=true"
+      - "traefik.http.routers.hamarbazar.tls.certresolver=hamarle"
+      - "traefik.http.services.hamarbazar.loadbalancer.server.port=5001"
+
+networks:
+  traefik_public:
+    external: true
 
 volumes:
   db_data:

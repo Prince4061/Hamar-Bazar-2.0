@@ -12,7 +12,10 @@ from email.mime.multipart import MIMEMultipart
 from flask_wtf.csrf import CSRFProtect, CSRFError
 import database
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)
 
 # Secure secret key handling for production
@@ -433,121 +436,86 @@ def home():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        if request.is_json:
-            data = request.json
-        else:
-            data = request.form
-        phone = data.get('phone', '').strip().replace(" ", "").replace("-", "")
-        username = data.get('username', '').strip()
-        password = data.get('password', '').strip()
-        security_question = data.get('security_question', '').strip()
-        security_answer = data.get('security_answer', '').strip().lower()
-        action = data.get('action', 'login').strip().lower()
-        
-        # Remove country code +91 if present
-        if phone.startswith('+91'):
-            phone = phone[3:]
-        elif phone.startswith('91') and len(phone) > 10:
-            phone = phone[2:]
-            
-        # Ensure phone and username are provided
-        if not phone or not username:
-            return jsonify({'success': False, 'error': 'Mobile number and username are required.'})
-            
-        # Validate username: only letters and spaces allowed
-        if not username.replace(' ', '').isalpha():
-            return jsonify({'success': False, 'error': 'Username must contain only letters.'})
-            
-        # Validate phone contains only digits and is exactly 10 digits
-        if not phone.isdigit() or len(phone) != 10:
-            return jsonify({'success': False, 'error': 'Please enter a valid 10-digit mobile number.'})
-            
-        db = get_db()
-        cursor = db.cursor()
-        
-        # Rate-limiting brute-force block check (max 5 failed attempts within last 15 mins)
-        fifteen_mins_ago = (datetime.now() - timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
         try:
-            cursor.execute("""
-                SELECT COUNT(*) FROM failed_logins 
-                WHERE (username = ? OR ip_address = ?) AND timestamp >= ?
-            """, (phone or username, request.remote_addr, fifteen_mins_ago))
-            failed_count = cursor.fetchone()[0]
-            if failed_count >= 5:
-                return jsonify({'success': False, 'error': 'Too many failed login attempts. Please try again after 15 minutes.'})
-        except Exception as e:
-            print("Failed to query failed logins:", e)
+            if request.is_json:
+                data = request.json
+            else:
+                data = request.form
+            phone = data.get('phone', '').strip().replace(" ", "").replace("-", "")
+            username = data.get('username', '').strip()
+            password = data.get('password', '').strip()
+            security_question = data.get('security_question', '').strip()
+            security_answer = data.get('security_answer', '').strip().lower()
+            action = data.get('action', 'login').strip().lower()
             
-        cursor.execute("SELECT * FROM users WHERE phone = ?", (phone,))
-        user = cursor.fetchone()
-        
-        if action == 'register':
-            if user:
-                return jsonify({'success': False, 'error': 'This mobile number is already registered. Please login instead.'})
+            # Remove country code +91 if present
+            if phone.startswith('+91'):
+                phone = phone[3:]
+            elif phone.startswith('91') and len(phone) > 10:
+                phone = phone[2:]
+                
+            # Ensure phone and username are provided
+            if not phone or not username:
+                return jsonify({'success': False, 'error': 'Mobile number and username are required.'})
+                
+            # Validate username: only letters and spaces allowed
+            if not username.replace(' ', '').isalpha():
+                return jsonify({'success': False, 'error': 'Username must contain only letters.'})
+                
+            # Validate phone contains only digits and is exactly 10 digits
+            if not phone.isdigit() or len(phone) != 10:
+                return jsonify({'success': False, 'error': 'Please enter a valid 10-digit mobile number.'})
+                
+            db = get_db()
+            cursor = db.cursor()
             
-            if len(password) < 4 or len(password) > 20:
-                return jsonify({'success': False, 'error': 'Password must be between 4 and 20 characters.'})
-                
-            if not security_question or not security_answer:
-                return jsonify({'success': False, 'error': 'Security question and answer are required for registration.'})
-                
-            new_address = "Sector 4, Local Area"
+            # Rate-limiting brute-force block check (max 5 failed attempts within last 15 mins)
+            fifteen_mins_ago = (datetime.now() - timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
             try:
-                hashed_pass = password
-                cursor.execute(
-                    "INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)",
-                    (username, phone, new_address, hashed_pass, security_question, security_answer)
-                )
-                db.commit()
-                new_id = cursor.lastrowid
-                
-                # Run fraud check on registration
-                check_and_flag_suspicious_user(new_id, db)
-                
-                try:
-                    cursor.execute("INSERT INTO user_logins (user_phone) VALUES (?)", (phone,))
-                    db.commit()
-                except Exception as e:
-                    print("Failed to log registration login:", e)
-                
-                cursor.execute("SELECT * FROM users WHERE id = ?", (new_id,))
-                user = cursor.fetchone()
-                
-                session.permanent = True
-                session['role'] = 'customer'
-                session['role_id'] = user['id']
-                session['name'] = user['name']
-                session['profile_pic'] = user['profile_pic']
-                return jsonify({'success': True, 'redirect': '/customer'})
+                cursor.execute("""
+                    SELECT COUNT(*) FROM failed_logins 
+                    WHERE (username = ? OR ip_address = ?) AND timestamp >= ?
+                """, (phone or username, request.remote_addr, fifteen_mins_ago))
+                failed_count = cursor.fetchone()[0]
+                if failed_count >= 5:
+                    return jsonify({'success': False, 'error': 'Too many failed login attempts. Please try again after 15 minutes.'})
             except Exception as e:
-                return jsonify({'success': False, 'error': f'Failed to create user: {str(e)}'})
+                print("Failed to query failed logins:", e)
                 
-        else: # login
-            if not user:
-                # Auto-register user on first login
+            cursor.execute("SELECT * FROM users WHERE phone = ?", (phone,))
+            user = cursor.fetchone()
+            
+            if action == 'register':
+                if user:
+                    return jsonify({'success': False, 'error': 'This mobile number is already registered. Please login instead.'})
+                
                 if len(password) < 4 or len(password) > 20:
                     return jsonify({'success': False, 'error': 'Password must be between 4 and 20 characters.'})
-                
+                    
+                if not security_question or not security_answer:
+                    return jsonify({'success': False, 'error': 'Security question and answer are required for registration.'})
+                    
                 new_address = "Sector 4, Local Area"
-                default_question = "What is your favorite color?"
-                default_answer = "blue"
                 try:
                     hashed_pass = password
                     cursor.execute(
                         "INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)",
-                        (username, phone, new_address, hashed_pass, default_question, default_answer)
+                        (username, phone, new_address, hashed_pass, security_question, security_answer)
                     )
                     db.commit()
                     new_id = cursor.lastrowid
                     
                     # Run fraud check on registration
-                    check_and_flag_suspicious_user(new_id, db)
+                    try:
+                        check_and_flag_suspicious_user(new_id, db)
+                    except Exception as e:
+                        print("Failed to run fraud check during registration:", e)
                     
                     try:
                         cursor.execute("INSERT INTO user_logins (user_phone) VALUES (?)", (phone,))
                         db.commit()
                     except Exception as e:
-                        print("Failed to log auto-register login:", e)
+                        print("Failed to log registration login:", e)
                     
                     cursor.execute("SELECT * FROM users WHERE id = ?", (new_id,))
                     user = cursor.fetchone()
@@ -559,47 +527,95 @@ def login():
                     session['profile_pic'] = user['profile_pic']
                     return jsonify({'success': True, 'redirect': '/customer'})
                 except Exception as e:
-                    return jsonify({'success': False, 'error': f'Failed to auto-register user: {str(e)}'})
-                
-            if user['is_blocked']:
-                return jsonify({'success': False, 'error': 'Your account has been blocked due to suspicious activity. Please contact support.'})
-                
-            # Enforce username verification
-            if user['name'] and user['name'].strip().lower() != username.strip().lower():
+                    return jsonify({'success': False, 'error': f'Failed to create user: {str(e)}'})
+                    
+            else: # login
+                if not user:
+                    # Auto-register user on first login
+                    if len(password) < 4 or len(password) > 20:
+                        return jsonify({'success': False, 'error': 'Password must be between 4 and 20 characters.'})
+                    
+                    new_address = "Sector 4, Local Area"
+                    default_question = "What is your favorite color?"
+                    default_answer = "blue"
+                    try:
+                        hashed_pass = password
+                        cursor.execute(
+                            "INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)",
+                            (username, phone, new_address, hashed_pass, default_question, default_answer)
+                        )
+                        db.commit()
+                        new_id = cursor.lastrowid
+                        
+                        # Run fraud check on registration
+                        try:
+                            check_and_flag_suspicious_user(new_id, db)
+                        except Exception as e:
+                            print("Failed to run fraud check during registration:", e)
+                        
+                        try:
+                            cursor.execute("INSERT INTO user_logins (user_phone) VALUES (?)", (phone,))
+                            db.commit()
+                        except Exception as e:
+                            print("Failed to log auto-register login:", e)
+                        
+                        cursor.execute("SELECT * FROM users WHERE id = ?", (new_id,))
+                        user = cursor.fetchone()
+                        
+                        session.permanent = True
+                        session['role'] = 'customer'
+                        session['role_id'] = user['id']
+                        session['name'] = user['name']
+                        session['profile_pic'] = user['profile_pic']
+                        return jsonify({'success': True, 'redirect': '/customer'})
+                    except Exception as e:
+                        return jsonify({'success': False, 'error': f'Failed to auto-register user: {str(e)}'})
+                    
+                if user['is_blocked']:
+                    return jsonify({'success': False, 'error': 'Your account has been blocked due to suspicious activity. Please contact support.'})
+                    
+                # Enforce username verification
+                if user['name'] and user['name'].strip().lower() != username.strip().lower():
+                    try:
+                        cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
+                        db.commit()
+                    except Exception as e:
+                        print("Failed to log failed login:", e)
+                    return jsonify({'success': False, 'error': 'Incorrect username for this mobile number.'})
+                    
+                # Enforce password verification
+                if not user['password']:
+                    return jsonify({'success': False, 'error': 'Account configuration error (missing password). Please contact support.'})
+                    
+                if user['password'] != password:
+                    try:
+                        cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
+                        db.commit()
+                    except Exception as e:
+                        print("Failed to log failed login:", e)
+                    return jsonify({'success': False, 'error': 'Incorrect password for this account.'})
+                    
+                # Keep credentials updated / validated
                 try:
-                    cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
+                    check_and_flag_suspicious_user(user['id'], db)
+                except Exception as e:
+                    print("Failed to run fraud check during login:", e)
+                
+                try:
+                    cursor.execute("INSERT INTO user_logins (user_phone) VALUES (?)", (phone,))
                     db.commit()
                 except Exception as e:
-                    print("Failed to log failed login:", e)
-                return jsonify({'success': False, 'error': 'Incorrect username for this mobile number.'})
+                    print("Failed to log user login:", e)
                 
-            # Enforce password verification
-            if not user['password']:
-                return jsonify({'success': False, 'error': 'Account configuration error (missing password). Please contact support.'})
-                
-            if user['password'] != password:
-                try:
-                    cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
-                    db.commit()
-                except Exception as e:
-                    print("Failed to log failed login:", e)
-                return jsonify({'success': False, 'error': 'Incorrect password for this account.'})
-                
-            # Keep credentials updated / validated
-            check_and_flag_suspicious_user(user['id'], db)
-            
-            try:
-                cursor.execute("INSERT INTO user_logins (user_phone) VALUES (?)", (phone,))
-                db.commit()
-            except Exception as e:
-                print("Failed to log user login:", e)
-            
-            session.permanent = True
-            session['role'] = 'customer'
-            session['role_id'] = user['id']
-            session['name'] = user['name']
-            session['profile_pic'] = user['profile_pic']
-            return jsonify({'success': True, 'redirect': '/customer'})
+                session.permanent = True
+                session['role'] = 'customer'
+                session['role_id'] = user['id']
+                session['name'] = user['name']
+                session['profile_pic'] = user['profile_pic']
+                return jsonify({'success': True, 'redirect': '/customer'})
+        except Exception as login_err:
+            print("CRITICAL LOGIN ERROR:", login_err)
+            return jsonify({'success': False, 'error': f'Internal Server Error: {str(login_err)}'}), 500
                 
     return render_template('login.html')
 
@@ -666,143 +682,148 @@ def forgot_password():
     db.commit()
     
     return jsonify({'success': True, 'message': 'Password reset successfully!'})
+
 @app.route('/staff-login', methods=['GET', 'POST'])
 def staff_login():
     if request.method == 'POST':
-        if request.is_json:
-            data = request.json
-        else:
-            data = request.form
-        role = data.get('role', '').strip()  # admin, vendor, delivery
-        identifier = data.get('identifier', '').strip()
-        password = data.get('password', '').strip()
-        
-        if not role or not identifier:
-            return jsonify({'success': False, 'error': 'Role and ID are required.'})
+        try:
+            if request.is_json:
+                data = request.json
+            else:
+                data = request.form
+            role = data.get('role', '').strip()  # admin, vendor, delivery
+            identifier = data.get('identifier', '').strip()
+            password = data.get('password', '').strip()
             
-        db = get_db()
-        cursor = db.cursor()
-        
-        if role == 'admin':
-            if identifier.strip().lower() != 'admin':
-                return jsonify({'success': False, 'error': 'Incorrect username for Admin.'})
+            if not role or not identifier:
+                return jsonify({'success': False, 'error': 'Role and ID are required.'})
+                
+            db = get_db()
+            cursor = db.cursor()
             
-            # Secure admin password retrieval
-            admin_pass = os.environ.get('ADMIN_PASSWORD')
-            if not admin_pass:
-                admin_pass_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.admin_password')
-                if os.path.exists(admin_pass_path):
-                    try:
-                        with open(admin_pass_path, 'r') as f:
-                            admin_pass = f.read().strip()
-                    except Exception:
+            if role == 'admin':
+                if identifier.strip().lower() != 'admin':
+                    return jsonify({'success': False, 'error': 'Incorrect username for Admin.'})
+                
+                # Secure admin password retrieval
+                admin_pass = os.environ.get('ADMIN_PASSWORD')
+                if not admin_pass:
+                    admin_pass_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.admin_password')
+                    if os.path.exists(admin_pass_path):
+                        try:
+                            with open(admin_pass_path, 'r') as f:
+                                admin_pass = f.read().strip()
+                        except Exception:
+                            admin_pass = 'admin123'
+                    else:
                         admin_pass = 'admin123'
-                else:
-                    admin_pass = 'admin123'
+                        try:
+                            with open(admin_pass_path, 'w') as f:
+                                f.write(admin_pass)
+                        except Exception:
+                            pass
+                            
+                if password != admin_pass:
                     try:
-                        with open(admin_pass_path, 'w') as f:
-                            f.write(admin_pass)
-                    except Exception:
-                        pass
-                        
-            if password != admin_pass:
-                try:
-                    cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", ('admin', request.remote_addr))
-                    db.commit()
-                except Exception as e:
-                    print("Failed to log failed login:", e)
-                return jsonify({'success': False, 'error': 'Incorrect password for Admin.'})
-            # Admin login
-            session.permanent = True
-            session['role'] = 'admin'
-            session['role_id'] = 0
-            session['name'] = 'Super Admin'
-            return jsonify({'success': True, 'redirect': '/admin'})
-            
-        elif role == 'vendor':
-            # Normalize common vendor aliases to seeded shops
-            norm_id = identifier.lower().strip()
-            if norm_id in ['kirana', 'grocery', 'general', 'apna', 'apna bazaar', 'apnabazaar', '1']:
-                identifier = 'KIRANA'
-            elif norm_id in ['cakes', 'cake', 'bakery', 'baker', 'bakers', '2']:
-                identifier = 'CAKES'
-            elif norm_id in ['veggies', 'vegetables', 'fresh', 'green', '3']:
-                identifier = 'VEGGIES'
-            elif norm_id in ['electronics', 'electro', 'electroworld', '4']:
-                identifier = 'ELECTRONICS'
-            elif norm_id in ['pharmacy', 'medicine', 'medicines', 'chemist', 'medical', '5']:
-                identifier = 'PHARMACY'
-            elif norm_id in ['tech', 'gadgets', 'accessories', 'hub', '6']:
-                identifier = 'TECH'
+                        cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", ('admin', request.remote_addr))
+                        db.commit()
+                    except Exception as e:
+                        print("Failed to log failed login:", e)
+                    return jsonify({'success': False, 'error': 'Incorrect password for Admin.'})
+                # Admin login
+                session.permanent = True
+                session['role'] = 'admin'
+                session['role_id'] = 0
+                session['name'] = 'Super Admin'
+                return jsonify({'success': True, 'redirect': '/admin'})
+                
+            elif role == 'vendor':
+                # Normalize common vendor aliases to seeded shops
+                norm_id = identifier.lower().strip()
+                if norm_id in ['kirana', 'grocery', 'general', 'apna', 'apna bazaar', 'apnabazaar', '1']:
+                    identifier = 'KIRANA'
+                elif norm_id in ['cakes', 'cake', 'bakery', 'baker', 'bakers', '2']:
+                    identifier = 'CAKES'
+                elif norm_id in ['veggies', 'vegetables', 'fresh', 'green', '3']:
+                    identifier = 'VEGGIES'
+                elif norm_id in ['electronics', 'electro', 'electroworld', '4']:
+                    identifier = 'ELECTRONICS'
+                elif norm_id in ['pharmacy', 'medicine', 'medicines', 'chemist', 'medical', '5']:
+                    identifier = 'PHARMACY'
+                elif norm_id in ['tech', 'gadgets', 'accessories', 'hub', '6']:
+                    identifier = 'TECH'
 
-            # Check if vendor identifier exists
-            shop = None
-            if identifier.isdigit():
-                cursor.execute("SELECT * FROM shops WHERE id = ?", (int(identifier),))
-                shop = cursor.fetchone()
-            else:
-                cursor.execute("SELECT * FROM shops WHERE shop_name LIKE ? OR category LIKE ?", (f"%{identifier}%", f"%{identifier}%"))
-                shop = cursor.fetchone()
-                
-            if shop:
-                if not shop['is_active']:
-                    return jsonify({'success': False, 'error': 'This vendor store is currently inactive. Please contact Admin.'})
-                # Verify password if one is set in the database
-                if not shop['password']:
-                    return jsonify({'success': False, 'error': 'Vendor store configuration error (missing password). Please contact Admin.'})
-                if shop['password'] != password:
-                    try:
-                        cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
-                        db.commit()
-                    except Exception as e:
-                        print("Failed to log failed login:", e)
-                    return jsonify({'success': False, 'error': 'Incorrect password for this vendor store.'})
-            else:
-                return jsonify({'success': False, 'error': 'Vendor store not registered. Please contact Admin.'})
-            
-            session.permanent = True
-            session['role'] = 'vendor'
-            session['role_id'] = shop['id']
-            session['name'] = shop['shop_name']
-            return jsonify({'success': True, 'redirect': '/vendor'})
-            
-        elif role == 'delivery':
-            rider = None
-            # 1. Try to find by exact phone number match (removing spaces/dashes)
-            clean_identifier = identifier.strip().replace(" ", "").replace("-", "")
-            cursor.execute("SELECT * FROM delivery_partners WHERE phone = ?", (clean_identifier,))
-            rider = cursor.fetchone()
-            
-            # 2. If not found by phone, and it is a digit, try by ID
-            if not rider and identifier.isdigit():
-                cursor.execute("SELECT * FROM delivery_partners WHERE id = ?", (int(identifier),))
-                rider = cursor.fetchone()
-                
-            # 3. If still not found, try flexible name match
-            if not rider:
-                cursor.execute("SELECT * FROM delivery_partners WHERE name LIKE ?", (f"%{identifier}%",))
-                rider = cursor.fetchone()
-                
-            if rider:
-                if not rider['password']:
-                    return jsonify({'success': False, 'error': 'Delivery rider configuration error (missing password). Please contact Admin.'})
-                if rider['password'] != password:
-                    try:
-                        cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
-                        db.commit()
-                    except Exception as e:
-                        print("Failed to log failed login:", e)
-                    return jsonify({'success': False, 'error': 'Incorrect password for this delivery rider.'})
-            else:
-                return jsonify({'success': False, 'error': 'Delivery rider not registered. Please contact Admin.'})
+                # Check if vendor identifier exists
+                shop = None
+                if identifier.isdigit():
+                    cursor.execute("SELECT * FROM shops WHERE id = ?", (int(identifier),))
+                    shop = cursor.fetchone()
+                else:
+                    cursor.execute("SELECT * FROM shops WHERE shop_name LIKE ? OR category LIKE ?", (f"%{identifier}%", f"%{identifier}%"))
+                    shop = cursor.fetchone()
                     
-            session.permanent = True
-            session['role'] = 'delivery'
-            session['role_id'] = rider['id']
-            session['name'] = rider['name']
-            return jsonify({'success': True, 'redirect': '/delivery'})
-            
-        return jsonify({'success': False, 'error': 'Invalid role.'})
+                if shop:
+                    if not shop['is_active']:
+                        return jsonify({'success': False, 'error': 'This vendor store is currently inactive. Please contact Admin.'})
+                    # Verify password if one is set in the database
+                    if not shop['password']:
+                        return jsonify({'success': False, 'error': 'Vendor store configuration error (missing password). Please contact Admin.'})
+                    if shop['password'] != password:
+                        try:
+                            cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
+                            db.commit()
+                        except Exception as e:
+                            print("Failed to log failed login:", e)
+                        return jsonify({'success': False, 'error': 'Incorrect password for this vendor store.'})
+                else:
+                    return jsonify({'success': False, 'error': 'Vendor store not registered. Please contact Admin.'})
+                
+                session.permanent = True
+                session['role'] = 'vendor'
+                session['role_id'] = shop['id']
+                session['name'] = shop['shop_name']
+                return jsonify({'success': True, 'redirect': '/vendor'})
+                
+            elif role == 'delivery':
+                rider = None
+                # 1. Try to find by exact phone number match (removing spaces/dashes)
+                clean_identifier = identifier.strip().replace(" ", "").replace("-", "")
+                cursor.execute("SELECT * FROM delivery_partners WHERE phone = ?", (clean_identifier,))
+                rider = cursor.fetchone()
+                
+                # 2. If not found by phone, and it is a digit, try by ID
+                if not rider and identifier.isdigit():
+                    cursor.execute("SELECT * FROM delivery_partners WHERE id = ?", (int(identifier),))
+                    rider = cursor.fetchone()
+                    
+                # 3. If still not found, try flexible name match
+                if not rider:
+                    cursor.execute("SELECT * FROM delivery_partners WHERE name LIKE ?", (f"%{identifier}%",))
+                    rider = cursor.fetchone()
+                    
+                if rider:
+                    if not rider['password']:
+                        return jsonify({'success': False, 'error': 'Delivery rider configuration error (missing password). Please contact Admin.'})
+                    if rider['password'] != password:
+                        try:
+                            cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
+                            db.commit()
+                        except Exception as e:
+                            print("Failed to log failed login:", e)
+                        return jsonify({'success': False, 'error': 'Incorrect password for this delivery rider.'})
+                else:
+                    return jsonify({'success': False, 'error': 'Delivery rider not registered. Please contact Admin.'})
+                    
+                session.permanent = True
+                session['role'] = 'delivery'
+                session['role_id'] = rider['id']
+                session['name'] = rider['name']
+                return jsonify({'success': True, 'redirect': '/delivery'})
+                
+            return jsonify({'success': False, 'error': 'Invalid role.'})
+        except Exception as staff_err:
+            print("CRITICAL STAFF LOGIN ERROR:", staff_err)
+            return jsonify({'success': False, 'error': f'Internal Server Error: {str(staff_err)}'}), 500
         
     return render_template('staff_login.html')
 
