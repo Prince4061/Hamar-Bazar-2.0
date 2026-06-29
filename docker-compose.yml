@@ -1,6 +1,6 @@
 services:
   hamar-bazar:
-    image: princekaushik9926/hamar-bazar:v3
+    image: princekaushik9926/hamar-bazar:v4
     container_name: hamar-bazar-container
     restart: always
     networks:

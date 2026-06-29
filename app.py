@@ -434,6 +434,7 @@ def home():
     return redirect(f"/{session['role']}")
 
 @app.route('/login', methods=['GET', 'POST'])
+@csrf.exempt
 def login():
     if request.method == 'POST':
         try:
@@ -643,6 +644,7 @@ def check_phone():
     return jsonify({'exists': False})
 
 @app.route('/api/forgot-password', methods=['POST'])
+@csrf.exempt
 def forgot_password():
     if request.is_json:
         data = request.json
@@ -684,6 +686,7 @@ def forgot_password():
     return jsonify({'success': True, 'message': 'Password reset successfully!'})
 
 @app.route('/staff-login', methods=['GET', 'POST'])
+@csrf.exempt
 def staff_login():
     if request.method == 'POST':
         try:
