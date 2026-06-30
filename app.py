@@ -3586,6 +3586,16 @@ def delete_service_review(review_id):
     except Exception as e:
         return jsonify({'error': f'Failed to delete service review: {str(e)}'}), 500
 
+# Programmatically exempt all API routes from CSRF protection to prevent unexpected CSRF validation errors
+try:
+    for rule in app.url_map.iter_rules():
+        if rule.rule.startswith('/api/'):
+            endpoint = rule.endpoint
+            if endpoint in app.view_functions:
+                app.view_functions[endpoint] = csrf.exempt(app.view_functions[endpoint])
+except Exception as e:
+    print("Failed to exempt API routes from CSRF:", e)
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
 
