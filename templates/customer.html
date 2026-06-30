@@ -1838,6 +1838,7 @@ html, body {
         recommendedProductsCache = products;
         
         const container = document.getElementById("recommended-products-container");
+        if (!container) return;
         container.innerHTML = "";
         
         products.forEach(prod => {
