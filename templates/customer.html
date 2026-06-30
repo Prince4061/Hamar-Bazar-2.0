@@ -79,7 +79,7 @@ html, body {
 
 /* Bottom Navigation Bar */
 .bottom-nav-bar {
-    position: fixed !important;
+    position: absolute !important;
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
@@ -949,7 +949,7 @@ html, body {
 
 <!-- Client Actions Javascript Logic -->
 <script>
-    const customerId = {{ active_user_id }};
+    const customerId = {{ (active_user_id or 0) | tojson }};
     let customerName = "";
     let customerPhone = "";
     let customerPassword = "";
