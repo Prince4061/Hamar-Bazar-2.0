@@ -191,6 +191,11 @@
             // Detect if already installed/standalone mode
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 
+            // If running inside standalone mode, flag it in localStorage to prevent prompts in normal browser tabs
+            if (isStandalone) {
+                localStorage.setItem('pwa-installed', 'true');
+            }
+
             // Helper to check if dismissed in the last 24 hours
             function isRecentlyDismissed() {
                 const dismissedTime = localStorage.getItem('pwa-prompt-dismissed-time');
@@ -234,14 +239,24 @@
             }
 
             // Trigger popup on mobile after a short delay on page load
-            if (isMobile && !isStandalone && !isRecentlyDismissed()) {
+            if (isMobile && !isStandalone && !isRecentlyDismissed() && localStorage.getItem('pwa-installed') !== 'true') {
                 setTimeout(() => {
                     if (pwaPrompt) {
-                        configurePromptUI();
-                        pwaPrompt.style.display = 'block';
-                        setTimeout(() => {
-                            pwaPrompt.classList.add('show');
-                        }, 100);
+                        // On Android, only prompt if browser fired the install event (deferredPrompt is set)
+                        // On iOS, show instructions manually since there's no event support
+                        if (isIOS) {
+                            configurePromptUI();
+                            pwaPrompt.style.display = 'block';
+                            setTimeout(() => {
+                                pwaPrompt.classList.add('show');
+                            }, 100);
+                        } else if (deferredPrompt) {
+                            configurePromptUI();
+                            pwaPrompt.style.display = 'block';
+                            setTimeout(() => {
+                                pwaPrompt.classList.add('show');
+                            }, 100);
+                        }
                     }
                 }, 2000);
             }
@@ -251,8 +266,8 @@
                 e.preventDefault();
                 deferredPrompt = e;
 
-                // Only prompt if on a mobile device/width
-                if (isMobile && !isStandalone && !isRecentlyDismissed()) {
+                // Only prompt if on a mobile device/width and not already installed
+                if (isMobile && !isStandalone && !isRecentlyDismissed() && localStorage.getItem('pwa-installed') !== 'true') {
                     if (pwaPrompt) {
                         configurePromptUI();
                         pwaPrompt.style.display = 'block';
@@ -293,6 +308,7 @@
             // Successful installation log
             window.addEventListener('appinstalled', (evt) => {
                 console.log('Hamar Bazaar app installed successfully!');
+                localStorage.setItem('pwa-installed', 'true');
                 dismissPWAPrompt();
                 showAestheticToast('Hamar Bazaar has been installed! Enjoy the full-screen experience.', 'success');
             });
