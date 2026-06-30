@@ -3140,7 +3140,7 @@ def export_customer_search_pdf(cust_id):
     ''', (cust_id,))
     top_keywords = cursor.fetchall()
     
-    cursor.execute("SELECT keyword, searched_at FROM search_history WHERE customer_id = ? ORDER BY id DESC", (cust_id,))
+    cursor.execute("SELECT keyword, searched_at FROM search_history WHERE customer_id = ? ORDER BY id DESC LIMIT 200", (cust_id,))
     all_history = cursor.fetchall()
     
     # FPDF generation
@@ -3191,19 +3191,36 @@ def export_customer_search_pdf(cust_id):
     
     # Complete Search History Section
     pdf.set_font('Helvetica', 'B', 12)
-    pdf.cell(0, 8, 'Complete Search History Log', new_x='LMARGIN', new_y='NEXT')
+    pdf.cell(0, 8, 'Recent Search History Log (Last 200)', new_x='LMARGIN', new_y='NEXT')
     pdf.set_font('Helvetica', 'B', 10)
     pdf.cell(100, 7, 'Keyword', border=1)
     pdf.cell(70, 7, 'Date & Time', border=1, new_x='LMARGIN', new_y='NEXT')
     pdf.set_font('Helvetica', '', 10)
     
+    months = {
+        '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
+        '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug',
+        '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
+    }
     for hist_row in all_history:
-        time_str = hist_row['searched_at']
-        try:
-            dt = datetime.strptime(hist_row['searched_at'], '%Y-%m-%d %H:%M:%S' if '.' not in hist_row['searched_at'] else '%Y-%m-%d %H:%M:%S.%f')
-            time_str = dt.strftime('%d %b %Y %I:%M %p')
-        except Exception:
-            pass
+        ts = hist_row['searched_at']
+        time_str = ts
+        if ts and len(ts) >= 19:
+            try:
+                year = ts[0:4]
+                month_num = ts[5:7]
+                day = ts[8:10]
+                hour_24 = int(ts[11:13])
+                minute = ts[14:16]
+                month_name = months.get(month_num, month_num)
+                ampm = 'PM' if hour_24 >= 12 else 'AM'
+                hour_12 = hour_24 % 12
+                if hour_12 == 0:
+                    hour_12 = 12
+                day_clean = str(int(day))
+                time_str = f"{day_clean} {month_name} {year} {hour_12}:{minute} {ampm}"
+            except Exception:
+                pass
         pdf.cell(100, 7, hist_row['keyword'], border=1)
         pdf.cell(70, 7, time_str, border=1, new_x='LMARGIN', new_y='NEXT')
         
