@@ -3,22 +3,22 @@
   "short_name": "HamarBazaar",
   "description": "Hyperlocal Grocery & General Marketplace",
   "id": "/",
-  "start_url": "/",
+  "start_url": "/login",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#5e17eb",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/static/images/app_logo.jpg",
+      "src": "/static/images/app_logo_192.png",
       "sizes": "192x192",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/static/images/app_logo.jpg",
+      "src": "/static/images/app_logo_512.png",
       "sizes": "512x512",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],
@@ -27,19 +27,19 @@
       "name": "Customer Store",
       "short_name": "Customer",
       "url": "/customer",
-      "icons": [{ "src": "/static/images/app_logo.jpg", "sizes": "192x192" }]
+      "icons": [{ "src": "/static/images/app_logo_192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Vendor Portal",
       "short_name": "Vendor",
       "url": "/vendor",
-      "icons": [{ "src": "/static/images/app_logo.jpg", "sizes": "192x192" }]
+      "icons": [{ "src": "/static/images/app_logo_192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Delivery Panel",
       "short_name": "Delivery",
       "url": "/delivery",
-      "icons": [{ "src": "/static/images/app_logo.jpg", "sizes": "192x192" }]
+      "icons": [{ "src": "/static/images/app_logo_192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

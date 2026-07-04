@@ -1,10 +1,6 @@
-const CACHE_NAME = 'hamar-bazar-cache-v1';
+const CACHE_NAME = 'hamar-bazar-cache-v5';
 const ASSETS_TO_CACHE = [
-  '/login',
-  '/static/css/styles.css',
-  '/static/images/app_logo.jpg',
-  '/static/images/delivery_scooter.png',
-  '/static/images/grocery_basket.png'
+  '/static/offline.html'
 ];
 
 // Install Event
@@ -75,7 +71,7 @@ self.addEventListener('fetch', (event) => {
       return fetch(event.request).catch(() => {
         // Offline Fallback for HTML pages
         if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html')) {
-          return caches.match('/login');
+          return caches.match('/static/offline.html');
         }
       });
     })

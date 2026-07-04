@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Hamar Bazaar">
-    <link rel="apple-touch-icon" href="/static/images/app_logo.jpg">
+    <link rel="apple-touch-icon" href="{{ system_settings.app_logo }}">
     <!-- Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <!-- Lucide Icons -->
@@ -465,7 +465,7 @@
     <div id="pwa-install-prompt" class="pwa-install-prompt-overlay" style="display: none;">
         <div class="pwa-install-card">
             <div class="pwa-install-header">
-                <img src="/static/images/app_logo.jpg" alt="Hamar Bazaar Logo" class="pwa-install-logo">
+                <img src="{{ system_settings.app_logo }}" alt="Hamar Bazaar Logo" class="pwa-install-logo">
                 <div class="pwa-install-info">
                     <h4 class="pwa-install-title">Install Hamar Bazaar</h4>
                     <p class="pwa-install-desc">Add Hamar Bazaar to your home screen for quick access and full-screen experience!</p>

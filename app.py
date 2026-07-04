@@ -17,9 +17,11 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 
 # Secure secret key handling for production
-secret_key_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.secret_key')
+db_dir = os.path.dirname(database.DATABASE_PATH)
+secret_key_path = os.path.join(db_dir, '.secret_key') if db_dir else os.path.join(os.path.dirname(os.path.abspath(__file__)), '.secret_key')
 if os.environ.get('FLASK_SECRET_KEY'):
     app.secret_key = os.environ.get('FLASK_SECRET_KEY')
 else:
@@ -339,6 +341,10 @@ def send_order_email_async(order_id):
 
 @app.before_request
 def check_user_and_shop_status():
+    # Ensure session is always permanent when a user role is logged in
+    if session.get('role'):
+        session.permanent = True
+
     # Bypass CSRF validation for all API requests to prevent checkout and status-update errors
     if request.path.startswith('/api/'):
         g._csrf_disable = True
@@ -425,7 +431,75 @@ def serve_service_worker():
 
 @app.route('/manifest.json')
 def serve_manifest():
-    return send_file(os.path.join(app.root_path, 'static', 'manifest.json'), mimetype='application/json')
+    import json
+    manifest_path = os.path.join(app.root_path, 'static', 'manifest.json')
+    try:
+        with open(manifest_path, 'r') as f:
+            manifest_data = json.load(f)
+    except Exception:
+        manifest_data = {
+            "name": "Hamar Bazaar",
+            "short_name": "HamarBazaar",
+            "description": "Hyperlocal Grocery & General Marketplace",
+            "id": "/",
+            "start_url": "/login",
+            "display": "standalone",
+            "background_color": "#ffffff",
+            "theme_color": "#5e17eb",
+            "orientation": "portrait-primary",
+            "icons": []
+        }
+
+    # Fetch app logo versions from system settings to prevent size mismatches
+    logo_url = '/static/images/app_logo.jpg'
+    logo_url_192 = '/static/images/app_logo_192.png'
+    logo_url_512 = '/static/images/app_logo_512.png'
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT key, value FROM system_settings WHERE key IN ('app_logo', 'app_logo_192', 'app_logo_512')")
+        rows = cursor.fetchall()
+        settings = {row['key']: row['value'] for row in rows}
+        if 'app_logo' in settings and settings['app_logo']:
+            logo_url = settings['app_logo']
+        if 'app_logo_192' in settings and settings['app_logo_192']:
+            logo_url_192 = settings['app_logo_192']
+        if 'app_logo_512' in settings and settings['app_logo_512']:
+            logo_url_512 = settings['app_logo_512']
+    except Exception:
+        pass
+
+    # Update all icons in manifest with proper matching sizes to avoid WebAPK minting failures
+    if 'icons' in manifest_data:
+        for icon in manifest_data['icons']:
+            if icon.get('sizes') == '192x192':
+                icon['src'] = logo_url_192
+                icon['type'] = 'image/png'
+            elif icon.get('sizes') == '512x512':
+                icon['src'] = logo_url_512
+                icon['type'] = 'image/png'
+            else:
+                icon['src'] = logo_url
+                if logo_url.lower().endswith('.png'):
+                    icon['type'] = 'image/png'
+                elif logo_url.lower().endswith('.jpg') or logo_url.lower().endswith('.jpeg'):
+                    icon['type'] = 'image/jpeg'
+                elif logo_url.lower().endswith('.webp'):
+                    icon['type'] = 'image/webp'
+                elif logo_url.lower().endswith('.gif'):
+                    icon['type'] = 'image/gif'
+
+    # Update all shortcuts icons using PNG format and matching 192x192 dimensions
+    if 'shortcuts' in manifest_data:
+        for shortcut in manifest_data['shortcuts']:
+            if 'icons' in shortcut:
+                for icon in shortcut['icons']:
+                    icon['src'] = logo_url_192
+                    icon['type'] = 'image/png'
+
+    response = jsonify(manifest_data)
+    response.headers['Content-Type'] = 'application/manifest+json; charset=utf-8'
+    return response
 
 # -------------------------------------------------------------
 # Views Pages
@@ -440,6 +514,18 @@ def home():
 @app.route('/login', methods=['GET', 'POST'])
 @csrf.exempt
 def login():
+    # If already logged in, auto-redirect to correct dashboard
+    if request.method == 'GET' and session.get('role'):
+        role = session.get('role')
+        if role == 'customer':
+            return redirect('/customer')
+        elif role == 'vendor':
+            return redirect('/vendor')
+        elif role == 'delivery':
+            return redirect('/delivery')
+        elif role == 'admin':
+            return redirect('/admin')
+            
     if request.method == 'POST':
         try:
             if request.is_json:
@@ -2689,18 +2775,50 @@ def upload_app_logo():
         
     if file and allowed_file(file.filename):
         ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"app_logo_{int(datetime.now().timestamp())}.{ext}"
+        timestamp = int(datetime.now().timestamp())
+        filename = f"app_logo_{timestamp}.{ext}"
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'system')
         os.makedirs(upload_path, exist_ok=True)
         file_path = os.path.join(upload_path, filename)
         file.save(file_path)
         
         db_path = f"/static/uploads/system/{filename}"
+        
+        # Generate 192x192 and 512x512 optimized PNG files to prevent WebAPK install hangs
+        db_path_192 = db_path
+        db_path_512 = db_path
+        try:
+            from PIL import Image
+            # Open source image
+            img = Image.open(file_path)
+            
+            # Resizing methods based on Pillow version
+            resample_filter = getattr(Image, 'Resampling', None)
+            filter_type = resample_filter.LANCZOS if resample_filter else Image.ANTIALIAS
+            
+            # Save 192x192
+            img_192 = img.resize((192, 192), filter_type)
+            filename_192 = f"app_logo_192_{timestamp}.png"
+            path_192 = os.path.join(upload_path, filename_192)
+            img_192.save(path_192, "PNG")
+            db_path_192 = f"/static/uploads/system/{filename_192}"
+            
+            # Save 512x512
+            img_512 = img.resize((512, 512), filter_type)
+            filename_512 = f"app_logo_512_{timestamp}.png"
+            path_512 = os.path.join(upload_path, filename_512)
+            img_512.save(path_512, "PNG")
+            db_path_512 = f"/static/uploads/system/{filename_512}"
+        except Exception as e:
+            print("Failed to auto-resize uploaded app logo:", e)
+            
         db = get_db()
         cursor = db.cursor()
         cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('app_logo', ?)", (db_path,))
+        cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('app_logo_192', ?)", (db_path_192,))
+        cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('app_logo_512', ?)", (db_path_512,))
         db.commit()
-        return jsonify({'success': True, 'image_path': db_path, 'message': 'App logo uploaded successfully.'})
+        return jsonify({'success': True, 'image_path': db_path, 'message': 'App logo uploaded and optimized successfully.'})
     return jsonify({'error': 'Invalid file type.'}), 400
 
 @app.route('/api/admin/settings/logo', methods=['DELETE'])
@@ -2709,7 +2827,7 @@ def delete_app_logo():
         return jsonify({'error': 'Unauthorized.'}), 403
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("DELETE FROM system_settings WHERE key = 'app_logo'")
+    cursor.execute("DELETE FROM system_settings WHERE key IN ('app_logo', 'app_logo_192', 'app_logo_512')")
     db.commit()
     return jsonify({'success': True, 'message': 'App logo deleted successfully.'})
 

@@ -235,6 +235,12 @@ def seed_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Check if database is already seeded to optimize startup speed
+    cursor.execute("SELECT COUNT(*) FROM shops")
+    if cursor.fetchone()[0] > 0:
+        conn.close()
+        return
+    
     # Seed Users
     users_data = [
         ('Alice Sharma', '9876543210', 'Flat 101, Sunshine Apartments, Sector 4', 'password123', 'What is your favorite color?', 'blue'),

@@ -20,12 +20,18 @@ if exist .venv\Scripts\python.exe (
     )
 )
 
-echo [1/3] Installing dependencies from requirements.txt...
-%PYTHON_CMD% -m pip install -r requirements.txt
+echo [1/3] Checking dependencies...
+%PYTHON_CMD% -c "import flask, fpdf, flask_wtf" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] Failed to install dependencies.
-    pause
-    exit /b %errorlevel%
+    echo [INFO] Dependencies missing or incomplete. Installing from requirements.txt...
+    %PYTHON_CMD% -m pip install -r requirements.txt
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to install dependencies.
+        pause
+        exit /b %errorlevel%
+    )
+) else (
+    echo [INFO] All dependencies are already installed. Skipping pip check.
 )
 
 echo.

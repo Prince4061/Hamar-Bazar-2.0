@@ -144,6 +144,115 @@ html, body {
     justify-content: center;
 }
 
+/* Cart highlight keyframes & classes */
+@keyframes navCartHighlight {
+    0% {
+        transform: scale(1);
+    }
+    15% {
+        transform: scale(1.3) translateY(-4px);
+    }
+    30% {
+        transform: scale(0.95) translateY(0);
+    }
+    45% {
+        transform: scale(1.15) translateY(-2px);
+    }
+    60% {
+        transform: scale(0.98) translateY(0);
+    }
+    75% {
+        transform: scale(1.05) translateY(-1px);
+    }
+    100% {
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Green Attention/Highlight state for Cart */
+@keyframes greenPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    }
+}
+
+.bottom-nav-item.cart-attention-green {
+    background: rgba(34, 197, 94, 0.15) !important;
+    color: #15803d !important;
+    border-radius: 12px;
+    animation: greenPulse 2s infinite;
+}
+
+.bottom-nav-item.cart-attention-green i {
+    color: #15803d !important;
+    stroke: #15803d !important;
+}
+
+.bottom-nav-item.cart-attention-green .badge {
+    background: #15803d !important;
+    color: #ffffff !important;
+}
+
+.bottom-nav-item.highlight-active {
+    animation: navCartHighlight 1.2s ease-in-out;
+    background: rgba(34, 197, 94, 0.25) !important;
+    color: #15803d !important;
+    border-radius: 12px;
+}
+
+.bottom-nav-item.highlight-active i {
+    color: #15803d !important;
+    stroke: #15803d !important;
+}
+
+/* Floating checkout guidance tooltip */
+.cart-guide-tooltip {
+    position: absolute;
+    bottom: 74px; /* Right above the bottom-nav-bar which has height 64px */
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: #15803d; /* Vibrant Green background */
+    color: #ffffff;
+    padding: 8px 14px;
+    border-radius: var(--radius-lg);
+    font-size: 0.8rem;
+    font-weight: 800;
+    white-space: nowrap;
+    z-index: 1100;
+    box-shadow: 0 4px 16px rgba(22, 163, 74, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cart-guide-tooltip.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+.cart-guide-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px 6px 0;
+    border-style: solid;
+    border-color: #15803d transparent;
+    display: block;
+    width: 0;
+}
+
 .keyword-chip {
     background: var(--primary-light);
     color: var(--primary-accent);
@@ -481,20 +590,6 @@ html, body {
                     <!-- Dynamic cart listing -->
                 </div>
                 
-                <!-- Smart AI Suggestion Box -->
-                <div id="recommendation-box" style="display: none; background: #f0fdf4; border: 1px solid rgba(44, 160, 44, 0.15); padding: 12px; margin-top: 12px; border-radius: var(--radius-md);">
-                    <div style="display: flex; gap: 6px; margin-bottom: 4px; align-items: center;">
-                        <i data-lucide="sparkles" style="width: 12px; height: 12px; color: var(--primary-accent);"></i>
-                        <span style="font-size: 0.7rem; color: var(--primary-accent); font-weight: 800; text-transform: uppercase;">AI Suggestion</span>
-                    </div>
-                    <div class="flex-between">
-                        <div>
-                            <span id="rec-item-name" style="font-weight: 700; font-size: 0.85rem;">Butter</span>
-                            <span id="rec-item-price" style="font-size: 0.75rem; color: var(--text-secondary); display: block;">₹60.0</span>
-                        </div>
-                        <button class="btn btn-primary" id="rec-add-btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem; border-radius: 20px;">+ Add</button>
-                    </div>
-                </div>
             </div>
 
             <!-- Payment Options Selection Widget -->
@@ -781,6 +876,10 @@ html, body {
     </div>
     
     <!-- BOTTOM NAV BAR FIXED -->
+    <div class="cart-guide-tooltip" id="cart-highlight-tooltip">
+        <i data-lucide="shopping-bag" style="width: 14px; height: 14px;"></i>
+        <span>Item added! Checkout karne ke liye 'Mera Bag' par click karein.</span>
+    </div>
     <nav class="bottom-nav-bar">
         <button class="bottom-nav-item active" onclick="switchTab('home')" id="nav-home">
             <i data-lucide="home"></i>
@@ -1218,6 +1317,10 @@ html, body {
     // Ensure cart UI is refreshed when navigating to the Cart tab
     if (tabId === 'cart') {
         updateCartUI();
+        const tooltip = document.getElementById("cart-highlight-tooltip");
+        if (tooltip) {
+            tooltip.classList.remove("show");
+        }
     }
             // Refresh cart UI when switching to the cart tab to ensure items are displayed correctly
         document.querySelectorAll(".app-screen").forEach(screen => {
@@ -1235,6 +1338,8 @@ html, body {
         if (activeNavBtn) {
             activeNavBtn.classList.add("active");
         }
+        
+        try { updateCartAttention(); } catch(e) {}
         
         const appBody = document.querySelector(".mobile-app-body");
         if (appBody) {
@@ -1557,14 +1662,6 @@ html, body {
             });
     }
 
-    const recRules = {
-        'milk': { id: 4, name: 'Amul Butter 100g', price: 55.0 },
-        'bread': { id: 4, name: 'Amul Butter 100g', price: 55.0 },
-        'lays': { id: 4, name: 'Amul Butter 100g', price: 55.0 },
-        'butter': { id: 5, name: 'Colgate Toothpaste 100g', price: 32.0 },
-        'colgate': { id: 1, name: 'Amul Milk 1 Ltr', price: 62.0 }
-    };
-
     // Toggle Payment selection UI
     let uploadedScreenshotPath = null;
     let adminQRCodePath = "";
@@ -1883,9 +1980,7 @@ html, body {
         refreshIcons();
     }
 
-    function addRecommendedToCart(prodId) {
-        addToCart(prodId, 1);
-    }
+
 
     function addToCart(prodId, qty) {
         let prod = productsList.find(p => p.id === prodId);
@@ -1919,6 +2014,47 @@ html, body {
         }
     }
 
+    function updateCartAttention() {
+        const navCart = document.getElementById("nav-cart");
+        if (!navCart) return;
+        
+        const keys = Object.keys(cart);
+        const cartCount = keys.reduce((acc, k) => acc + cart[k].quantity, 0);
+        const isCartTabActive = navCart.classList.contains("active");
+        
+        if (cartCount > 0 && !isCartTabActive) {
+            navCart.classList.add("cart-attention-green");
+        } else {
+            navCart.classList.remove("cart-attention-green");
+        }
+    }
+
+    function triggerCartHighlight() {
+        const navCart = document.getElementById("nav-cart");
+        const tooltip = document.getElementById("cart-highlight-tooltip");
+        
+        if (navCart) {
+            navCart.classList.remove("highlight-active");
+            void navCart.offsetWidth; // trigger reflow to restart animation
+            navCart.classList.add("highlight-active");
+            
+            setTimeout(() => {
+                navCart.classList.remove("highlight-active");
+            }, 1200);
+        }
+        
+        if (tooltip) {
+            tooltip.classList.add("show");
+            
+            if (window.cartTooltipTimeout) {
+                clearTimeout(window.cartTooltipTimeout);
+            }
+            window.cartTooltipTimeout = setTimeout(() => {
+                tooltip.classList.remove("show");
+            }, 4000);
+        }
+    }
+
     function processAddToCart(prod, qty) {
         const cartKeys = Object.keys(cart);
         if (cartKeys.length > 0) {
@@ -1946,6 +2082,7 @@ html, body {
         };
         
         updateCartUI();
+        triggerCartHighlight();
     }
 
     function getMockProductDetail(id) {
@@ -1966,6 +2103,13 @@ html, body {
             delete cart[prodId];
         }
         updateCartUI();
+    }
+
+    function deleteCartItem(prodId) {
+        if (confirm("Kya aap is item ko apne bag se hatana chahte hain?")) {
+            delete cart[prodId];
+            updateCartUI();
+        }
     }
 
     function toggleCartEdit() {
@@ -1990,7 +2134,6 @@ html, body {
         if (keys.length === 0) {
             container.innerHTML = `<div style="text-align: center; padding: 24px 0;"><i data-lucide="shopping-cart" style="width: 32px; height: 32px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 8px; display: inline-block;"></i><p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">Cart is empty.</p></div>`;
             document.getElementById("cart-summary-section").style.display = "none";
-            document.getElementById("recommendation-box").style.display = "none";
             refreshIcons();
             return;
         }
@@ -2030,45 +2173,23 @@ html, body {
             const oosBadge = isOutOfStock ? `<span style="background: var(--ruby-danger); color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-top: 4px; display: inline-block; font-weight: 700;">Out of Stock</span>` : "";
 
             itemRow.innerHTML = `
-                <div>
-                    <div style="font-weight: 700; font-size: 0.9rem; color: ${isOutOfStock ? 'var(--ruby-danger)' : 'var(--text-primary)'};">${item.name}</div>
+                <div style="flex: 1; min-width: 0; text-align: left; padding-right: 8px;">
+                    <div style="font-weight: 700; font-size: 0.9rem; color: ${isOutOfStock ? 'var(--ruby-danger)' : 'var(--text-primary)'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item.name}">${item.name}</div>
                     <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px;">₹${item.price.toFixed(0)}</div>
                     ${oosBadge}
                 </div>
-                <div style="display: flex; align-items: center; gap: 16px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
                     ${qtyControls}
-                    <strong style="color: ${isOutOfStock ? 'var(--text-muted)' : 'var(--text-primary)'}; font-size: 0.95rem; width: 50px; text-align: right;">₹${isOutOfStock ? '0' : (item.price * item.quantity).toFixed(0)}</strong>
+                    <strong style="color: ${isOutOfStock ? 'var(--text-muted)' : 'var(--text-primary)'}; font-size: 0.95rem; width: 45px; text-align: right;">₹${isOutOfStock ? '0' : (item.price * item.quantity).toFixed(0)}</strong>
+                    <button class="btn-circle" style="width: 24px; height: 24px; background: #fee2e2; color: #ef4444; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0;" onclick="deleteCartItem(${item.id})" title="Delete Item">
+                        <i data-lucide="trash-2" style="width: 13px; height: 13px; stroke-width: 2.2;"></i>
+                    </button>
                 </div>
             `;
             container.appendChild(itemRow);
         });
         
-        let recFound = null;
-        for (let key in cart) {
-            const item_name_lower = cart[key].name.toLowerCase();
-            for (let word in recRules) {
-                if (item_name_lower.includes(word)) {
-                    const recProd = recRules[word];
-                    if (!cart[recProd.id]) {
-                        recFound = recProd;
-                        break;
-                    }
-                }
-            }
-            if (recFound) break;
-        }
-        
-        const recBox = document.getElementById("recommendation-box");
-        if (recFound) {
-            recBox.style.display = "block";
-            document.getElementById("rec-item-name").innerText = recFound.name;
-            document.getElementById("rec-item-price").innerText = `₹${recFound.price.toFixed(0)}`;
-            document.getElementById("rec-add-btn").onclick = () => {
-                addToCart(recFound.id, 1);
-            };
-        } else {
-            recBox.style.display = "none";
-        }
+
         
         const deliveryFee = subtotal >= deliveryFeeThreshold ? 0 : deliveryFeeFlat;
         const grand = subtotal + deliveryFee;
@@ -2095,6 +2216,7 @@ html, body {
         
         localStorage.setItem(`cart_${customerId}`, JSON.stringify(cart));
         refreshIcons();
+        try { updateCartAttention(); } catch(e) {}
     }
 
     function checkoutOrder() {
