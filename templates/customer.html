@@ -1966,7 +1966,7 @@ html, body {
                 <div class="flex-between" style="margin-top:10px; align-items:center;">
                     <span style="font-weight:800; font-size:0.95rem; color:var(--text-primary);">₹${prod.price.toFixed(0)}</span>
                     ${qty === 0 ?
-                        `<button class="product-add-circle" onclick="addRecommendedToCart(${prod.id})">+</button>` :
+                        `<button class="product-add-circle" onclick="addToCart(${prod.id}, 1)">+</button>` :
                         `<div style="display:flex; align-items:center; gap:6px;">
                             <button class="btn-circle" style="width:20px; height:20px; font-size:0.75rem;" onclick="changeQty(${prod.id}, -1)">-</button>
                             <span style="font-weight:700; font-size:0.85rem;">${qty}</span>
@@ -1980,10 +1980,11 @@ html, body {
         refreshIcons();
     }
 
-
-
     function addToCart(prodId, qty) {
         let prod = productsList.find(p => p.id === prodId);
+        if (!prod && recommendedProductsCache) {
+            prod = recommendedProductsCache.find(p => p.id === prodId);
+        }
         if (prod) {
             processAddToCart(prod, qty);
         } else {
@@ -2051,27 +2052,12 @@ html, body {
             }
             window.cartTooltipTimeout = setTimeout(() => {
                 tooltip.classList.remove("show");
-            }, 4000);
+            }, 3000);
         }
     }
 
     function processAddToCart(prod, qty) {
-        const cartKeys = Object.keys(cart);
-        if (cartKeys.length > 0) {
-            const firstItemId = cartKeys[0];
-            const currentCartShopId = cart[firstItemId].shop_id || 1;
-            const newProductShopId = prod.shop_id || 1;
-            
-            if (currentCartShopId !== newProductShopId) {
-                const clearConfirm = confirm("Your cart contains items from another merchant. Clear your cart and add this item?");
-                if (clearConfirm) {
-                    cart = {};
-                } else {
-                    return;
-                }
-            }
-        }
-        
+        // Option B: Allow items from multiple merchants in the same cart
         cart[prod.id] = {
             id: prod.id,
             name: prod.name,
@@ -2684,6 +2670,11 @@ html, body {
             fetch(`/api/shops/5/products`)
                 .then(res => res.json())
                 .then(data => {
+                    data.forEach(p => {
+                        if (!productsList.some(existing => existing.id === p.id)) {
+                            productsList.push(p);
+                        }
+                    });
                     const filtered = data.filter(p => p.name.toLowerCase().includes(query));
                     renderFilteredProducts(filtered);
                 });
@@ -2711,6 +2702,11 @@ html, body {
                 const promises = shops.map(s => fetch(`/api/shops/${s.id}/products`).then(res => res.json()));
                 Promise.all(promises).then(results => {
                     const allProducts = results.flat().filter(p => p && !p.error);
+                    allProducts.forEach(p => {
+                        if (!productsList.some(existing => existing.id === p.id)) {
+                            productsList.push(p);
+                        }
+                    });
                     const filtered = allProducts.filter(p => p.name.toLowerCase().includes(query));
                     renderFilteredProducts(filtered);
                 });
@@ -2806,7 +2802,7 @@ html, body {
                             <span class="badge ${statusBadgeClass}" style="${statusColorStyle}">${o.status.replace(/_/g, " ")}</span>
                         </div>
                         <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px;">
-                            <div><strong>Shop:</strong> ${o.shop_name}</div>
+                            <div><strong>Items:</strong> ${o.items_summary || 'N/A'}</div>
                             <div><strong>Date:</strong> ${timeStr}</div>
                             <div><strong>Total:</strong> ₹${o.total_amount.toFixed(2)}</div>
                         </div>

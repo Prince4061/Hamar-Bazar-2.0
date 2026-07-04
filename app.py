@@ -221,11 +221,12 @@ def send_order_email_sync(order_id):
             db.close()
             return
             
-        # Fetch order items
+        # Fetch order items along with their respective shop name
         cursor.execute("""
-            SELECT oi.quantity, oi.price, p.name as product_name
+            SELECT oi.quantity, oi.price, p.name as product_name, s.shop_name
             FROM order_items oi
             JOIN products p ON oi.product_id = p.id
+            JOIN shops s ON p.shop_id = s.id
             WHERE oi.order_id = ?
         """, (order_id,))
         items = cursor.fetchall()
@@ -285,6 +286,7 @@ def send_order_email_sync(order_id):
                     <thead>
                         <tr style="background-color: #34495e; color: white;">
                             <th style="padding: 10px; text-align: left;">Item Name</th>
+                            <th style="padding: 10px; text-align: left;">Shop</th>
                             <th style="padding: 10px; text-align: center;">Qty</th>
                             <th style="padding: 10px; text-align: right;">Price</th>
                             <th style="padding: 10px; text-align: right;">Total</th>
@@ -297,6 +299,7 @@ def send_order_email_sync(order_id):
             body_html += f"""
                         <tr>
                             <td style="padding: 10px; border: 1px solid #ddd;">{item['product_name']}</td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{item['shop_name']}</td>
                             <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">{item['quantity']}</td>
                             <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₹{item['price']:.2f}</td>
                             <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₹{total_price:.2f}</td>
@@ -1036,11 +1039,10 @@ def place_order():
     try:
         data = request.json
         customer_id = data.get('customer_id')
-        shop_id = data.get('shop_id')
         items = data.get('items', []) # List of {product_id, quantity}
         priority_type = data.get('priority_type', 'NORMAL').upper()
         
-        if not customer_id or not shop_id or not items:
+        if not customer_id or not items:
             return jsonify({'error': 'Missing checkout parameters.'}), 400
             
         # Prevent IDOR: Check that the logged-in user matches the customer_id placing the order
@@ -1050,40 +1052,57 @@ def place_order():
         db = get_db()
         cursor = db.cursor()
         
-        # Check if shop is active
-        cursor.execute("SELECT is_active FROM shops WHERE id = ?", (shop_id,))
-        shop = cursor.fetchone()
-        if not shop or not shop['is_active']:
-            return jsonify({'error': 'This shop is currently inactive/blocked and cannot accept orders.'}), 400
-        
-        # Calculate Total Amount & GST
-        total_amount = 0.0
-        products_details = []
-        
+        # Parse product IDs and quantities
+        product_ids = []
+        item_quantities = {}
         for item in items:
-            prod_id = item.get('product_id')
             try:
+                p_id = int(item.get('product_id'))
                 qty = int(item.get('quantity', 0))
             except (ValueError, TypeError):
-                return jsonify({'error': 'Quantity must be a valid integer.'}), 400
+                return jsonify({'error': 'Invalid product_id or quantity.'}), 400
             if qty <= 0:
-                return jsonify({'error': 'Quantity must be a positive integer greater than zero.'}), 400
-                
-            cursor.execute("SELECT price, name, is_available FROM products WHERE id = ? AND shop_id = ?", (prod_id, shop_id))
-            prod = cursor.fetchone()
-            if not prod:
-                return jsonify({'error': f'Product {prod_id} not found in this shop.'}), 400
-            if not prod['is_available']:
-                return jsonify({'error': f"Product '{prod['name']}' is out of stock."}), 400
-            item_total = prod['price'] * qty
-            total_amount += item_total
-            products_details.append({
-                'product_id': prod_id,
-                'quantity': qty,
-                'price': prod['price']
-            })
-            
-        # Delivery Fee & Grand Total Calculation from database settings (default: Free above 199, else 15)
+                return jsonify({'error': 'Quantity must be a positive integer.'}), 400
+            product_ids.append(p_id)
+            item_quantities[p_id] = qty
+
+        if not product_ids:
+            return jsonify({'error': 'No items in the order.'}), 400
+
+        # Retrieve details for all products
+        placeholders = ','.join('?' for _ in product_ids)
+        cursor.execute(f"SELECT id, name, price, is_available, shop_id FROM products WHERE id IN ({placeholders})", product_ids)
+        products = [dict(row) for row in cursor.fetchall()]
+        
+        # Verify all products exist
+        found_ids = {p['id'] for p in products}
+        for pid in product_ids:
+            if pid not in found_ids:
+                return jsonify({'error': f'Product ID {pid} not found in catalog.'}), 400
+
+        # Check availability
+        for p in products:
+            if not p['is_available']:
+                return jsonify({'error': f"Product '{p['name']}' is out of stock."}), 400
+
+        # Group products by shop_id
+        products_by_shop = {}
+        for p in products:
+            s_id = p['shop_id']
+            if s_id not in products_by_shop:
+                products_by_shop[s_id] = []
+            products_by_shop[s_id].append(p)
+
+        # Check if the shops are active
+        shop_ids = list(products_by_shop.keys())
+        placeholders_shops = ','.join('?' for _ in shop_ids)
+        cursor.execute(f"SELECT id, is_active FROM shops WHERE id IN ({placeholders_shops})", shop_ids)
+        shops_info = {row['id']: row['is_active'] for row in cursor.fetchall()}
+        for s_id in shop_ids:
+            if s_id not in shops_info or not shops_info[s_id]:
+                return jsonify({'error': f'The shop associated with your items is currently inactive or not found.'}), 400
+
+        # Delivery Fee & Grand Total settings
         cursor.execute("SELECT value FROM system_settings WHERE key = 'delivery_fee_flat'")
         fee_row = cursor.fetchone()
         delivery_fee_flat = float(fee_row['value']) if fee_row else 15.0
@@ -1092,23 +1111,41 @@ def place_order():
         thresh_row = cursor.fetchone()
         delivery_fee_threshold = float(thresh_row['value']) if thresh_row else 199.0
 
+        payment_mode = data.get('payment_mode', 'COD').upper()
+        payment_screenshot = data.get('payment_screenshot')
+        status = 'AWAITING_PAYMENT_APPROVAL' if payment_mode == 'ONLINE' else 'PENDING'
+
+        # Create a single order (consolidated)
+        total_amount = 0.0
+        products_details = []
+        first_shop_id = None
+        
+        for p in products:
+            p_id = p['id']
+            if first_shop_id is None:
+                first_shop_id = p['shop_id']
+            qty = item_quantities[p_id]
+            item_total = p['price'] * qty
+            total_amount += item_total
+            products_details.append({
+                'product_id': p_id,
+                'quantity': qty,
+                'price': p['price']
+            })
+
         delivery_fee = delivery_fee_flat if total_amount < delivery_fee_threshold else 0.0
         grand_total = total_amount + delivery_fee
         gst_amount = 0.0 # GST is inclusive in item prices
         
-        payment_mode = data.get('payment_mode', 'COD').upper()
-        payment_screenshot = data.get('payment_screenshot')
-        status = 'AWAITING_PAYMENT_APPROVAL' if payment_mode == 'ONLINE' else 'PENDING'
-        
-        # Generate OTPs (4 digits numeric)
+        # Generate OTPs
         pickup_otp = f"{random.randint(1000, 9999)}"
         delivery_otp = f"{random.randint(1000, 9999)}"
         
-        # Insert Order Master record
+        # Insert Order Master record (Single order)
         cursor.execute('''
             INSERT INTO orders (customer_id, shop_id, total_amount, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (customer_id, shop_id, grand_total, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot))
+        ''', (customer_id, first_shop_id, grand_total, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot))
         
         order_id = cursor.lastrowid
         
@@ -1118,19 +1155,17 @@ def place_order():
                 INSERT INTO order_items (order_id, product_id, quantity, price)
                 VALUES (?, ?, ?, ?)
             ''', (order_id, pd['product_id'], pd['quantity'], pd['price']))
-            
+
         db.commit()
         
-        # Trigger asynchronous Gmail notification for admin
+        # Trigger asynchronous Gmail notification and security check
         send_order_email_async(order_id)
-        
-        # Run security checks to flag suspicious user
         check_and_flag_suspicious_user(customer_id, db)
         
         return jsonify({
             'message': 'Order placed successfully!' if status == 'PENDING' else 'Payment verification pending!',
             'order_id': order_id,
-            'pickup_otp': pickup_otp, # Kept for debugging/testing visibility if needed
+            'pickup_otp': pickup_otp,
             'delivery_otp': delivery_otp,
             'status': status
         })
@@ -1236,10 +1271,14 @@ def get_customer_orders(customer_id):
     cursor = db.cursor()
     cursor.execute('''
         SELECT o.id, o.created_at, o.total_amount, o.status, o.priority_type,
-               s.shop_name, o.delivery_otp, o.pickup_otp
+               s.shop_name, o.delivery_otp, o.pickup_otp,
+               GROUP_CONCAT(p.name || ' x' || oi.quantity, ', ') as items_summary
         FROM orders o
         JOIN shops s ON o.shop_id = s.id
+        LEFT JOIN order_items oi ON o.id = oi.order_id
+        LEFT JOIN products p ON oi.product_id = p.id
         WHERE o.customer_id = ?
+        GROUP BY o.id
         ORDER BY o.id DESC
     ''', (customer_id,))
     orders = [dict(row) for row in cursor.fetchall()]
@@ -3363,6 +3402,13 @@ def export_database():
     if session.get('role') != 'admin':
         return jsonify({'error': 'Unauthorized.'}), 403
     try:
+        # Flush WAL changes to disk before exporting to ensure up-to-date, uncorrupted database copy
+        try:
+            db = get_db()
+            db.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+        except Exception as checkpoint_err:
+            print("Failed to run checkpoint before database export:", checkpoint_err)
+            
         if os.path.exists(DB_PATH):
             return send_file(DB_PATH, as_attachment=True, download_name='marketplace.db')
         else:
@@ -3375,12 +3421,15 @@ def import_database():
     if session.get('role') != 'admin':
         return jsonify({'error': 'Unauthorized.'}), 403
         
-    if 'database' not in request.files:
-        return jsonify({'error': 'No database file uploaded.'}), 400
+    # Accept both 'database' and 'database_file' keys to match frontend form names
+    file = None
+    if 'database' in request.files:
+        file = request.files['database']
+    elif 'database_file' in request.files:
+        file = request.files['database_file']
         
-    file = request.files['database']
-    if file.filename == '':
-        return jsonify({'error': 'Empty filename.'}), 400
+    if not file or file.filename == '':
+        return jsonify({'error': 'No database file uploaded or empty filename.'}), 400
         
     try:
         import sqlite3
@@ -3397,11 +3446,19 @@ def import_database():
                 os.remove(temp_path)
             return jsonify({'error': 'Invalid database file format. Must be a valid SQLite database.'}), 400
             
-        # Overwrite the actual database
+        # Overwrite the actual database and clean up associated WAL / SHM files to prevent corruption
         close_connection(None)
         
         if os.path.exists(DB_PATH):
             os.remove(DB_PATH)
+            
+        wal_path = DB_PATH + "-wal"
+        shm_path = DB_PATH + "-shm"
+        if os.path.exists(wal_path):
+            os.remove(wal_path)
+        if os.path.exists(shm_path):
+            os.remove(shm_path)
+            
         os.rename(temp_path, DB_PATH)
         
         return jsonify({'success': True, 'message': 'Database imported successfully! Page will reload.'})

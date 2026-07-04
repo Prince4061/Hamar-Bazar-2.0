@@ -1,30 +1,37 @@
 services:
   hamar-bazar:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: princekaushik9926/hamar-bazar:latest
     container_name: hamar-bazar-container
     restart: always
+    ports:
+      - "5001:5001"
     networks:
-      - traefik_public
+      - app-network
     environment:
-      - FLASK_SECRET_KEY=your_secure_flask_secret_key_here
-      - ADMIN_PASSWORD=admin123
-      - DATABASE_PATH=/app/data/marketplace.db
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - DATABASE_PATH=${DATABASE_PATH}
     volumes:
       - db_data:/app/data
       - uploads_data:/app/static/uploads
       - downloads_data:/app/static/downloads
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=traefik_public"
-      - "traefik.http.routers.hamarbazar.entrypoints=web,websecure"
-      - "traefik.http.routers.hamarbazar.rule=Host(`shop.hamarai.in`)"
-      - "traefik.http.routers.hamarbazar.tls=true"
-      - "traefik.http.routers.hamarbazar.tls.certresolver=hamarle"
-      - "traefik.http.services.hamarbazar.loadbalancer.server.port=5001"
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: hamar-bazar-tunnel
+    restart: always
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    networks:
+      - app-network
 
 networks:
-  traefik_public:
-    external: true
+  app-network:
+    driver: bridge
 
 volumes:
   db_data:
