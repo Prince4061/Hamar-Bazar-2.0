@@ -597,35 +597,12 @@ html, body {
                 <h4 style="font-size: 0.9rem; font-weight: 800; color: var(--text-primary); margin-bottom: 10px;">Payment Kaise Karenge?</h4>
                 <div class="payment-options-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
                     <input type="hidden" id="payment-input" value="ONLINE">
-                    <button class="payment-option-btn" id="pay-btn-cod" onclick="selectPaymentMode('COD')" style="padding: 10px; font-size: 0.85rem;">
+                    <button class="payment-option-btn" id="pay-btn-cod" onclick="selectPaymentMode('COD')" style="padding: 10px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 4px;">
                         <i data-lucide="wallet" style="width: 14px; height: 14px;"></i> COD
                     </button>
-                    <button class="payment-option-btn selected" id="pay-btn-online" onclick="selectPaymentMode('ONLINE')" style="padding: 10px; font-size: 0.85rem;">
-                        <i data-lucide="credit-card" style="width: 14px; height: 14px;"></i> Online UPI
+                    <button class="payment-option-btn selected" id="pay-btn-online" onclick="selectPaymentMode('ONLINE')" style="padding: 10px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                        <i data-lucide="credit-card" style="width: 14px; height: 14px;"></i> Online Pay
                     </button>
-                </div>
-                
-                <!-- Screenshot upload for online payment -->
-                <div id="payment-screenshot-container" style="margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 12px;">
-                    <!-- QR Code Display Area -->
-                    <div id="checkout-qr-code-section" style="display: none; text-align: center; margin-bottom: 16px; padding: 16px; background: var(--primary-light); border-radius: var(--radius-sm); border: 1.5px solid var(--primary-accent); box-shadow: var(--shadow-sm);">
-                        <p style="font-size: 0.8rem; font-weight: 800; color: var(--primary-accent); margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                            <i data-lucide="qr-code" style="width: 16px; height: 16px;"></i> Scan & Pay UPI
-                        </p>
-                        <img id="checkout-qr-code-img" src="" style="width: 140px; height: 140px; object-fit: contain; margin: 0 auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); display: block; background: #fff; padding: 6px;">
-                        <span style="font-size: 0.65rem; color: var(--text-secondary); display: block; margin-top: 8px; font-weight: 500;">Is QR code ko scan karke payment karein aur neeche screenshot upload karein.</span>
-                    </div>
-
-                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">Payment Screenshot Upload Karein</label>
-                    <div onclick="document.getElementById('payment-screenshot-input').click()" style="border: 2px dashed var(--primary-accent); background: var(--primary-light); border-radius: var(--radius-sm); padding: 16px; text-align: center; cursor: pointer;">
-                        <input type="file" id="payment-screenshot-input" accept="image/*" style="display: none;" onchange="handlePaymentScreenshotSelected(this)">
-                        <i data-lucide="camera" style="width: 20px; height: 20px; color: var(--primary-accent); margin-bottom: 4px; display: inline-block;"></i>
-                        <p style="font-weight: 700; font-size: 0.75rem; color: var(--text-primary); margin: 0;">Click karke scanner ka screenshot upload karein</p>
-                    </div>
-                    <div id="payment-screenshot-preview" style="display: none; margin-top: 8px; text-align: center;">
-                        <img id="payment-screenshot-img" src="" style="max-width: 100%; max-height: 100px; border-radius: var(--radius-sm); object-fit: contain;">
-                        <p id="payment-screenshot-filename" style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></p>
-                    </div>
                 </div>
             </div>
 
@@ -1049,6 +1026,8 @@ html, body {
 <!-- Client Actions Javascript Logic -->
 <script>
     const customerId = {{ (active_user_id or 0) | tojson }};
+    const razorpayKeyId = "{{ razorpay_key_id or '' }}";
+
     let customerName = "";
     let customerPhone = "";
     let customerPassword = "";
@@ -1684,15 +1663,9 @@ html, body {
         document.getElementById("payment-input").value = mode;
         document.getElementById("pay-btn-cod").classList.toggle("selected", mode === 'COD');
         document.getElementById("pay-btn-online").classList.toggle("selected", mode === 'ONLINE');
-        
-        const container = document.getElementById("payment-screenshot-container");
-        if (container) {
-            container.style.display = mode === 'ONLINE' ? 'block' : 'none';
-        }
-        if (mode === 'ONLINE') {
-            renderAdminQRCodeInCheckout();
-        }
     }
+
+
 
     function handlePaymentScreenshotSelected(input) {
         if (!input.files || !input.files[0]) return;
@@ -2120,9 +2093,12 @@ html, body {
         if (keys.length === 0) {
             container.innerHTML = `<div style="text-align: center; padding: 24px 0;"><i data-lucide="shopping-cart" style="width: 32px; height: 32px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 8px; display: inline-block;"></i><p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">Cart is empty.</p></div>`;
             document.getElementById("cart-summary-section").style.display = "none";
+            localStorage.setItem(`cart_${customerId}`, JSON.stringify(cart));
             refreshIcons();
+            try { updateCartAttention(); } catch(e) {}
             return;
         }
+
         
         document.getElementById("cart-summary-section").style.display = "block";
         
@@ -2206,12 +2182,12 @@ html, body {
     }
 
     function checkoutOrder() {
-    // Ensure we have a valid customer ID before proceeding
-    if (!customerId) {
-        console.error('checkoutOrder: customerId is undefined');
-        alert('Session error. Please refresh the page and try again.');
-        return;
-    }
+        // Ensure we have a valid customer ID before proceeding
+        if (!customerId) {
+            console.error('checkoutOrder: customerId is undefined');
+            alert('Session error. Please refresh the page and try again.');
+            return;
+        }
         const address = document.getElementById("address-input").value.trim();
         if (!address) {
             alert("Please enter a delivery address.");
@@ -2230,29 +2206,117 @@ html, body {
         const priority = document.getElementById("delivery-priority-field").value;
         const paymentMode = document.getElementById("payment-input").value;
         
-        if (paymentMode === "ONLINE" && !uploadedScreenshotPath) {
-            alert("Please upload a payment screenshot first.");
-            return;
-        }
-        
         const checkoutPayload = {
             customer_id: customerId,
             shop_id: activeShopId,
             items: itemsList,
             priority_type: priority,
             payment_mode: paymentMode,
-            payment_screenshot: uploadedScreenshotPath
+            payment_screenshot: null
         };
         
         if (paymentMode === "ONLINE") {
-            showAestheticToast("Simulating UPI payment gateway transfer...", "info");
-            setTimeout(() => {
-                sendCheckoutRequest(checkoutPayload);
-            }, 1000);
+            if (!razorpayKeyId) {
+                alert("Razorpay key is not configured on the server. Please check your .env file.");
+                return;
+            }
+            // Initiate Razorpay flow
+            let itemsTotal = 0;
+            for (let k in cart) {
+                itemsTotal += cart[k].price * cart[k].quantity;
+            }
+            let deliveryFee = itemsTotal < deliveryFeeThreshold ? deliveryFeeFlat : 0.0;
+            let grandTotalRupees = itemsTotal + deliveryFee;
+            let grandTotalPaise = Math.round(grandTotalRupees * 100);
+
+            if (grandTotalPaise < 100) {
+                alert("Minimum amount must be at least ₹1.");
+                return;
+            }
+
+            showAestheticToast("Initiating Razorpay payment...", "info");
+
+            fetch("/api/create-order", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    amount: grandTotalPaise,
+                    currency: "INR",
+                    receipt: "receipt_cust_" + customerId + "_" + Date.now()
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert("Razorpay Order Error: " + data.error);
+                } else {
+                    const options = {
+                        "key": razorpayKeyId,
+                        "amount": data.amount,
+                        "currency": data.currency,
+                        "name": "Hamar Bazar",
+                        "description": "Hyperlocal Marketplace Order",
+                        "order_id": data.order_id,
+                        "handler": function (response) {
+                            verifyRazorpayPayment(response, checkoutPayload);
+                        },
+                        "prefill": {
+                            "name": customerName || "",
+                            "contact": customerPhone || ""
+                        },
+                        "theme": {
+                            "color": "#10B981"
+                        },
+                        "modal": {
+                            "ondismiss": function() {
+                                showAestheticToast("Payment cancelled by user.", "info");
+                            }
+                        }
+                    };
+                    const rzp = new Razorpay(options);
+                    rzp.on('payment.failed', function (response) {
+                        alert("Payment failed: " + response.error.description);
+                    });
+                    rzp.open();
+                }
+            })
+            .catch(err => {
+                console.error("Error creating Razorpay order:", err);
+                alert("Failed to initiate Razorpay payment. Connection error.");
+            });
         } else {
             sendCheckoutRequest(checkoutPayload);
         }
     }
+
+
+    function verifyRazorpayPayment(rzpResponse, checkoutPayload) {
+        showAestheticToast("Verifying payment signature...", "info");
+        fetch("/api/verify-payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                razorpay_payment_id: rzpResponse.razorpay_payment_id,
+                razorpay_order_id: rzpResponse.razorpay_order_id,
+                razorpay_signature: rzpResponse.razorpay_signature
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "success") {
+                showAestheticToast("Payment verified! Placing order...", "success");
+                checkoutPayload.payment_screenshot = "Paid via Razorpay. Txn ID: " + rzpResponse.razorpay_payment_id;
+                sendCheckoutRequest(checkoutPayload);
+            } else {
+                alert("Payment verification failed: " + (data.error || "Signature mismatch"));
+            }
+        })
+        .catch(err => {
+            console.error("Error verifying payment:", err);
+            alert("Payment verification connection error.");
+        });
+    }
+
 
     function sendCheckoutRequest(payload) {
         fetch("/api/orders/place", {
@@ -3242,4 +3306,5 @@ html, body {
         });
     }
 </script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 {% endblock %}

@@ -9,8 +9,24 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+from dotenv import load_dotenv
+load_dotenv()
+
+import razorpay
+
+RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET')
+
+razorpay_client = None
+if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+    try:
+        razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+    except Exception as e:
+        print("Failed to initialize Razorpay client:", e)
+
 from flask_wtf.csrf import CSRFProtect, CSRFError
 import database
+
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -206,6 +222,14 @@ def send_order_email_sync(order_id):
             db.close()
             return
             
+        # Parse multiple recipient emails separated by commas
+        recipients = [email.strip() for email in admin_email.split(',') if email.strip()]
+        if not recipients:
+            print("Email notification skipped: No valid admin emails found.")
+            db.close()
+            return
+
+            
         # Fetch order details
         cursor.execute("""
             SELECT o.id, o.total_amount, o.priority_type, o.status, o.payment_mode, o.created_at, 
@@ -320,13 +344,14 @@ def send_order_email_sync(order_id):
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = smtp_email
-        msg['To'] = admin_email
+        msg['To'] = ", ".join(recipients)
         msg.attach(MIMEText(body_html, 'html'))
         
         server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
         server.starttls()
         server.login(smtp_email, smtp_password)
-        server.sendmail(smtp_email, admin_email, msg.as_string())
+        server.sendmail(smtp_email, recipients, msg.as_string())
+
         server.quit()
         print(f"Email notification for Order #{order_id} sent successfully.")
         db.close()
@@ -935,7 +960,7 @@ def customer_view():
     cursor.execute("SELECT * FROM users")
     users = cursor.fetchall()
     
-    return render_template('customer.html', users=users, active_user_id=session.get('role_id'))
+    return render_template('customer.html', users=users, active_user_id=session.get('role_id'), razorpay_key_id=RAZORPAY_KEY_ID)
 
 @app.route('/vendor')
 def vendor_view():
@@ -1034,7 +1059,88 @@ def sync_products():
     products = [dict(row) for row in cursor.fetchall()]
     return jsonify(products)
 
+@app.route('/api/create-order', methods=['POST'])
+def create_razorpay_order():
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized: Access restricted to customers.'}), 403
+    
+    try:
+        data = request.json or {}
+        amount = data.get('amount')
+        currency = data.get('currency', 'INR')
+        receipt = data.get('receipt', '')
+        
+        if not amount:
+            return jsonify({'error': 'Missing amount parameter.'}), 400
+            
+        try:
+            amount = int(amount)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Amount must be an integer (in paise).'}), 400
+            
+        if amount < 100:
+            return jsonify({'error': 'Minimum order amount must be 100 paise (₹1).'}), 400
+            
+        if not razorpay_client:
+            return jsonify({'error': 'Razorpay keys are not configured or client initialization failed.'}), 401
+            
+        try:
+            order_params = {
+                'amount': amount,
+                'currency': currency,
+                'receipt': receipt
+            }
+            razorpay_order = razorpay_client.order.create(data=order_params)
+            return jsonify({
+                'order_id': razorpay_order['id'],
+                'amount': razorpay_order['amount'],
+                'currency': razorpay_order['currency']
+            })
+        except Exception as rzp_err:
+            print("Razorpay API create order error:", rzp_err)
+            return jsonify({'error': f'Razorpay API error: {str(rzp_err)}'}), 500
+            
+    except Exception as e:
+        print("Internal error in /api/create-order:", e)
+        return jsonify({'error': f'Internal Server Error: {str(e)}'}), 500
+
+@app.route('/api/verify-payment', methods=['POST'])
+def verify_razorpay_payment():
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized: Access restricted to customers.'}), 403
+        
+    try:
+        data = request.json or {}
+        payment_id = data.get('razorpay_payment_id')
+        order_id = data.get('razorpay_order_id')
+        signature = data.get('razorpay_signature')
+        
+        if not payment_id or not order_id or not signature:
+            return jsonify({'error': 'Missing verification parameters.'}), 400
+            
+        if not razorpay_client:
+            return jsonify({'error': 'Razorpay keys are not configured.'}), 401
+            
+        try:
+            import hmac
+            import hashlib
+            msg = f"{order_id}|{payment_id}".encode('utf-8')
+            key = RAZORPAY_KEY_SECRET.encode('utf-8')
+            generated = hmac.new(key, msg, hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(generated, signature):
+                return jsonify({'status': 'failed', 'error': 'Signature verification failed.'}), 400
+            
+            return jsonify({'status': 'success', 'message': 'Payment verified successfully.'})
+        except Exception as verify_err:
+            print("Signature verification failed:", verify_err)
+            return jsonify({'status': 'failed', 'error': 'Signature verification failed.'}), 400
+            
+    except Exception as e:
+        print("Internal error in /api/verify-payment:", e)
+        return jsonify({'error': f'Internal Server Error: {str(e)}'}), 500
+
 @app.route('/api/orders/place', methods=['POST'])
+
 def place_order():
     try:
         data = request.json
@@ -1113,7 +1219,8 @@ def place_order():
 
         payment_mode = data.get('payment_mode', 'COD').upper()
         payment_screenshot = data.get('payment_screenshot')
-        status = 'AWAITING_PAYMENT_APPROVAL' if payment_mode == 'ONLINE' else 'PENDING'
+        status = 'PENDING'
+
 
         # Create a single order (consolidated)
         total_amount = 0.0
