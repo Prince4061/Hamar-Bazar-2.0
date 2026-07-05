@@ -1,8 +1,5 @@
 services:
   hamar-bazar:
-    build:
-      context: .
-      dockerfile: Dockerfile
     image: princekaushik9926/hamar-bazar:latest
     container_name: hamar-bazar-container
     restart: always
