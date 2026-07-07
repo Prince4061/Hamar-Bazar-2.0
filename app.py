@@ -1055,89 +1055,17 @@ def sync_products():
         return jsonify([])
         
     placeholders = ','.join('?' for _ in product_ids)
-    cursor.execute(f"SELECT id, name, price, is_available, shop_id, subcategory, description, image_path FROM products WHERE id IN ({placeholders})", product_ids)
+    cursor.execute(f"SELECT id, name, price, mrp, is_available, shop_id, subcategory, description, image_path FROM products WHERE id IN ({placeholders})", product_ids)
     products = [dict(row) for row in cursor.fetchall()]
     return jsonify(products)
 
 @app.route('/api/create-order', methods=['POST'])
 def create_razorpay_order():
-    if session.get('role') != 'customer':
-        return jsonify({'error': 'Unauthorized: Access restricted to customers.'}), 403
-    
-    try:
-        data = request.json or {}
-        amount = data.get('amount')
-        currency = data.get('currency', 'INR')
-        receipt = data.get('receipt', '')
-        
-        if not amount:
-            return jsonify({'error': 'Missing amount parameter.'}), 400
-            
-        try:
-            amount = int(amount)
-        except (ValueError, TypeError):
-            return jsonify({'error': 'Amount must be an integer (in paise).'}), 400
-            
-        if amount < 100:
-            return jsonify({'error': 'Minimum order amount must be 100 paise (₹1).'}), 400
-            
-        if not razorpay_client:
-            return jsonify({'error': 'Razorpay keys are not configured or client initialization failed.'}), 401
-            
-        try:
-            order_params = {
-                'amount': amount,
-                'currency': currency,
-                'receipt': receipt
-            }
-            razorpay_order = razorpay_client.order.create(data=order_params)
-            return jsonify({
-                'order_id': razorpay_order['id'],
-                'amount': razorpay_order['amount'],
-                'currency': razorpay_order['currency']
-            })
-        except Exception as rzp_err:
-            print("Razorpay API create order error:", rzp_err)
-            return jsonify({'error': f'Razorpay API error: {str(rzp_err)}'}), 500
-            
-    except Exception as e:
-        print("Internal error in /api/create-order:", e)
-        return jsonify({'error': f'Internal Server Error: {str(e)}'}), 500
+    return jsonify({'error': 'Online payments are disabled. Please use Pay on Delivery (COD).'}), 400
 
 @app.route('/api/verify-payment', methods=['POST'])
 def verify_razorpay_payment():
-    if session.get('role') != 'customer':
-        return jsonify({'error': 'Unauthorized: Access restricted to customers.'}), 403
-        
-    try:
-        data = request.json or {}
-        payment_id = data.get('razorpay_payment_id')
-        order_id = data.get('razorpay_order_id')
-        signature = data.get('razorpay_signature')
-        
-        if not payment_id or not order_id or not signature:
-            return jsonify({'error': 'Missing verification parameters.'}), 400
-            
-        if not razorpay_client:
-            return jsonify({'error': 'Razorpay keys are not configured.'}), 401
-            
-        try:
-            import hmac
-            import hashlib
-            msg = f"{order_id}|{payment_id}".encode('utf-8')
-            key = RAZORPAY_KEY_SECRET.encode('utf-8')
-            generated = hmac.new(key, msg, hashlib.sha256).hexdigest()
-            if not hmac.compare_digest(generated, signature):
-                return jsonify({'status': 'failed', 'error': 'Signature verification failed.'}), 400
-            
-            return jsonify({'status': 'success', 'message': 'Payment verified successfully.'})
-        except Exception as verify_err:
-            print("Signature verification failed:", verify_err)
-            return jsonify({'status': 'failed', 'error': 'Signature verification failed.'}), 400
-            
-    except Exception as e:
-        print("Internal error in /api/verify-payment:", e)
-        return jsonify({'error': f'Internal Server Error: {str(e)}'}), 500
+    return jsonify({'error': 'Online payments are disabled. Please use Pay on Delivery (COD).'}), 400
 
 @app.route('/api/orders/place', methods=['POST'])
 
@@ -1217,8 +1145,8 @@ def place_order():
         thresh_row = cursor.fetchone()
         delivery_fee_threshold = float(thresh_row['value']) if thresh_row else 199.0
 
-        payment_mode = data.get('payment_mode', 'COD').upper()
-        payment_screenshot = data.get('payment_screenshot')
+        payment_mode = 'COD'
+        payment_screenshot = None
         status = 'PENDING'
 
 
@@ -1807,35 +1735,7 @@ def verify_delivery(order_id):
 
 @app.route('/api/payments/upload-screenshot', methods=['POST'])
 def upload_payment_screenshot():
-    if session.get('role') != 'customer':
-        return jsonify({'error': 'Unauthorized. Please login as customer.'}), 403
-        
-    if 'screenshot' not in request.files:
-        return jsonify({'error': 'No screenshot file part.'}), 400
-        
-    file = request.files['screenshot']
-    customer_id = session.get('role_id')
-    
-    if file.filename == '':
-        return jsonify({'error': 'No file selected.'}), 400
-        
-    if file and allowed_file(file.filename):
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"pay_{customer_id}_{int(datetime.now().timestamp())}.{ext}"
-        
-        file_path = os.path.join(PAY_UPLOAD_FOLDER, filename)
-        file.save(file_path)
-        
-        # Path relative to static/
-        relative_path = f"/static/uploads/payments/{filename}"
-        
-        return jsonify({
-            'success': True,
-            'file_path': relative_path,
-            'message': 'Screenshot uploaded successfully!'
-        })
-    else:
-        return jsonify({'error': 'Invalid file type.'}), 400
+    return jsonify({'error': 'Online payments and screenshots are disabled.'}), 400
 
 @app.route('/api/admin/payments/pending', methods=['GET'])
 def get_pending_payments():
@@ -2761,6 +2661,7 @@ def admin_add_product():
     shop_id = data.get('shop_id')
     name = data.get('name')
     price = data.get('price')
+    mrp = data.get('mrp')
     image_path = data.get('image_path')
     subcategory = data.get('subcategory', '')
     description = data.get('description', '')
@@ -2768,9 +2669,11 @@ def admin_add_product():
     if not shop_id or not name or price is None:
         return jsonify({'error': 'Parameters shop_id, name, and price are required.'}), 400
         
+    mrp_val = float(mrp) if mrp is not None else float(price)
+    
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("INSERT INTO products (shop_id, name, price, image_path, subcategory, description) VALUES (?, ?, ?, ?, ?, ?)", (shop_id, name, float(price), image_path, subcategory, description))
+    cursor.execute("INSERT INTO products (shop_id, name, price, mrp, image_path, subcategory, description) VALUES (?, ?, ?, ?, ?, ?, ?)", (shop_id, name, float(price), mrp_val, image_path, subcategory, description))
     db.commit()
     return jsonify({'success': True, 'message': 'Product added successfully.', 'id': cursor.lastrowid})
 
@@ -2787,12 +2690,15 @@ def admin_modify_product(prod_id):
         data = request.json
         name = data.get('name')
         price = data.get('price')
+        mrp = data.get('mrp')
         is_available = bool(data.get('is_available', True))
         image_path = data.get('image_path')
         subcategory = data.get('subcategory', '')
         description = data.get('description', '')
         
-        cursor.execute("UPDATE products SET name = ?, price = ?, is_available = ?, image_path = ?, subcategory = ?, description = ? WHERE id = ?", (name, float(price), is_available, image_path, subcategory, description, prod_id))
+        mrp_val = float(mrp) if mrp is not None else float(price)
+        
+        cursor.execute("UPDATE products SET name = ?, price = ?, mrp = ?, is_available = ?, image_path = ?, subcategory = ?, description = ? WHERE id = ?", (name, float(price), mrp_val, is_available, image_path, subcategory, description, prod_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Product updated successfully.'})
 

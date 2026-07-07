@@ -1387,7 +1387,7 @@
                             <i data-lucide="file-text"></i> Prescriptions
                         </a>
                     </li>
-                    <li>
+                    <li style="display: none;">
                         <a class="menu-item-link" onclick="switchTab('payments')">
                             <i data-lucide="credit-card"></i> Payment Approvals
                             <span id="payments-sidebar-badge" class="badge-dot" style="display:none; position:relative; margin-left:auto; top:0; right:0; background: var(--ruby-danger); color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem; font-weight: 800; line-height: 1; height: auto; width: auto;"></span>
@@ -2081,8 +2081,8 @@
                     </div>
                 </div>
 
-                <!-- Online Payment QR Code Settings -->
-                <div class="dashboard-card" style="margin-top: 20px;">
+                <!-- Online Payment QR Code Settings (Disabled/Hidden) -->
+                <div class="dashboard-card" style="margin-top: 20px; display: none;">
                     <div class="card-header-row">
                         <h3 class="card-title-text"><i data-lucide="qr-code"></i> Online Payment - Admin QR Code</h3>
                     </div>
@@ -2633,6 +2633,11 @@
                 <div class="form-group-custom">
                     <label class="form-label-custom">Price (INR)</label>
                     <input type="number" id="modal-product-price" class="form-input-custom" style="width: 100%;" placeholder="e.g. 120" step="0.01">
+                </div>
+                
+                <div class="form-group-custom">
+                    <label class="form-label-custom">MRP (INR) - (Leave empty or same as Price for no discount)</label>
+                    <input type="number" id="modal-product-mrp" class="form-input-custom" style="width: 100%;" placeholder="e.g. 150" step="0.01">
                 </div>
 
                 <div class="form-group-custom" id="modal-shop-select-group">
@@ -4006,18 +4011,27 @@
                         </span>
                     </div>
                     
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:12px; margin-top:auto;">
-                        <div>
-                            <span style="font-size:0.75rem; color:var(--text-muted); display:block; font-weight:600;">Price</span>
-                            <div style="display:flex; align-items:center; gap:4px;">
-                                <span style="font-weight:700;">₹</span>
-                                <input type="number" value="${p.price.toFixed(2)}" class="form-input-custom" style="width:70px; padding:2px 6px; font-size:0.85rem;" onchange="updateProductInlinePrice(${p.id}, this.value)">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:12px; margin-top:auto; gap: 8px;">
+                        <div style="display: flex; gap: 8px;">
+                            <div>
+                                <span style="font-size:0.7rem; color:var(--text-muted); display:block; font-weight:600;">Price</span>
+                                <div style="display:flex; align-items:center; gap:2px;">
+                                    <span style="font-weight:700; font-size:0.75rem;">₹</span>
+                                    <input type="number" value="${p.price.toFixed(2)}" class="form-input-custom" style="width:62px; padding:2px 4px; font-size:0.8rem;" onchange="updateProductInlinePrice(${p.id}, this.value)">
+                                </div>
+                            </div>
+                            <div>
+                                <span style="font-size:0.7rem; color:var(--text-muted); display:block; font-weight:600;">MRP</span>
+                                <div style="display:flex; align-items:center; gap:2px;">
+                                    <span style="font-weight:700; font-size:0.75rem;">₹</span>
+                                    <input type="number" value="${(p.mrp || p.price).toFixed(2)}" class="form-input-custom" style="width:62px; padding:2px 4px; font-size:0.8rem;" onchange="updateProductInlineMRP(${p.id}, this.value)">
+                                </div>
                             </div>
                         </div>
                         
-                        <div style="display:flex; gap:6px;">
-                            <button class="btn-custom btn-custom-secondary" style="padding:6px 10px;" onclick="openEditProductModal(${p.id})"><i data-lucide="edit-2" style="width:12px;"></i></button>
-                            <button class="btn-custom btn-custom-danger" style="padding:6px 10px;" onclick="deleteProductCatalog(${p.id})"><i data-lucide="trash" style="width:12px;"></i></button>
+                        <div style="display:flex; gap:4px;">
+                            <button class="btn-custom btn-custom-secondary" style="padding:6px 8px;" onclick="openEditProductModal(${p.id})"><i data-lucide="edit-2" style="width:12px;"></i></button>
+                            <button class="btn-custom btn-custom-danger" style="padding:6px 8px;" onclick="deleteProductCatalog(${p.id})"><i data-lucide="trash" style="width:12px;"></i></button>
                         </div>
                     </div>
                 `;
@@ -4055,11 +4069,49 @@
             fetch(`/api/admin/products/${prodId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: p.name, price: pVal, is_available: p.is_available, image_path: p.image_path })
+                body: JSON.stringify({ 
+                    name: p.name, 
+                    price: pVal, 
+                    mrp: p.mrp || pVal,
+                    is_available: p.is_available, 
+                    image_path: p.image_path || '',
+                    subcategory: p.subcategory || '',
+                    description: p.description || ''
+                })
             })
             .then(res => res.json())
             .then(data => {
                 showAestheticToast("Product price updated.", "success");
+                loadProductCatalog();
+            });
+        }
+
+        // Inline MRP updating
+        function updateProductInlineMRP(prodId, mrpVal) {
+            const mVal = parseFloat(mrpVal);
+            if (isNaN(mVal) || mVal < 0) {
+                showAestheticToast("Please input a valid MRP.", "error");
+                return;
+            }
+            const p = productsCache.find(item => item.id === prodId);
+            if (!p) return;
+            
+            fetch(`/api/admin/products/${prodId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    name: p.name, 
+                    price: p.price, 
+                    mrp: mVal, 
+                    is_available: p.is_available, 
+                    image_path: p.image_path || '',
+                    subcategory: p.subcategory || '',
+                    description: p.description || ''
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                showAestheticToast("Product MRP updated.", "success");
                 loadProductCatalog();
             });
         }
@@ -4070,6 +4122,7 @@
             document.getElementById("modal-product-id").value = "";
             document.getElementById("modal-product-name").value = "";
             document.getElementById("modal-product-price").value = "";
+            document.getElementById("modal-product-mrp").value = "";
             document.getElementById("modal-product-subcategory").value = "";
             document.getElementById("modal-product-description").value = "";
             document.getElementById("modal-available-group").style.display = "none";
@@ -4295,6 +4348,7 @@
             document.getElementById("modal-product-id").value = p.id;
             document.getElementById("modal-product-name").value = p.name || "";
             document.getElementById("modal-product-price").value = p.price;
+            document.getElementById("modal-product-mrp").value = p.mrp || p.price;
             document.getElementById("modal-product-subcategory").value = p.subcategory || "";
             document.getElementById("modal-product-description").value = p.description || "";
             
@@ -4314,6 +4368,7 @@
             const id = document.getElementById("modal-product-id").value;
             const name = document.getElementById("modal-product-name").value.trim();
             const price = document.getElementById("modal-product-price").value;
+            const mrp = document.getElementById("modal-product-mrp").value || price;
             const shopId = document.getElementById("modal-product-shop").value;
             const subcategory = document.getElementById("modal-product-subcategory").value.trim();
             const description = document.getElementById("modal-product-description").value.trim();
@@ -4332,6 +4387,7 @@
                     body: JSON.stringify({ 
                         name: name, 
                         price: price, 
+                        mrp: mrp,
                         is_available: avail, 
                         image_path: imageUrl,
                         subcategory: subcategory,
@@ -4356,6 +4412,7 @@
                         shop_id: shopId, 
                         name: name, 
                         price: price,
+                        mrp: mrp,
                         image_path: imageUrl,
                         subcategory: subcategory,
                         description: description

@@ -52,8 +52,8 @@ echo   Open your browser at: http://127.0.0.1:5001
 echo ===================================================
 echo.
 
-:: Automatically open browser after 2 seconds
-timeout /t 2 /nobreak >nul
+:: Automatically open browser after 5 seconds
+timeout /t 5 /nobreak >nul
 start http://127.0.0.1:5001
 
 :: Run app

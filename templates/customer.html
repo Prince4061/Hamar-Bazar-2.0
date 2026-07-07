@@ -592,19 +592,8 @@ html, body {
                 
             </div>
 
-            <!-- Payment Options Selection Widget -->
-            <div class="glass-card" style="padding: 16px; text-align: left; margin-bottom: 16px;" id="payment-block-workspace">
-                <h4 style="font-size: 0.9rem; font-weight: 800; color: var(--text-primary); margin-bottom: 10px;">Payment Kaise Karenge?</h4>
-                <div class="payment-options-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                    <input type="hidden" id="payment-input" value="ONLINE">
-                    <button class="payment-option-btn" id="pay-btn-cod" onclick="selectPaymentMode('COD')" style="padding: 10px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                        <i data-lucide="wallet" style="width: 14px; height: 14px;"></i> COD
-                    </button>
-                    <button class="payment-option-btn selected" id="pay-btn-online" onclick="selectPaymentMode('ONLINE')" style="padding: 10px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                        <i data-lucide="credit-card" style="width: 14px; height: 14px;"></i> Online Pay
-                    </button>
-                </div>
-            </div>
+            <!-- Payment Option Defaulted to COD (Online Payments Disabled) -->
+            <input type="hidden" id="payment-input" value="COD">
 
             <!-- Pricing Summary and Checkout Button -->
             <div id="cart-summary-section" class="glass-card" style="padding: 16px; text-align: left; display: none;">
@@ -974,7 +963,13 @@ html, body {
             <div style="display: flex; align-items: center; justify-content: space-between;">
                 <div>
                     <span style="font-size: 0.72rem; color: var(--text-secondary); display: block; font-weight: 600;">Best Price</span>
-                    <div id="detail-modal-price" style="font-size: 1.45rem; font-weight: 800; color: var(--primary-accent); font-family: 'Outfit', sans-serif;">₹0.00</div>
+                    <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
+                        <span id="detail-modal-price" style="font-size: 1.45rem; font-weight: 800; color: var(--primary-accent); font-family: 'Outfit', sans-serif;">₹0.00</span>
+                        <span id="detail-modal-mrp-wrapper" style="display: none; align-items: center; gap: 6px;">
+                            <span id="detail-modal-mrp" style="text-decoration: line-through; font-size: 0.95rem; color: var(--text-muted); font-weight: 500;">₹0.00</span>
+                            <span id="detail-modal-discount" style="font-size: 0.9rem; color: var(--emerald-green); font-weight: 700;">0% off</span>
+                        </span>
+                    </div>
                 </div>
                 <div style="font-size: 0.75rem; color: #10b981; font-weight: 700; background: #ecfdf5; padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid #a7f3d0; display: flex; align-items: center; gap: 4px;">
                     <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i> Original Product
@@ -1088,6 +1083,16 @@ html, body {
         
         document.getElementById("detail-modal-name").innerText = prod.name;
         document.getElementById("detail-modal-price").innerText = "₹" + prod.price.toFixed(2);
+        const mrpWrapper = document.getElementById("detail-modal-mrp-wrapper");
+        if (mrpWrapper) {
+            if (prod.mrp && prod.mrp > prod.price) {
+                document.getElementById("detail-modal-mrp").innerText = "₹" + prod.mrp.toFixed(2);
+                document.getElementById("detail-modal-discount").innerText = Math.round(((prod.mrp - prod.price) / prod.mrp) * 100) + "% off";
+                mrpWrapper.style.display = "inline-flex";
+            } else {
+                mrpWrapper.style.display = "none";
+            }
+        }
         
         const subcatBadge = document.getElementById("detail-modal-subcat");
         if (prod.subcategory) {
@@ -1871,7 +1876,13 @@ html, body {
                      </div>`
                 }
                 <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${prod.name}</h5>
-                <div class="product-price" ${isMed ? 'style="color: #e11d48;"' : ''}>₹${prod.price.toFixed(2)}</div>
+                <div class="product-pricing-row" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
+                    <span class="product-price" style="font-weight: 800; font-size: 0.95rem; color: ${isMed ? '#e11d48' : 'var(--text-primary)'};">₹${prod.price.toFixed(2)}</span>
+                    ${prod.mrp && prod.mrp > prod.price ? `
+                        <span class="product-mrp" style="text-decoration: line-through; font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">₹${prod.mrp.toFixed(2)}</span>
+                        <span class="product-discount" style="font-size: 0.72rem; color: var(--emerald-green); font-weight: 700;">${Math.round(((prod.mrp - prod.price) / prod.mrp) * 100)}% off</span>
+                    ` : ''}
+                </div>
             </div>
             <div style="margin-top: 12px;">
                 ${qty === 0 ? 
@@ -1936,8 +1947,13 @@ html, body {
                     <h5 class="product-name" style="font-size: 0.85rem; font-weight:700; color:var(--text-primary); margin-bottom:4px; height:32px; overflow:hidden;">${prod.name}</h5>
                 </div>
                 
-                <div class="flex-between" style="margin-top:10px; align-items:center;">
-                    <span style="font-weight:800; font-size:0.95rem; color:var(--text-primary);">₹${prod.price.toFixed(0)}</span>
+                <div class="flex-between" style="margin-top:10px; align-items:center; flex-wrap:wrap; gap:4px;">
+                    <div style="display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; text-align: left;">
+                        <span style="font-weight:800; font-size:0.92rem; color:var(--text-primary);">₹${prod.price.toFixed(0)}</span>
+                        ${prod.mrp && prod.mrp > prod.price ? `
+                            <span style="text-decoration: line-through; font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">₹${prod.mrp.toFixed(0)}</span>
+                        ` : ''}
+                    </div>
                     ${qty === 0 ?
                         `<button class="product-add-circle" onclick="addToCart(${prod.id}, 1)">+</button>` :
                         `<div style="display:flex; align-items:center; gap:6px;">
@@ -3306,5 +3322,4 @@ html, body {
         });
     }
 </script>
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 {% endblock %}

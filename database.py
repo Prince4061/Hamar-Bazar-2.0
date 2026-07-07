@@ -74,6 +74,7 @@ def init_db():
         shop_id INTEGER NOT NULL,
         name TEXT NOT NULL,
         price REAL NOT NULL,
+        mrp REAL,
         is_available BOOLEAN DEFAULT TRUE,
         subcategory TEXT,
         description TEXT,
@@ -227,6 +228,15 @@ def init_db():
     )
     ''')
     
+    # Migrate products table by adding mrp column if missing
+    try:
+        cursor.execute("ALTER TABLE products ADD COLUMN mrp REAL")
+    except sqlite3.OperationalError:
+        pass
+        
+    # Populate existing product mrp fields if null
+    cursor.execute("UPDATE products SET mrp = ROUND(price * 1.25, 2) WHERE mrp IS NULL")
+
     conn.commit()
     conn.close()
     print("SQLite database tables created successfully!")
@@ -326,7 +336,9 @@ def seed_db():
         cursor.execute('SELECT id FROM products WHERE shop_id = ? AND name = ?', (product[0], product[1]))
         if not cursor.fetchone():
             subcat = product[3] if len(product) > 3 else None
-            cursor.execute('INSERT INTO products (shop_id, name, price, subcategory) VALUES (?, ?, ?, ?)', (product[0], product[1], product[2], subcat))
+            price = product[2]
+            mrp = round(price * 1.25, 2)
+            cursor.execute('INSERT INTO products (shop_id, name, price, mrp, subcategory) VALUES (?, ?, ?, ?, ?)', (product[0], product[1], price, mrp, subcat))
             
     # Seed Delivery Partners
     partners_data = [
