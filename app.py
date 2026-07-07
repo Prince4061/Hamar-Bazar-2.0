@@ -1262,6 +1262,35 @@ def get_order_details(order_id):
         
     return jsonify(order_dict)
 
+@app.route('/api/orders/<int:order_id>/cancel', methods=['POST'])
+def cancel_order(order_id):
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized: Only customers can cancel their orders.'}), 403
+        
+    customer_id = session.get('role_id')
+    
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT customer_id, status FROM orders WHERE id = ?", (order_id,))
+    order = cursor.fetchone()
+    
+    if not order:
+        return jsonify({'error': 'Order not found.'}), 404
+        
+    if order['customer_id'] != customer_id:
+        return jsonify({'error': 'Unauthorized: You can only cancel your own orders.'}), 403
+        
+    if order['status'] != 'PENDING':
+        return jsonify({'error': f"Cannot cancel order. Order has already been {order['status'].lower()}."}), 400
+        
+    try:
+        cursor.execute("UPDATE orders SET status = 'FAILED', failure_reason = 'Customer cancelled' WHERE id = ?", (order_id,))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Order cancelled successfully.'})
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': f'Failed to cancel order: {str(e)}'}), 500
+
 @app.route('/api/customer/<int:customer_id>/expenses', methods=['GET'])
 def get_customer_expenses(customer_id):
     # Prevent IDOR: Check that the logged-in user matches the customer_id

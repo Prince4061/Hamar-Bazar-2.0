@@ -700,6 +700,13 @@ html, body {
                             <!-- Dynamic items -->
                         </div>
                     </div>
+
+                    <!-- Cancel Order Button (Only shown when status is PENDING) -->
+                    <div id="cancel-order-section" style="margin-top: 16px; display: none;">
+                        <button onclick="cancelActiveOrder()" class="btn btn-danger w-full" style="padding: 10px; font-size: 0.95rem; background-color: var(--ruby-danger); color: white; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: var(--radius-md); border: none; cursor: pointer; font-weight: 700; transition: all 0.2s ease;">
+                            <i data-lucide="x-circle" style="width: 16px; height: 16px;"></i> Cancel Order (Galti se order ho gaya?)
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2406,6 +2413,15 @@ html, body {
                     const statusBadge = document.getElementById("tracking-order-status");
                     statusBadge.innerText = status.replace(/_/g, " ");
                     
+                    const cancelSec = document.getElementById("cancel-order-section");
+                    if (cancelSec) {
+                        if (status === "PENDING") {
+                            cancelSec.style.display = "block";
+                        } else {
+                            cancelSec.style.display = "none";
+                        }
+                    }
+                    
                     // Populate items list
                     const itemsContainer = document.getElementById("tracking-items-list");
                     if (itemsContainer && data.items) {
@@ -2500,6 +2516,41 @@ html, body {
         
         poll();
         trackingInterval = setInterval(poll, 5000); // Poll tracking every 5 seconds for smooth mobile experience
+    }
+
+    function cancelActiveOrder() {
+        const orderIdText = document.getElementById("tracking-order-id").innerText;
+        const orderId = orderIdText.replace("#", "");
+        
+        if (!confirm("Kya aap sach me yeh order cancel karna chahte hain?")) {
+            return;
+        }
+        
+        showAestheticToast("Order cancel kar rahe hain...", "info");
+        
+        fetch(`/api/orders/${orderId}/cancel`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAestheticToast("Order cancelled successfully!", "success");
+                if (trackingInterval) {
+                    clearInterval(trackingInterval);
+                    trackingInterval = null;
+                }
+                startTracking(orderId);
+            } else {
+                alert(data.error || "Failed to cancel order.");
+            }
+        })
+        .catch(err => {
+            console.error("Cancel order error:", err);
+            alert("Connection error. Failed to cancel order.");
+        });
     }
 
     function loadExpenses() {
