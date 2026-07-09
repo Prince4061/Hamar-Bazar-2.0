@@ -63,7 +63,8 @@ def init_db():
         commission_pct REAL DEFAULT 5.0,
         is_active INTEGER DEFAULT 1,
         password TEXT,
-        image_path TEXT
+        image_path TEXT,
+        is_customizable INTEGER DEFAULT 0
     )
     ''')
     
@@ -131,6 +132,9 @@ def init_db():
         product_id INTEGER NOT NULL,
         quantity INTEGER NOT NULL,
         price REAL NOT NULL,
+        custom_text TEXT,
+        custom_instructions TEXT,
+        custom_image_path TEXT,
         FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id)
     )
@@ -234,6 +238,29 @@ def init_db():
     except sqlite3.OperationalError:
         pass
         
+    # Migrate order_items table by adding customization columns
+    try:
+        cursor.execute("ALTER TABLE order_items ADD COLUMN custom_text TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE order_items ADD COLUMN custom_instructions TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE order_items ADD COLUMN custom_image_path TEXT")
+    except sqlite3.OperationalError:
+        pass
+        
+    # Migrate shops table by adding is_customizable column if missing
+    try:
+        cursor.execute("ALTER TABLE shops ADD COLUMN is_customizable INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+        
+    # Populate default customizable flags for seeded categories
+    cursor.execute("UPDATE shops SET is_customizable = 1 WHERE category IN ('CAKES', 'TECH')")
+
     # Populate existing product mrp fields if null
     cursor.execute("UPDATE products SET mrp = ROUND(price * 1.25, 2) WHERE mrp IS NULL")
 
@@ -252,10 +279,11 @@ def seed_db():
         return
     
     # Seed Users
+    _hashed_user_pass = generate_password_hash('password123')
     users_data = [
-        ('Alice Sharma', '9876543210', 'Flat 101, Sunshine Apartments, Sector 4', 'password123', 'What is your favorite color?', 'blue'),
-        ('Bob Verma', '8765432109', 'House 23, Green Valley Colony, Road 2', 'password123', 'What is your childhood nickname?', 'bobby'),
-        ('Charlie Gupta', '7654321098', 'Penthouse B, Skyline Heights, Main Road', 'password123', 'In which city were you born?', 'delhi')
+        ('Alice Sharma', '9876543210', 'Flat 101, Sunshine Apartments, Sector 4', _hashed_user_pass, 'What is your favorite color?', 'blue'),
+        ('Bob Verma', '8765432109', 'House 23, Green Valley Colony, Road 2', _hashed_user_pass, 'What is your childhood nickname?', 'bobby'),
+        ('Charlie Gupta', '7654321098', 'Penthouse B, Skyline Heights, Main Road', _hashed_user_pass, 'In which city were you born?', 'delhi')
     ]
     for user in users_data:
         cursor.execute('''
@@ -264,13 +292,14 @@ def seed_db():
         ''', (user[0], user[1], user[2], user[3], user[4], user[5]))
             
     # Seed Shops
+    _hashed_shop_pass = generate_password_hash('password123')
     shops_data = [
-        ('Apna Bazaar (Kirana & General)', 'KIRANA', 5.0, 'password123', '/static/images/grocery_basket.png'),
-        ('Apna Cakes & Bakery', 'CAKES', 6.0, 'password123', '/static/images/cake_category.png'),
-        ('Fresh & Green Vegetables', 'VEGGIES', 4.0, 'password123', '/static/images/veggies_category.png'),
-        ('ElectroWorld Solutions', 'ELECTRONICS', 10.0, 'password123', '/static/images/electronics_category.png'),
-        ('City Medicos & Pharmacy', 'PHARMACY', 7.0, 'password123', '/static/images/default_category.png'),
-        ('Hamar Tech Hub (Gadgets & Accessories)', 'TECH', 8.0, 'password123', '/static/images/default_category.png')
+        ('Apna Bazaar (Kirana & General)', 'KIRANA', 5.0, _hashed_shop_pass, '/static/images/grocery_basket.png'),
+        ('Apna Cakes & Bakery', 'CAKES', 6.0, _hashed_shop_pass, '/static/images/cake_category.png'),
+        ('Fresh & Green Vegetables', 'VEGGIES', 4.0, _hashed_shop_pass, '/static/images/veggies_category.png'),
+        ('ElectroWorld Solutions', 'ELECTRONICS', 10.0, _hashed_shop_pass, '/static/images/electronics_category.png'),
+        ('City Medicos & Pharmacy', 'PHARMACY', 7.0, _hashed_shop_pass, '/static/images/default_category.png'),
+        ('Hamar Tech Hub (Gadgets & Accessories)', 'TECH', 8.0, _hashed_shop_pass, '/static/images/default_category.png')
     ]
     for shop in shops_data:
         cursor.execute('''
@@ -341,10 +370,11 @@ def seed_db():
             cursor.execute('INSERT INTO products (shop_id, name, price, mrp, subcategory) VALUES (?, ?, ?, ?, ?)', (product[0], product[1], price, mrp, subcat))
             
     # Seed Delivery Partners
+    _hashed_rider_pass = generate_password_hash('password123')
     partners_data = [
-        ('Rahul Rider', '9000000001', 0, 'online', 'password123'),
-        ('Amit Express', '9000000002', 0, 'online', 'password123'),
-        ('Vicky Speedster', '9000000003', 0, 'offline', 'password123')
+        ('Rahul Rider', '9000000001', 0, 'online', _hashed_rider_pass),
+        ('Amit Express', '9000000002', 0, 'online', _hashed_rider_pass),
+        ('Vicky Speedster', '9000000003', 0, 'offline', _hashed_rider_pass)
     ]
     for partner in partners_data:
         cursor.execute('''

@@ -2718,9 +2718,25 @@
                         order.items.forEach(item => {
                             const row = document.createElement("div");
                             row.className = "item-detail-row";
+                            row.style.alignItems = "flex-start";
+                            
+                            let customizationHtml = '';
+                            if (item.custom_text) {
+                                customizationHtml += `<div style="font-size: 0.8rem; color: #3498db; margin-top: 4px; font-weight: 500;">✒️ Print/Cake Msg: "<strong>${item.custom_text}</strong>"</div>`;
+                            }
+                            if (item.custom_instructions) {
+                                customizationHtml += `<div style="font-size: 0.8rem; color: #e67e22; margin-top: 2px;">📝 Instructions: <em>${item.custom_instructions}</em></div>`;
+                            }
+                            if (item.custom_image_path) {
+                                customizationHtml += `<div style="font-size: 0.8rem; color: #27ae60; margin-top: 2px;">🖼️ Design: <a href="${item.custom_image_path}" target="_blank" style="color: #27ae60; text-decoration: underline; font-weight: 600;">View File</a></div>`;
+                            }
+                            
                             row.innerHTML = `
-                                <span class="item-detail-name">${item.product_name || ''}</span>
-                                <span class="item-detail-qty">x${item.quantity || 1} &nbsp;&nbsp; ₹${Math.round((item.price || 0) * (item.quantity || 1))}</span>
+                                <div style="display:flex; flex-direction:column; align-items:flex-start; text-align: left;">
+                                    <span class="item-detail-name">${item.product_name || ''}</span>
+                                    ${customizationHtml}
+                                </div>
+                                <span class="item-detail-qty" style="white-space: nowrap; margin-left: 10px;">x${item.quantity || 1} &nbsp;&nbsp; ₹${Math.round((item.price || 0) * (item.quantity || 1))}</span>
                             `;
                             itemsContainer.appendChild(row);
                         });

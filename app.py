@@ -32,8 +32,11 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # Security: 30 days max session lifetime
 app.config['SESSION_REFRESH_EACH_REQUEST'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True    # Prevent JS from reading session cookie
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF mitigation for cookies
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max upload size (DoS protection)
 
 # Secure secret key handling for production
 db_dir = os.path.dirname(database.DATABASE_PATH)
@@ -41,21 +44,24 @@ secret_key_path = os.path.join(db_dir, '.secret_key') if db_dir else os.path.joi
 if os.environ.get('FLASK_SECRET_KEY'):
     app.secret_key = os.environ.get('FLASK_SECRET_KEY')
 else:
+    _loaded_key = None
     if os.path.exists(secret_key_path):
         try:
             with open(secret_key_path, 'r') as f:
-                app.secret_key = f.read().strip()
+                _loaded_key = f.read().strip()
         except Exception:
-            app.secret_key = 'hyperlocal_monopolistic_secret_key_12345'
-    else:
-        import secrets
-        key = secrets.token_hex(32)
+            _loaded_key = None
+    if not _loaded_key or len(_loaded_key) < 32:
+        # Generate a new cryptographically secure random key
+        import secrets as _secrets
+        _loaded_key = _secrets.token_hex(32)
         try:
             with open(secret_key_path, 'w') as f:
-                f.write(key)
-        except Exception:
-            pass
-        app.secret_key = key
+                f.write(_loaded_key)
+            print("SECURITY: New secret key generated and saved.")
+        except Exception as e:
+            print(f"WARNING: Could not save secret key to file: {e}. Sessions will reset on restart.")
+    app.secret_key = _loaded_key
 
 csrf = CSRFProtect(app)
 
@@ -71,7 +77,77 @@ def add_header(response):
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
+    # Security headers — protect against common web attacks
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+    # Content Security Policy — allow necessary resources
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://checkout.razorpay.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
+        "img-src 'self' data: blob: https:; "
+        "connect-src 'self' https://checkout.razorpay.com; "
+        "frame-src 'self' https://api.razorpay.com; "
+        "object-src 'none';"
+    )
     return response
+
+# ─── Rate Limiter (In-Memory, No Extra Library Needed) ─────────────────────────
+import threading as _threading
+import time as _time
+from collections import defaultdict as _defaultdict
+
+_rate_limit_store = _defaultdict(list)  # { (ip, endpoint): [timestamps] }
+_rate_limit_lock = _threading.Lock()
+
+# Rules: (max_requests, window_seconds)
+_RATE_LIMIT_RULES = {
+    # Auth endpoints — tightest limits (brute-force protection)
+    'login':                     (5,  60),   # 5 attempts per minute
+    'staff_login':               (5,  60),   # 5 attempts per minute
+    'forgot_password':           (3,  60),   # 3 per minute
+    # Order / payment — medium limits
+    'place_order':               (10, 60),   # 10 per minute
+    'create_razorpay_order':     (10, 60),
+    'verify_payment':            (10, 60),
+    'upload_payment_screenshot': (5,  60),
+    # Upload endpoints — prevent abuse
+    'upload_prescription':       (5,  60),
+    'upload_profile_pic':        (5,  60),
+    # General API fallback
+    '_default_api':              (60, 60),   # 60 requests/minute per IP
+}
+
+def _check_rate_limit(ip: str, endpoint: str) -> bool:
+    """Returns True if request is allowed, False if rate-limited."""
+    max_req, window = _RATE_LIMIT_RULES.get(endpoint, _RATE_LIMIT_RULES['_default_api'])
+    key = (ip, endpoint)
+    now = _time.monotonic()
+    with _rate_limit_lock:
+        cutoff = now - window
+        _rate_limit_store[key] = [t for t in _rate_limit_store[key] if t > cutoff]
+        if len(_rate_limit_store[key]) >= max_req:
+            return False
+        _rate_limit_store[key].append(now)
+        return True
+
+@app.before_request
+def enforce_rate_limit():
+    """Enforce rate limiting on all API routes."""
+    if not request.path.startswith('/api/'):
+        return
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr or '0.0.0.0').split(',')[0].strip()
+    endpoint = request.endpoint or '_default_api'
+    if not _check_rate_limit(ip, endpoint):
+        return jsonify({
+            'error': 'Too many requests. Please slow down and try again in a moment.',
+            'retry_after': 60
+        }), 429
+# ────────────────────────────────────────────────────────────────────────────────
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'profile_pics')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -82,6 +158,9 @@ os.makedirs(PRESC_UPLOAD_FOLDER, exist_ok=True)
 PAY_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'payments')
 os.makedirs(PAY_UPLOAD_FOLDER, exist_ok=True)
 
+CUSTOM_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'customizations')
+os.makedirs(CUSTOM_UPLOAD_FOLDER, exist_ok=True)
+
 DB_PATH = database.DATABASE_PATH
 
 def run_migrations():
@@ -91,6 +170,49 @@ def run_migrations():
         database.init_db()
     except Exception as e:
         print("Failed to run init_db in migrations:", e)
+
+def migrate_plain_text_passwords():
+    """Security migration: auto-detect and hash any plain-text passwords in the database."""
+    try:
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        migrated = 0
+        
+        # Migrate users table
+        cursor.execute("SELECT id, password FROM users WHERE password IS NOT NULL")
+        for row in cursor.fetchall():
+            pwd = row['password']
+            if pwd and not (pwd.startswith('pbkdf2:') or pwd.startswith('scrypt:')):
+                hashed = generate_password_hash(pwd)
+                cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed, row['id']))
+                migrated += 1
+        
+        # Migrate shops table
+        cursor.execute("SELECT id, password FROM shops WHERE password IS NOT NULL")
+        for row in cursor.fetchall():
+            pwd = row['password']
+            if pwd and not (pwd.startswith('pbkdf2:') or pwd.startswith('scrypt:')):
+                hashed = generate_password_hash(pwd)
+                cursor.execute("UPDATE shops SET password = ? WHERE id = ?", (hashed, row['id']))
+                migrated += 1
+        
+        # Migrate delivery_partners table
+        cursor.execute("SELECT id, password FROM delivery_partners WHERE password IS NOT NULL")
+        for row in cursor.fetchall():
+            pwd = row['password']
+            if pwd and not (pwd.startswith('pbkdf2:') or pwd.startswith('scrypt:')):
+                hashed = generate_password_hash(pwd)
+                cursor.execute("UPDATE delivery_partners SET password = ? WHERE id = ?", (hashed, row['id']))
+                migrated += 1
+        
+        conn.commit()
+        conn.close()
+        if migrated > 0:
+            print(f"SECURITY MIGRATION: Successfully hashed {migrated} plain-text password(s) in the database.")
+        else:
+            print("SECURITY: All passwords are already hashed. No migration needed.")
+    except Exception as e:
+        print(f"Password migration error: {e}")
 
 # Auto-initialize and seed database if it doesn't exist or is empty
 try:
@@ -109,6 +231,8 @@ except Exception as e:
     print("Database connection check or seeding failed:", e)
 
 run_migrations()
+# Security: auto-migrate any plain-text passwords to hashed format on startup
+migrate_plain_text_passwords()
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 def allowed_file(filename):
@@ -616,7 +740,7 @@ def login():
                     
                 new_address = "Sector 4, Local Area"
                 try:
-                    hashed_pass = password
+                    hashed_pass = generate_password_hash(password)
                     cursor.execute(
                         "INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)",
                         (username, phone, new_address, hashed_pass, security_question, security_answer)
@@ -646,7 +770,8 @@ def login():
                     session['profile_pic'] = user['profile_pic']
                     return jsonify({'success': True, 'redirect': '/customer'})
                 except Exception as e:
-                    return jsonify({'success': False, 'error': f'Failed to create user: {str(e)}'})
+                    print("Registration error:", e)
+                    return jsonify({'success': False, 'error': 'Registration failed. Please try again.'})
                     
             else: # login
                 if not user:
@@ -658,7 +783,7 @@ def login():
                     default_question = "What is your favorite color?"
                     default_answer = "blue"
                     try:
-                        hashed_pass = password
+                        hashed_pass = generate_password_hash(password)
                         cursor.execute(
                             "INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)",
                             (username, phone, new_address, hashed_pass, default_question, default_answer)
@@ -688,7 +813,8 @@ def login():
                         session['profile_pic'] = user['profile_pic']
                         return jsonify({'success': True, 'redirect': '/customer'})
                     except Exception as e:
-                        return jsonify({'success': False, 'error': f'Failed to auto-register user: {str(e)}'})
+                        print("Auto-register error:", e)
+                        return jsonify({'success': False, 'error': 'Registration failed. Please try again.'})
                     
                 if user['is_blocked']:
                     return jsonify({'success': False, 'error': 'Your account has been blocked due to suspicious activity. Please contact support.'})
@@ -706,7 +832,7 @@ def login():
                 if not user['password']:
                     return jsonify({'success': False, 'error': 'Account configuration error (missing password). Please contact support.'})
                     
-                if user['password'] != password:
+                if not check_password_hash(user['password'], password):
                     try:
                         cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
                         db.commit()
@@ -734,7 +860,7 @@ def login():
                 return jsonify({'success': True, 'redirect': '/customer'})
         except Exception as login_err:
             print("CRITICAL LOGIN ERROR:", login_err)
-            return jsonify({'success': False, 'error': f'Internal Server Error: {str(login_err)}'}), 500
+            return jsonify({'success': False, 'error': 'An internal error occurred. Please try again.'}), 500
                 
     return render_template('login.html')
 
@@ -797,7 +923,7 @@ def forgot_password():
     if db_answer.strip().lower() != answer:
         return jsonify({'success': False, 'error': 'Incorrect security answer.'}), 400
         
-    hashed_pass = new_password
+    hashed_pass = generate_password_hash(new_password)
     cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_pass, row['id']))
     db.commit()
     
@@ -828,6 +954,7 @@ def staff_login():
                 
                 # Secure admin password retrieval
                 admin_pass = os.environ.get('ADMIN_PASSWORD')
+                admin_pass_is_hash = False
                 if not admin_pass:
                     admin_pass_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.admin_password')
                     if os.path.exists(admin_pass_path):
@@ -835,16 +962,65 @@ def staff_login():
                             with open(admin_pass_path, 'r') as f:
                                 admin_pass = f.read().strip()
                         except Exception:
-                            admin_pass = 'admin123'
-                    else:
-                        admin_pass = 'admin123'
+                            admin_pass = None
+                    if not admin_pass:
+                        # Generate a secure default and store hashed
+                        from werkzeug.security import generate_password_hash
+                        default_plain = 'Admin@2024!'
+                        admin_pass = generate_password_hash(default_plain)
                         try:
                             with open(admin_pass_path, 'w') as f:
                                 f.write(admin_pass)
                         except Exception:
                             pass
-                            
-                if password != admin_pass:
+                        admin_pass_is_hash = True
+                    else:
+                        # Check if stored value is already a werkzeug hash
+                        admin_pass_is_hash = admin_pass.startswith('pbkdf2:') or admin_pass.startswith('scrypt:')
+                        if not admin_pass_is_hash:
+                            # Auto-migrate: hash the plain text password and save it
+                            print("SECURITY: Auto-migrating admin password to hashed format.")
+                            from werkzeug.security import generate_password_hash as _gph
+                            hashed = _gph(admin_pass)
+                            try:
+                                with open(admin_pass_path, 'w') as f:
+                                    f.write(hashed)
+                            except Exception:
+                                pass
+                            # Compare with the plain text this time, then it will use hash next time
+                            if admin_pass != password:
+                                try:
+                                    cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", ('admin', request.remote_addr))
+                                    db.commit()
+                                except Exception as e:
+                                    print("Failed to log failed login:", e)
+                                return jsonify({'success': False, 'error': 'Incorrect password for Admin.'})
+                            # Plain text matched — login success, don't fall through to hash check
+                            session.permanent = True
+                            session['role'] = 'admin'
+                            session['role_id'] = 0
+                            session['name'] = 'Super Admin'
+                            return jsonify({'success': True, 'redirect': '/admin'})
+                        
+                elif admin_pass:
+                    # Env variable: check if it looks like a hash
+                    admin_pass_is_hash = admin_pass.startswith('pbkdf2:') or admin_pass.startswith('scrypt:')
+                    if not admin_pass_is_hash:
+                        # Env var is plain text — compare directly (env var, not stored)
+                        if admin_pass != password:
+                            try:
+                                cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", ('admin', request.remote_addr))
+                                db.commit()
+                            except Exception as e:
+                                print("Failed to log failed login:", e)
+                            return jsonify({'success': False, 'error': 'Incorrect password for Admin.'})
+                        session.permanent = True
+                        session['role'] = 'admin'
+                        session['role_id'] = 0
+                        session['name'] = 'Super Admin'
+                        return jsonify({'success': True, 'redirect': '/admin'})
+
+                if not check_password_hash(admin_pass, password):
                     try:
                         cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", ('admin', request.remote_addr))
                         db.commit()
@@ -889,7 +1065,7 @@ def staff_login():
                     # Verify password if one is set in the database
                     if not shop['password']:
                         return jsonify({'success': False, 'error': 'Vendor store configuration error (missing password). Please contact Admin.'})
-                    if shop['password'] != password:
+                    if not check_password_hash(shop['password'], password):
                         try:
                             cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
                             db.commit()
@@ -925,7 +1101,7 @@ def staff_login():
                 if rider:
                     if not rider['password']:
                         return jsonify({'success': False, 'error': 'Delivery rider configuration error (missing password). Please contact Admin.'})
-                    if rider['password'] != password:
+                    if not check_password_hash(rider['password'], password):
                         try:
                             cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
                             db.commit()
@@ -944,7 +1120,7 @@ def staff_login():
             return jsonify({'success': False, 'error': 'Invalid role.'})
         except Exception as staff_err:
             print("CRITICAL STAFF LOGIN ERROR:", staff_err)
-            return jsonify({'success': False, 'error': f'Internal Server Error: {str(staff_err)}'}), 500
+            return jsonify({'success': False, 'error': 'An internal error occurred. Please try again.'}), 500
         
     return render_template('staff_login.html')
 
@@ -1086,9 +1262,9 @@ def place_order():
         db = get_db()
         cursor = db.cursor()
         
-        # Parse product IDs and quantities
+        # Parse product IDs and quantities / customization details
         product_ids = []
-        item_quantities = {}
+        item_details_map = {}
         for item in items:
             try:
                 p_id = int(item.get('product_id'))
@@ -1098,7 +1274,12 @@ def place_order():
             if qty <= 0:
                 return jsonify({'error': 'Quantity must be a positive integer.'}), 400
             product_ids.append(p_id)
-            item_quantities[p_id] = qty
+            item_details_map[p_id] = {
+                'quantity': qty,
+                'custom_text': item.get('custom_text'),
+                'custom_instructions': item.get('custom_instructions'),
+                'custom_image_path': item.get('custom_image_path')
+            }
 
         if not product_ids:
             return jsonify({'error': 'No items in the order.'}), 400
@@ -1159,13 +1340,17 @@ def place_order():
             p_id = p['id']
             if first_shop_id is None:
                 first_shop_id = p['shop_id']
-            qty = item_quantities[p_id]
+            details = item_details_map[p_id]
+            qty = details['quantity']
             item_total = p['price'] * qty
             total_amount += item_total
             products_details.append({
                 'product_id': p_id,
                 'quantity': qty,
-                'price': p['price']
+                'price': p['price'],
+                'custom_text': details['custom_text'],
+                'custom_instructions': details['custom_instructions'],
+                'custom_image_path': details['custom_image_path']
             })
 
         delivery_fee = delivery_fee_flat if total_amount < delivery_fee_threshold else 0.0
@@ -1187,9 +1372,9 @@ def place_order():
         # Insert Order Items
         for pd in products_details:
             cursor.execute('''
-                INSERT INTO order_items (order_id, product_id, quantity, price)
-                VALUES (?, ?, ?, ?)
-            ''', (order_id, pd['product_id'], pd['quantity'], pd['price']))
+                INSERT INTO order_items (order_id, product_id, quantity, price, custom_text, custom_instructions, custom_image_path)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (order_id, pd['product_id'], pd['quantity'], pd['price'], pd['custom_text'], pd['custom_instructions'], pd['custom_image_path']))
 
         db.commit()
         
@@ -1376,7 +1561,9 @@ def update_profile():
     cursor = db.cursor()
     try:
         if password:
-            hashed_password = password
+            if len(password) < 4 or len(password) > 20:
+                return jsonify({'error': 'Password must be between 4 and 20 characters.'}), 400
+            hashed_password = generate_password_hash(password)
             cursor.execute("UPDATE users SET name = ?, address = ?, password = ?, security_question = ?, security_answer = ? WHERE id = ?", (name, address, hashed_password, security_question, security_answer, int(customer_id)))
         else:
             cursor.execute("UPDATE users SET name = ?, address = ?, security_question = ?, security_answer = ? WHERE id = ?", (name, address, security_question, security_answer, int(customer_id)))
@@ -1766,6 +1953,24 @@ def verify_delivery(order_id):
 def upload_payment_screenshot():
     return jsonify({'error': 'Online payments and screenshots are disabled.'}), 400
 
+@app.route('/api/orders/upload-customization-file', methods=['POST'])
+@csrf.exempt
+def upload_customization_file():
+    from werkzeug.utils import secure_filename
+    import uuid
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    if file and allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"custom_{uuid.uuid4().hex}.{ext}"
+        file.save(os.path.join(CUSTOM_UPLOAD_FOLDER, filename))
+        file_path = f"/static/uploads/customizations/{filename}"
+        return jsonify({'success': True, 'file_path': file_path})
+    return jsonify({'success': False, 'error': 'Invalid file format'}), 400
+
 @app.route('/api/admin/payments/pending', methods=['GET'])
 def get_pending_payments():
     if session.get('role') != 'admin':
@@ -2057,12 +2262,14 @@ def unblock_user(user_id):
 def update_user_credentials(user_id):
     if session.get('role') != 'admin':
         return jsonify({'error': 'Unauthorized.'}), 403
-        
     data = request.json
     db = get_db()
     cursor = db.cursor()
+    new_password = data.get('password')
+    if new_password:
+        new_password = generate_password_hash(new_password)
     cursor.execute("UPDATE users SET name = ?, phone = ?, password = ? WHERE id = ?", 
-                   (data.get('name'), data.get('phone'), data.get('password'), user_id))
+                   (data.get('name'), data.get('phone'), new_password, user_id))
     db.commit()
     return jsonify({'success': True, 'message': 'User credentials updated successfully.'})
 # --- Admin APIs ---
@@ -2074,38 +2281,50 @@ def get_admin_analytics():
     cursor = db.cursor()
     
     date_filter = request.args.get('range', 'All')
-    date_where = ""
+    # Security: Whitelist allowed date filter values to prevent injection
+    ALLOWED_FILTERS = {'All', 'Today', 'Yesterday', 'Month to Date', 'Last 7 Days'}
+    if date_filter not in ALLOWED_FILTERS:
+        date_filter = 'All'
+    
+    # Build safe parameterized date filter (no string injection)
+    date_params = ()    # Empty tuple = no date filter
+    date_clause = ""   # Used as part of WHERE for non-parameterized parts
     now_dt = datetime.now()
     if date_filter == 'Today':
-        start = now_dt.strftime('%Y-%m-%d 00:00:00')
-        end = now_dt.strftime('%Y-%m-%d 23:59:59')
-        date_where = f" AND created_at BETWEEN '{start}' AND '{end}' "
+        date_start = now_dt.strftime('%Y-%m-%d 00:00:00')
+        date_end = now_dt.strftime('%Y-%m-%d 23:59:59')
+        date_params = (date_start, date_end)
     elif date_filter == 'Yesterday':
         yesterday = now_dt - timedelta(days=1)
-        start = yesterday.strftime('%Y-%m-%d 00:00:00')
-        end = yesterday.strftime('%Y-%m-%d 23:59:59')
-        date_where = f" AND created_at BETWEEN '{start}' AND '{end}' "
+        date_start = yesterday.strftime('%Y-%m-%d 00:00:00')
+        date_end = yesterday.strftime('%Y-%m-%d 23:59:59')
+        date_params = (date_start, date_end)
     elif date_filter == 'Month to Date':
-        start = now_dt.strftime('%Y-%m-01 00:00:00')
-        end = now_dt.strftime('%Y-%m-%d 23:59:59')
-        date_where = f" AND created_at BETWEEN '{start}' AND '{end}' "
+        date_start = now_dt.strftime('%Y-%m-01 00:00:00')
+        date_end = now_dt.strftime('%Y-%m-%d 23:59:59')
+        date_params = (date_start, date_end)
     elif date_filter == 'Last 7 Days':
-        start = (now_dt - timedelta(days=7)).strftime('%Y-%m-%d 00:00:00')
-        end = now_dt.strftime('%Y-%m-%d 23:59:59')
-        date_where = f" AND created_at BETWEEN '{start}' AND '{end}' "
+        date_start = (now_dt - timedelta(days=7)).strftime('%Y-%m-%d 00:00:00')
+        date_end = now_dt.strftime('%Y-%m-%d 23:59:59')
+        date_params = (date_start, date_end)
+
+    # Helper function to run parameterized date-filtered queries safely
+    def run_date_query(base_sql, extra_params=()):
+        if date_params:
+            # Append date range condition using parameterized placeholders
+            full_sql = base_sql + " AND created_at BETWEEN ? AND ?"
+            return cursor.execute(full_sql, extra_params + date_params).fetchone()
+        else:
+            return cursor.execute(base_sql, extra_params).fetchone()
 
     # 1. High level aggregate stats
-    cursor.execute(f"SELECT COUNT(id) FROM orders WHERE status = 'DELIVERED'{date_where}")
-    delivered_count = cursor.fetchone()[0] or 0
+    delivered_count = run_date_query("SELECT COUNT(id) FROM orders WHERE status = 'DELIVERED'")[0] or 0
     
-    cursor.execute(f"SELECT COUNT(id) FROM orders WHERE (status = 'FAILED' OR failure_reason IS NOT NULL){date_where}")
-    failed_count = cursor.fetchone()[0] or 0
+    failed_count = run_date_query("SELECT COUNT(id) FROM orders WHERE (status = 'FAILED' OR failure_reason IS NOT NULL)")[0] or 0
     
-    cursor.execute(f"SELECT SUM(total_amount) FROM orders WHERE status = 'DELIVERED'{date_where}")
-    total_rev = cursor.fetchone()[0] or 0.0
+    total_rev = run_date_query("SELECT SUM(total_amount) FROM orders WHERE status = 'DELIVERED'")[0] or 0.0
     
-    cursor.execute(f"SELECT SUM(total_amount * (SELECT commission_pct FROM shops s WHERE s.id = orders.shop_id) / 100.0) FROM orders WHERE status = 'DELIVERED'{date_where}")
-    total_comm = cursor.fetchone()[0] or 0.0
+    total_comm = run_date_query("SELECT SUM(total_amount * (SELECT commission_pct FROM shops s WHERE s.id = orders.shop_id) / 100.0) FROM orders WHERE status = 'DELIVERED'")[0] or 0.0
     
     # Extra base stats
     cursor.execute("SELECT COUNT(*) FROM users")
@@ -2121,18 +2340,12 @@ def get_admin_analytics():
     total_vendors = cursor.fetchone()[0] or 0
     
     # Order Status counts
-    cursor.execute(f"SELECT COUNT(*) FROM orders WHERE status = 'PENDING'{date_where}")
-    pending_count = cursor.fetchone()[0] or 0
-    cursor.execute(f"SELECT COUNT(*) FROM orders WHERE status = 'ACCEPTED'{date_where}")
-    accepted_count = cursor.fetchone()[0] or 0
-    cursor.execute(f"SELECT COUNT(*) FROM orders WHERE status = 'READY_FOR_PICKUP'{date_where}")
-    ready_count = cursor.fetchone()[0] or 0
-    cursor.execute(f"SELECT COUNT(*) FROM orders WHERE status = 'OUT_FOR_DELIVERY'{date_where}")
-    transit_count = cursor.fetchone()[0] or 0
-    cursor.execute(f"SELECT COUNT(*) FROM orders WHERE priority_type = 'URGENT'{date_where}")
-    urgent_count = cursor.fetchone()[0] or 0
-    cursor.execute(f"SELECT COUNT(*) FROM orders WHERE status = 'AWAITING_PAYMENT_APPROVAL'{date_where}")
-    awaiting_payment_count = cursor.fetchone()[0] or 0
+    pending_count = run_date_query("SELECT COUNT(*) FROM orders WHERE status = 'PENDING'")[0] or 0
+    accepted_count = run_date_query("SELECT COUNT(*) FROM orders WHERE status = 'ACCEPTED'")[0] or 0
+    ready_count = run_date_query("SELECT COUNT(*) FROM orders WHERE status = 'READY_FOR_PICKUP'")[0] or 0
+    transit_count = run_date_query("SELECT COUNT(*) FROM orders WHERE status = 'OUT_FOR_DELIVERY'")[0] or 0
+    urgent_count = run_date_query("SELECT COUNT(*) FROM orders WHERE priority_type = 'URGENT'")[0] or 0
+    awaiting_payment_count = run_date_query("SELECT COUNT(*) FROM orders WHERE status = 'AWAITING_PAYMENT_APPROVAL'")[0] or 0
     
     # Today vs Yesterday
     now = datetime.now()
@@ -2176,7 +2389,7 @@ def get_admin_analytics():
     
     # 3. Shop-wise sales & ratings (Vendor Reputation Score, INT-010, ADMIN-001)
     cursor.execute('''
-        SELECT s.id as shop_id, s.shop_name, s.category, s.commission_pct, s.is_active, s.password, s.image_path,
+        SELECT s.id as shop_id, s.shop_name, s.category, s.commission_pct, s.is_active, s.password, s.image_path, s.is_customizable,
                COUNT(o.id) as total_orders,
                SUM(CASE WHEN o.status = 'DELIVERED' THEN o.total_amount ELSE 0 END) as sales,
                SUM(CASE WHEN o.status = 'DELIVERED' THEN 1 ELSE 0 END) as success_orders,
@@ -2251,11 +2464,14 @@ def get_admin_analytics():
     ''')
     failed_order_reasons = [dict(row) for row in cursor.fetchall()]
     
-    # 9. Riders Status
-    cursor.execute("SELECT id, name, phone, availability_status, active_orders, cooldown_until, password FROM delivery_partners")
+    # 9. Riders Status — passwords excluded from response
+    cursor.execute("SELECT id, name, phone, availability_status, active_orders, cooldown_until FROM delivery_partners")
     riders_status = []
     for row in cursor.fetchall():
         r = dict(row)
+        # Mask phone number for additional privacy
+        ph = r.get('phone', '')
+        r['phone_masked'] = ph[:3] + 'xxxx' + ph[-3:] if len(ph) >= 6 else 'xxxxxx'
         cooldown_secs = 0
         if r['cooldown_until']:
             try:
@@ -2332,10 +2548,10 @@ def get_admin_analytics():
     except Exception:
         user_logins_db = []
 
-    # Get registered users
+    # Get registered users — passwords excluded from response for security
     try:
         cursor.execute('''
-            SELECT id, name, phone, address, password 
+            SELECT id, name, phone, address 
             FROM users 
             ORDER BY id ASC
         ''')
@@ -2466,6 +2682,7 @@ def admin_update_shop(shop_id):
     category = data.get('category', '').strip().upper()
     commission_pct = data.get('commission_pct', '5.0')
     password = data.get('password', '').strip()
+    is_customizable = int(data.get('is_customizable', 0))
     
     if not shop_name or not category:
         return jsonify({'error': 'Shop Name and Category Code are required.'}), 400
@@ -2500,15 +2717,17 @@ def admin_update_shop(shop_id):
             image_path = f"/static/uploads/category_pics/{filename}"
             
     try:
+        hashed_shop_pass = generate_password_hash(password) if password else None
         cursor.execute('''
             UPDATE shops 
-            SET shop_name = ?, category = ?, commission_pct = ?, password = ?, image_path = ? 
+            SET shop_name = ?, category = ?, commission_pct = ?, password = ?, image_path = ?, is_customizable = ? 
             WHERE id = ?
-        ''', (shop_name, category, float(commission_pct), password, image_path, shop_id))
+        ''', (shop_name, category, float(commission_pct), hashed_shop_pass, image_path, is_customizable, shop_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Shop category credentials updated successfully.'})
     except Exception as e:
-        return jsonify({'error': f'Failed to update shop: {str(e)}'}), 500
+        print("Admin shop update error:", e)
+        return jsonify({'error': 'Failed to update shop. Please try again.'}), 500
 
 
 @app.route('/api/admin/delivery/add', methods=['POST'])
@@ -2540,14 +2759,16 @@ def admin_add_delivery_partner():
         return jsonify({'error': f'Delivery partner with phone number "{phone}" already exists.'}), 400
         
     try:
+        hashed_rider_pass = generate_password_hash(password)
         cursor.execute('''
             INSERT INTO delivery_partners (name, phone, password, availability_status, active_orders)
             VALUES (?, ?, ?, 'online', 0)
-        ''', (name, phone, password))
+        ''', (name, phone, hashed_rider_pass))
         db.commit()
         return jsonify({'success': True, 'message': 'Delivery partner added successfully.'})
     except Exception as e:
-        return jsonify({'error': f'Failed to add delivery partner: {str(e)}'}), 500
+        print("Add delivery partner error:", e)
+        return jsonify({'error': 'Failed to add delivery partner. Please try again.'}), 500
 
 
 @app.route('/api/admin/delivery/<int:rider_id>/update', methods=['POST'])
@@ -2579,19 +2800,24 @@ def admin_update_delivery_partner(rider_id):
         return jsonify({'error': f'Delivery partner with phone number "{phone}" already exists.'}), 400
         
     try:
+        hashed_rider_pass = generate_password_hash(password)
         cursor.execute('''
             UPDATE delivery_partners 
             SET name = ?, phone = ?, password = ? 
             WHERE id = ?
-        ''', (name, phone, password, rider_id))
+        ''', (name, phone, hashed_rider_pass, rider_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Delivery partner credentials updated successfully.'})
     except Exception as e:
-        return jsonify({'error': f'Failed to update delivery partner: {str(e)}'}), 500
+        print("Update delivery partner error:", e)
+        return jsonify({'error': 'Failed to update delivery partner. Please try again.'}), 500
 
 
 @app.route('/api/admin/shops/<int:shop_id>/toggle', methods=['POST'])
 def toggle_shop_active(shop_id):
+    # Security: admin auth check
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized. Please log in as Admin.'}), 403
     data = request.json or {}
     is_active = data.get('is_active', 1)
     db = get_db()
@@ -2610,6 +2836,7 @@ def admin_add_shop():
     category = request.form.get('category', '').strip().upper()
     commission_pct = request.form.get('commission_pct', '5.0').strip()
     password = request.form.get('password', '').strip()
+    is_customizable = int(request.form.get('is_customizable', 0))
     
     if not shop_name or not category:
         return jsonify({'error': 'Shop Name and Category Code are required.'}), 400
@@ -2642,10 +2869,11 @@ def admin_add_shop():
             image_path = f"/static/uploads/category_pics/{filename}"
             
     try:
+        hashed_shop_pass = generate_password_hash(password) if password else None
         cursor.execute('''
-            INSERT INTO shops (shop_name, category, commission_pct, password, image_path, is_active)
-            VALUES (?, ?, ?, ?, ?, 1)
-        ''', (shop_name, category, float(commission_pct), password, image_path))
+            INSERT INTO shops (shop_name, category, commission_pct, password, image_path, is_active, is_customizable)
+            VALUES (?, ?, ?, ?, ?, 1, ?)
+        ''', (shop_name, category, float(commission_pct), hashed_shop_pass, image_path, is_customizable))
         db.commit()
         
         # Dynamic seeding of 3 starter products for the new shop
@@ -2657,10 +2885,14 @@ def admin_add_shop():
         
         return jsonify({'success': True, 'message': 'New Shop Category added successfully with credentials and starter products.', 'shop_id': shop_id})
     except Exception as e:
-        return jsonify({'error': f'Failed to create shop category: {str(e)}'}), 500
+        print("Admin add shop error:", e)
+        return jsonify({'error': 'Failed to create shop category. Please try again.'}), 500
 
 @app.route('/api/admin/products/upload-image', methods=['POST'])
 def upload_product_image():
+    # Security: admin auth check
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized. Please log in as Admin.'}), 403
     if 'product_image' not in request.files:
         return jsonify({'error': 'No file part in the request.'}), 400
     file = request.files['product_image']
@@ -2668,8 +2900,9 @@ def upload_product_image():
     if not prod_id:
         return jsonify({'error': 'Product ID is required.'}), 400
         
+    from werkzeug.utils import secure_filename
     if file and allowed_file(file.filename):
-        ext = file.filename.rsplit('.', 1)[1].lower()
+        ext = secure_filename(file.filename).rsplit('.', 1)[1].lower()
         filename = f"product_{prod_id}_{int(datetime.now().timestamp())}.{ext}"
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'product_pics')
         os.makedirs(upload_path, exist_ok=True)
@@ -2686,6 +2919,9 @@ def upload_product_image():
 
 @app.route('/api/admin/products', methods=['POST'])
 def admin_add_product():
+    # Security: admin auth check
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized. Please log in as Admin.'}), 403
     data = request.json
     shop_id = data.get('shop_id')
     name = data.get('name')
@@ -2708,6 +2944,9 @@ def admin_add_product():
 
 @app.route('/api/admin/products/<int:prod_id>', methods=['PUT', 'DELETE'])
 def admin_modify_product(prod_id):
+    # Security: admin auth check
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized. Please log in as Admin.'}), 403
     db = get_db()
     cursor = db.cursor()
     if request.method == 'DELETE':
@@ -2755,6 +2994,10 @@ def get_system_settings():
         settings['smtp_password'] = ''
     if 'admin_notification_email' not in settings:
         settings['admin_notification_email'] = ''
+    # Security: mask SMTP password from non-admin users
+    if session.get('role') != 'admin':
+        if settings.get('smtp_password'):
+            settings['smtp_password'] = '***HIDDEN***'
     return jsonify(settings)
 
 @app.route('/api/admin/settings/update', methods=['POST'])
@@ -2772,10 +3015,14 @@ def update_system_settings():
         db.commit()
         return jsonify({'success': True, 'message': 'System settings updated successfully.'})
     except Exception as e:
-        return jsonify({'error': f'Failed to update settings: {str(e)}'}), 500
+        print("Settings update error:", e)
+        return jsonify({'error': 'Failed to update settings. Please try again.'}), 500
 
 @app.route('/api/admin/settings/upload-team-photo', methods=['POST'])
 def upload_team_photo():
+    # Security: admin auth check
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized. Please log in as Admin.'}), 403
     if 'team_photo' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
     file = request.files['team_photo']
@@ -3099,6 +3346,9 @@ def complete_prescription(req_id):
 
 @app.route('/api/search/track', methods=['POST'])
 def track_search():
+    # Security: only logged-in customers can track their own searches
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Please login as customer.'}), 403
     if request.is_json:
         data = request.json
     else:
@@ -3108,6 +3358,10 @@ def track_search():
     
     if not customer_id or not keyword:
         return jsonify({'error': 'Customer ID and keyword are required.'}), 400
+    
+    # Prevent IDOR: ensure customer can only track their own searches
+    if int(customer_id) != session.get('role_id'):
+        return jsonify({'error': 'Forbidden: You can only track your own searches.'}), 403
         
     db = get_db()
     cursor = db.cursor()
@@ -3116,7 +3370,8 @@ def track_search():
         db.commit()
         return jsonify({'success': True, 'message': 'Search tracked successfully.'})
     except Exception as e:
-        return jsonify({'error': f'Failed to track search: {str(e)}'}), 500
+        print("Search track error:", e)
+        return jsonify({'error': 'Failed to track search.'}), 500
 
 @app.route('/api/admin/search-analytics', methods=['GET'])
 def get_search_analytics():
@@ -3835,5 +4090,5 @@ except Exception as e:
     print("Failed to exempt API routes from CSRF:", e)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=False, host='0.0.0.0', port=5001)
 

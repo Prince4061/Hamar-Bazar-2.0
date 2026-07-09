@@ -948,6 +948,62 @@ html, body {
     </div>
 </div>
 
+<!-- Beautiful Product Customization Modal -->
+<div id="product-customization-modal" class="modal-popup-overlay" style="display: none;" onclick="closeCustomizationModal()">
+    <div style="background: white; width: 100%; max-width: 440px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; border: 1px solid var(--border-color); animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);" onclick="event.stopPropagation()">
+        
+        <!-- Header -->
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 0; font-family: 'Outfit', sans-serif;">Customize Product</h3>
+            <button onclick="closeCustomizationModal()" style="width: 32px; height: 32px; border-radius: 50%; background: #f1f5f9; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i data-lucide="x" style="width: 18px; height: 18px; color: var(--text-primary);"></i>
+            </button>
+        </div>
+        
+        <!-- Form Content -->
+        <div style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px; text-align: left;">
+            <div>
+                <h4 id="custom-modal-prod-name" style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0 0 4px 0;">Product Name</h4>
+                <p id="custom-modal-prod-price" style="font-size: 0.9rem; color: var(--text-secondary); margin: 0; font-weight: 600;">Price: ₹0</p>
+            </div>
+            
+            <input type="hidden" id="custom-modal-prod-id">
+            <input type="hidden" id="custom-modal-prod-qty">
+            
+            <!-- Text message -->
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 6px;">Name to Print / Cake Message</label>
+                <input type="text" id="custom-input-text" placeholder="E.g., Prince or Happy Birthday Mom" style="width: 100%; padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 0.9rem;">
+            </div>
+            
+            <!-- Special Instructions -->
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 6px;">Special Instructions / Preferences</label>
+                <textarea id="custom-input-instructions" placeholder="E.g., Eggless, Chocolate flavor, font style, color theme, size, etc." rows="3" style="width: 100%; padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 0.9rem; resize: none; font-family: inherit;"></textarea>
+            </div>
+            
+            <!-- Upload reference image -->
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 6px;">Reference Design / Style Photo (Optional)</label>
+                <input type="file" id="custom-input-file" accept="image/*" style="display: none;" onchange="handleCustomizationFileSelect(this)">
+                <div onclick="document.getElementById('custom-input-file').click()" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.borderColor='var(--primary-accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                    <i data-lucide="image" style="width: 24px; height: 24px; color: var(--text-muted); margin-bottom: 6px; display: inline-block;"></i>
+                    <p id="custom-file-status" style="font-size: 0.8rem; color: var(--text-secondary); margin: 0; font-weight: 500;">Click to select design image</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Button -->
+        <div style="padding: 16px 20px; border-top: 1px solid var(--border-color); display: flex; gap: 12px; background: #f8fafc;">
+            <button onclick="closeCustomizationModal()" class="btn btn-secondary" style="flex: 1; padding: 12px; font-weight: 600; border-radius: var(--radius-md);">Cancel</button>
+            <button id="custom-submit-btn" onclick="saveProductCustomization()" class="btn" style="flex: 2; padding: 12px; background: var(--primary-accent); color: white; font-weight: 700; border-radius: var(--radius-md); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i data-lucide="shopping-cart" style="width: 16px; height: 16px;"></i>
+                Add Custom Item
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Beautiful Product Details Modal (Amazon Style) -->
 <div id="product-detail-modal" class="modal-popup-overlay" style="display: none;" onclick="closeProductDetailModal()">
     <div style="background: white; width: 100%; max-width: 440px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; border: 1px solid var(--border-color); animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);" onclick="event.stopPropagation()">
@@ -1301,6 +1357,122 @@ html, body {
     function closeProductDetailModal() {
         document.getElementById("product-detail-modal").style.display = "none";
         currentDetailProductId = null;
+    }
+
+    let uploadedCustomizationPath = null;
+
+    function openCustomizationModal(prodId, qty) {
+        let prod = productsList.find(p => p.id === prodId);
+        if (!prod && recommendedProductsCache) {
+            prod = recommendedProductsCache.find(p => p.id === prodId);
+        }
+        if (!prod) return;
+
+        document.getElementById("custom-modal-prod-id").value = prodId;
+        document.getElementById("custom-modal-prod-qty").value = qty;
+        document.getElementById("custom-modal-prod-name").innerText = prod.name;
+        document.getElementById("custom-modal-prod-price").innerText = `Price: ₹${prod.price.toFixed(2)}`;
+        
+        // Reset form inputs
+        document.getElementById("custom-input-text").value = "";
+        document.getElementById("custom-input-instructions").value = "";
+        document.getElementById("custom-input-file").value = "";
+        document.getElementById("custom-file-status").innerText = "Click to select design image";
+        uploadedCustomizationPath = null;
+
+        // Show Modal
+        document.getElementById("product-customization-modal").style.display = "flex";
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function closeCustomizationModal() {
+        document.getElementById("product-customization-modal").style.display = "none";
+    }
+
+    function handleCustomizationFileSelect(input) {
+        if (!input.files || input.files.length === 0) return;
+        const file = input.files[0];
+        document.getElementById("custom-file-status").innerText = "Uploading: " + file.name + "...";
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        fetch("/api/orders/upload-customization-file", {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                uploadedCustomizationPath = data.file_path;
+                document.getElementById("custom-file-status").innerText = "Uploaded: " + file.name + " ✅";
+                showAestheticToast("Design uploaded successfully!", "success");
+            } else {
+                document.getElementById("custom-file-status").innerText = "Upload failed: " + data.error;
+                showAestheticToast("Upload failed: " + data.error, "danger");
+            }
+        })
+        .catch(err => {
+            console.error("Error uploading file:", err);
+            document.getElementById("custom-file-status").innerText = "Upload connection error.";
+            showAestheticToast("Upload connection error.", "danger");
+        });
+    }
+
+    function saveProductCustomization() {
+        const prodId = parseInt(document.getElementById("custom-modal-prod-id").value);
+        const qty = parseInt(document.getElementById("custom-modal-prod-qty").value);
+        const text = document.getElementById("custom-input-text").value.trim();
+        const instructions = document.getElementById("custom-input-instructions").value.trim();
+        
+        let prod = productsList.find(p => p.id === prodId);
+        if (!prod && recommendedProductsCache) {
+            prod = recommendedProductsCache.find(p => p.id === prodId);
+        }
+        if (!prod) return;
+
+        // Add to cart with customization parameters
+        cart[prodId] = {
+            id: prodId,
+            name: prod.name,
+            price: prod.price,
+            quantity: qty,
+            shop_id: prod.shop_id || 1,
+            is_available: prod.is_available !== undefined ? prod.is_available : 1,
+            custom_text: text || null,
+            custom_instructions: instructions || null,
+            custom_image_path: uploadedCustomizationPath || null
+        };
+
+        updateCartUI();
+        triggerCartHighlight();
+        closeCustomizationModal();
+        showAestheticToast("Custom item added to cart!", "success");
+    }
+
+    // Intercept addToCart calls
+    function handleAddToCartClick(prodId, qty) {
+        let prod = productsList.find(p => p.id === prodId);
+        if (!prod && recommendedProductsCache) {
+            prod = recommendedProductsCache.find(p => p.id === prodId);
+        }
+        if (prod) {
+            const customizable = isShopCustomizable(prod.shop_id);
+            if (customizable) {
+                openCustomizationModal(prodId, qty);
+            } else {
+                addToCart(prodId, qty);
+            }
+        } else {
+            // Fallback if not loaded
+            addToCart(prodId, qty);
+        }
+    }
+
+    function isShopCustomizable(shopId) {
+        if (!shopsCache) return false;
+        const shop = shopsCache.find(s => s.id === shopId);
+        return shop && (shop.is_customizable === 1 || shop.is_customizable === true);
     }
 
     // Tab Screen Switcher Function
@@ -1893,11 +2065,11 @@ html, body {
             </div>
             <div style="margin-top: 12px;">
                 ${qty === 0 ? 
-                    `<button class="${btnClass} w-full" style="padding: 8px; font-size: 0.85rem; ${btnStyle}" onclick="addToCart(${prod.id}, 1)">Add</button>` :
+                    `<button class="${btnClass} w-full" style="padding: 8px; font-size: 0.85rem; ${btnStyle}" onclick="handleAddToCartClick(${prod.id}, 1)">Add</button>` :
                     `<div class="product-qty-controls" style="justify-content: space-between; ${controlBorder}">
                         <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; ${minusStyle}" onclick="changeQty(${prod.id}, -1)">-</button>
                         <span style="font-weight:700; font-size: 0.95rem; ${qtyColor}">${qty}</span>
-                        <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; ${plusStyle}" onclick="changeQty(${prod.id}, 1)">+</button>
+                        <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; ${plusStyle}" onclick="handleAddToCartClick(${prod.id}, 1)">+</button>
                      </div>`
                 }
             </div>
@@ -1962,11 +2134,11 @@ html, body {
                         ` : ''}
                     </div>
                     ${qty === 0 ?
-                        `<button class="product-add-circle" onclick="addToCart(${prod.id}, 1)">+</button>` :
+                        `<button class="product-add-circle" onclick="handleAddToCartClick(${prod.id}, 1)">+</button>` :
                         `<div style="display:flex; align-items:center; gap:6px;">
                             <button class="btn-circle" style="width:20px; height:20px; font-size:0.75rem;" onclick="changeQty(${prod.id}, -1)">-</button>
                             <span style="font-weight:700; font-size:0.85rem;">${qty}</span>
-                            <button class="btn-circle" style="width:20px; height:20px; font-size:0.75rem; background: var(--primary-light); color: var(--primary-accent);" onclick="changeQty(${prod.id}, 1)">+</button>
+                            <button class="btn-circle" style="width:20px; height:20px; font-size:0.75rem; background: var(--primary-light); color: var(--primary-accent);" onclick="handleAddToCartClick(${prod.id}, 1)">+</button>
                         </div>`
                     }
                 </div>
@@ -2157,10 +2329,22 @@ html, body {
 
             const oosBadge = isOutOfStock ? `<span style="background: var(--ruby-danger); color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-top: 4px; display: inline-block; font-weight: 700;">Out of Stock</span>` : "";
 
+            let customizationBadgeHtml = '';
+            if (item.custom_text) {
+                customizationBadgeHtml += `<div style="font-size: 0.75rem; color: #3498db; margin-top: 2px; font-weight: 500;">✒️ Custom: "${item.custom_text}"</div>`;
+            }
+            if (item.custom_instructions) {
+                customizationBadgeHtml += `<div style="font-size: 0.75rem; color: #e67e22; margin-top: 1px;">📝 Notes: ${item.custom_instructions}</div>`;
+            }
+            if (item.custom_image_path) {
+                customizationBadgeHtml += `<div style="font-size: 0.75rem; color: #27ae60; margin-top: 1px;">🖼️ Design: <a href="${item.custom_image_path}" target="_blank" style="color:#27ae60; text-decoration:underline; font-weight:600;">View File</a></div>`;
+            }
+
             itemRow.innerHTML = `
                 <div style="flex: 1; min-width: 0; text-align: left; padding-right: 8px;">
                     <div style="font-weight: 700; font-size: 0.9rem; color: ${isOutOfStock ? 'var(--ruby-danger)' : 'var(--text-primary)'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item.name}">${item.name}</div>
                     <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px;">₹${item.price.toFixed(0)}</div>
+                    ${customizationBadgeHtml}
                     ${oosBadge}
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
@@ -2222,7 +2406,10 @@ html, body {
         
         const itemsList = keys.map(k => ({
             product_id: parseInt(k),
-            quantity: cart[k].quantity
+            quantity: cart[k].quantity,
+            custom_text: cart[k].custom_text || null,
+            custom_instructions: cart[k].custom_instructions || null,
+            custom_image_path: cart[k].custom_image_path || null
         }));
         
         const activeShopId = cart[keys[0]].shop_id || 1;

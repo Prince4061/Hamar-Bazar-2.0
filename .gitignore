@@ -136,6 +136,10 @@ cython_debug/
 # Local database file
 marketplace.db
 marketplace.db-journal
+marketplace.db-shm
+marketplace.db-wal
+*.db-shm
+*.db-wal
 
 # Environment variables
 .env
@@ -156,6 +160,13 @@ credential.md
 # Uploaded user files
 static/uploads/
 
-# Local credentials
+# ── SECURITY: Never commit these files ──────────────────────────────────────────
+# Flask session secret key (auto-generated on first run)
 .secret_key
+# Admin login password (plain text or hashed)
 .admin_password
+# Any local key/token files
+*.secret
+*.key
+*.token
+# ────────────────────────────────────────────────────────────────────────────────
