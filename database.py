@@ -299,7 +299,7 @@ def seed_db():
         ('Fresh & Green Vegetables', 'VEGGIES', 4.0, _hashed_shop_pass, '/static/images/veggies_category.png'),
         ('ElectroWorld Solutions', 'ELECTRONICS', 10.0, _hashed_shop_pass, '/static/images/electronics_category.png'),
         ('City Medicos & Pharmacy', 'PHARMACY', 7.0, _hashed_shop_pass, '/static/images/default_category.png'),
-        ('Hamar Tech Hub (Gadgets & Accessories)', 'TECH', 8.0, _hashed_shop_pass, '/static/images/default_category.png')
+        ('Hamar Tech Hub (Gadgets & Accessories)', 'TECH', 8.0, _hashed_shop_pass, '/static/images/tech_category.png')
     ]
     for shop in shops_data:
         cursor.execute('''
