@@ -9,6 +9,7 @@ services:
       - app-network
     environment:
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - DATABASE_PATH=${DATABASE_PATH}
     volumes:

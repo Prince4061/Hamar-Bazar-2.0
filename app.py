@@ -949,7 +949,8 @@ def staff_login():
             cursor = db.cursor()
             
             if role == 'admin':
-                if identifier.strip().lower() != 'admin':
+                admin_username = os.environ.get('ADMIN_USERNAME', 'prince')
+                if identifier.strip().lower() != admin_username.strip().lower() and identifier.strip().lower() != 'admin':
                     return jsonify({'success': False, 'error': 'Incorrect username for Admin.'})
                 
                 # Secure admin password retrieval
