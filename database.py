@@ -360,6 +360,57 @@ def seed_db():
         (shop_ids['PHARMACY'], 'Savlon Handwash 200ml', 85.0, 'Hygiene')
     ]
     
+    PRODUCT_IMAGES = {
+        # Kirana
+        'Amul Milk 1 Ltr': 'https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=300&q=80',
+        'Britannia Bread 400g': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=300&q=80',
+        'Lays Classic 52g': 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=300&q=80',
+        'Amul Butter 100g': 'https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?auto=format&fit=crop&w=300&q=80',
+        'Colgate Toothpaste 100g': 'https://images.unsplash.com/photo-1559599101-309004147615?auto=format&fit=crop&w=300&q=80',
+        
+        # Cakes & Bakery
+        'Chocolate Truffle Cake 500g': 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=300&q=80',
+        'Pineapple Cream Cake 500g': 'https://images.unsplash.com/photo-1588195538326-c5b1e9f8011b?auto=format&fit=crop&w=300&q=80',
+        'Fresh Fruit Cake 500g': 'https://images.unsplash.com/photo-1535141192574-5d4897c13636?auto=format&fit=crop&w=300&q=80',
+        'Red Velvet Pastry 1pc': 'https://images.unsplash.com/photo-1616541823729-00fe0aacd32c?auto=format&fit=crop&w=300&q=80',
+        'Vanilla Cupcake 1pc': 'https://images.unsplash.com/photo-1576618148400-f54bed99fcfd?auto=format&fit=crop&w=300&q=80',
+        
+        # Veggies
+        'Potato 1kg': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=300&q=80',
+        'Tomato 1kg': 'https://images.unsplash.com/photo-1595855759920-86582396756a?auto=format&fit=crop&w=300&q=80',
+        'Onion 1kg': 'https://images.unsplash.com/photo-1508747703725-719ae257c26a?auto=format&fit=crop&w=300&q=80',
+        'Fresh Coriander Bundle': 'https://images.unsplash.com/photo-1608797178974-15b35a61d121?auto=format&fit=crop&w=300&q=80',
+        'Fresh Lemon 250g': 'https://images.unsplash.com/photo-1590502593747-42a996133562?auto=format&fit=crop&w=300&q=80',
+        
+        # Electronics
+        'Fast USB-C Cable 1.5m': 'https://images.unsplash.com/photo-1541660724482-62a012f62bb7?auto=format&fit=crop&w=300&q=80',
+        'Wired Earphones with Mic': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=300&q=80',
+        'AA Duracell Battery 4pc': 'https://images.unsplash.com/photo-1595079676339-1534801ad6cf?auto=format&fit=crop&w=300&q=80',
+        'Smart WiFi Plug 16A': 'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=300&q=80',
+        
+        # Tech
+        'Wireless Bluetooth Earbuds': 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=300&q=80',
+        'Smart Fitness Tracker Smartwatch': 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=300&q=80',
+        'Multi-Angle Phone Stand': 'https://images.unsplash.com/photo-1616440347437-b1c73416efc2?auto=format&fit=crop&w=300&q=80',
+        'Rechargeable LED Desk Lamp': 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=300&q=80',
+        
+        # Pharmacy
+        'Crocin Advance 500mg': 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&w=300&q=80',
+        'Dolo 650mg': 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&w=300&q=80',
+        'Combiflam Tablet 15pc': 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&w=300&q=80',
+        'Vicks Vaporub 50g': 'https://images.unsplash.com/photo-1607619056574-7b8d304b3b86?auto=format&fit=crop&w=300&q=80',
+        'Cofsil Lozenges 10pc': 'https://images.unsplash.com/photo-1550572017-edd951b55104?auto=format&fit=crop&w=300&q=80',
+        'Benadryl Cough Syrup 100ml': 'https://images.unsplash.com/photo-1550572017-edd951b55104?auto=format&fit=crop&w=300&q=80',
+        'Limcee Vitamin C 15pc': 'https://images.unsplash.com/photo-1616671276441-2f2c277b8bf4?auto=format&fit=crop&w=300&q=80',
+        'Revital H Capsules 10pc': 'https://images.unsplash.com/photo-1616671276441-2f2c277b8bf4?auto=format&fit=crop&w=300&q=80',
+        'Calcium Sandoz 20pc': 'https://images.unsplash.com/photo-1616671276441-2f2c277b8bf4?auto=format&fit=crop&w=300&q=80',
+        'Dettol Liquid 100ml': 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80',
+        'Band-Aid Premium 20pc': 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&w=300&q=80',
+        'Betadine Ointment 15g': 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80',
+        'Dettol Hand Sanitizer 50ml': 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=300&q=80',
+        'Savlon Handwash 200ml': 'https://images.unsplash.com/photo-1607006342411-91f11f04e8ac?auto=format&fit=crop&w=300&q=80',
+    }
+
     for product in products_data:
         # Check if already seeded to avoid duplicates
         cursor.execute('SELECT id FROM products WHERE shop_id = ? AND name = ?', (product[0], product[1]))
@@ -367,7 +418,8 @@ def seed_db():
             subcat = product[3] if len(product) > 3 else None
             price = product[2]
             mrp = round(price * 1.25, 2)
-            cursor.execute('INSERT INTO products (shop_id, name, price, mrp, subcategory) VALUES (?, ?, ?, ?, ?)', (product[0], product[1], price, mrp, subcat))
+            img_url = PRODUCT_IMAGES.get(product[1], None)
+            cursor.execute('INSERT INTO products (shop_id, name, price, mrp, subcategory, image_path) VALUES (?, ?, ?, ?, ?, ?)', (product[0], product[1], price, mrp, subcat, img_url))
             
     # Seed Delivery Partners
     _hashed_rider_pass = generate_password_hash('password123')

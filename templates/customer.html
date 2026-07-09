@@ -2011,7 +2011,7 @@ html, body {
 
         products.forEach(prod => {
             const card = document.createElement("div");
-            card.className = "product-card fade-in-up";
+            card.className = "product-card";
             card.innerHTML = buildProductCardHtml(prod);
             container.appendChild(card);
         });
@@ -2069,7 +2069,7 @@ html, body {
                     `<div class="product-qty-controls" style="justify-content: space-between; ${controlBorder}">
                         <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; ${minusStyle}" onclick="changeQty(${prod.id}, -1)">-</button>
                         <span style="font-weight:700; font-size: 0.95rem; ${qtyColor}">${qty}</span>
-                        <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; ${plusStyle}" onclick="handleAddToCartClick(${prod.id}, 1)">+</button>
+                        <button class="btn-circle" style="width: 26px; height: 26px; font-size: 0.9rem; ${plusStyle}" onclick="changeQty(${prod.id}, 1)">+</button>
                      </div>`
                 }
             </div>
@@ -2083,7 +2083,7 @@ html, body {
         
         productsList.forEach(prod => {
             const card = document.createElement("div");
-            card.className = "product-card fade-in-up";
+            card.className = "product-card";
             card.innerHTML = buildProductCardHtml(prod);
             container.appendChild(card);
         });
@@ -2093,8 +2093,6 @@ html, body {
     // Renders Recommended horizontal list
     let recommendedProductsCache = null;
     function renderRecommendedProducts(products) {
-        const hasChanged = JSON.stringify(products) !== JSON.stringify(recommendedProductsCache);
-        if (!hasChanged) return;
         recommendedProductsCache = products;
         
         const container = document.getElementById("recommended-products-container");
@@ -2103,7 +2101,7 @@ html, body {
         
         products.forEach(prod => {
             const card = document.createElement("div");
-            card.className = "product-card fade-in-up";
+            card.className = "product-card";
             card.style.background = "#ffffff";
             card.style.border = "1px solid var(--border-color)";
             card.style.borderRadius = "var(--radius-lg)";
@@ -2138,7 +2136,7 @@ html, body {
                         `<div style="display:flex; align-items:center; gap:6px;">
                             <button class="btn-circle" style="width:20px; height:20px; font-size:0.75rem;" onclick="changeQty(${prod.id}, -1)">-</button>
                             <span style="font-weight:700; font-size:0.85rem;">${qty}</span>
-                            <button class="btn-circle" style="width:20px; height:20px; font-size:0.75rem; background: var(--primary-light); color: var(--primary-accent);" onclick="handleAddToCartClick(${prod.id}, 1)">+</button>
+                            <button class="btn-circle" style="width:20px; height:20px; font-size:0.75rem; background: var(--primary-light); color: var(--primary-accent);" onclick="changeQty(${prod.id}, 1)">+</button>
                         </div>`
                     }
                 </div>
@@ -2225,16 +2223,21 @@ html, body {
     }
 
     function processAddToCart(prod, qty) {
+        console.log("processAddToCart called:", { prodId: prod.id, qty, cartKeys: Object.keys(cart) });
         // Option B: Allow items from multiple merchants in the same cart
-        cart[prod.id] = {
-            id: prod.id,
-            name: prod.name,
-            price: prod.price,
-            quantity: qty,
-            shop_id: prod.shop_id || 1,
-            is_available: prod.is_available !== undefined ? prod.is_available : 1
-        };
-        
+        if (cart[prod.id]) {
+            cart[prod.id].quantity += qty;
+        } else {
+            cart[prod.id] = {
+                id: prod.id,
+                name: prod.name,
+                price: prod.price,
+                quantity: qty,
+                shop_id: prod.shop_id || 1,
+                is_available: prod.is_available !== undefined ? prod.is_available : 1
+            };
+        }
+        console.log("processAddToCart: Updated cart:", JSON.stringify(cart));
         updateCartUI();
         triggerCartHighlight();
     }
@@ -2251,8 +2254,13 @@ html, body {
     }
 
     function changeQty(prodId, delta) {
-        if (!cart[prodId]) return;
+        console.log("changeQty called:", { prodId, type: typeof prodId, delta, cartKeys: Object.keys(cart), cartHasKey: prodId in cart });
+        if (!cart[prodId]) {
+            console.warn("changeQty: Item not in cart", prodId);
+            return;
+        }
         cart[prodId].quantity += delta;
+        console.log("changeQty: Updated quantity to", cart[prodId].quantity);
         if (cart[prodId].quantity <= 0) {
             delete cart[prodId];
         }
@@ -2276,6 +2284,12 @@ html, body {
         renderProducts();
         renderCurrentShopProducts();
         renderPharmacyProducts();
+        if (recommendedProductsCache) {
+            renderRecommendedProducts(recommendedProductsCache);
+        }
+        if (lastFilteredProducts) {
+            renderFilteredProducts(lastFilteredProducts);
+        }
         
         const container = document.getElementById("cart-items-container");
         container.innerHTML = "";
@@ -2964,6 +2978,7 @@ html, body {
         }
         
         if (!query) {
+            lastFilteredProducts = null;
             if (resultsSection) resultsSection.style.display = "none";
             if (defaultStorefronts) defaultStorefronts.style.display = "block";
             if (trendingSearches) trendingSearches.style.display = "block";
@@ -3034,7 +3049,9 @@ html, body {
             });
     }
 
+    let lastFilteredProducts = null;
     function renderFilteredProducts(list) {
+        lastFilteredProducts = list;
         const searchGrid = document.getElementById("search-products-grid");
         const searchSection = document.getElementById("search-results-section");
         
@@ -3049,7 +3066,7 @@ html, body {
             
             list.forEach(prod => {
                 const card = document.createElement("div");
-                card.className = "product-card fade-in-up";
+                card.className = "product-card";
                 card.innerHTML = buildProductCardHtml(prod);
                 searchGrid.appendChild(card);
             });
@@ -3062,7 +3079,7 @@ html, body {
             const currentShopFiltered = list.filter(p => p.shop_id === currentShopId);
             currentShopFiltered.forEach(prod => {
                 const card = document.createElement("div");
-                card.className = "product-card fade-in-up";
+                card.className = "product-card";
                 card.innerHTML = buildProductCardHtml(prod);
                 homeGrid.appendChild(card);
             });
