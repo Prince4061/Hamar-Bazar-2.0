@@ -42,9 +42,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
 
-  // Dynamic routes and API requests should not be cached (Network-only)
+  // Dynamic routes, API requests, and external URLs should not be cached (Network-only)
   if (
     event.request.method !== 'GET' ||
+    requestUrl.origin !== self.location.origin ||
     requestUrl.pathname.startsWith('/api/') ||
     requestUrl.pathname.startsWith('/session/')
   ) {

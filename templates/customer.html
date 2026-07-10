@@ -425,6 +425,13 @@ html, body {
                 <div class="products-grid" id="search-products-grid">
                     <!-- Loaded dynamically via JS -->
                 </div>
+                <!-- Pagination Indicator/Load More for Global Search -->
+                <div id="search-products-pagination-container" style="display: none; text-align: center; margin: 16px 0;">
+                    <button id="search-products-load-more-btn" onclick="loadMoreSearchResults()" class="action-btn-primary" style="padding: 8px 20px; font-size: 0.9rem; border-radius: 8px; font-family: 'Outfit', sans-serif;">Aur Results Load Karein 🔄</button>
+                    <div id="search-products-loading-spinner" style="display: none; color: var(--text-secondary); font-size: 0.85rem;">
+                        Loading more...
+                    </div>
+                </div>
             </div>
 
             <div id="home-default-storefronts">
@@ -844,6 +851,13 @@ html, body {
             <div class="products-grid" id="shop-detail-products-container">
                 <!-- Dynamically loaded products -->
             </div>
+            <!-- Pagination Indicator/Load More for Shop Products -->
+            <div id="shop-products-pagination-container" style="display: none; text-align: center; margin: 24px 0 32px 0;">
+                <button id="shop-products-load-more-btn" onclick="loadMoreShopProducts()" class="action-btn-primary" style="padding: 10px 24px; font-size: 0.95rem; border-radius: 8px; font-family: 'Outfit', sans-serif;">Aur Products Load Karein 🔄</button>
+                <div id="shop-products-loading-spinner" style="display: none; color: var(--text-secondary); font-size: 0.9rem;">
+                    Loading more...
+                </div>
+            </div>
         </div>
 
     </div>
@@ -1094,6 +1108,17 @@ html, body {
     let customerProfilePic = {{ (session.get('profile_pic') or '') | tojson }};
     let currentShopId = null;
     let productsList = [];
+    
+    // Pagination States for Scalable Product Listing & Searching (100k+ products support)
+    let currentShopPage = 1;
+    let currentShopHasMore = false;
+    let currentShopLoading = false;
+
+    let currentSearchPage = 1;
+    let currentSearchHasMore = false;
+    let currentSearchLoading = false;
+    let currentSearchQuery = "";
+
     let cart = {}; // product_id -> {name, price, quantity}
     let deliveryFeeFlat = 15.0;
     let deliveryFeeThreshold = 199.0;
@@ -1624,12 +1649,9 @@ html, body {
             searchInput.value = "";
         }
         
-        fetch(`/api/shops/5/products`)
-            .then(res => res.json())
-            .then(data => {
-                productsList = data;
-                renderCurrentShopProducts();
-            });
+        currentShopPage = 1;
+        productsList = [];
+        loadShopProducts(5, 1, false);
             
         document.getElementById("shop-detail-name").innerText = subcat;
         if (window.lucide) lucide.createIcons();
@@ -1686,10 +1708,10 @@ html, body {
         updateCartUI();
         
         // Load default Recommended items (under KIRANA category)
-        fetch(`/api/shops/1/products`)
+        fetch(`/api/products/search?shop_id=1&page=1&limit=20`)
             .then(res => res.json())
             .then(data => {
-                renderRecommendedProducts(data);
+                renderRecommendedProducts(data.products || []);
             });
             
         // Load categories dynamically
@@ -1701,37 +1723,47 @@ html, body {
         // Start background polling for product updates (every 5 seconds)
         setInterval(pollProductsAndCart, 5000);
     });
-
+ 
     function pollProductsAndCart() {
         loadPrescriptionHistory();
 
         if (currentShopId) {
-            fetch(`/api/shops/${currentShopId}/products`)
+            const queryInput = document.getElementById("shop-product-search-input");
+            const query = queryInput ? queryInput.value.trim() : "";
+            
+            let url = `/api/products/search?shop_id=${currentShopId}&page=1&limit=20`;
+            if (query) {
+                url += `&q=${encodeURIComponent(query)}`;
+            }
+            if (currentPharmacySubcat && currentShopId === 5) {
+                url += `&subcategory=${encodeURIComponent(currentPharmacySubcat)}`;
+            }
+            
+            fetch(url)
                 .then(res => res.json())
                 .then(data => {
-                    const hasChanged = JSON.stringify(data) !== JSON.stringify(productsList);
+                    const fetchedProducts = data.products || [];
+                    let hasChanged = false;
+                    fetchedProducts.forEach(newP => {
+                        const idx = productsList.findIndex(p => p.id === newP.id);
+                        if (idx !== -1) {
+                            if (productsList[idx].price !== newP.price || productsList[idx].is_available !== newP.is_available) {
+                                productsList[idx] = newP;
+                                hasChanged = true;
+                            }
+                        }
+                    });
                     if (hasChanged) {
-                        productsList = data;
-                        renderCurrentShopProducts();
+                        renderShopDetailProducts(productsList);
                     }
                 })
                 .catch(err => console.error("Error polling category products:", err));
         }
 
-        if (currentPharmacySubcat && !currentPharmacySubcat.startsWith('Search:')) {
-            fetch(`/api/shops/5/products`)
-                .then(res => res.json())
-                .then(data => {
-                    pharmacyProductsList = data.filter(p => p.subcategory === currentPharmacySubcat);
-                    renderPharmacyProducts();
-                })
-                .catch(err => console.error("Error polling pharmacy products:", err));
-        }
-
-        fetch(`/api/shops/1/products`)
+        fetch(`/api/products/search?shop_id=1&page=1&limit=20`)
             .then(res => res.json())
             .then(data => {
-                renderRecommendedProducts(data);
+                renderRecommendedProducts(data.products || []);
             })
             .catch(err => console.error("Error polling recommended products:", err));
 
@@ -1952,12 +1984,9 @@ html, body {
             searchInput.value = "";
         }
         
-        fetch(`/api/shops/${shopId}/products`)
-            .then(res => res.json())
-            .then(data => {
-                productsList = data;
-                renderShopDetailProducts(data);
-            });
+        currentShopPage = 1;
+        productsList = [];
+        loadShopProducts(shopId, 1, false);
             
         const shop = shopsCache.find(s => s.id === shopId);
         document.getElementById("shop-detail-name").innerText = shop ? shop.shop_name : "Exclusive Partner Store";
@@ -1982,22 +2011,87 @@ html, body {
                 trackSearchTerm(query);
             }, 1000);
         }
-        renderCurrentShopProducts();
+        
+        currentShopPage = 1;
+        productsList = [];
+        loadShopProducts(currentShopId, 1, false);
     }
 
     function renderCurrentShopProducts() {
-        const queryInput = document.getElementById("shop-product-search-input");
-        const query = queryInput ? queryInput.value.trim().toLowerCase() : "";
-        let filtered = productsList;
+        if (currentShopId) {
+            loadShopProducts(currentShopId, 1, false);
+        }
+    }
+
+    function loadShopProducts(shopId, page, append = false) {
+        if (!shopId) return;
+        if (currentShopLoading) return;
+        currentShopLoading = true;
         
-        if (currentShopId === 5 && currentPharmacySubcat) {
-            filtered = productsList.filter(p => p.subcategory === currentPharmacySubcat);
+        const paginationContainer = document.getElementById("shop-products-pagination-container");
+        const loadMoreBtn = document.getElementById("shop-products-load-more-btn");
+        const loadingSpinner = document.getElementById("shop-products-loading-spinner");
+        const searchInput = document.getElementById("shop-product-search-input");
+        const query = searchInput ? searchInput.value.trim() : "";
+        
+        if (paginationContainer) {
+            paginationContainer.style.display = "block";
+            if (loadMoreBtn) loadMoreBtn.style.display = "none";
+            if (loadingSpinner) loadingSpinner.style.display = "inline-block";
         }
         
+        let url = `/api/products/search?shop_id=${shopId}&page=${page}&limit=20`;
         if (query) {
-            filtered = filtered.filter(p => p.name.toLowerCase().includes(query));
+            url += `&q=${encodeURIComponent(query)}`;
         }
-        renderShopDetailProducts(filtered);
+        if (currentPharmacySubcat && shopId === 5) {
+            url += `&subcategory=${encodeURIComponent(currentPharmacySubcat)}`;
+        }
+        
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                const fetchedProducts = data.products || [];
+                
+                if (append) {
+                    fetchedProducts.forEach(p => {
+                        if (!productsList.some(existing => existing.id === p.id)) {
+                            productsList.push(p);
+                        }
+                    });
+                } else {
+                    productsList = fetchedProducts;
+                }
+                
+                currentShopPage = data.page;
+                currentShopHasMore = data.has_more;
+                
+                renderShopDetailProducts(productsList);
+                
+                if (paginationContainer) {
+                    if (currentShopHasMore) {
+                        if (loadMoreBtn) loadMoreBtn.style.display = "inline-block";
+                        if (loadingSpinner) loadingSpinner.style.display = "none";
+                        paginationContainer.style.display = "block";
+                    } else {
+                        paginationContainer.style.display = "none";
+                    }
+                }
+                currentShopLoading = false;
+            })
+            .catch(err => {
+                console.error("Error fetching shop products:", err);
+                currentShopLoading = false;
+                if (paginationContainer) {
+                    paginationContainer.style.display = "none";
+                }
+            });
+    }
+    
+    function loadMoreShopProducts() {
+        if (currentShopHasMore && !currentShopLoading && currentShopId) {
+            loadShopProducts(currentShopId, currentShopPage + 1, true);
+        }
     }
 
     function renderShopDetailProducts(products) {
@@ -2999,21 +3093,9 @@ html, body {
         if (defaultStorefronts) defaultStorefronts.style.display = "none";
         if (trendingSearches) trendingSearches.style.display = "none";
         
-        if (activeStorefront === "pharmacy") {
-            fetch(`/api/shops/5/products`)
-                .then(res => res.json())
-                .then(data => {
-                    data.forEach(p => {
-                        if (!productsList.some(existing => existing.id === p.id)) {
-                            productsList.push(p);
-                        }
-                    });
-                    const filtered = data.filter(p => p.name.toLowerCase().includes(query));
-                    renderFilteredProducts(filtered);
-                });
-        } else {
-            searchAcrossAllShops(query);
-        }
+        currentSearchPage = 1;
+        currentSearchQuery = query;
+        loadSearchResults(query, 1, false);
     }
     
     function triggerSearch() {
@@ -3027,26 +3109,75 @@ html, body {
         
         handleSearch(query);
     }
-    
-    function searchAcrossAllShops(query) {
-        fetch('/api/shops')
+
+    function loadSearchResults(query, page, append = false) {
+        if (currentSearchLoading) return;
+        currentSearchLoading = true;
+        
+        const paginationContainer = document.getElementById("search-products-pagination-container");
+        const loadMoreBtn = document.getElementById("search-products-load-more-btn");
+        const loadingSpinner = document.getElementById("search-products-loading-spinner");
+        const resultsGrid = document.getElementById("search-products-grid");
+        
+        if (paginationContainer) {
+            paginationContainer.style.display = "block";
+            if (loadMoreBtn) loadMoreBtn.style.display = "none";
+            if (loadingSpinner) loadingSpinner.style.display = "inline-block";
+        }
+        
+        let url = `/api/products/search?q=${encodeURIComponent(query)}&page=${page}&limit=20`;
+        if (activeStorefront === "pharmacy") {
+            url += `&shop_id=5`;
+        }
+        
+        fetch(url)
             .then(res => res.json())
-            .then(shops => {
-                const promises = shops.map(s => fetch(`/api/shops/${s.id}/products`).then(res => res.json()));
-                Promise.all(promises).then(results => {
-                    const allProducts = results.flat().filter(p => p && !p.error);
-                    allProducts.forEach(p => {
-                        if (!productsList.some(existing => existing.id === p.id)) {
-                            productsList.push(p);
+            .then(data => {
+                const fetchedProducts = data.products || [];
+                let renderList = [];
+                
+                if (append) {
+                    if (!window.searchResultsList) window.searchResultsList = [];
+                    fetchedProducts.forEach(p => {
+                        if (!window.searchResultsList.some(existing => existing.id === p.id)) {
+                            window.searchResultsList.push(p);
                         }
                     });
-                    const filtered = allProducts.filter(p => p.name.toLowerCase().includes(query));
-                    renderFilteredProducts(filtered);
-                });
+                    renderList = window.searchResultsList;
+                } else {
+                    window.searchResultsList = fetchedProducts;
+                    renderList = fetchedProducts;
+                }
+                
+                currentSearchPage = data.page;
+                currentSearchHasMore = data.has_more;
+                
+                renderFilteredProducts(renderList);
+                
+                if (paginationContainer) {
+                    if (currentSearchHasMore) {
+                        if (loadMoreBtn) loadMoreBtn.style.display = "inline-block";
+                        if (loadingSpinner) loadingSpinner.style.display = "none";
+                        paginationContainer.style.display = "block";
+                    } else {
+                        paginationContainer.style.display = "none";
+                    }
+                }
+                currentSearchLoading = false;
             })
             .catch(err => {
-                console.error("Failed to fetch shops for global search:", err);
+                console.error("Error loading search results:", err);
+                currentSearchLoading = false;
+                if (paginationContainer) {
+                    paginationContainer.style.display = "none";
+                }
             });
+    }
+    
+    function loadMoreSearchResults() {
+        if (currentSearchHasMore && !currentSearchLoading && currentSearchQuery) {
+            loadSearchResults(currentSearchQuery, currentSearchPage + 1, true);
+        }
     }
 
     let lastFilteredProducts = null;

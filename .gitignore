@@ -135,6 +135,8 @@ cython_debug/
 
 # Local database file
 marketplace.db
+test.db
+*.db
 marketplace.db-journal
 marketplace.db-shm
 marketplace.db-wal

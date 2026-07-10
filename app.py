@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, session, g, send_file
+from flask import Flask, render_template, request, jsonify, redirect, session, g, send_file, make_response
 import os
 import random
 import re
@@ -579,7 +579,11 @@ def logout():
 # -------------------------------------------------------------
 @app.route('/sw.js')
 def serve_service_worker():
-    return send_file(os.path.join(app.root_path, 'static', 'sw.js'), mimetype='application/javascript')
+    response = make_response(send_file(os.path.join(app.root_path, 'static', 'sw.js'), mimetype='application/javascript'))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/manifest.json')
 def serve_manifest():
@@ -1210,6 +1214,53 @@ def get_shop_products(shop_id):
         cursor.execute("SELECT * FROM products WHERE shop_id = ? AND is_available = TRUE", (shop_id,))
     products = [dict(row) for row in cursor.fetchall()]
     return jsonify(products)
+
+@app.route('/api/products/search', methods=['GET'])
+def search_products():
+    db = get_db()
+    cursor = db.cursor()
+    
+    query = request.args.get('q', '').strip()
+    shop_id = request.args.get('shop_id', type=int)
+    subcategory = request.args.get('subcategory', type=str)
+    page = request.args.get('page', default=1, type=int)
+    limit = request.args.get('limit', default=20, type=int)
+    offset = (page - 1) * limit
+    
+    sql = "SELECT * FROM products WHERE is_available = TRUE"
+    params = []
+    
+    if query:
+        sql += " AND (name LIKE ? OR subcategory LIKE ?)"
+        params.extend([f"%{query}%", f"%{query}%"])
+        
+    if shop_id:
+        sql += " AND shop_id = ?"
+        params.append(shop_id)
+        
+    if subcategory:
+        sql += " AND subcategory = ?"
+        params.append(subcategory)
+        
+    # Get total count
+    count_sql = sql.replace("SELECT *", "SELECT COUNT(*)")
+    cursor.execute(count_sql, params)
+    total_count = cursor.fetchone()[0]
+    
+    # Get paginated data
+    sql += " LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+    
+    cursor.execute(sql, params)
+    products = [dict(row) for row in cursor.fetchall()]
+    
+    return jsonify({
+        'products': products,
+        'total': total_count,
+        'page': page,
+        'limit': limit,
+        'has_more': (offset + len(products)) < total_count
+    })
 
 @app.route('/api/products/sync', methods=['POST'])
 def sync_products():

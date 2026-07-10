@@ -1,15 +1,29 @@
 import sqlite3
 import os
+import shutil
 from werkzeug.security import generate_password_hash
 
 # Read SQLite environment parameters with defaults
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_PATH = os.environ.get('DATABASE_PATH', os.path.join(BASE_DIR, 'marketplace.db'))
+
+# Check if test.db exists locally. If yes, default to test.db, else marketplace.db
+default_db_name = 'test.db' if os.path.exists(os.path.join(BASE_DIR, 'test.db')) else 'marketplace.db'
+DATABASE_PATH = os.environ.get('DATABASE_PATH', os.path.join(BASE_DIR, default_db_name))
 
 # Ensure parent directory of database exists (critical for Docker volumes)
 db_dir = os.path.dirname(DATABASE_PATH)
 if db_dir:
     os.makedirs(db_dir, exist_ok=True)
+
+# Copy initial database from container root to persistent volume if target file doesn't exist
+if not os.path.exists(DATABASE_PATH):
+    source_local = os.path.join(BASE_DIR, default_db_name)
+    if os.path.abspath(DATABASE_PATH) != os.path.abspath(source_local) and os.path.exists(source_local):
+        print(f"[INFO] Copying {default_db_name} to volume path: {DATABASE_PATH}")
+        try:
+            shutil.copy2(source_local, DATABASE_PATH)
+        except Exception as e:
+            print(f"[ERROR] Failed to copy database to volume: {e}")
 
 def get_db_connection():
     conn = sqlite3.connect(DATABASE_PATH, timeout=30.0)
@@ -263,6 +277,12 @@ def init_db():
 
     # Populate existing product mrp fields if null
     cursor.execute("UPDATE products SET mrp = ROUND(price * 1.25, 2) WHERE mrp IS NULL")
+
+    # Create indexes for products table to optimize scaling and search speed (especially up to 100k+ products)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_shop_id ON products(shop_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_subcategory ON products(subcategory)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_is_available ON products(is_available)")
 
     conn.commit()
     conn.close()
