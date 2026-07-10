@@ -89,7 +89,7 @@ def add_header(response):
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://checkout.razorpay.com https://unpkg.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
         "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
-        "img-src 'self' data: blob: https:; "
+        "img-src * data: blob:; "
         "connect-src 'self' https://checkout.razorpay.com; "
         "frame-src 'self' https://api.razorpay.com; "
         "object-src 'none';"
@@ -1286,6 +1286,47 @@ def sync_products():
     cursor.execute(f"SELECT id, name, price, mrp, is_available, shop_id, subcategory, description, image_path FROM products WHERE id IN ({placeholders})", product_ids)
     products = [dict(row) for row in cursor.fetchall()]
     return jsonify(products)
+
+@app.route('/api/proxy-image')
+def proxy_image():
+    url = request.args.get('url')
+    if not url:
+        return 'Missing url parameter', 400
+    if not (url.startswith('http://') or url.startswith('https://')):
+        return redirect(url)
+    
+    import hashlib
+    url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
+    
+    ext = 'jpg'
+    url_lower = url.lower()
+    if '.png' in url_lower:
+        ext = 'png'
+    elif '.webp' in url_lower:
+        ext = 'webp'
+    elif '.gif' in url_lower:
+        ext = 'gif'
+        
+    cache_dir = os.path.join(app.root_path, 'static', 'uploads', 'proxy_cache')
+    os.makedirs(cache_dir, exist_ok=True)
+    cached_path = os.path.join(cache_dir, f"{url_hash}.{ext}")
+    
+    if os.path.exists(cached_path):
+        return send_file(cached_path, max_age=86400 * 30)
+        
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            url,
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+        )
+        with urllib.request.urlopen(req, timeout=5) as response:
+            img_data = response.read()
+            with open(cached_path, 'wb') as f:
+                f.write(img_data)
+        return send_file(cached_path, max_age=86400 * 30)
+    except Exception as e:
+        return redirect('/static/images/grocery_basket.png')
 
 @app.route('/api/create-order', methods=['POST'])
 def create_razorpay_order():

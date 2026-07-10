@@ -1024,7 +1024,7 @@ html, body {
         
         <!-- Header Image & Close Button -->
         <div style="position: relative; width: 100%; height: 240px; background: #f8fafc; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--border-color); overflow: hidden; padding: 16px;">
-            <img id="detail-modal-img" src="" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius-md);">
+            <img id="detail-modal-img" src="" alt="" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius-md);">
             <button onclick="closeProductDetailModal()" style="position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 50%; background: white; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; z-index: 10;">
                 <i data-lucide="x" style="width: 20px; height: 20px; color: var(--text-primary);"></i>
             </button>
@@ -1099,6 +1099,14 @@ html, body {
 <script>
     const customerId = {{ (active_user_id or 0) | tojson }};
     const razorpayKeyId = "{{ razorpay_key_id or '' }}";
+
+    function getProductImageUrl(imagePath) {
+        if (!imagePath) return '/static/images/grocery_basket.png';
+        if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+            return `/api/proxy-image?url=${encodeURIComponent(imagePath)}`;
+        }
+        return imagePath;
+    }
 
     let customerName = "";
     let customerPhone = "";
@@ -1199,7 +1207,7 @@ html, body {
         
         const imgElem = document.getElementById("detail-modal-img");
         if (prod.image_path) {
-            imgElem.src = prod.image_path;
+            imgElem.src = getProductImageUrl(prod.image_path);
             imgElem.style.display = "block";
         } else {
             imgElem.src = "/static/placeholder_product.png";
@@ -1845,7 +1853,7 @@ html, body {
                     
                     card.innerHTML = `
                         <div class="hamar-category-title" style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.2px; line-height: 1.2;">${label}</div>
-                        <img src="${s.image_path || '/static/images/grocery_basket.png'}" class="hamar-category-img" alt="${label}">
+                        <img src="${getProductImageUrl(s.image_path)}" class="hamar-category-img" alt="${label}" referrerpolicy="no-referrer">
                     `;
                     grid.appendChild(card);
                 });
@@ -2147,7 +2155,7 @@ html, body {
             <div onclick="showProductDetailModal(${prod.id})" style="cursor: pointer;">
                 ${prod.image_path ? 
                     `<div style="width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow: hidden; border: 1px solid var(--border-color);">
-                        <img src="${prod.image_path}" alt="${prod.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                        <img src="${getProductImageUrl(prod.image_path)}" alt="${prod.name}" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                      </div>` : 
                     `<div style="width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: ${iconBg}; border-radius: var(--radius-md); margin-bottom: 8px; border: 1px solid var(--border-color); color: ${iconColor};">
                         <i data-lucide="package" style="width: 24px; height: 24px;"></i>
@@ -2216,7 +2224,7 @@ html, body {
                 <div onclick="showProductDetailModal(${prod.id})" style="cursor: pointer; text-align: left;">
                     <div style="height: 80px; display:flex; align-items:center; justify-content:center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow:hidden; border: 1px solid var(--border-color);">
                         ${prod.image_path ? 
-                            `<img src="${prod.image_path}" alt="${prod.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">` :
+                            `<img src="${getProductImageUrl(prod.image_path)}" alt="${prod.name}" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain;">` :
                             `<i data-lucide="package" style="width:24px; height:24px; color: var(--text-muted);"></i>`
                         }
                     </div>

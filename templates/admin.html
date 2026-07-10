@@ -2908,6 +2908,14 @@
         // Chart variables
         let orderStatusChart = null;
         let salesTrendChart = null;
+
+        function getProductImageUrl(imagePath) {
+            if (!imagePath) return '/static/images/grocery_basket.png';
+            if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+                return `/api/proxy-image?url=${encodeURIComponent(imagePath)}`;
+            }
+            return imagePath;
+        }
         let categoryDemandChartObj = null;
         let vendorCommissionChart = null;
         let dbActivityChartObj = null;
@@ -4007,7 +4015,7 @@
                 
                 div.innerHTML = `
                     <div class="product-image-container">
-                        ${hasImg ? `<img src="${p.image_path}" alt="${p.name}">` : `<i data-lucide="package" style="width:36px; height:36px; color:var(--text-muted);"></i>`}
+                        ${hasImg ? `<img src="${getProductImageUrl(p.image_path)}" alt="${p.name}" referrerpolicy="no-referrer">` : `<i data-lucide="package" style="width:36px; height:36px; color:var(--text-muted);"></i>`}
                     </div>
                     <div class="product-title-row">
                         <span class="product-name-txt">${p.name}</span>
