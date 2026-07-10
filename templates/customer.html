@@ -2011,18 +2011,22 @@ html, body {
         currentShopId = null;
     }
 
+    let shopSearchDebounceTimeout = null;
     function filterShopProducts(query) {
         query = query.toLowerCase().trim();
         if (searchTrackTimeout) clearTimeout(searchTrackTimeout);
+        if (shopSearchDebounceTimeout) clearTimeout(shopSearchDebounceTimeout);
         if (query) {
             searchTrackTimeout = setTimeout(() => {
                 trackSearchTerm(query);
             }, 1000);
         }
         
-        currentShopPage = 1;
-        productsList = [];
-        loadShopProducts(currentShopId, 1, false);
+        shopSearchDebounceTimeout = setTimeout(() => {
+            currentShopPage = 1;
+            productsList = [];
+            loadShopProducts(currentShopId, 1, false);
+        }, 250);
     }
 
     function renderCurrentShopProducts() {
