@@ -2051,6 +2051,11 @@ html, body {
         fetch(url)
             .then(res => res.json())
             .then(data => {
+                const currentQuery = searchInput ? searchInput.value.trim() : "";
+                if (query !== currentQuery) {
+                    currentShopLoading = false;
+                    return;
+                }
                 const fetchedProducts = data.products || [];
                 
                 if (append) {
@@ -3048,18 +3053,16 @@ html, body {
         handleSearch("");
     }
 
+    let searchDebounceTimeout = null;
     function handleSearch(query) {
         query = query.toLowerCase().trim();
         if (!query) {
             lastTrackedQuery = "";
+            currentSearchQuery = "";
         }
         
         if (searchTrackTimeout) clearTimeout(searchTrackTimeout);
-        if (query) {
-            searchTrackTimeout = setTimeout(() => {
-                trackSearchTerm(query);
-            }, 1000);
-        }
+        if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
         
         const resultsSection = document.getElementById("search-results-section");
         const resultsGrid = document.getElementById("search-products-grid");
@@ -3093,9 +3096,19 @@ html, body {
         if (defaultStorefronts) defaultStorefronts.style.display = "none";
         if (trendingSearches) trendingSearches.style.display = "none";
         
-        currentSearchPage = 1;
         currentSearchQuery = query;
-        loadSearchResults(query, 1, false);
+        
+        if (query) {
+            searchTrackTimeout = setTimeout(() => {
+                trackSearchTerm(query);
+            }, 1000);
+        }
+        
+        // Debounce actual AJAX call by 250ms to prevent race conditions
+        searchDebounceTimeout = setTimeout(() => {
+            currentSearchPage = 1;
+            loadSearchResults(query, 1, false);
+        }, 250);
     }
     
     function triggerSearch() {
@@ -3103,6 +3116,7 @@ html, body {
         let query = standaloneInput ? standaloneInput.value : "";
         
         if (searchTrackTimeout) clearTimeout(searchTrackTimeout);
+        if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
         if (query.trim()) {
             trackSearchTerm(query.trim());
         }
@@ -3133,6 +3147,12 @@ html, body {
         fetch(url)
             .then(res => res.json())
             .then(data => {
+                // If search query changed in the input since this request was fired, discard!
+                if (query !== currentSearchQuery) {
+                    currentSearchLoading = false;
+                    return;
+                }
+                
                 const fetchedProducts = data.products || [];
                 let renderList = [];
                 
