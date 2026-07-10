@@ -2030,8 +2030,8 @@ html, body {
     }
 
     function renderCurrentShopProducts() {
-        if (currentShopId) {
-            loadShopProducts(currentShopId, 1, false);
+        if (currentShopId && productsList && productsList.length > 0) {
+            renderShopDetailProducts(productsList);
         }
     }
 
@@ -2351,6 +2351,7 @@ html, body {
         console.log("processAddToCart: Updated cart:", JSON.stringify(cart));
         updateCartUI();
         triggerCartHighlight();
+        try { showAestheticToast("Item added to cart!", "success"); } catch(e) {}
     }
 
     function getMockProductDetail(id) {
