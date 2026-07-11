@@ -367,7 +367,7 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                window.location.href = data.redirect;
+                window.location.replace(data.redirect);
             } else {
                 submitBtn.disabled = false;
                 submitBtn.innerText = originalBtnText;

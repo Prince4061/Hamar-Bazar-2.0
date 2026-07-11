@@ -2012,6 +2012,7 @@
             document.addEventListener('keydown', unlockAudio);
             
             refreshIcons();
+            initBackButtonTrap();
         });
 
         // Tab Switching Actions
@@ -2965,11 +2966,66 @@
                         alert(data.error || "Failed to mark prescription complete.");
                     }
                 })
-                .catch(err => {
+        .catch(err => {
                     console.error("Error completing prescription:", err);
                     alert("Connection error. Please try again.");
                 });
         }
+
+        // --- Back Button Navigation Trap for Mobile/PWA Experience ---
+        let lastBackPressTime = 0;
+        function initBackButtonTrap() {
+            if (!window.history.state || window.history.state.state !== 'main') {
+                window.history.replaceState({ state: 'base' }, '');
+                window.history.pushState({ state: 'main' }, '');
+            }
+        }
+
+        window.addEventListener('popstate', function(event) {
+            if (event.state && event.state.state === 'main') {
+                return;
+            }
+
+            const sidebar = document.getElementById('sidebar-menu');
+            const confirmModal = document.getElementById("aesthetic-confirm-modal");
+
+            let handled = false;
+
+            // 1. Close confirm modal if open
+            if (confirmModal && confirmModal.style.display !== 'none') {
+                const cancelBtn = document.getElementById("aesthetic-confirm-cancel");
+                if (cancelBtn) cancelBtn.click();
+                else confirmModal.style.display = 'none';
+                handled = true;
+            }
+            // 2. Close mobile sidebar if open
+            else if (sidebar && sidebar.classList.contains('mobile-open')) {
+                sidebar.classList.remove('mobile-open');
+                handled = true;
+            }
+            // 3. Switch to dashboard tab if on another tab
+            else if (typeof activeTab !== 'undefined' && activeTab !== 'dashboard') {
+                switchTab('dashboard');
+                handled = true;
+            }
+
+            if (handled) {
+                window.history.pushState({ state: 'main' }, '');
+            } else {
+                const now = Date.now();
+                if (now - lastBackPressTime < 2000) {
+                    window.history.go(-1);
+                } else {
+                    lastBackPressTime = now;
+                    if (typeof showAestheticToast === 'function') {
+                        showAestheticToast("Press back again to exit", "info");
+                    } else {
+                        alert("Press back again to exit");
+                    }
+                    window.history.pushState({ state: 'main' }, '');
+                }
+            }
+        });
     </script>
 </body>
 </html>

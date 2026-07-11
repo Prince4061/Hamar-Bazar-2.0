@@ -1730,6 +1730,9 @@ html, body {
         
         // Start background polling for product updates (every 5 seconds)
         setInterval(pollProductsAndCart, 5000);
+
+        // Initialize back button history trap
+        initBackButtonTrap();
     });
  
     function pollProductsAndCart() {
@@ -3740,5 +3743,88 @@ html, body {
             alert("Connection error. Please try again.");
         });
     }
+
+    // --- Back Button Navigation Trap for Mobile/PWA Experience ---
+    let lastBackPressTime = 0;
+    function initBackButtonTrap() {
+        if (!window.history.state || window.history.state.state !== 'main') {
+            window.history.replaceState({ state: 'base' }, '');
+            window.history.pushState({ state: 'main' }, '');
+        }
+    }
+
+    window.addEventListener('popstate', function(event) {
+        // If the state just popped is 'main', it means the user went forward, nothing to do
+        if (event.state && event.state.state === 'main') {
+            return;
+        }
+
+        const customizationModal = document.getElementById("product-customization-modal");
+        const productDetailModal = document.getElementById("product-detail-modal");
+        const serviceReviewsModal = document.getElementById("service-reviews-modal");
+        const confirmModal = document.getElementById("aesthetic-confirm-modal");
+        const shopDetailScreen = document.getElementById("screen-shop-detail");
+        const paymentScreenshotPreview = document.getElementById("payment-screenshot-preview");
+
+        let handled = false;
+
+        // 1. Close confirm modal if open
+        if (confirmModal && confirmModal.style.display !== 'none') {
+            const cancelBtn = document.getElementById("aesthetic-confirm-cancel");
+            if (cancelBtn) cancelBtn.click();
+            else confirmModal.style.display = 'none';
+            handled = true;
+        }
+        // 2. Close customization modal if active
+        else if (customizationModal && customizationModal.style.display !== 'none') {
+            closeCustomizationModal();
+            handled = true;
+        }
+        // 3. Close product detail modal if active
+        else if (productDetailModal && productDetailModal.style.display !== 'none') {
+            closeProductDetailModal();
+            handled = true;
+        }
+        // 4. Close service reviews modal if active
+        else if (serviceReviewsModal && serviceReviewsModal.style.display !== 'none') {
+            closeServiceReviewsModal();
+            handled = true;
+        }
+        // 5. Close payment screenshot overlay if visible
+        else if (paymentScreenshotPreview && paymentScreenshotPreview.style.display === 'block') {
+            cancelScreenshotSelection();
+            handled = true;
+        }
+        // 6. Go back to Home storefront if inside shop detail page
+        else if (shopDetailScreen && shopDetailScreen.classList.contains("active")) {
+            goBackToHome();
+            handled = true;
+        }
+        // 7. If no overlay is open, but we are on a tab other than Home, switch to Home tab
+        else {
+            const activeScreen = document.querySelector(".app-screen.active");
+            if (activeScreen && activeScreen.id !== 'screen-home') {
+                switchTab('home');
+                handled = true;
+            }
+        }
+
+        if (handled) {
+            // Push state back so next back button press can be trapped again
+            window.history.pushState({ state: 'main' }, '');
+        } else {
+            // We are already at the Home tab with no modal/shelf open
+            const now = Date.now();
+            if (now - lastBackPressTime < 2000) {
+                // Let the browser/webview navigate back out of 'base' state (exits app)
+                window.history.go(-1);
+            } else {
+                lastBackPressTime = now;
+                showAestheticToast("Press back again to exit", "info");
+                // Push main back so the next back button press can be caught
+                window.history.pushState({ state: 'main' }, '');
+            }
+        }
+    });
 </script>
 {% endblock %}
