@@ -667,6 +667,20 @@ def home():
         return redirect('/login')
     return redirect(f"/{session['role']}")
 
+def make_login_response(success, redirect_url=None, error_msg=None):
+    if request.headers.get('HX-Request') == 'true':
+        if success:
+            response = make_response("")
+            response.headers['HX-Redirect'] = redirect_url
+            return response
+        else:
+            return f'<div id="login-error-msg" class="login-error-alert" style="display: block;">{error_msg}</div>'
+    else:
+        if success:
+            return jsonify({'success': True, 'redirect': redirect_url})
+        else:
+            return jsonify({'success': False, 'error': error_msg})
+
 @app.route('/login', methods=['GET', 'POST'])
 @csrf.exempt
 def login():
@@ -703,15 +717,15 @@ def login():
                 
             # Ensure phone and username are provided
             if not phone or not username:
-                return jsonify({'success': False, 'error': 'Mobile number and username are required.'})
+                return make_login_response(False, error_msg='Mobile number and username are required.')
                 
             # Validate username: only letters and spaces allowed
             if not username.replace(' ', '').isalpha():
-                return jsonify({'success': False, 'error': 'Username must contain only letters.'})
+                return make_login_response(False, error_msg='Username must contain only letters.')
                 
             # Validate phone contains only digits and is exactly 10 digits
             if not phone.isdigit() or len(phone) != 10:
-                return jsonify({'success': False, 'error': 'Please enter a valid 10-digit mobile number.'})
+                return make_login_response(False, error_msg='Please enter a valid 10-digit mobile number.')
                 
             db = get_db()
             cursor = db.cursor()
@@ -725,7 +739,7 @@ def login():
                 """, (phone or username, request.remote_addr, fifteen_mins_ago))
                 failed_count = cursor.fetchone()[0]
                 if failed_count >= 5:
-                    return jsonify({'success': False, 'error': 'Too many failed login attempts. Please try again after 15 minutes.'})
+                    return make_login_response(False, error_msg='Too many failed login attempts. Please try again after 15 minutes.')
             except Exception as e:
                 print("Failed to query failed logins:", e)
                 
@@ -734,13 +748,13 @@ def login():
             
             if action == 'register':
                 if user:
-                    return jsonify({'success': False, 'error': 'This mobile number is already registered. Please login instead.'})
+                    return make_login_response(False, error_msg='This mobile number is already registered. Please login instead.')
                 
                 if len(password) < 4 or len(password) > 20:
-                    return jsonify({'success': False, 'error': 'Password must be between 4 and 20 characters.'})
+                    return make_login_response(False, error_msg='Password must be between 4 and 20 characters.')
                     
                 if not security_question or not security_answer:
-                    return jsonify({'success': False, 'error': 'Security question and answer are required for registration.'})
+                    return make_login_response(False, error_msg='Security question and answer are required for registration.')
                     
                 new_address = "Sector 4, Local Area"
                 try:
@@ -772,16 +786,16 @@ def login():
                     session['role_id'] = user['id']
                     session['name'] = user['name']
                     session['profile_pic'] = user['profile_pic']
-                    return jsonify({'success': True, 'redirect': '/customer'})
+                    return make_login_response(True, redirect_url='/customer')
                 except Exception as e:
                     print("Registration error:", e)
-                    return jsonify({'success': False, 'error': 'Registration failed. Please try again.'})
+                    return make_login_response(False, error_msg='Registration failed. Please try again.')
                     
             else: # login
                 if not user:
                     # Auto-register user on first login
                     if len(password) < 4 or len(password) > 20:
-                        return jsonify({'success': False, 'error': 'Password must be between 4 and 20 characters.'})
+                        return make_login_response(False, error_msg='Password must be between 4 and 20 characters.')
                     
                     new_address = "Sector 4, Local Area"
                     default_question = "What is your favorite color?"
@@ -815,13 +829,13 @@ def login():
                         session['role_id'] = user['id']
                         session['name'] = user['name']
                         session['profile_pic'] = user['profile_pic']
-                        return jsonify({'success': True, 'redirect': '/customer'})
+                        return make_login_response(True, redirect_url='/customer')
                     except Exception as e:
                         print("Auto-register error:", e)
-                        return jsonify({'success': False, 'error': 'Registration failed. Please try again.'})
+                        return make_login_response(False, error_msg='Registration failed. Please try again.')
                     
                 if user['is_blocked']:
-                    return jsonify({'success': False, 'error': 'Your account has been blocked due to suspicious activity. Please contact support.'})
+                    return make_login_response(False, error_msg='Your account has been blocked due to suspicious activity. Please contact support.')
                     
                 # Enforce username verification
                 if user['name'] and user['name'].strip().lower() != username.strip().lower():
@@ -830,11 +844,11 @@ def login():
                         db.commit()
                     except Exception as e:
                         print("Failed to log failed login:", e)
-                    return jsonify({'success': False, 'error': 'Incorrect username for this mobile number.'})
+                    return make_login_response(False, error_msg='Incorrect username for this mobile number.')
                     
                 # Enforce password verification
                 if not user['password']:
-                    return jsonify({'success': False, 'error': 'Account configuration error (missing password). Please contact support.'})
+                    return make_login_response(False, error_msg='Account configuration error (missing password). Please contact support.')
                     
                 if not check_password_hash(user['password'], password):
                     try:
@@ -842,7 +856,7 @@ def login():
                         db.commit()
                     except Exception as e:
                         print("Failed to log failed login:", e)
-                    return jsonify({'success': False, 'error': 'Incorrect password for this account.'})
+                    return make_login_response(False, error_msg='Incorrect password for this account.')
                     
                 # Keep credentials updated / validated
                 try:
@@ -861,11 +875,11 @@ def login():
                 session['role_id'] = user['id']
                 session['name'] = user['name']
                 session['profile_pic'] = user['profile_pic']
-                return jsonify({'success': True, 'redirect': '/customer'})
+                return make_login_response(True, redirect_url='/customer')
         except Exception as login_err:
             print("CRITICAL LOGIN ERROR:", login_err)
-            return jsonify({'success': False, 'error': 'An internal error occurred. Please try again.'}), 500
-                
+            return make_login_response(False, error_msg='An internal error occurred. Please try again.'), 500
+
     return render_template('login.html')
 
 @app.route('/api/check-phone', methods=['GET'])
@@ -947,7 +961,7 @@ def staff_login():
             password = data.get('password', '').strip()
             
             if not role or not identifier:
-                return jsonify({'success': False, 'error': 'Role and ID are required.'})
+                return make_login_response(False, error_msg='Role and ID are required.')
                 
             db = get_db()
             cursor = db.cursor()
@@ -955,7 +969,7 @@ def staff_login():
             if role == 'admin':
                 admin_username = os.environ.get('ADMIN_USERNAME', 'prince')
                 if identifier.strip().lower() != admin_username.strip().lower() and identifier.strip().lower() != 'admin':
-                    return jsonify({'success': False, 'error': 'Incorrect username for Admin.'})
+                    return make_login_response(False, error_msg='Incorrect username for Admin.')
                 
                 # Secure admin password retrieval
                 admin_pass = os.environ.get('ADMIN_PASSWORD')
@@ -999,13 +1013,13 @@ def staff_login():
                                     db.commit()
                                 except Exception as e:
                                     print("Failed to log failed login:", e)
-                                return jsonify({'success': False, 'error': 'Incorrect password for Admin.'})
+                                return make_login_response(False, error_msg='Incorrect password for Admin.')
                             # Plain text matched — login success, don't fall through to hash check
                             session.permanent = True
                             session['role'] = 'admin'
                             session['role_id'] = 0
                             session['name'] = 'Super Admin'
-                            return jsonify({'success': True, 'redirect': '/admin'})
+                            return make_login_response(True, redirect_url='/admin')
                         
                 elif admin_pass:
                     # Env variable: check if it looks like a hash
@@ -1018,26 +1032,26 @@ def staff_login():
                                 db.commit()
                             except Exception as e:
                                 print("Failed to log failed login:", e)
-                            return jsonify({'success': False, 'error': 'Incorrect password for Admin.'})
+                            return make_login_response(False, error_msg='Incorrect password for Admin.')
                         session.permanent = True
                         session['role'] = 'admin'
                         session['role_id'] = 0
                         session['name'] = 'Super Admin'
-                        return jsonify({'success': True, 'redirect': '/admin'})
-
+                        return make_login_response(True, redirect_url='/admin')
+ 
                 if not check_password_hash(admin_pass, password):
                     try:
                         cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", ('admin', request.remote_addr))
                         db.commit()
                     except Exception as e:
                         print("Failed to log failed login:", e)
-                    return jsonify({'success': False, 'error': 'Incorrect password for Admin.'})
+                    return make_login_response(False, error_msg='Incorrect password for Admin.')
                 # Admin login
                 session.permanent = True
                 session['role'] = 'admin'
                 session['role_id'] = 0
                 session['name'] = 'Super Admin'
-                return jsonify({'success': True, 'redirect': '/admin'})
+                return make_login_response(True, redirect_url='/admin')
                 
             elif role == 'vendor':
                 # Normalize common vendor aliases to seeded shops
@@ -1054,7 +1068,7 @@ def staff_login():
                     identifier = 'PHARMACY'
                 elif norm_id in ['tech', 'gadgets', 'accessories', 'hub', '6']:
                     identifier = 'TECH'
-
+ 
                 # Check if vendor identifier exists
                 shop = None
                 if identifier.isdigit():
@@ -1066,25 +1080,25 @@ def staff_login():
                     
                 if shop:
                     if not shop['is_active']:
-                        return jsonify({'success': False, 'error': 'This vendor store is currently inactive. Please contact Admin.'})
+                        return make_login_response(False, error_msg='This vendor store is currently inactive. Please contact Admin.')
                     # Verify password if one is set in the database
                     if not shop['password']:
-                        return jsonify({'success': False, 'error': 'Vendor store configuration error (missing password). Please contact Admin.'})
+                        return make_login_response(False, error_msg='Vendor store configuration error (missing password). Please contact Admin.')
                     if not check_password_hash(shop['password'], password):
                         try:
                             cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
                             db.commit()
                         except Exception as e:
                             print("Failed to log failed login:", e)
-                        return jsonify({'success': False, 'error': 'Incorrect password for this vendor store.'})
+                        return make_login_response(False, error_msg='Incorrect password for this vendor store.')
                 else:
-                    return jsonify({'success': False, 'error': 'Vendor store not registered. Please contact Admin.'})
+                    return make_login_response(False, error_msg='Vendor store not registered. Please contact Admin.')
                 
                 session.permanent = True
                 session['role'] = 'vendor'
                 session['role_id'] = shop['id']
                 session['name'] = shop['shop_name']
-                return jsonify({'success': True, 'redirect': '/vendor'})
+                return make_login_response(True, redirect_url='/vendor')
                 
             elif role == 'delivery':
                 rider = None
@@ -1105,27 +1119,27 @@ def staff_login():
                     
                 if rider:
                     if not rider['password']:
-                        return jsonify({'success': False, 'error': 'Delivery rider configuration error (missing password). Please contact Admin.'})
+                        return make_login_response(False, error_msg='Delivery rider configuration error (missing password). Please contact Admin.')
                     if not check_password_hash(rider['password'], password):
                         try:
                             cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
                             db.commit()
                         except Exception as e:
                             print("Failed to log failed login:", e)
-                        return jsonify({'success': False, 'error': 'Incorrect password for this delivery rider.'})
+                        return make_login_response(False, error_msg='Incorrect password for this delivery rider.')
                 else:
-                    return jsonify({'success': False, 'error': 'Delivery rider not registered. Please contact Admin.'})
+                    return make_login_response(False, error_msg='Delivery rider not registered. Please contact Admin.')
                     
                 session.permanent = True
                 session['role'] = 'delivery'
                 session['role_id'] = rider['id']
                 session['name'] = rider['name']
-                return jsonify({'success': True, 'redirect': '/delivery'})
+                return make_login_response(True, redirect_url='/delivery')
                 
-            return jsonify({'success': False, 'error': 'Invalid role.'})
+            return make_login_response(False, error_msg='Invalid role.')
         except Exception as staff_err:
             print("CRITICAL STAFF LOGIN ERROR:", staff_err)
-            return jsonify({'success': False, 'error': 'An internal error occurred. Please try again.'}), 500
+            return make_login_response(False, error_msg='An internal error occurred. Please try again.'), 500
         
     return render_template('staff_login.html')
 

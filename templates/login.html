@@ -105,7 +105,8 @@
                 <p class="auto-signup-note" id="login-card-note" style="display:none;"></p>
 
                 <!-- Input Form -->
-                <form id="customer-login-form" onsubmit="handleCustomerLogin(event)">
+                <form id="customer-login-form" hx-post="/login" hx-target="#login-error-msg" hx-swap="outerHTML">
+                    <input type="hidden" name="action" id="customer-login-action" value="login">
                     <div id="login-error-msg" class="login-error-alert" style="display: none;"></div>
                     
                     <div class="form-group">
@@ -114,16 +115,16 @@
                                 <span class="country-code" style="font-weight: 700;">+91</span>
                                 <i data-lucide="chevron-down" class="icon-inline" style="width: 14px; height: 14px; margin-left: 4px; margin-right: 0; color: var(--text-secondary);"></i>
                             </div>
-                            <input type="tel" id="customer-phone" class="phone-input-field" placeholder="Mobile number" required maxlength="15">
+                            <input type="tel" id="customer-phone" name="phone" class="phone-input-field" placeholder="Mobile number" required maxlength="15">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <input type="text" id="customer-username" class="form-input-staff" placeholder="Enter Username (no numbers)" pattern="[^0-9]*" title="Username must not contain numbers" required>
+                        <input type="text" id="customer-username" name="username" class="form-input-staff" placeholder="Enter Username (no numbers)" pattern="[^0-9]*" title="Username must not contain numbers" required>
                     </div>
 
                     <div class="form-group" style="position: relative; margin-bottom: 8px;">
-                        <input type="password" id="customer-password" class="form-input-staff" placeholder="Password (4-20 characters)" minlength="4" maxlength="20" required>
+                        <input type="password" id="customer-password" name="password" class="form-input-staff" placeholder="Password (4-20 characters)" minlength="4" maxlength="20" required>
                         <span class="password-toggle-eye" onclick="toggleCustomerPasswordVisibility()">
                             <i data-lucide="eye" style="width: 18px; height: 18px;"></i>
                         </span>
@@ -137,7 +138,7 @@
                         <p class="auto-signup-note" style="margin-bottom: 12px; color: var(--primary-accent); font-weight: 700; font-size:0.75rem;">Registration Details (Choose Security Question):</p>
                         
                         <div class="form-group" style="margin-bottom: 12px;">
-                            <select id="customer-security-question" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem; background: white; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                            <select id="customer-security-question" name="security_question" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem; background: white; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
                                 <option value="">Select a security question</option>
                                 <option value="What is your childhood nickname?">What is your childhood nickname?</option>
                                 <option value="What is your favorite color?">What is your favorite color?</option>
@@ -148,7 +149,7 @@
                         </div>
 
                         <div class="form-group" style="margin-bottom: 0;">
-                            <input type="text" id="customer-security-answer" class="form-input-staff" placeholder="Enter security answer">
+                            <input type="text" id="customer-security-answer" name="security_answer" class="form-input-staff" placeholder="Enter security answer">
                         </div>
                     </div>
 
@@ -237,6 +238,7 @@
         const questionSelect = document.getElementById("customer-security-question");
         const answerInput = document.getElementById("customer-security-answer");
         const errorDiv = document.getElementById("login-error-msg");
+        const actionField = document.getElementById("customer-login-action");
         
         errorDiv.style.display = "none";
         
@@ -249,6 +251,7 @@
             answerInput.setAttribute("required", "required");
             forgotLink.style.display = "none";
             submitBtn.innerText = "Sign Up";
+            if (actionField) actionField.value = "register";
         } else {
             title.innerText = "Welcome to Hamar Bazaar";
             subtitle.innerText = "Login to continue";
@@ -257,6 +260,7 @@
             questionSelect.removeAttribute("required");
             answerInput.removeAttribute("required");
             submitBtn.innerText = "Login";
+            if (actionField) actionField.value = "login";
         }
         checkPhoneNumber();
     }
@@ -331,60 +335,23 @@
         }
     }
 
-    function handleCustomerLogin(event) {
-        event.preventDefault();
-        const phoneInput = document.getElementById("customer-phone").value;
-        const usernameInput = document.getElementById("customer-username").value;
-        const passwordInput = document.getElementById("customer-password").value;
-        const errorDiv = document.getElementById("login-error-msg");
-        const submitBtn = document.getElementById("submit-login-btn");
-        
-        const qSelect = document.getElementById("customer-security-question");
-        const aInput = document.getElementById("customer-security-answer");
-        
-        const originalBtnText = submitBtn.innerText;
-        submitBtn.disabled = true;
-        submitBtn.innerText = isSignUpMode ? "Signing up..." : "Logging in...";
-        
-        errorDiv.style.display = "none";
-        
-        let bodyParams = `phone=${encodeURIComponent(phoneInput)}&username=${encodeURIComponent(usernameInput)}&password=${encodeURIComponent(passwordInput)}&action=${isSignUpMode ? 'register' : 'login'}`;
-        if (qSelect && qSelect.value && isSignUpMode) {
-            bodyParams += `&security_question=${encodeURIComponent(qSelect.value)}`;
-        }
-        if (aInput && aInput.value && isSignUpMode) {
-            bodyParams += `&security_answer=${encodeURIComponent(aInput.value)}`;
-        }
-        
-        fetch("/login", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Accept": "application/json"
-            },
-            body: bodyParams
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                window.location.replace(data.redirect);
-            } else {
-                submitBtn.disabled = false;
-                submitBtn.innerText = originalBtnText;
-                errorDiv.className = "login-error-alert";
-                errorDiv.innerText = data.error;
-                errorDiv.style.display = "block";
+    document.addEventListener('DOMContentLoaded', () => {
+        document.body.addEventListener('htmx:beforeRequest', function(evt) {
+            if (evt.target.id === 'customer-login-form') {
+                const submitBtn = document.getElementById("submit-login-btn");
+                submitBtn.disabled = true;
+                submitBtn.innerText = isSignUpMode ? "Signing up..." : "Logging in...";
             }
-        })
-        .catch(err => {
-            console.error("Login error:", err);
-            submitBtn.disabled = false;
-            submitBtn.innerText = originalBtnText;
-            errorDiv.className = "login-error-alert";
-            errorDiv.innerText = "Connection error. Please try again.";
-            errorDiv.style.display = "block";
         });
-    }
+        
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            if (evt.target.id === 'customer-login-form') {
+                const submitBtn = document.getElementById("submit-login-btn");
+                submitBtn.disabled = false;
+                submitBtn.innerText = isSignUpMode ? "Sign Up" : "Login";
+            }
+        });
+    });
 
     // --- Forgot Password Modal Functions ---
     function showForgotPasswordModal(event) {
