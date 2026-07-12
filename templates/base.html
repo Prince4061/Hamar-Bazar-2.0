@@ -15,8 +15,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <!-- Lucide Icons -->
     <script src="{{ url_for('static', filename='js/lucide.min.js') }}"></script>
-    <!-- HTMX Library -->
-    <script src="https://unpkg.com/htmx.org@2.0.0" integrity="sha384-wS5l5IKJBvK6sPTKa2WZ1js3d947pvWXbPJ1OmWfEuxLgeHcEbjUUA5i9X5Z/w+/" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='js/htmx.min.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             document.body.addEventListener('htmx:configRequest', (event) => {
