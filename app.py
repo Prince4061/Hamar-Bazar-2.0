@@ -1241,23 +1241,29 @@ def search_products():
     limit = request.args.get('limit', default=20, type=int)
     offset = (page - 1) * limit
     
-    sql = "SELECT * FROM products WHERE is_available = TRUE"
+    sql = """SELECT p.* FROM products p
+             JOIN shops s ON p.shop_id = s.id
+             WHERE p.is_available = TRUE AND s.is_active = 1"""
     params = []
     
     if query:
-        sql += " AND (name LIKE ? OR subcategory LIKE ?)"
-        params.extend([f"%{query}%", f"%{query}%"])
+        # Match every word of the query against product name, subcategory,
+        # description, shop name and shop category so results come from ALL categories
+        for word in query.split():
+            sql += " AND (p.name LIKE ? OR p.subcategory LIKE ? OR p.description LIKE ? OR s.shop_name LIKE ? OR s.category LIKE ?)"
+            like = f"%{word}%"
+            params.extend([like, like, like, like, like])
         
     if shop_id:
-        sql += " AND shop_id = ?"
+        sql += " AND p.shop_id = ?"
         params.append(shop_id)
         
     if subcategory:
-        sql += " AND subcategory = ?"
+        sql += " AND p.subcategory = ?"
         params.append(subcategory)
         
     # Get total count
-    count_sql = sql.replace("SELECT *", "SELECT COUNT(*)")
+    count_sql = sql.replace("SELECT p.*", "SELECT COUNT(*)")
     cursor.execute(count_sql, params)
     total_count = cursor.fetchone()[0]
     
