@@ -491,6 +491,111 @@ def send_order_email_async(order_id):
     thread.daemon = True
     thread.start()
 
+def send_search_email_sync(customer_id, keyword):
+    try:
+        db = database.get_db_connection()
+        cursor = db.cursor()
+        
+        # Get SMTP details from database
+        cursor.execute("SELECT value FROM system_settings WHERE key = 'smtp_email'")
+        smtp_email_row = cursor.fetchone()
+        cursor.execute("SELECT value FROM system_settings WHERE key = 'smtp_password'")
+        smtp_password_row = cursor.fetchone()
+        cursor.execute("SELECT value FROM system_settings WHERE key = 'admin_notification_email'")
+        admin_email_row = cursor.fetchone()
+        
+        smtp_email = smtp_email_row['value'] if smtp_email_row else os.environ.get('SMTP_EMAIL')
+        smtp_password = smtp_password_row['value'] if smtp_password_row else os.environ.get('SMTP_PASSWORD')
+        admin_email = admin_email_row['value'] if admin_email_row else os.environ.get('ADMIN_NOTIFICATION_EMAIL')
+        
+        if not smtp_email or not smtp_password or not admin_email:
+            print("Search email notification skipped: SMTP configurations or Admin Email is missing.")
+            db.close()
+            return
+            
+        recipients = [email.strip() for email in admin_email.split(',') if email.strip()]
+        if not recipients:
+            print("Search email notification skipped: No valid admin emails found.")
+            db.close()
+            return
+
+        # Fetch customer details
+        cursor.execute("SELECT name, phone FROM users WHERE id = ?", (customer_id,))
+        user = cursor.fetchone()
+        if not user:
+            db.close()
+            return
+            
+        customer_name = user['name']
+        customer_phone = user['phone']
+        
+        subject = f"Search Alert: User {customer_phone} searched for '{keyword}'"
+        
+        body_html = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+                <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">User Search Notification</h2>
+                <p>Hello Admin,</p>
+                <p>A customer has performed a search on Hamar Bazar. Here are the details:</p>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                    <tr style="background-color: #ecf0f1;">
+                        <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Category</th>
+                        <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Info</th>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Customer Name:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{customer_name}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Customer Phone:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{customer_phone}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Search Query:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #e74c3c;">{keyword}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Timestamp:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</td>
+                    </tr>
+                </table>
+                <br>
+                <p style="font-size: 0.9em; color: #7f8c8d; border-top: 1px solid #ddd; padding-top: 10px;">
+                    This is an automated notification from Hamar Bazar 2.0 system. Please do not reply.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = smtp_email
+        msg['To'] = ", ".join(recipients)
+        msg.attach(MIMEText(body_html, 'html'))
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.starttls()
+        server.login(smtp_email, smtp_password)
+        server.sendmail(smtp_email, recipients, msg.as_string())
+        server.quit()
+        print(f"Search email notification for user {customer_phone} sent successfully.")
+        db.close()
+    except Exception as e:
+        print(f"Error sending search notification email: {str(e)}")
+        try:
+            db.close()
+        except:
+            pass
+
+def send_search_email_async(customer_id, keyword):
+    thread = threading.Thread(target=send_search_email_sync, args=(customer_id, keyword))
+    thread.daemon = True
+    thread.start()
+
+
 @app.before_request
 def check_user_and_shop_status():
     # Ensure session is always permanent when a user role is logged in
@@ -3475,6 +3580,7 @@ def track_search():
     try:
         cursor.execute("INSERT INTO search_history (customer_id, keyword) VALUES (?, ?)", (int(customer_id), keyword))
         db.commit()
+        send_search_email_async(int(customer_id), keyword)
         return jsonify({'success': True, 'message': 'Search tracked successfully.'})
     except Exception as e:
         print("Search track error:", e)
