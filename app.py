@@ -238,6 +238,43 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def optimize_and_save_image(file_stream, upload_path, filename, max_size=(800, 800), quality=70):
+    """
+    Opens an image from file stream, resizes it if it exceeds max_size (keeping ratio),
+    and saves it as WebP format with target quality (for optimization).
+    """
+    try:
+        from PIL import Image
+        img = Image.open(file_stream)
+        
+        # Convert to RGBA or RGB
+        if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+            img = img.convert('RGBA')
+        else:
+            img = img.convert('RGB')
+            
+        # Resize keeping aspect ratio (max width/height 800px)
+        img.thumbnail(max_size, Image.Resampling.LANCZOS)
+        
+        # Force filename extension to webp
+        base_name = os.path.splitext(filename)[0]
+        webp_filename = f"{base_name}.webp"
+        target_path = os.path.join(upload_path, webp_filename)
+        
+        # Save as WebP with 70% quality (great ratio between size and quality)
+        img.save(target_path, 'WEBP', quality=quality)
+        return webp_filename
+    except Exception as e:
+        print(f"Error optimizing image: {e}")
+        # Fallback: save original file
+        try:
+            file_stream.seek(0)
+        except Exception:
+            pass
+        target_path = os.path.join(upload_path, filename)
+        file_stream.save(target_path)
+        return filename
+
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -3115,19 +3152,19 @@ def upload_product_image():
         
     from werkzeug.utils import secure_filename
     if file and allowed_file(file.filename):
-        ext = secure_filename(file.filename).rsplit('.', 1)[1].lower()
-        filename = f"product_{prod_id}_{int(datetime.now().timestamp())}.{ext}"
+        s_filename = secure_filename(file.filename)
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'product_pics')
         os.makedirs(upload_path, exist_ok=True)
-        file_path = os.path.join(upload_path, filename)
-        file.save(file_path)
         
-        db_path = f"/static/uploads/product_pics/{filename}"
+        temp_name = f"product_{prod_id}_{int(datetime.now().timestamp())}.webp"
+        webp_filename = optimize_and_save_image(file, upload_path, temp_name)
+        
+        db_path = f"/static/uploads/product_pics/{webp_filename}"
         db = get_db()
         cursor = db.cursor()
         cursor.execute("UPDATE products SET image_path = ? WHERE id = ?", (db_path, int(prod_id)))
         db.commit()
-        return jsonify({'success': True, 'image_path': db_path, 'message': 'Product image uploaded successfully.'})
+        return jsonify({'success': True, 'image_path': db_path, 'message': 'Product image uploaded and optimized successfully.'})
     return jsonify({'error': 'Invalid file type.'}), 400
 
 @app.route('/api/admin/products/upload', methods=['POST'])
@@ -3142,15 +3179,15 @@ def upload_admin_product_image_file():
         
     from werkzeug.utils import secure_filename
     if file and allowed_file(file.filename):
-        ext = secure_filename(file.filename).rsplit('.', 1)[1].lower()
-        filename = f"prod_{int(datetime.now().timestamp())}_{random.randint(1000, 9999)}.{ext}"
+        s_filename = secure_filename(file.filename)
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'product_pics')
         os.makedirs(upload_path, exist_ok=True)
-        file_path = os.path.join(upload_path, filename)
-        file.save(file_path)
         
-        db_path = f"/static/uploads/product_pics/{filename}"
-        return jsonify({'success': True, 'file_path': db_path, 'message': 'Product image uploaded successfully.'})
+        temp_name = f"prod_{int(datetime.now().timestamp())}_{random.randint(1000, 9999)}.webp"
+        webp_filename = optimize_and_save_image(file, upload_path, temp_name)
+        
+        db_path = f"/static/uploads/product_pics/{webp_filename}"
+        return jsonify({'success': True, 'file_path': db_path, 'message': 'Product image uploaded and optimized successfully.'})
     return jsonify({'error': 'Invalid file type.'}), 400
 
 @app.route('/api/admin/products', methods=['POST'])
@@ -3324,15 +3361,15 @@ def upload_admin_banner_image():
         
     from werkzeug.utils import secure_filename
     if file and allowed_file(file.filename):
-        ext = secure_filename(file.filename).rsplit('.', 1)[1].lower()
-        filename = f"banner_{int(datetime.now().timestamp())}_{random.randint(1000, 9999)}.{ext}"
+        s_filename = secure_filename(file.filename)
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'banners')
         os.makedirs(upload_path, exist_ok=True)
-        file_path = os.path.join(upload_path, filename)
-        file.save(file_path)
         
-        db_path = f"/static/uploads/banners/{filename}"
-        return jsonify({'success': True, 'file_path': db_path, 'message': 'Banner image uploaded successfully.'})
+        temp_name = f"banner_{int(datetime.now().timestamp())}_{random.randint(1000, 9999)}.webp"
+        webp_filename = optimize_and_save_image(file, upload_path, temp_name)
+        
+        db_path = f"/static/uploads/banners/{webp_filename}"
+        return jsonify({'success': True, 'file_path': db_path, 'message': 'Banner image uploaded and optimized successfully.'})
     return jsonify({'error': 'Invalid file type.'}), 400
 
 @app.route('/api/admin/settings/upload-team-photo', methods=['POST'])

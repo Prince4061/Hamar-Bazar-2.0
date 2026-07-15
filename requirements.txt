@@ -4,3 +4,4 @@ Flask-WTF>=1.2.0
 gunicorn>=23.0.0
 razorpay>=2.0.1
 python-dotenv>=1.0.1
+Pillow>=10.0.0
