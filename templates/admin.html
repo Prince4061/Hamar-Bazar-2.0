@@ -1414,6 +1414,11 @@
                         </a>
                     </li>
                     <li>
+                        <a class="menu-item-link" onclick="switchTab('banners')">
+                            <i data-lucide="image"></i> Banner Ads Manage
+                        </a>
+                    </li>
+                    <li>
                         <a class="menu-item-link" onclick="switchTab('system')">
                             <i data-lucide="settings"></i> System Status
                         </a>
@@ -2469,6 +2474,74 @@
                 </div>
             </div>
 
+            <!-- --------------------------------------------------- -->
+            <!-- TAB 14: BANNER ADS MANAGEMENT -->
+            <!-- --------------------------------------------------- -->
+            <div class="tab-panel" id="panel-banners">
+                <div style="display: flex; flex-direction: column; gap: 20px; text-align: left;">
+                    
+                    <!-- Top: Add New Banner -->
+                    <div class="dashboard-card">
+                        <div class="card-header-row" style="margin-bottom: 16px;">
+                            <h3 class="card-title-text"><i data-lucide="image" style="color: var(--primary-accent);"></i> Add Promotional Banner</h3>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                            <div>
+                                <label style="display: block; font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; color: var(--text-primary);">Banner Image URL</label>
+                                <input type="text" id="banner-image-url" class="search-bar-input" style="width: 100%; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem;" placeholder="https://images.unsplash.com/... or local path">
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; color: var(--text-primary);">Offer Title / Subtitle</label>
+                                <input type="text" id="banner-title" class="search-bar-input" style="width: 100%; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem;" placeholder="e.g. Chocolate Cake 20% OFF! 🎂">
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 20px;">
+                            <div>
+                                <label style="display: block; font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; color: var(--text-primary);">Link to Product (Redirect Target)</label>
+                                <input type="text" id="banner-product-search" class="search-bar-input" style="width: 100%; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 8px;" placeholder="Type to search product name... 🔍" oninput="filterBannerProductsDropdown(this.value)">
+                                <select id="banner-product-select" class="search-bar-input" style="width: 100%; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; background: #fff;">
+                                    <!-- Loaded dynamically -->
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: right;">
+                            <button onclick="addAdminBanner()" class="btn-custom" style="padding: 8px 20px; font-size: 0.85rem; font-weight: 700; background: var(--primary-accent); color: #fff; border: none; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+                                <i data-lucide="plus" style="width:16px; height:16px;"></i> Add Banner
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Bottom: Banner List -->
+                    <div class="dashboard-card">
+                        <div class="card-header-row" style="margin-bottom: 16px;">
+                            <h3 class="card-title-text"><i data-lucide="list" style="color: var(--primary-accent);"></i> Active Promo Banners</h3>
+                            <button onclick="loadAdminBanners()" class="btn-custom" style="padding: 6px 12px; font-size: 0.75rem; margin: 0; display: inline-flex; align-items: center; gap: 4px; background: var(--primary-light); color: var(--primary-accent); border: 1px solid var(--primary-glow); font-weight:700;"><i data-lucide="refresh-cw" style="width:12px; height:12px;"></i> Refresh Banners</button>
+                        </div>
+                        
+                        <div class="table-responsive-wrapper" style="max-height: 400px; overflow-y: auto;">
+                            <table class="premium-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Preview</th>
+                                        <th>Title / Offer</th>
+                                        <th>Linked Product ID</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-banners-rows">
+                                    <!-- Dynamic banner rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -2983,6 +3056,7 @@
                 if (tabId === 'reviews') return txt.includes('reviews');
                 if (tabId === 'services') return txt.includes('services');
                 if (tabId === 'userinfo') return txt.includes('user info');
+                if (tabId === 'banners') return txt.includes('banner');
                 return false;
             });
             
@@ -3040,6 +3114,11 @@
                 subtitle = "Add or remove local service providers and monitor feedback/ratings.";
                 loadAdminServices();
                 loadAdminServiceReviews();
+            } else if (tabId === 'banners') {
+                title = "Banner Ads & Offers Manager";
+                subtitle = "Add, list, and configure homepage sliding banners linking to promotional products.";
+                loadAdminBanners();
+                loadAdminBannersProductsDropdown();
             } else if (tabId === 'userinfo') {
                 title = "User Information & Activity";
                 subtitle = "Track successful logins and user interactions.";
@@ -6052,6 +6131,180 @@
                     showAestheticToast("Network error. Failed to delete review.", "error");
                 });
             });
+        }
+
+        // --- Banner Ads Management Functions ---
+        function loadAdminBanners() {
+            const tableBody = document.getElementById("admin-banners-rows");
+            if (!tableBody) return;
+            tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-secondary);">Loading banners...</td></tr>`;
+            
+            fetch('/api/admin/banners')
+                .then(res => res.json())
+                .then(banners => {
+                    tableBody.innerHTML = "";
+                    if (banners.length === 0) {
+                        tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-secondary);">No banners found. Add a banner above!</td></tr>`;
+                        return;
+                    }
+                    banners.forEach(b => {
+                        const row = document.createElement("tr");
+                        row.id = `admin-banner-row-${b.id}`;
+                        row.innerHTML = `
+                            <td>${b.id}</td>
+                            <td>
+                                <img src="${b.image_url}" style="width: 120px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-color);" alt="Banner Preview">
+                            </td>
+                            <td><strong>${escapeHtml(b.title || 'Untitled Banner')}</strong></td>
+                            <td>${b.product_id ? `<span class="badge" style="background: var(--primary-light); color: var(--primary-accent); font-weight: 700;">Product ID: ${b.product_id}</span>` : '<span style="color: var(--text-secondary);">None</span>'}</td>
+                            <td>
+                                <span class="badge ${b.is_active ? 'badge-status-ready' : 'badge-status-failed'}" style="padding: 4px 8px; font-size: 0.72rem;">
+                                    ${b.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                            </td>
+                            <td>
+                                <button onclick="deleteAdminBanner(${b.id})" class="btn-custom" style="padding: 4px 8px; font-size: 0.72rem; margin: 0; background: var(--ruby-light); color: var(--ruby-danger); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: var(--radius-md); font-weight: 700; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                                    <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Delete
+                                </button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                    if (window.lucide) lucide.createIcons();
+                })
+                .catch(err => {
+                    console.error("Error loading admin banners:", err);
+                    tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--ruby-danger);">Failed to load banners.</td></tr>`;
+                });
+        }
+        
+        let adminProductsCache = []; // Global cache for banner product dropdown
+        
+        function loadAdminBannersProductsDropdown() {
+            const dropdown = document.getElementById("banner-product-select");
+            if (!dropdown) return;
+            
+            // Clear search field on load
+            const searchInput = document.getElementById("banner-product-search");
+            if (searchInput) searchInput.value = "";
+            
+            // Fetch all products so the admin can link a banner to a product
+            fetch('/api/products/search?limit=300')
+                .then(res => res.json())
+                .then(data => {
+                    adminProductsCache = data.products || [];
+                    populateBannersProductsDropdown(adminProductsCache);
+                })
+                .catch(err => console.error("Error loading products dropdown:", err));
+        }
+
+        function populateBannersProductsDropdown(products) {
+            const dropdown = document.getElementById("banner-product-select");
+            if (!dropdown) return;
+            
+            dropdown.innerHTML = `<option value="">-- No Product Link (Plain Ad Banner) --</option>`;
+            products.forEach(p => {
+                const opt = document.createElement("option");
+                opt.value = p.id;
+                opt.innerText = `${p.name} - ₹${p.price.toFixed(2)} (Shop: ${p.shop_name || p.shop_id})`;
+                dropdown.appendChild(opt);
+            });
+        }
+        
+        function filterBannerProductsDropdown(query) {
+            query = query.toLowerCase().trim();
+            if (!query) {
+                populateBannersProductsDropdown(adminProductsCache);
+                return;
+            }
+            const filtered = adminProductsCache.filter(p => 
+                p.name.toLowerCase().includes(query) || 
+                (p.shop_name && p.shop_name.toLowerCase().includes(query))
+            );
+            populateBannersProductsDropdown(filtered);
+        }
+        
+        function addAdminBanner() {
+            const imageUrlInput = document.getElementById("banner-image-url");
+            const titleInput = document.getElementById("banner-title");
+            const productSelect = document.getElementById("banner-product-select");
+            
+            if (!imageUrlInput) return;
+            
+            const image_url = imageUrlInput.value.trim();
+            const title = titleInput ? titleInput.value.trim() : "";
+            const product_id = productSelect ? productSelect.value : null;
+            
+            if (!image_url) {
+                showAestheticToast("Image URL is required.", "error");
+                return;
+            }
+            
+            const payload = {
+                image_url: image_url,
+                title: title,
+                product_id: product_id ? parseInt(product_id) : null
+            };
+            
+            fetch('/api/admin/banners', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showAestheticToast(data.message || "Banner added successfully.", "success");
+                    imageUrlInput.value = "";
+                    if (titleInput) titleInput.value = "";
+                    if (productSelect) productSelect.value = "";
+                    loadAdminBanners();
+                } else {
+                    showAestheticToast(data.error || "Failed to add banner.", "error");
+                }
+            })
+            .catch(err => {
+                console.error("Error adding banner:", err);
+                showAestheticToast("Network error. Failed to add banner.", "error");
+            });
+        }
+        
+        function deleteAdminBanner(bannerId) {
+            aestheticConfirm(`Are you sure you want to delete Banner #${bannerId}?`, () => {
+                fetch(`/api/admin/banners/${bannerId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAestheticToast(data.message || "Banner deleted.", "success");
+                        const row = document.getElementById(`admin-banner-row-${bannerId}`);
+                        if (row) row.remove();
+                        
+                        const tableBody = document.getElementById("admin-banners-rows");
+                        if (tableBody && tableBody.children.length === 0) {
+                            loadAdminBanners();
+                        }
+                    } else {
+                        showAestheticToast(data.error || "Failed to delete banner.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Error deleting banner:", err);
+                    showAestheticToast("Network error. Failed to delete banner.", "error");
+                });
+            });
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return "";
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
         }
     </script>
 

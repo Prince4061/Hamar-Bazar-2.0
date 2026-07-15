@@ -284,6 +284,18 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_subcategory ON products(subcategory)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_is_available ON products(is_available)")
 
+    # 14. Banners Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS banners (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        image_url TEXT NOT NULL,
+        product_id INTEGER,
+        title TEXT,
+        is_active INTEGER DEFAULT 1,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+    )
+    ''')
+
     conn.commit()
     conn.close()
     print("SQLite database tables created successfully!")
@@ -292,6 +304,23 @@ def seed_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Seed banners if products already exist (for cases where DB is already seeded but banners table is empty)
+    try:
+        cursor.execute("SELECT COUNT(*) FROM products")
+        if cursor.fetchone()[0] > 0:
+            cursor.execute("SELECT COUNT(*) FROM banners")
+            if cursor.fetchone()[0] == 0:
+                banners_data = [
+                    ('https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=80', 6, 'Chocolate Truffle Cake - 20% OFF! 🎂'),
+                    ('https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=1000&q=80', 1, 'Fresh Amul Milk - Daily Essentials 🥛'),
+                    ('https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=1000&q=80', 20, 'Premium Wireless Earbuds - Flat 15% OFF! 🎧')
+                ]
+                for img, pid, title in banners_data:
+                    cursor.execute("INSERT INTO banners (image_url, product_id, title, is_active) VALUES (?, ?, ?, 1)", (img, pid, title))
+                conn.commit()
+    except Exception as e:
+        print("Pre-seed check for banners failed:", e)
+        
     # Check if database is already seeded to optimize startup speed
     cursor.execute("SELECT COUNT(*) FROM shops")
     if cursor.fetchone()[0] > 0:
@@ -494,6 +523,17 @@ def seed_db():
         cursor.execute("INSERT INTO service_reviews (provider_id, customer_id, rating, comment) VALUES (1, 2, 4, 'Punctual and resolved our pipeline leakage quickly.')")
         cursor.execute("INSERT INTO service_reviews (provider_id, customer_id, rating, comment) VALUES (2, 3, 5, 'Amit is a very knowledgeable electrician. Recommended!')")
         cursor.execute("INSERT INTO service_reviews (provider_id, customer_id, rating, comment) VALUES (3, 1, 4, 'Sonu fixed my wooden door lock perfectly.')")
+
+    # Seed banners if empty (for fresh database runs)
+    cursor.execute("SELECT COUNT(*) FROM banners")
+    if cursor.fetchone()[0] == 0:
+        banners_data = [
+            ('https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=80', 6, 'Chocolate Truffle Cake - 20% OFF! 🎂'),
+            ('https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=1000&q=80', 1, 'Fresh Amul Milk - Daily Essentials 🥛'),
+            ('https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=1000&q=80', 20, 'Premium Wireless Earbuds - Flat 15% OFF! 🎧')
+        ]
+        for img, pid, title in banners_data:
+            cursor.execute("INSERT INTO banners (image_url, product_id, title, is_active) VALUES (?, ?, ?, 1)", (img, pid, title))
 
     conn.commit()
     conn.close()

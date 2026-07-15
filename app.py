@@ -3230,6 +3230,64 @@ def update_system_settings():
         print("Settings update error:", e)
         return jsonify({'error': 'Failed to update settings. Please try again.'}), 500
 
+# --- Banner Ads API Endpoints ---
+@app.route('/api/banners', methods=['GET'])
+def get_banners():
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, image_url, product_id, title FROM banners WHERE is_active = 1")
+    banners = [dict(row) for row in cursor.fetchall()]
+    return jsonify(banners)
+
+@app.route('/api/admin/banners', methods=['GET'])
+def get_admin_banners():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, image_url, product_id, title, is_active FROM banners")
+    banners = [dict(row) for row in cursor.fetchall()]
+    return jsonify(banners)
+
+@app.route('/api/admin/banners', methods=['POST'])
+def add_admin_banner():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    data = request.json or {}
+    image_url = data.get('image_url', '').strip()
+    product_id = data.get('product_id')
+    title = data.get('title', '').strip()
+    
+    if not image_url:
+        return jsonify({'error': 'Image URL is required.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    # Optional: verify product_id exists if linked
+    if product_id is not None:
+        try:
+            product_id = int(product_id)
+            cursor.execute("SELECT id FROM products WHERE id = ?", (product_id,))
+            if not cursor.fetchone():
+                return jsonify({'error': 'Product linked does not exist.'}), 400
+        except ValueError:
+            product_id = None
+            
+    cursor.execute("INSERT INTO banners (image_url, product_id, title, is_active) VALUES (?, ?, ?, 1)", (image_url, product_id, title))
+    db.commit()
+    return jsonify({'success': True, 'message': 'Banner added successfully.'})
+
+@app.route('/api/admin/banners/<int:banner_id>', methods=['DELETE'])
+def delete_admin_banner(banner_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM banners WHERE id = ?", (banner_id,))
+    db.commit()
+    return jsonify({'success': True, 'message': 'Banner deleted successfully.'})
+
 @app.route('/api/admin/settings/upload-team-photo', methods=['POST'])
 def upload_team_photo():
     # Security: admin auth check

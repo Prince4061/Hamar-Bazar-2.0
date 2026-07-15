@@ -382,6 +382,90 @@ html, body {
     justify-content: center;
     padding: 20px;
 }
+
+/* Special Offers Carousel Styling */
+.offers-carousel-container {
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    background: #f1f5f9;
+    aspect-ratio: 21 / 9;
+    margin-bottom: 20px;
+}
+
+.offers-carousel-track {
+    display: flex;
+    transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    height: 100%;
+    width: 100%;
+}
+
+.offers-slide {
+    min-width: 100%;
+    height: 100%;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.offers-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.offers-slide:hover img {
+    transform: scale(1.05);
+}
+
+.offers-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(15, 23, 42, 0.85));
+    padding: 16px;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.offers-title {
+    font-size: 0.95rem;
+    font-weight: 800;
+    margin: 0;
+    font-family: 'Outfit', sans-serif;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.offers-carousel-dots {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+}
+
+.carousel-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.carousel-dot.active {
+    background: #ffffff;
+    width: 14px;
+    border-radius: 4px;
+}
 </style>
 
 
@@ -418,6 +502,15 @@ html, body {
             </div>
             
 
+
+            <!-- Special Offers Sliding Banner Carousel -->
+            <div id="special-offers-carousel" class="offers-carousel-container" style="display: none; margin-bottom: 20px;">
+                <div class="offers-carousel-track" id="offers-carousel-track">
+                    <!-- Banners loaded dynamically -->
+                </div>
+                <!-- Carousel Dots/Indicator -->
+                <div class="offers-carousel-dots" id="offers-carousel-dots"></div>
+            </div>
 
             <!-- Search Results section directly on Home screen -->
             <div id="search-results-section" style="display: none; border-top: 1px solid var(--border-color); padding-top: 16px; text-align: left; margin-bottom: 24px;">
@@ -1676,6 +1769,146 @@ html, body {
     // Render pharmacy products dummy for backward compatibility
     function renderPharmacyProducts() {}
 
+    // --- Banner Ads Management Functions ---
+    let bannersList = [];
+    let currentBannerIndex = 0;
+    let bannerInterval = null;
+
+    function loadBanners() {
+        fetch('/api/banners')
+        .then(res => res.json())
+        .then(data => {
+            bannersList = data;
+            renderBanners();
+        })
+        .catch(err => console.error("Error loading banners:", err));
+    }
+
+    function renderBanners() {
+        const track = document.getElementById("offers-carousel-track");
+        const dotsContainer = document.getElementById("offers-carousel-dots");
+        const carouselContainer = document.getElementById("special-offers-carousel");
+        
+        if (!track || !carouselContainer) return;
+        
+        if (!bannersList || bannersList.length === 0) {
+            carouselContainer.style.display = "none";
+            return;
+        }
+        
+        carouselContainer.style.display = "block";
+        track.innerHTML = "";
+        if (dotsContainer) dotsContainer.innerHTML = "";
+        
+        bannersList.forEach((banner, index) => {
+            // Create slide
+            const slide = document.createElement("div");
+            slide.className = "offers-slide";
+            slide.onclick = () => {
+                if (banner.product_id) {
+                    showProductDetailModal(banner.product_id);
+                }
+            };
+            
+            const img = document.createElement("img");
+            img.src = banner.image_url;
+            img.alt = banner.title || "Special Offer";
+            img.loading = "lazy";
+            
+            const overlay = document.createElement("div");
+            overlay.className = "offers-overlay";
+            
+            const title = document.createElement("h4");
+            title.className = "offers-title";
+            title.innerText = banner.title || "Special Offer";
+            
+            overlay.appendChild(title);
+            slide.appendChild(img);
+            slide.appendChild(overlay);
+            track.appendChild(slide);
+            
+            // Create dot
+            if (dotsContainer) {
+                const dot = document.createElement("div");
+                dot.className = `carousel-dot ${index === 0 ? 'active' : ''}`;
+                dot.onclick = (e) => {
+                    e.stopPropagation();
+                    goToBanner(index);
+                };
+                dotsContainer.appendChild(dot);
+            }
+        });
+        
+        // Touch events for swiping banners
+        let startX = 0;
+        let isDragging = false;
+        
+        carouselContainer.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            isDragging = true;
+            stopBannerAutoplay();
+        }, { passive: true });
+        
+        carouselContainer.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            const endX = e.changedTouches[0].clientX;
+            const diffX = startX - endX;
+            
+            if (diffX > 50) {
+                // Swipe left -> Next banner
+                goToBanner(currentBannerIndex + 1);
+            } else if (diffX < -50) {
+                // Swipe right -> Prev banner
+                goToBanner(currentBannerIndex - 1);
+            } else {
+                startBannerAutoplay();
+            }
+        }, { passive: true });
+        
+        currentBannerIndex = 0;
+        updateBannerSlider();
+        startBannerAutoplay();
+    }
+
+    function goToBanner(index) {
+        if (index < 0) index = bannersList.length - 1;
+        if (index >= bannersList.length) index = 0;
+        currentBannerIndex = index;
+        updateBannerSlider();
+        startBannerAutoplay();
+    }
+
+    function updateBannerSlider() {
+        const track = document.getElementById("offers-carousel-track");
+        if (!track) return;
+        track.style.transform = `translateX(-${currentBannerIndex * 100}%)`;
+        
+        const dots = document.querySelectorAll(".carousel-dot");
+        dots.forEach((dot, idx) => {
+            if (idx === currentBannerIndex) {
+                dot.classList.add("active");
+            } else {
+                dot.classList.remove("active");
+            }
+        });
+    }
+
+    function startBannerAutoplay() {
+        stopBannerAutoplay();
+        if (bannersList.length <= 1) return;
+        bannerInterval = setInterval(() => {
+            goToBanner(currentBannerIndex + 1);
+        }, 4000);
+    }
+
+    function stopBannerAutoplay() {
+        if (bannerInterval) {
+            clearInterval(bannerInterval);
+            bannerInterval = null;
+        }
+    }
+
     // Load active order and seed cart to match mockup
     document.addEventListener("DOMContentLoaded", () => {
         loadDeliveryFeeSettings();
@@ -1724,6 +1957,9 @@ html, body {
             
         // Load categories dynamically
         loadCategories();
+        
+        // Load dynamic promo banners
+        loadBanners();
         
         // Load prescription history
         loadPrescriptionHistory();
@@ -3096,6 +3332,11 @@ html, body {
             if (defaultStorefronts) defaultStorefronts.style.display = "block";
             if (trendingSearches) trendingSearches.style.display = "block";
             
+            const carousel = document.getElementById("special-offers-carousel");
+            if (carousel && bannersList && bannersList.length > 0) {
+                carousel.style.display = "block";
+            }
+            
             if (activeStorefront === "pharmacy") {
                 if (currentPharmacySubcat) {
                     selectPharmacySubcategory(currentPharmacySubcat);
@@ -3111,6 +3352,9 @@ html, body {
         
         if (defaultStorefronts) defaultStorefronts.style.display = "none";
         if (trendingSearches) trendingSearches.style.display = "none";
+        
+        const carousel = document.getElementById("special-offers-carousel");
+        if (carousel) carousel.style.display = "none";
         
         currentSearchQuery = query;
         
