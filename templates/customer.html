@@ -1811,7 +1811,11 @@ html, body {
             };
             
             const img = document.createElement("img");
-            img.src = banner.image_url;
+            if (banner.image_url && (banner.image_url.startsWith('http://') || banner.image_url.startsWith('https://'))) {
+                img.src = `/api/proxy-image?url=${encodeURIComponent(banner.image_url)}`;
+            } else {
+                img.src = banner.image_url || '/static/images/grocery_basket.png';
+            }
             img.alt = banner.title || "Special Offer";
             img.loading = "lazy";
             

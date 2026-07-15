@@ -2488,8 +2488,14 @@
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                             <div>
-                                <label style="display: block; font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; color: var(--text-primary);">Banner Image URL</label>
-                                <input type="text" id="banner-image-url" class="search-bar-input" style="width: 100%; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem;" placeholder="https://images.unsplash.com/... or local path">
+                                <label style="display: block; font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; color: var(--text-primary);">Banner Image (URL or Upload)</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="text" id="banner-image-url" class="search-bar-input" style="flex: 1; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem;" placeholder="https://images.unsplash.com/... or upload">
+                                    <label for="banner-image-file" class="btn-custom" style="padding: 8px 12px; font-size: 0.85rem; font-weight: 700; background: var(--primary-light); color: var(--primary-accent); border: 1px solid var(--primary-glow); border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; margin: 0;">
+                                        <i data-lucide="upload" style="width:14px; height:14px;"></i> Upload
+                                    </label>
+                                    <input type="file" id="banner-image-file" style="display: none;" accept="image/*" onchange="uploadBannerImage(this)">
+                                </div>
                             </div>
                             <div>
                                 <label style="display: block; font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; color: var(--text-primary);">Offer Title / Subtitle</label>
@@ -6153,7 +6159,7 @@
                         row.innerHTML = `
                             <td>${b.id}</td>
                             <td>
-                                <img src="${b.image_url}" style="width: 120px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-color);" alt="Banner Preview">
+                                <img src="${b.image_url && (b.image_url.startsWith('http://') || b.image_url.startsWith('https://')) ? `/api/proxy-image?url=${encodeURIComponent(b.image_url)}` : (b.image_url || '/static/images/grocery_basket.png')}" style="width: 120px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-color);" alt="Banner Preview">
                             </td>
                             <td><strong>${escapeHtml(b.title || 'Untitled Banner')}</strong></td>
                             <td>${b.product_id ? `<span class="badge" style="background: var(--primary-light); color: var(--primary-accent); font-weight: 700;">Product ID: ${b.product_id}</span>` : '<span style="color: var(--text-secondary);">None</span>'}</td>
@@ -6222,6 +6228,33 @@
                 (p.shop_name && p.shop_name.toLowerCase().includes(query))
             );
             populateBannersProductsDropdown(filtered);
+        }
+
+        function uploadBannerImage(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append("file", file);
+            
+            showAestheticToast("Uploading banner image...", "info");
+            
+            fetch('/api/admin/banners/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById("banner-image-url").value = data.file_path;
+                    showAestheticToast("Image uploaded successfully!", "success");
+                } else {
+                    showAestheticToast(data.error || "Upload failed.", "error");
+                }
+            })
+            .catch(err => {
+                console.error("Upload error:", err);
+                showAestheticToast("Failed to upload image due to network error.", "error");
+            });
         }
         
         function addAdminBanner() {

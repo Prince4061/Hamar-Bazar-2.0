@@ -1445,7 +1445,8 @@ def proxy_image():
                 f.write(img_data)
         return send_file(cached_path, max_age=86400 * 30)
     except Exception as e:
-        return redirect('/static/images/grocery_basket.png')
+        print("Proxy fetch failed, redirecting to original url:", e)
+        return redirect(url)
 
 @app.route('/api/create-order', methods=['POST'])
 def create_razorpay_order():
@@ -3287,6 +3288,29 @@ def delete_admin_banner(banner_id):
     cursor.execute("DELETE FROM banners WHERE id = ?", (banner_id,))
     db.commit()
     return jsonify({'success': True, 'message': 'Banner deleted successfully.'})
+
+@app.route('/api/admin/banners/upload', methods=['POST'])
+def upload_admin_banner_image():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part in the request.'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected.'}), 400
+        
+    from werkzeug.utils import secure_filename
+    if file and allowed_file(file.filename):
+        ext = secure_filename(file.filename).rsplit('.', 1)[1].lower()
+        filename = f"banner_{int(datetime.now().timestamp())}_{random.randint(1000, 9999)}.{ext}"
+        upload_path = os.path.join(app.root_path, 'static', 'uploads', 'banners')
+        os.makedirs(upload_path, exist_ok=True)
+        file_path = os.path.join(upload_path, filename)
+        file.save(file_path)
+        
+        db_path = f"/static/uploads/banners/{filename}"
+        return jsonify({'success': True, 'file_path': db_path, 'message': 'Banner image uploaded successfully.'})
+    return jsonify({'error': 'Invalid file type.'}), 400
 
 @app.route('/api/admin/settings/upload-team-photo', methods=['POST'])
 def upload_team_photo():
