@@ -3130,6 +3130,29 @@ def upload_product_image():
         return jsonify({'success': True, 'image_path': db_path, 'message': 'Product image uploaded successfully.'})
     return jsonify({'error': 'Invalid file type.'}), 400
 
+@app.route('/api/admin/products/upload', methods=['POST'])
+def upload_admin_product_image_file():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part in the request.'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected.'}), 400
+        
+    from werkzeug.utils import secure_filename
+    if file and allowed_file(file.filename):
+        ext = secure_filename(file.filename).rsplit('.', 1)[1].lower()
+        filename = f"prod_{int(datetime.now().timestamp())}_{random.randint(1000, 9999)}.{ext}"
+        upload_path = os.path.join(app.root_path, 'static', 'uploads', 'product_pics')
+        os.makedirs(upload_path, exist_ok=True)
+        file_path = os.path.join(upload_path, filename)
+        file.save(file_path)
+        
+        db_path = f"/static/uploads/product_pics/{filename}"
+        return jsonify({'success': True, 'file_path': db_path, 'message': 'Product image uploaded successfully.'})
+    return jsonify({'error': 'Invalid file type.'}), 400
+
 @app.route('/api/admin/products', methods=['POST'])
 def admin_add_product():
     # Security: admin auth check

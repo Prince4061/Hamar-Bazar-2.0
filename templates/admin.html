@@ -2748,8 +2748,14 @@
                 </div>
 
                 <div class="form-group-custom">
-                    <label class="form-label-custom">Product Image URL</label>
-                    <input type="text" id="modal-product-image-url" class="form-input-custom" style="width: 100%;" placeholder="e.g. https://example.com/product.png">
+                    <label class="form-label-custom">Product Image (URL or Upload)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="modal-product-image-url" class="form-input-custom" style="flex: 1;" placeholder="e.g. https://example.com/product.png or upload">
+                        <label for="modal-product-image-file" class="btn-custom" style="padding: 8px 12px; font-size: 0.85rem; font-weight: 700; background: var(--primary-light); color: var(--primary-accent); border: 1px solid var(--primary-glow); border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; margin: 0;">
+                            <i data-lucide="upload" style="width:14px; height:14px;"></i> Upload
+                        </label>
+                        <input type="file" id="modal-product-image-file" style="display: none;" accept="image/*" onchange="uploadProductImageFile(this)">
+                    </div>
                 </div>
             </div>
             <div class="modal-popup-footer">
@@ -6254,6 +6260,33 @@
             .catch(err => {
                 console.error("Upload error:", err);
                 showAestheticToast("Failed to upload image due to network error.", "error");
+            });
+        }
+
+        function uploadProductImageFile(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append("file", file);
+            
+            showAestheticToast("Uploading product image...", "info");
+            
+            fetch('/api/admin/products/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById("modal-product-image-url").value = data.file_path;
+                    showAestheticToast("Product image uploaded successfully!", "success");
+                } else {
+                    showAestheticToast(data.error || "Upload failed.", "error");
+                }
+            })
+            .catch(err => {
+                console.error("Upload error:", err);
+                showAestheticToast("Failed to upload product image due to network error.", "error");
             });
         }
         
