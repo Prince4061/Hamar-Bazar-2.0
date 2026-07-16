@@ -1383,31 +1383,41 @@ def search_products():
     limit = request.args.get('limit', default=20, type=int)
     offset = (page - 1) * limit
     
-    sql = "SELECT * FROM products WHERE is_available = TRUE"
+    where_clauses = ["products.is_available = TRUE"]
     params = []
     
     if query:
-        sql += " AND (name LIKE ? OR subcategory LIKE ?)"
-        params.extend([f"%{query}%", f"%{query}%"])
-        
+        # Split query by spaces to support multi-word, out-of-order searches
+        words = query.split()
+        for word in words:
+            where_clauses.append("(products.name LIKE ? OR products.subcategory LIKE ? OR products.description LIKE ? OR shops.shop_name LIKE ?)")
+            params.extend([f"%{word}%", f"%{word}%", f"%{word}%", f"%{word}%"])
+            
     if shop_id:
-        sql += " AND shop_id = ?"
+        where_clauses.append("products.shop_id = ?")
         params.append(shop_id)
         
     if subcategory:
-        sql += " AND subcategory = ?"
+        where_clauses.append("products.subcategory = ?")
         params.append(subcategory)
         
+    where_str = " AND ".join(where_clauses)
+    
     # Get total count
-    count_sql = sql.replace("SELECT *", "SELECT COUNT(*)")
+    count_sql = f"SELECT COUNT(*) FROM products JOIN shops ON products.shop_id = shops.id WHERE {where_str}"
     cursor.execute(count_sql, params)
     total_count = cursor.fetchone()[0]
     
     # Get paginated data
-    sql += " LIMIT ? OFFSET ?"
-    params.extend([limit, offset])
-    
-    cursor.execute(sql, params)
+    select_sql = f"""
+        SELECT products.*, shops.shop_name 
+        FROM products 
+        JOIN shops ON products.shop_id = shops.id 
+        WHERE {where_str} 
+        LIMIT ? OFFSET ?
+    """
+    select_params = params + [limit, offset]
+    cursor.execute(select_sql, select_params)
     products = [dict(row) for row in cursor.fetchall()]
     
     return jsonify({

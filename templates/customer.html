@@ -1731,6 +1731,15 @@ html, body {
         const btnPharmacy = document.getElementById("btn-switch-pharmacy");
         const wrapGrocery = document.getElementById("grocery-storefront-wrapper");
         const wrapPharmacy = document.getElementById("pharmacy-storefront-wrapper");
+        const searchInput = document.getElementById("search-input-standalone");
+        
+        if (searchInput) {
+            if (page === "grocery") {
+                searchInput.placeholder = "Chips, Cake, Milk search karein... 🔍";
+            } else {
+                searchInput.placeholder = "Dawa, Cough Syrup, Vitamin search karein... 🔍";
+            }
+        }
         
         if (page === "grocery") {
             btnGrocery.classList.add("active");
@@ -2329,11 +2338,14 @@ html, body {
             url += `&subcategory=${encodeURIComponent(currentPharmacySubcat)}`;
         }
         
+        console.log("loadShopProducts fetching URL:", url);
         fetch(url)
             .then(res => res.json())
             .then(data => {
+                console.log("loadShopProducts API returned data:", data);
                 const currentQuery = searchInput ? searchInput.value.trim() : "";
                 if (query !== currentQuery) {
+                    console.log("Query changed in shop search input, discarding results:", { query, currentQuery });
                     currentShopLoading = false;
                     return;
                 }
@@ -3337,6 +3349,7 @@ html, body {
 
     let searchDebounceTimeout = null;
     function handleSearch(query) {
+        console.log("handleSearch called with query:", query);
         query = query.toLowerCase().trim();
         if (!query) {
             lastTrackedQuery = "";
@@ -3357,6 +3370,7 @@ html, body {
         }
         
         if (!query) {
+            console.log("Query is empty, resetting search results display.");
             lastFilteredProducts = null;
             if (resultsSection) resultsSection.style.display = "none";
             if (defaultStorefronts) defaultStorefronts.style.display = "block";
@@ -3434,11 +3448,14 @@ html, body {
             url += `&shop_id=5`;
         }
         
+        console.log("loadSearchResults fetching URL:", url);
         fetch(url)
             .then(res => res.json())
             .then(data => {
+                console.log("loadSearchResults API returned data:", data);
                 // If search query changed in the input since this request was fired, discard!
                 if (query !== currentSearchQuery) {
+                    console.log("Query changed, discarding results:", { query, currentSearchQuery });
                     currentSearchLoading = false;
                     return;
                 }
