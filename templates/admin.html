@@ -5971,8 +5971,20 @@
             document.getElementById("sp-type-select").value = "Plumber";
             document.getElementById("sp-phone-input").value = "";
             document.getElementById("sp-desc-input").value = "";
+            document.getElementById("sp-type-custom-input").value = "";
+            document.getElementById("custom-service-type-container").style.display = "none";
             document.getElementById("add-service-provider-modal").style.display = "flex";
             if (window.lucide) lucide.createIcons();
+        }
+
+        function toggleCustomServiceTypeInput() {
+            const selectVal = document.getElementById("sp-type-select").value;
+            const container = document.getElementById("custom-service-type-container");
+            if (selectVal === "__CUSTOM__") {
+                container.style.display = "block";
+            } else {
+                container.style.display = "none";
+            }
         }
 
         function closeAddServiceProviderModal() {
@@ -5981,9 +5993,17 @@
 
         function submitAddServiceProvider() {
             const name = document.getElementById("sp-name-input").value.trim();
-            const service_type = document.getElementById("sp-type-select").value;
+            let service_type = document.getElementById("sp-type-select").value;
             const phone = document.getElementById("sp-phone-input").value.trim();
             const description = document.getElementById("sp-desc-input").value.trim();
+            
+            if (service_type === "__CUSTOM__") {
+                service_type = document.getElementById("sp-type-custom-input").value.trim();
+                if (!service_type) {
+                    showAestheticToast("Please enter a custom category name.", "error");
+                    return;
+                }
+            }
             
             if (!name || !phone) {
                 showAestheticToast("Name and phone number are required.", "error");
@@ -6003,11 +6023,11 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    showAestheticToast(data.message || "Service provider added successfully!", "success");
-                    closeAddServiceProviderModal();
-                    loadAdminServices();
+                     showAestheticToast(data.message || "Service provider added successfully!", "success");
+                     closeAddServiceProviderModal();
+                     loadAdminServices();
                 } else {
-                    showAestheticToast(data.error || "Failed to add service provider.", "error");
+                     showAestheticToast(data.error || "Failed to add service provider.", "error");
                 }
             })
             .catch(err => {
@@ -6389,12 +6409,17 @@
                 </div>
                 <div>
                     <label class="form-label-staff">Service Type</label>
-                    <select id="sp-type-select" class="form-input-staff">
+                    <select id="sp-type-select" class="form-input-staff" onchange="toggleCustomServiceTypeInput()">
                         <option value="Plumber">Plumber</option>
                         <option value="Electrician">Electrician</option>
                         <option value="Carpenter">Carpenter</option>
                         <option value="Others">Others</option>
+                        <option value="__CUSTOM__">+ Create Custom Category</option>
                     </select>
+                    <div id="custom-service-type-container" style="display: none; margin-top: 8px;">
+                        <label class="form-label-staff" style="font-size: 0.75rem; color: var(--primary-accent); margin-bottom: 4px; display: block;">Custom Category Name</label>
+                        <input type="text" id="sp-type-custom-input" class="form-input-staff" placeholder="e.g. AC Repair Service">
+                    </div>
                 </div>
                 <div>
                     <label class="form-label-staff">Contact Number (Phone)</label>

@@ -466,6 +466,32 @@ html, body {
     width: 14px;
     border-radius: 4px;
 }
+
+/* Drag to scroll visual styling for tabs container */
+#service-filter-tabs-container {
+    cursor: grab;
+    user-select: none;
+    -webkit-user-drag: none;
+    scrollbar-width: thin; /* Firefox: elegant thin scrollbar */
+    scrollbar-color: var(--border-color) transparent;
+}
+#service-filter-tabs-container:active {
+    cursor: grabbing;
+}
+/* Webkit custom elegant scrollbar */
+#service-filter-tabs-container::-webkit-scrollbar {
+    height: 4px;
+}
+#service-filter-tabs-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+#service-filter-tabs-container::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+#service-filter-tabs-container::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-accent);
+}
 </style>
 
 
@@ -817,7 +843,7 @@ html, body {
             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.4;">Need help with repairs or fittings? Contact local verified service providers below.</p>
             
             <!-- Category Filter Tabs -->
-            <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 16px; scrollbar-width: none;">
+            <div id="service-filter-tabs-container" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 16px; scrollbar-width: none;">
                 <button onclick="filterServices('All')" class="btn-custom active service-filter-btn" id="filter-all" style="padding: 6px 14px; font-size: 0.78rem; font-weight:700; white-space: nowrap; margin:0; border-radius:100px;">All</button>
                 <button onclick="filterServices('Plumber')" class="btn-custom service-filter-btn" id="filter-plumber" style="padding: 6px 14px; font-size: 0.78rem; font-weight:700; white-space: nowrap; margin:0; border-radius:100px;">Plumber</button>
                 <button onclick="filterServices('Electrician')" class="btn-custom service-filter-btn" id="filter-electrician" style="padding: 6px 14px; font-size: 0.78rem; font-weight:700; white-space: nowrap; margin:0; border-radius:100px;">Electrician</button>
@@ -3784,11 +3810,79 @@ html, body {
         .then(res => res.json())
         .then(data => {
             currentServiceProviders = data;
+            renderServiceCategories(data);
             renderLocalServices();
         })
         .catch(err => {
             console.error("Error fetching services:", err);
             container.innerHTML = "<div style='text-align:center; padding: 20px;'><p style='color:var(--ruby-danger); font-size:0.85rem;'>Failed to load services directory.</p></div>";
+        });
+    }
+
+    function renderServiceCategories(data) {
+        const tabsContainer = document.getElementById("service-filter-tabs-container");
+        if (!tabsContainer) return;
+        
+        const categoriesSet = new Set();
+        data.forEach(p => {
+            if (p.service_type) {
+                const norm = p.service_type.trim();
+                if (norm) {
+                    const normalized = norm.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                    categoriesSet.add(normalized);
+                }
+            }
+        });
+        
+        const defaultCats = ["Plumber", "Electrician", "Carpenter"];
+        defaultCats.forEach(c => categoriesSet.add(c));
+        
+        const categories = ["All", ...Array.from(categoriesSet)];
+        
+        tabsContainer.innerHTML = "";
+        categories.forEach(cat => {
+            const btn = document.createElement("button");
+            btn.onclick = () => filterServices(cat);
+            btn.className = "btn-custom service-filter-btn";
+            if (cat.toLowerCase() === activeServiceFilter.toLowerCase()) {
+                btn.classList.add("active");
+            }
+            btn.style = "padding: 6px 14px; font-size: 0.78rem; font-weight:700; white-space: nowrap; margin:0; border-radius:100px;";
+            btn.innerText = cat;
+            tabsContainer.appendChild(btn);
+        });
+        enableDragScroll(tabsContainer);
+    }
+
+    function enableDragScroll(el) {
+        if (!el) return;
+        let isDown = false;
+        let startX;
+        let scrollLeft;
+
+        if (el.dataset.dragScrollAttached === "true") return;
+        el.dataset.dragScrollAttached = "true";
+
+        el.addEventListener('mousedown', (e) => {
+            isDown = true;
+            el.style.cursor = 'grabbing';
+            startX = e.pageX - el.offsetLeft;
+            scrollLeft = el.scrollLeft;
+        });
+        el.addEventListener('mouseleave', () => {
+            isDown = false;
+            el.style.cursor = 'grab';
+        });
+        el.addEventListener('mouseup', () => {
+            isDown = false;
+            el.style.cursor = 'grab';
+        });
+        el.addEventListener('mousemove', (e) => {
+            if(!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - el.offsetLeft;
+            const walk = (x - startX) * 1.5;
+            el.scrollLeft = scrollLeft - walk;
         });
     }
 
@@ -3847,18 +3941,7 @@ html, body {
 
     function filterServices(category) {
         activeServiceFilter = category;
-        document.querySelectorAll(".service-filter-btn").forEach(btn => {
-            btn.classList.remove("active");
-        });
-        
-        const btnMap = {
-            'All': 'filter-all',
-            'Plumber': 'filter-plumber',
-            'Electrician': 'filter-electrician',
-            'Carpenter': 'filter-carpenter'
-        };
-        const activeBtn = document.getElementById(btnMap[category]);
-        if (activeBtn) activeBtn.classList.add("active");
+        renderServiceCategories(currentServiceProviders);
         renderLocalServices();
     }
 
