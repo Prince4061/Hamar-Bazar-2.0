@@ -76,11 +76,17 @@ def init_db():
         category TEXT UNIQUE NOT NULL,
         commission_pct REAL DEFAULT 5.0,
         is_active INTEGER DEFAULT 1,
+        is_approved INTEGER DEFAULT 1,
         password TEXT,
         image_path TEXT,
         is_customizable INTEGER DEFAULT 0
     )
     ''')
+    
+    try:
+        cursor.execute("ALTER TABLE shops ADD COLUMN is_approved INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
     
     # 3. Products Table
     cursor.execute('''
