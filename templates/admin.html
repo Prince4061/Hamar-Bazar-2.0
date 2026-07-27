@@ -6221,7 +6221,7 @@
             if (searchInput) searchInput.value = "";
             
             // Fetch all products so the admin can link a banner to a product
-            fetch('/api/products/search?limit=300')
+            fetch('/api/products/search?limit=2000&include_all=1')
                 .then(res => res.json())
                 .then(data => {
                     adminProductsCache = data.products || [];
@@ -6251,6 +6251,8 @@
             }
             const filtered = adminProductsCache.filter(p => 
                 p.name.toLowerCase().includes(query) || 
+                (p.subcategory && p.subcategory.toLowerCase().includes(query)) ||
+                (p.category && p.category.toLowerCase().includes(query)) ||
                 (p.shop_name && p.shop_name.toLowerCase().includes(query))
             );
             populateBannersProductsDropdown(filtered);

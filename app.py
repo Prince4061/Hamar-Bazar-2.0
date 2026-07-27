@@ -1383,7 +1383,11 @@ def search_products():
     limit = request.args.get('limit', default=20, type=int)
     offset = (page - 1) * limit
     
-    where_clauses = ["products.is_available = TRUE"]
+    include_all = request.args.get('include_all', '0') == '1'
+    where_clauses = []
+    if not include_all:
+        where_clauses.append("products.is_available = TRUE")
+        where_clauses.append("(shops.is_approved = 1 OR shops.is_approved IS NULL)")
     params = []
     
     if query:
@@ -1401,7 +1405,7 @@ def search_products():
         where_clauses.append("products.subcategory = ?")
         params.append(subcategory)
         
-    where_str = " AND ".join(where_clauses)
+    where_str = " AND ".join(where_clauses) if where_clauses else "1=1"
     
     # Get total count
     count_sql = f"SELECT COUNT(*) FROM products JOIN shops ON products.shop_id = shops.id WHERE {where_str}"
