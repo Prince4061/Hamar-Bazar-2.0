@@ -27,6 +27,23 @@ services:
     networks:
       - app-network
 
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n-container
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - GENERIC_TIMEZONE=Asia/Kolkata
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
@@ -35,3 +52,4 @@ volumes:
   db_data:
   uploads_data:
   downloads_data:
+  n8n_data:
