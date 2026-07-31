@@ -1297,42 +1297,268 @@
             color: var(--text-primary);
         }
 
+        /* Mobile Overlay Backdrop */
+        .sidebar-overlay-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 998;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .sidebar-overlay-backdrop.show {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Mobile Bottom Navigation Bar */
+        .mobile-admin-bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 62px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid var(--border-color);
+            z-index: 990;
+            justify-content: space-around;
+            align-items: center;
+            padding: 4px 6px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+        }
+        .mobile-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            color: var(--text-muted);
+            font-size: 0.68rem;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: var(--radius-md);
+            transition: var(--transition-fast);
+            text-decoration: none;
+            flex: 1;
+        }
+        .mobile-nav-item i {
+            width: 20px;
+            height: 20px;
+        }
+        .mobile-nav-item.active {
+            color: var(--primary-accent);
+            background: var(--primary-light);
+        }
+
+        .mobile-sidebar-close-btn {
+            display: none;
+            background: #f1f5f9;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            width: 32px;
+            height: 32px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-primary);
+        }
+
         /* Mobile and Tablet responsiveness rules */
         @media (max-width: 991px) {
             .admin-sidebar {
+                position: fixed;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                width: 280px;
+                z-index: 10000;
                 transform: translateX(-100%);
-                box-shadow: 10px 0 30px rgba(0,0,0,0.05);
+                background: #ffffff;
+                box-shadow: 10px 0 35px rgba(0,0,0,0.2);
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
             .admin-sidebar.open {
                 transform: translateX(0);
             }
             .admin-main {
                 margin-left: 0;
-                padding: 0 20px 20px 20px;
+                padding: 0 16px 80px 16px;
             }
             .mobile-header-burger {
-                display: block;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                padding: 6px 14px;
+                border-radius: 8px;
+                background: var(--primary-light);
+                border: 1px solid rgba(139, 92, 246, 0.2);
+                cursor: pointer;
+            }
+            .mobile-sidebar-close-btn {
+                display: flex;
             }
             .timing-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+            .mobile-admin-bottom-nav {
+                display: flex;
+            }
         }
 
         @media (max-width: 767px) {
-            .dashboard-row-grid {
-                grid-template-columns: 1fr;
+            .admin-header {
+                padding: 10px 0;
+                gap: 10px;
+                flex-direction: column;
+                align-items: stretch;
             }
-            .dashboard-three-grid {
-                grid-template-columns: 1fr;
+            .admin-header > div:first-child {
+                justify-content: space-between;
+                width: 100%;
+            }
+            .header-title-section h1 {
+                font-size: 1.2rem;
+                letter-spacing: -0.5px;
+            }
+            .header-title-section p {
+                display: none; /* Hide long subtitle on small screens */
             }
             .header-actions {
-                display: none; /* Hide on mobile to prioritize title, or slide down */
+                display: flex;
+                width: 100%;
+                justify-content: space-between;
+                gap: 8px;
+                overflow-x: auto;
+                padding-bottom: 4px;
             }
-            .admin-header {
-                padding: 15px 0;
+            .search-bar-container {
+                flex: 1;
+                min-width: 130px;
             }
+            .search-bar-input {
+                font-size: 0.78rem;
+                padding: 6px 8px 6px 30px;
+            }
+            .date-range-selector {
+                padding: 6px 10px;
+                font-size: 0.75rem;
+                white-space: nowrap;
+            }
+            .user-profile-header .user-info-text {
+                display: none; /* Keep avatar icon, hide text label on mobile */
+            }
+            .kpi-cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+            .kpi-card {
+                padding: 12px;
+            }
+            .kpi-value {
+                font-size: 1.3rem;
+            }
+            .kpi-title {
+                font-size: 0.7rem;
+            }
+            .dashboard-row-grid,
+            .dashboard-three-grid,
             .timing-grid {
                 grid-template-columns: 1fr;
+                gap: 14px;
+            }
+            .dashboard-card {
+                padding: 14px 10px;
+            }
+            .card-header-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            .card-header-row .btn-custom {
+                width: 100%;
+                justify-content: center;
+            }
+            /* Card transformation for table rows on mobile */
+            .table-responsive-wrapper {
+                margin: 0;
+                width: 100%;
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                overflow-x: visible;
+            }
+            .premium-table.responsive-cards {
+                display: block;
+                width: 100%;
+            }
+            .premium-table.responsive-cards thead {
+                display: none;
+            }
+            .premium-table.responsive-cards tbody {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                width: 100%;
+            }
+            .premium-table.responsive-cards tr {
+                display: flex;
+                flex-direction: column;
+                background: #ffffff;
+                border: 1px solid var(--border-color);
+                border-radius: var(--radius-lg);
+                padding: 14px 16px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+                gap: 8px;
+            }
+            .premium-table.responsive-cards td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 6px 0 !important;
+                border-bottom: 1px dashed #f1f5f9 !important;
+                font-size: 0.82rem;
+            }
+            .premium-table.responsive-cards td:last-child {
+                border-bottom: none !important;
+                margin-top: 6px;
+                padding-top: 8px !important;
+            }
+            .premium-table.responsive-cards td[data-label]::before {
+                content: attr(data-label);
+                font-weight: 700;
+                color: var(--text-secondary);
+                font-size: 0.76rem;
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+            }
+            .modal-content {
+                width: 95% !important;
+                padding: 18px 14px !important;
+                max-height: 88vh !important;
+            }
+            .filters-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .filters-group {
+                flex-direction: column;
+                width: 100%;
+            }
+            .form-input-custom, 
+            .form-select-custom {
+                width: 100% !important;
             }
         }
     </style>
@@ -1345,14 +1571,19 @@
         <aside class="admin-sidebar" id="sidebar-panel">
             <div>
                 <!-- Brand logo -->
-                <div class="sidebar-brand">
-                    <div class="brand-logo-glow" style="background: transparent; box-shadow: none; width: 36px; height: 36px;">
-                        <img src="{{ system_settings.app_logo }}" alt="Hamar Bazaar Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-md);">
+                <div class="sidebar-brand" style="display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="brand-logo-glow" style="background: transparent; box-shadow: none; width: 36px; height: 36px;">
+                            <img src="{{ system_settings.app_logo }}" alt="Hamar Bazaar Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-md);">
+                        </div>
+                        <div>
+                            <h2 class="brand-logo-text">Mor Bazar</h2>
+                            <span class="brand-logo-tag">Hyperlocal Market</span>
+                        </div>
                     </div>
-                    <div>
-                        <h2 class="brand-logo-text">Mor Bazar</h2>
-                        <span class="brand-logo-tag">Hyperlocal Market</span>
-                    </div>
+                    <button class="mobile-sidebar-close-btn" onclick="toggleMobileSidebar()" title="Close Sidebar">
+                        <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                    </button>
                 </div>
                 
                 <!-- Menu -->
@@ -1385,6 +1616,11 @@
                     <li>
                         <a class="menu-item-link" onclick="switchTab('prescriptions')">
                             <i data-lucide="file-text"></i> Prescriptions
+                        </a>
+                    </li>
+                    <li>
+                        <a class="menu-item-link" onclick="switchTab('webhooks')">
+                            <i data-lucide="webhook"></i> Webhook Section
                         </a>
                     </li>
                     <li style="display: none;">
@@ -1457,8 +1693,9 @@
             <header class="admin-header">
                 <!-- Left Title / Burger -->
                 <div style="display: flex; align-items: center; gap: 16px;">
-                    <button class="mobile-header-burger" onclick="toggleMobileSidebar()">
-                        <i data-lucide="menu" style="width: 24px; height: 24px;"></i>
+                    <button class="mobile-header-burger" onclick="toggleMobileSidebar()" title="Open Navigation Menu">
+                        <i data-lucide="menu" style="width: 20px; height: 20px; color: var(--primary-accent);"></i>
+                        <span style="font-weight: 700; font-size: 0.85rem; color: var(--primary-accent);">Menu</span>
                     </button>
                     <div class="header-title-section">
                         <h1 id="header-tab-title">Admin Operations Center</h1>
@@ -1487,6 +1724,11 @@
                             <div class="date-range-option" onclick="setDateRange('Month to Date')">Month to Date</div>
                         </div>
                     </div>
+
+                    <!-- Webhook Quick Access -->
+                    <button class="btn-custom btn-custom-secondary" style="padding:6px 12px; font-weight:700; display:inline-flex; align-items:center; gap:6px; margin:0;" onclick="switchTab('webhooks')" title="Open Webhook Section">
+                        <i data-lucide="webhook" style="width:14px; height:14px; color:var(--primary-accent);"></i> Webhook Section
+                    </button>
 
                     <!-- Notification bell -->
                     <div class="icon-btn-badge" onclick="toggleNotificationDrawer()">
@@ -1615,7 +1857,7 @@
                         </div>
                         
                         <div class="table-responsive-wrapper">
-                            <table class="premium-table">
+                            <table class="premium-table responsive-cards">
                                 <thead>
                                     <tr>
                                         <th>Order ID</th>
@@ -1688,7 +1930,7 @@
 
                 <div class="dashboard-card">
                     <div class="table-responsive-wrapper">
-                        <table class="premium-table">
+                        <table class="premium-table responsive-cards">
                             <thead>
                                 <tr>
                                     <th>Order ID</th>
@@ -1735,7 +1977,7 @@
                     </div>
                     
                     <div class="table-responsive-wrapper">
-                        <table class="premium-table">
+                        <table class="premium-table responsive-cards">
                             <thead>
                                 <tr>
                                     <th>Shop ID</th>
@@ -2548,6 +2790,105 @@
                 </div>
             </div>
 
+            <!-- --------------------------------------------------- -->
+            <!-- TAB 15: WEBHOOK SECTION & AUTOMATION -->
+            <!-- --------------------------------------------------- -->
+            <div class="tab-panel" id="panel-webhooks">
+                <div style="display: flex; flex-direction: column; gap: 20px; text-align: left;">
+                    
+                    <!-- Webhook Config Card -->
+                    <div class="dashboard-card">
+                        <div class="card-header-row" style="margin-bottom: 16px;">
+                            <h3 class="card-title-text"><i data-lucide="webhook" style="color: var(--primary-accent);"></i> Webhook Section & Automation Settings</h3>
+                            <span class="status-badge badge-delivered" id="webhook-active-status">Configured & Ready</span>
+                        </div>
+                        
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px;">
+                            Configure a Webhook URL to automatically send real-time JSON events to your automation workflow, external API, or server when orders are placed or updated.
+                        </p>
+
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px;">
+                            <div>
+                                <label style="display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 6px; color: var(--text-primary);">
+                                    Webhook Target Endpoint URL
+                                </label>
+                                <input type="url" id="webhook-url-input" class="search-bar-input" style="width: 100%; border: 1px solid var(--border-color); padding: 10px 14px; border-radius: 8px; font-size: 0.9rem;" placeholder="https://your-domain.com/webhook/orders">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                            <div>
+                                <label style="display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 6px; color: var(--text-primary);">
+                                    Secret Header Token (X-Webhook-Secret)
+                                </label>
+                                <input type="text" id="webhook-secret-input" class="search-bar-input" style="width: 100%; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem;" placeholder="Optional secret for payload validation (e.g. sec_9872)">
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 6px; color: var(--text-primary);">
+                                    Webhook Activation Status
+                                </label>
+                                <div style="display: flex; align-items: center; gap: 12px; height: 38px;">
+                                    <input type="checkbox" id="webhook-enabled-toggle" class="toggle-switch-input">
+                                    <label for="webhook-enabled-toggle" class="toggle-switch-label"></label>
+                                    <span style="font-weight: 700; font-size: 0.85rem;" id="webhook-toggle-label">Enable Webhook Dispatcher</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Trigger Event Checkboxes -->
+                        <div style="margin-bottom: 24px; background: #f8fafc; padding: 16px; border-radius: 10px; border: 1px solid var(--border-color);">
+                            <label style="display: block; font-weight: 800; font-size: 0.85rem; margin-bottom: 10px; color: var(--text-primary);">
+                                Select Trigger Events (When to fire webhook):
+                            </label>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                                <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer;">
+                                    <input type="checkbox" class="webhook-event-cb" value="order_created" checked style="accent-color: var(--primary-accent);">
+                                    <span>📦 order_created (New Order Placed)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer;">
+                                    <input type="checkbox" class="webhook-event-cb" value="user_search" checked style="accent-color: var(--primary-accent);">
+                                    <span>🔍 user_search (User Keyword Search)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer;">
+                                    <input type="checkbox" class="webhook-event-cb" value="status_changed" checked style="accent-color: var(--primary-accent);">
+                                    <span>🔄 status_changed (Order Progress/Delivery)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer;">
+                                    <input type="checkbox" class="webhook-event-cb" value="stock_alert" checked style="accent-color: var(--primary-accent);">
+                                    <span>⚠️ stock_alert (Vendor Inventory Low)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer;">
+                                    <input type="checkbox" class="webhook-event-cb" value="user_flagged" checked style="accent-color: var(--primary-accent);">
+                                    <span>🛡️ user_flagged (Suspicious Activity)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div style="display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
+                            <button onclick="testWebhookConnection()" class="btn-custom btn-custom-secondary" style="padding: 10px 18px; font-weight: 700;">
+                                <i data-lucide="send" style="width:14px; height:14px;"></i> Send Test Webhook Payload
+                            </button>
+                            <button onclick="saveWebhookSettings()" class="btn-custom" style="padding: 10px 22px; font-weight: 700; background: var(--primary-accent); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                                <i data-lucide="save" style="width:14px; height:14px;"></i> Save Webhook Configuration
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Instructions Card -->
+                    <div class="dashboard-card" style="background: #ffffff;">
+                        <h3 class="card-title-text" style="margin-bottom: 12px;"><i data-lucide="help-circle" style="color: var(--primary-accent);"></i> How to connect your Webhook?</h3>
+                        <ol style="padding-left: 20px; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7;">
+                            <li>Enter your HTTP <strong>POST Webhook Endpoint URL</strong> above.</li>
+                            <li>Optionally specify a secret token in <strong>X-Webhook-Secret</strong>.</li>
+                            <li>Select the events you want to trigger (New Order, Status Change, Low Stock, Fraud Alerts).</li>
+                            <li>Click <strong>Send Test Webhook Payload</strong> to verify your connection!</li>
+                        </ol>
+                    </div>
+
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -3069,6 +3410,7 @@
                 if (tabId === 'services') return txt.includes('services');
                 if (tabId === 'userinfo') return txt.includes('user info');
                 if (tabId === 'banners') return txt.includes('banner');
+                if (tabId === 'webhooks') return txt.includes('webhook');
                 return false;
             });
             
@@ -3131,6 +3473,10 @@
                 subtitle = "Add, list, and configure homepage sliding banners linking to promotional products.";
                 loadAdminBanners();
                 loadAdminBannersProductsDropdown();
+            } else if (tabId === 'webhooks') {
+                title = "Webhook Section & External Automation";
+                subtitle = "Configure automated triggers and webhook endpoints for custom external workflows.";
+                loadWebhookSettings();
             } else if (tabId === 'userinfo') {
                 title = "User Information & Activity";
                 subtitle = "Track successful logins and user interactions.";
@@ -3145,8 +3491,15 @@
                 if (tabId === 'system' && dbActivityChartObj) dbActivityChartObj.resize();
             }, 100);
             
-            // Toggle sidebar close on mobile click
+            // Toggle sidebar & backdrop close on mobile click
             document.getElementById('sidebar-panel').classList.remove('open');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (backdrop) backdrop.classList.remove('show');
+            
+            // Update active state in mobile bottom navigation bar
+            document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
+            const mobItem = document.getElementById('mob-nav-' + tabId);
+            if (mobItem) mobItem.classList.add('active');
             
             if (window.lucide) lucide.createIcons();
         }
@@ -3154,7 +3507,15 @@
         // Sidebar Toggle for Mobile
         function toggleMobileSidebar() {
             const sidebar = document.getElementById('sidebar-panel');
-            sidebar.classList.toggle('open');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            const isOpen = sidebar.classList.toggle('open');
+            if (backdrop) {
+                if (isOpen) {
+                    backdrop.classList.add('show');
+                } else {
+                    backdrop.classList.remove('show');
+                }
+            }
         }
 
         // Global Search Filter across active tab elements
@@ -3681,12 +4042,12 @@
                 
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
-                    <td style="font-weight:700;">#ORD${o.id}</td>
-                    <td style="font-weight:600;">${o.customer_name}</td>
-                    <td>${o.shop_name}</td>
-                    <td style="font-weight:700;">₹${o.total_amount.toFixed(2)}</td>
-                    <td><span class="status-badge ${badgeClass}">${o.status.replace(/_/g, ' ')}</span></td>
-                    <td><span class="status-badge ${o.priority_type === 'URGENT' ? 'badge-priority' : 'badge-pending'}">${o.priority_type}</span></td>
+                    <td data-label="Order ID" style="font-weight:700;">#ORD${o.id}</td>
+                    <td data-label="Customer" style="font-weight:600;">${o.customer_name}</td>
+                    <td data-label="Shop">${o.shop_name}</td>
+                    <td data-label="Amount" style="font-weight:700;">₹${o.total_amount.toFixed(2)}</td>
+                    <td data-label="Status"><span class="status-badge ${badgeClass}">${o.status.replace(/_/g, ' ')}</span></td>
+                    <td data-label="Priority"><span class="status-badge ${o.priority_type === 'URGENT' ? 'badge-priority' : 'badge-pending'}">${o.priority_type}</span></td>
                 `;
                 container.appendChild(tr);
             });
@@ -3756,22 +4117,22 @@
                   
                   const tr = document.createElement("tr");
                   tr.innerHTML = `
-                      <td style="font-weight:700;">#ORD${o.id}</td>
-                      <td style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${o.created_at}</td>
-                      <td style="font-weight:600;">${o.customer_name}</td>
-                      <td>${o.shop_name}</td>
-                      <td style="font-weight:700; color:var(--primary-accent);">₹${o.total_amount.toFixed(2)}</td>
-                      <td><span class="status-badge ${o.priority_type === 'URGENT' ? 'badge-priority' : 'badge-pending'}">${o.priority_type}</span></td>
-                      <td><span class="status-badge ${badgeClass}">${o.status.replace(/_/g, ' ')}</span></td>
-                      <td style="font-family:monospace; font-weight:700; font-size:0.8rem; color:var(--text-secondary);">
+                      <td data-label="Order ID" style="font-weight:700;">#ORD${o.id}</td>
+                      <td data-label="Date Created" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${o.created_at}</td>
+                      <td data-label="Customer" style="font-weight:600;">${o.customer_name}</td>
+                      <td data-label="Shop">${o.shop_name}</td>
+                      <td data-label="Amount" style="font-weight:700; color:var(--primary-accent);">₹${o.total_amount.toFixed(2)}</td>
+                      <td data-label="Priority"><span class="status-badge ${o.priority_type === 'URGENT' ? 'badge-priority' : 'badge-pending'}">${o.priority_type}</span></td>
+                      <td data-label="Status"><span class="status-badge ${badgeClass}">${o.status.replace(/_/g, ' ')}</span></td>
+                      <td data-label="Handshake OTPs" style="font-family:monospace; font-weight:700; font-size:0.8rem; color:var(--text-secondary);">
                           P: ${o.pickup_otp || '--'} | D: ${o.delivery_otp || '--'}
                       </td>
-                      <td>
+                      <td data-label="System Logs">
                           ${o.failure_reason ? `<span style="color:var(--ruby-danger); font-weight:600;"><i data-lucide="x-circle" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:3px;"></i>${o.failure_reason}</span>` : `<span style="color:var(--emerald-green); font-weight:600;"><i data-lucide="check-circle" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:3px;"></i>Handover stable</span>`}
                       </td>
-                      <td>
-                          <button class="btn-custom btn-custom-primary" style="padding: 4px 8px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;" onclick="openAdminOrderManager(${o.id})">
-                              <i data-lucide="settings" style="width:12px; height:12px;"></i> Manage
+                      <td data-label="Actions">
+                          <button class="btn-custom btn-custom-primary" style="padding: 6px 12px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px; width: 100%; justify-content: center;" onclick="openAdminOrderManager(${o.id})">
+                              <i data-lucide="settings" style="width:12px; height:12px;"></i> Manage Order
                           </button>
                       </td>
                   `;
@@ -3827,32 +4188,61 @@
             shops.forEach(s => {
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
-                    <td style="font-weight:700;">#SHP${s.shop_id}</td>
-                    <td style="font-weight:600; display:flex; align-items:center; gap:8px;">
+                    <td data-label="Shop ID" style="font-weight:700;">#SHP${s.shop_id}</td>
+                    <td data-label="Shop Name" style="font-weight:600; display:flex; align-items:center; gap:8px;">
                         <img src="${s.image_path || '/static/images/grocery_basket.png'}" style="width:24px; height:24px; border-radius:4px; object-fit:cover;">
                         <span>${s.shop_name}</span>
                     </td>
-                    <td><span class="status-badge badge-pending">${s.category}</span></td>
-                    <td style="font-family:monospace; font-weight:700; color:var(--text-secondary);">${s.password || 'password123'}</td>
-                    <td style="font-weight:600;">${s.commission_pct}%</td>
-                    <td style="font-weight:700; color:var(--primary-accent);">₹${(s.sales || 0).toLocaleString('en-IN')}</td>
-                    <td style="font-weight:600;">${s.success_orders}</td>
-                    <td style="font-weight:600; color:var(--emerald-green);">${s.acceptance_rate}%</td>
-                    <td style="font-weight:700; color:#d97706; display:inline-flex; align-items:center; gap:3px; margin-top:14px;"><i data-lucide="star" style="width:14px; height:14px; fill:#d97706;"></i> ${s.avg_rating}</td>
-                    <td>
+                    <td data-label="Category"><span class="status-badge badge-pending">${s.category}</span></td>
+                    <td data-label="Password" style="font-family:monospace; font-weight:700; color:var(--text-secondary);">${s.password || 'password123'}</td>
+                    <td data-label="Commission">${s.commission_pct}%</td>
+                    <td data-label="Gross Sales" style="font-weight:700; color:var(--primary-accent);">₹${(s.sales || 0).toLocaleString('en-IN')}</td>
+                    <td data-label="Orders Completed" style="font-weight:600;">${s.success_orders}</td>
+                    <td data-label="Acceptance Rate" style="font-weight:600; color:var(--emerald-green);">${s.acceptance_rate}%</td>
+                    <td data-label="Avg. Rating" style="font-weight:700; color:#d97706; display:inline-flex; align-items:center; gap:3px; margin-top:4px;"><i data-lucide="star" style="width:14px; height:14px; fill:#d97706;"></i> ${s.avg_rating}</td>
+                    <td data-label="Status">
                         <span class="status-badge ${s.is_active ? 'badge-delivered' : 'badge-failed'}">
                             ${s.is_active ? 'Online' : 'Disabled'}
                         </span>
                     </td>
-                    <td>
-                        <div style="display:flex; align-items:center; gap:12px;">
+                    <td data-label="Actions Control">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                             <input type="checkbox" id="vendor-toggle-${s.shop_id}" class="toggle-switch-input" ${s.is_active ? 'checked' : ''} onchange="handleVendorToggle(${s.shop_id}, this.checked)">
                             <label for="vendor-toggle-${s.shop_id}" class="toggle-switch-label"></label>
                             <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="openEditShopModal(${s.shop_id}, '${(s.shop_name || '').replace(/'/g, "\\'")}', '${(s.category || '').replace(/'/g, "\\'")}', ${s.commission_pct}, '${(s.password || 'password123').replace(/'/g, "\\'")}')"><i data-lucide="edit-2" style="width:12px; height:12px;"></i> Credentials</button>
+                            ${!s.is_active ? `
+                                <button class="btn-custom" style="padding:4px 8px; font-size:0.75rem; margin:0; background-color:#ef4444; color:white; border:none; border-radius:4px; font-weight:600; cursor:pointer;" onclick="deleteDisabledShopCategory(${s.shop_id}, '${(s.shop_name || '').replace(/'/g, "\\'")}')" title="Delete Category & Products">
+                                    <i data-lucide="trash-2" style="width:12px; height:12px;"></i> Delete Category
+                                </button>
+                            ` : ''}
                         </div>
                     </td>
                 `;
                 container.appendChild(tr);
+            });
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // Vendor Delete Category handler for disabled categories
+        function deleteDisabledShopCategory(shopId, shopName) {
+            aestheticConfirm(`Are you sure you want to permanently delete category "${shopName}"? ALL products inside this category will be deleted permanently!`, () => {
+                fetch(`/api/admin/shops/${shopId}/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAestheticToast(data.message, "success");
+                        loadAllAnalytics(false);
+                    } else {
+                        showAestheticToast(data.error || "Failed to delete category.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showAestheticToast("Network error while deleting category.", "error");
+                });
             });
         }
 
@@ -6394,6 +6784,102 @@
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
         }
+
+        // --- Webhook & n8n Automation Handlers ---
+        function loadWebhookSettings() {
+            fetch('/api/admin/webhooks')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('webhook-url-input').value = data.webhook_url || '';
+                    document.getElementById('webhook-secret-input').value = data.webhook_secret || '';
+                    document.getElementById('webhook-enabled-toggle').checked = data.webhook_enabled;
+                    
+                    const activeBadge = document.getElementById('webhook-active-status');
+                    if (data.webhook_enabled && data.webhook_url) {
+                        activeBadge.className = 'status-badge badge-delivered';
+                        activeBadge.innerText = 'Active & Triggering';
+                    } else {
+                        activeBadge.className = 'status-badge badge-failed';
+                        activeBadge.innerText = 'Inactive / Disabled';
+                    }
+
+                    const eventsList = (data.webhook_events || '').split(',');
+                    document.querySelectorAll('.webhook-event-cb').forEach(cb => {
+                        cb.checked = eventsList.includes(cb.value) || eventsList.includes('all');
+                    });
+                })
+                .catch(err => console.error("Webhook load error:", err));
+        }
+
+        function saveWebhookSettings() {
+            const url = document.getElementById('webhook-url-input').value.trim();
+            const secret = document.getElementById('webhook-secret-input').value.trim();
+            const enabled = document.getElementById('webhook-enabled-toggle').checked;
+            
+            const selectedEvents = [];
+            document.querySelectorAll('.webhook-event-cb:checked').forEach(cb => {
+                selectedEvents.push(cb.value);
+            });
+
+            showAestheticToast("Saving webhook settings...", "info");
+
+            fetch('/api/admin/webhooks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    webhook_url: url,
+                    webhook_secret: secret,
+                    webhook_enabled: enabled,
+                    webhook_events: selectedEvents.join(',')
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showAestheticToast(data.message, "success");
+                    loadWebhookSettings();
+                } else {
+                    showAestheticToast(data.error || "Failed to save webhook settings.", "error");
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showAestheticToast("Network error while saving webhook.", "error");
+            });
+        }
+
+        function testWebhookConnection() {
+            const url = document.getElementById('webhook-url-input').value.trim();
+            const secret = document.getElementById('webhook-secret-input').value.trim();
+
+            if (!url) {
+                showAestheticToast("Please enter a Webhook URL first.", "warning");
+                return;
+            }
+
+            showAestheticToast("Dispatching test webhook payload...", "info");
+
+            fetch('/api/admin/webhooks/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    webhook_url: url,
+                    webhook_secret: secret
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showAestheticToast(data.message, "success");
+                } else {
+                    showAestheticToast(data.error || "Webhook test failed.", "error");
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showAestheticToast("Failed to connect to webhook URL.", "error");
+            });
+        }
     </script>
 
     <!-- Add Service Provider Modal -->
@@ -6436,5 +6922,32 @@
             </div>
         </div>
     </div>
+
+    <!-- MOBILE BOTTOM NAVIGATION BAR -->
+    <nav class="mobile-admin-bottom-nav">
+        <div class="mobile-nav-item active" id="mob-nav-dashboard" onclick="switchTab('dashboard')">
+            <i data-lucide="layout-dashboard"></i>
+            <span>Dashboard</span>
+        </div>
+        <div class="mobile-nav-item" id="mob-nav-orders" onclick="switchTab('orders')">
+            <i data-lucide="shopping-cart"></i>
+            <span>Orders</span>
+        </div>
+        <div class="mobile-nav-item" id="mob-nav-vendors" onclick="switchTab('vendors')">
+            <i data-lucide="store"></i>
+            <span>Shops</span>
+        </div>
+        <div class="mobile-nav-item" id="mob-nav-products" onclick="switchTab('products')">
+            <i data-lucide="package"></i>
+            <span>Products</span>
+        </div>
+        <div class="mobile-nav-item" id="mob-nav-more" onclick="toggleMobileSidebar()">
+            <i data-lucide="menu"></i>
+            <span>Menu</span>
+        </div>
+    </nav>
+    
+    <!-- SIDEBAR OVERLAY BACKDROP -->
+    <div class="sidebar-overlay-backdrop" id="sidebar-backdrop" onclick="toggleMobileSidebar()"></div>
 </body>
 </html>
