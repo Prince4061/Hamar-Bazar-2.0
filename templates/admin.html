@@ -2249,6 +2249,38 @@
                                 </div>
                             </div>
                             
+                            <!-- Delivery Availability & Time Notice Settings -->
+                            <div style="border-top: 1px dashed var(--border-color-light); margin: 20px 0; padding-top: 15px;">
+                                <h4 style="margin-bottom: 12px; color: var(--primary-accent); display: flex; align-items: center; gap: 6px; font-size: 0.9rem; font-weight: 700;">
+                                    <i data-lucide="clock" style="width:16px; height:16px;"></i> Delivery Availability & Timing Notice
+                                </h4>
+                                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px;">
+                                    <div style="flex: 1; min-width: 220px;">
+                                        <label for="delivery-available-status" style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px;">
+                                            Delivery Availability Status
+                                        </label>
+                                        <select id="delivery-available-status" class="form-input-staff" style="width: 100%; font-weight: 600;">
+                                            <option value="1">🟢 Delivery Currently Available (Normal)</option>
+                                            <option value="0">🟡 Delivery Unavailable / Scheduled Delay</option>
+                                        </select>
+                                        <span style="font-size: 0.75rem; color: var(--text-muted);">Status change karne se customers ko status alert dikhega.</span>
+                                    </div>
+                                    <div style="flex: 2; min-width: 280px;">
+                                        <label for="delivery-notice-message" style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px;">
+                                            Customer Delivery Notice Message
+                                        </label>
+                                        <input type="text" id="delivery-notice-message" class="form-input-staff" style="width: 100%;" placeholder="e.g. Product deliver 12:30 PM ke baad mil jayega.">
+                                        <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
+                                            <span style="font-size: 0.73rem; color: var(--text-muted); font-weight: 700;">Quick Presets:</span>
+                                            <button type="button" class="btn action-btn-secondary" style="font-size: 0.72rem; padding: 3px 8px; border-radius: 6px;" onclick="setPresetNotice('Product deliver 12:30 PM ke baad mil jayega.', '0')">12:30 PM</button>
+                                            <button type="button" class="btn action-btn-secondary" style="font-size: 0.72rem; padding: 3px 8px; border-radius: 6px;" onclick="setPresetNotice('Product deliver 2:00 PM ke baad mil jayega.', '0')">2:00 PM</button>
+                                            <button type="button" class="btn action-btn-secondary" style="font-size: 0.72rem; padding: 3px 8px; border-radius: 6px;" onclick="setPresetNotice('Product deliver shaam 5:00 PM ke baad mil jayega.', '0')">5:00 PM</button>
+                                            <button type="button" class="btn action-btn-secondary" style="font-size: 0.72rem; padding: 3px 8px; border-radius: 6px;" onclick="setPresetNotice('', '1')">Clear / Normal</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <!-- SMTP settings inputs -->
                             <div style="border-top: 1px dashed var(--border-color-light); margin: 20px 0; padding-top: 15px;">
                                 <h4 style="margin-bottom: 12px; color: var(--primary-accent); display: flex; align-items: center; gap: 6px; font-size: 0.9rem; font-weight: 700;">
@@ -5711,6 +5743,14 @@
                     document.getElementById("delivery-fee-flat").value = feeFlat;
                     document.getElementById("delivery-fee-threshold").value = feeThresh;
                     
+                    // Populate delivery availability & timing notice settings
+                    if (document.getElementById("delivery-available-status")) {
+                        document.getElementById("delivery-available-status").value = settings.delivery_available !== undefined ? settings.delivery_available : "1";
+                    }
+                    if (document.getElementById("delivery-notice-message")) {
+                        document.getElementById("delivery-notice-message").value = settings.delivery_notice_message || '';
+                    }
+
                     // Populate SMTP email settings
                     document.getElementById("smtp-email").value = settings.smtp_email || '';
                     document.getElementById("smtp-password").value = settings.smtp_password || '';
@@ -5728,6 +5768,13 @@
                     if (window.lucide) lucide.createIcons();
                 })
                 .catch(err => console.error("Error loading About Us settings:", err));
+        }
+
+        function setPresetNotice(text, statusVal) {
+            const statusSelect = document.getElementById("delivery-available-status");
+            const noticeInput = document.getElementById("delivery-notice-message");
+            if (statusSelect) statusSelect.value = statusVal;
+            if (noticeInput) noticeInput.value = text;
         }
 
         function toggleFreeDeliveryCheckbox(checkbox) {
@@ -5749,6 +5796,8 @@
             const smtpEmail = document.getElementById("smtp-email").value.trim();
             const smtpPassword = document.getElementById("smtp-password").value.trim();
             const adminEmail = document.getElementById("admin-notification-email").value.trim();
+            const deliveryAvailable = document.getElementById("delivery-available-status") ? document.getElementById("delivery-available-status").value : "1";
+            const deliveryNotice = document.getElementById("delivery-notice-message") ? document.getElementById("delivery-notice-message").value.trim() : "";
             
             fetch('/api/admin/settings/update', {
                 method: 'POST',
@@ -5760,7 +5809,9 @@
                     delivery_fee_threshold: feeThresh,
                     smtp_email: smtpEmail,
                     smtp_password: smtpPassword,
-                    admin_notification_email: adminEmail
+                    admin_notification_email: adminEmail,
+                    delivery_available: deliveryAvailable,
+                    delivery_notice_message: deliveryNotice
                 })
             })
             .then(res => res.json())

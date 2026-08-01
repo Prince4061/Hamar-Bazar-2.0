@@ -3286,6 +3286,10 @@ def get_system_settings():
         settings['delivery_fee_flat'] = '15.0'
     if 'delivery_fee_threshold' not in settings:
         settings['delivery_fee_threshold'] = '199.0'
+    if 'delivery_available' not in settings:
+        settings['delivery_available'] = '1'
+    if 'delivery_notice_message' not in settings:
+        settings['delivery_notice_message'] = ''
     if 'smtp_email' not in settings:
         settings['smtp_email'] = ''
     if 'smtp_password' not in settings:
@@ -3308,7 +3312,7 @@ def update_system_settings():
     cursor = db.cursor()
     try:
         for key, val in data.items():
-            if key in ['delivery_fee_flat', 'delivery_fee_threshold', 'smtp_email', 'smtp_password', 'admin_notification_email']:
+            if key in ['delivery_fee_flat', 'delivery_fee_threshold', 'smtp_email', 'smtp_password', 'admin_notification_email', 'delivery_available', 'delivery_notice_message']:
                 cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", (key, str(val)))
         db.commit()
         return jsonify({'success': True, 'message': 'System settings updated successfully.'})

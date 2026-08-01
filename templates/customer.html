@@ -508,6 +508,27 @@ html, body {
         
         <!-- ==================== SCREEN 1: HOME (EXPLORE) ==================== -->
         <div id="screen-home" class="app-screen active">
+            <!-- Dynamic Delivery Availability & Timing Alert Banner -->
+            {% if system_settings.delivery_available == '0' or (system_settings.delivery_notice_message and system_settings.delivery_notice_message.strip()) %}
+            <div id="delivery-status-alert-banner" class="glass-card mb-md" style="background: linear-gradient(135deg, rgba(254, 243, 199, 0.95) 0%, rgba(253, 230, 138, 0.95) 100%); border: 1.5px solid #f59e0b; border-left: 6px solid #d97706; padding: 14px 16px; margin-bottom: 16px; border-radius: 14px; box-shadow: 0 4px 14px rgba(217, 119, 6, 0.15); display: flex; align-items: center; gap: 12px;">
+                <div style="background: #fef3c7; color: #b45309; min-width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.2);">
+                    <i data-lucide="clock" style="width: 22px; height: 22px;"></i>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 800; font-size: 0.78rem; color: #92400e; text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 4px;">
+                        {% if system_settings.delivery_available == '0' %}
+                            <span>⚠️ Delivery Notice</span>
+                        {% else %}
+                            <span>ℹ️ Delivery Timing Update</span>
+                        {% endif %}
+                    </div>
+                    <div style="font-size: 0.88rem; color: #78350f; font-weight: 700; margin-top: 2px; line-height: 1.35;">
+                        {{ system_settings.delivery_notice_message if system_settings.delivery_notice_message else "Product deliver 12:30 PM ke baad mil jayega." }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Active order notification quickcard -->
             <div id="home-active-order-quickcard" class="glass-card mb-md" style="display: none; border-left: 5px solid var(--primary-accent); padding: 16px; cursor: pointer; margin-bottom: 16px;" onclick="trackActiveOrder()">
                 <div class="flex-between">
@@ -720,6 +741,17 @@ html, body {
 
             <!-- Payment Option Defaulted to COD (Online Payments Disabled) -->
             <input type="hidden" id="payment-input" value="COD">
+
+            <!-- Delivery Timing Notice in Cart -->
+            {% if system_settings.delivery_available == '0' or (system_settings.delivery_notice_message and system_settings.delivery_notice_message.strip()) %}
+            <div id="cart-delivery-timing-banner" class="glass-card mb-md" style="background: linear-gradient(135deg, rgba(254, 243, 199, 0.95) 0%, rgba(253, 230, 138, 0.95) 100%); border: 1px solid #f59e0b; border-left: 5px solid #d97706; padding: 12px 14px; margin-bottom: 14px; border-radius: 12px; display: flex; align-items: center; gap: 10px;">
+                <i data-lucide="clock" style="width: 20px; height: 20px; color: #b45309; flex-shrink: 0;"></i>
+                <div style="font-size: 0.83rem; color: #78350f; font-weight: 700; line-height: 1.35;">
+                    <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #92400e; font-weight: 800;">Delivery Timing Note:</span>
+                    {{ system_settings.delivery_notice_message if system_settings.delivery_notice_message else "Product deliver 12:30 PM ke baad mil jayega." }}
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Pricing Summary and Checkout Button -->
             <div id="cart-summary-section" class="glass-card" style="padding: 16px; text-align: left; display: none;">
