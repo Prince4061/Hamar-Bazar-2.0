@@ -2525,6 +2525,94 @@ def update_user_credentials(user_id):
                    (data.get('name'), data.get('phone'), new_password, user_id))
     db.commit()
     return jsonify({'success': True, 'message': 'User credentials updated successfully.'})
+
+
+# --- Admin Tree Plantation Tracker API (Every 11th Delivered Order) ---
+
+@app.route('/api/admin/plantation-tracker', methods=['GET'])
+def get_plantation_tracker():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    # Query customer order statistics strictly for DELIVERED orders (excluding cancelled/failed)
+    cursor.execute('''
+        SELECT 
+            u.id AS user_id,
+            u.name AS customer_name,
+            u.phone AS customer_phone,
+            u.address AS customer_address,
+            u.created_at AS user_since,
+            COUNT(CASE WHEN LOWER(o.status) = 'delivered' THEN 1 END) AS total_delivered_orders,
+            COUNT(o.id) AS total_all_orders
+        FROM users u
+        LEFT JOIN orders o ON u.id = o.customer_id
+        WHERE u.role = 'customer' OR u.role IS NULL
+        GROUP BY u.id
+        ORDER BY total_delivered_orders DESC, total_all_orders DESC, u.name ASC
+    ''')
+    
+    raw_customers = [dict(row) for row in cursor.fetchall()]
+    
+    customers_list = []
+    total_trees_planted = 0
+    total_delivered_orders_all = 0
+    customers_with_trees = 0
+    nearing_milestone_count = 0
+    
+    for c in raw_customers:
+        deliv = c['total_delivered_orders']
+        total_delivered_orders_all += deliv
+        
+        trees = deliv // 11
+        total_trees_planted += trees
+        
+        if trees > 0:
+            customers_with_trees += 1
+            
+        cycle_progress = deliv % 11
+        if cycle_progress in [9, 10]:
+            nearing_milestone_count += 1
+            
+        orders_needed = 11 - cycle_progress if (cycle_progress > 0 or deliv == 0) else 0
+        is_milestone = (deliv > 0 and cycle_progress == 0)
+        
+        next_milestone = ((deliv // 11) + (0 if is_milestone else 1)) * 11
+        if deliv == 0:
+            next_milestone = 11
+            
+        customers_list.append({
+            'user_id': c['user_id'],
+            'customer_name': c['customer_name'] or f"Customer #{c['user_id']}",
+            'customer_phone': c['customer_phone'] or 'N/A',
+            'customer_address': c['customer_address'] or 'N/A',
+            'user_since': c['user_since'],
+            'total_delivered_orders': deliv,
+            'total_all_orders': c['total_all_orders'],
+            'trees_planted': trees,
+            'cycle_progress': cycle_progress,
+            'orders_needed_for_next_tree': orders_needed,
+            'next_milestone_order_number': next_milestone,
+            'is_milestone_eligible': is_milestone
+        })
+        
+    summary = {
+        'total_trees_planted': total_trees_planted,
+        'total_delivered_orders': total_delivered_orders_all,
+        'total_customers': len(customers_list),
+        'customers_with_trees': customers_with_trees,
+        'nearing_milestone_count': nearing_milestone_count
+    }
+    
+    return jsonify({
+        'success': True,
+        'summary': summary,
+        'customers': customers_list
+    })
+
+
 # --- Admin APIs ---
 
 @app.route('/api/admin/analytics', methods=['GET'])

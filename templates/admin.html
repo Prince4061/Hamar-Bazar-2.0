@@ -1665,6 +1665,11 @@
                         </a>
                     </li>
                     <li>
+                        <a class="menu-item-link" onclick="switchTab('plantation')">
+                            <i data-lucide="trees" style="color: #10B981;"></i> Tree Plantation (11th Order)
+                        </a>
+                    </li>
+                    <li>
                         <a class="menu-item-link" href="/session/logout" style="color: var(--ruby-danger);">
                             <i data-lucide="log-out"></i> Log Out
                         </a>
@@ -2921,6 +2926,91 @@
                 </div>
             </div>
 
+            <!-- --------------------------------------------------- -->
+            <!-- TAB 16: TREE PLANTATION & 11TH ORDER TRACKER -->
+            <!-- --------------------------------------------------- -->
+            <div class="tab-panel" id="panel-plantation">
+                <div style="display: flex; flex-direction: column; gap: 20px; text-align: left;">
+                    
+                    <!-- Summary Cards Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                        
+                        <div class="dashboard-card" style="border-left: 4px solid #10B981; background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(255, 255, 255, 0) 100%);">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Trees Earned & Planted</span>
+                                <i data-lucide="trees" style="color: #10B981; width: 22px; height: 22px;"></i>
+                            </div>
+                            <div style="font-size: 1.8rem; font-weight: 800; color: #10B981;" id="plantation-stat-trees">0 🌳</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">🌳 1 Tree for every 11 Completed Orders</div>
+                        </div>
+
+                        <div class="dashboard-card" style="border-left: 4px solid var(--primary-accent);">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Verified Delivered Orders</span>
+                                <i data-lucide="package-check" style="color: var(--primary-accent); width: 22px; height: 22px;"></i>
+                            </div>
+                            <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary);" id="plantation-stat-delivered">0</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Excludes cancelled or failed orders</div>
+                        </div>
+
+                        <div class="dashboard-card" style="border-left: 4px solid #8B5CF6;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Green Customers (Trees Planted)</span>
+                                <i data-lucide="award" style="color: #8B5CF6; width: 22px; height: 22px;"></i>
+                            </div>
+                            <div style="font-size: 1.8rem; font-weight: 800; color: #8B5CF6;" id="plantation-stat-customers">0</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Customers with 1+ tree milestones</div>
+                        </div>
+
+                        <div class="dashboard-card" style="border-left: 4px solid #F59E0B;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Nearing Next Milestone</span>
+                                <i data-lucide="target" style="color: #F59E0B; width: 22px; height: 22px;"></i>
+                            </div>
+                            <div style="font-size: 1.8rem; font-weight: 800; color: #F59E0B;" id="plantation-stat-nearing">0</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Customers at 9th or 10th order</div>
+                        </div>
+
+                    </div>
+
+                    <!-- Main Customer Leaderboard Table Card -->
+                    <div class="dashboard-card">
+                        <div class="card-header-row" style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                            <div>
+                                <h3 class="card-title-text"><i data-lucide="sprout" style="color: #10B981;"></i> Customer Order History & Tree Plantation Leaderboard</h3>
+                                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">Every 11th successfully delivered order grants a tree planted in the customer's name.</p>
+                            </div>
+                            
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input type="text" class="search-bar-input" id="plantation-search-input" placeholder="Search customer name or phone..." onkeyup="filterPlantationTable()" style="padding: 6px 12px; font-size: 0.85rem; width: 240px; border: 1px solid var(--border-color); border-radius: 8px;">
+                                <button class="btn-custom btn-custom-secondary" onclick="loadPlantationTracker()" style="padding: 6px 12px; font-size: 0.85rem;"><i data-lucide="refresh-cw" style="width:14px; height:14px;"></i> Refresh</button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive-wrapper">
+                            <table class="premium-table responsive-cards" id="plantation-table">
+                                <thead>
+                                    <tr>
+                                        <th>Customer Info</th>
+                                        <th>Delivered Orders</th>
+                                        <th>11th Order Progress</th>
+                                        <th>Trees Planted</th>
+                                        <th>Next Tree Target</th>
+                                        <th>Status / Milestone</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="plantation-table-body">
+                                    <tr>
+                                        <td colspan="6" style="text-align:center; padding: 24px; color: var(--text-muted);">Loading plantation analytics data...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -3443,6 +3533,7 @@
                 if (tabId === 'userinfo') return txt.includes('user info');
                 if (tabId === 'banners') return txt.includes('banner');
                 if (tabId === 'webhooks') return txt.includes('webhook');
+                if (tabId === 'plantation') return txt.includes('plantation') || txt.includes('tree');
                 return false;
             });
             
@@ -3509,6 +3600,10 @@
                 title = "Webhook Section & External Automation";
                 subtitle = "Configure automated triggers and webhook endpoints for custom external workflows.";
                 loadWebhookSettings();
+            } else if (tabId === 'plantation') {
+                title = "Customer Order & 11th Order Tree Plantation Tracker";
+                subtitle = "Track completed (delivered) customer orders and tree plantation milestones (1 Tree for every 11 Delivered Orders).";
+                loadPlantationTracker();
             } else if (tabId === 'userinfo') {
                 title = "User Information & Activity";
                 subtitle = "Track successful logins and user interactions.";
@@ -6929,6 +7024,105 @@
             .catch(err => {
                 console.error(err);
                 showAestheticToast("Failed to connect to webhook URL.", "error");
+            });
+        }
+
+        // --- Tree Plantation & Customer Order Tracker JS ---
+        let plantationCustomersData = [];
+
+        function loadPlantationTracker() {
+            fetch('/api/admin/plantation-tracker')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) return;
+                    
+                    let s = data.summary;
+                    document.getElementById('plantation-stat-trees').innerText = s.total_trees_planted + " 🌳";
+                    document.getElementById('plantation-stat-delivered').innerText = s.total_delivered_orders;
+                    document.getElementById('plantation-stat-customers').innerText = s.customers_with_trees;
+                    document.getElementById('plantation-stat-nearing').innerText = s.nearing_milestone_count;
+                    
+                    plantationCustomersData = data.customers || [];
+                    renderPlantationTable(plantationCustomersData);
+                    if (window.lucide) lucide.createIcons();
+                })
+                .catch(err => console.error("Error loading plantation tracker:", err));
+        }
+
+        function renderPlantationTable(list) {
+            let tbody = document.getElementById('plantation-table-body');
+            if (!tbody) return;
+            
+            if (!list || list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 24px; color: var(--text-muted);">No customer order data available yet.</td></tr>`;
+                return;
+            }
+            
+            let html = '';
+            list.forEach(c => {
+                let pct = Math.min(100, Math.round((c.cycle_progress / 11) * 100));
+                let isEligible = c.is_milestone_eligible;
+                
+                let statusBadge = '';
+                if (isEligible) {
+                    statusBadge = `<span class="status-badge badge-delivered" style="background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid #10B981; font-weight:800;">🎉 11th Order Reached! Tree Ready!</span>`;
+                } else if (c.trees_planted > 0) {
+                    statusBadge = `<span class="status-badge badge-delivered" style="font-weight:700;">🌳 ${c.trees_planted} Tree(s) Planted</span>`;
+                } else if (c.cycle_progress >= 9) {
+                    statusBadge = `<span class="status-badge badge-pending" style="background: rgba(245, 158, 11, 0.15); color: #D97706;">🔥 ${c.orders_needed_for_next_tree} order(s) away!</span>`;
+                } else {
+                    statusBadge = `<span class="status-badge badge-pending" style="opacity:0.8;">In Progress (${c.orders_needed_for_next_tree} needed)</span>`;
+                }
+                
+                let treeBadges = '';
+                if (c.trees_planted > 0) {
+                    treeBadges = `<span style="font-size: 1.1rem;" title="${c.trees_planted} Trees Planted">` + '🌳'.repeat(Math.min(c.trees_planted, 5)) + (c.trees_planted > 5 ? ` +${c.trees_planted - 5}` : '') + `</span> <strong style="color:#10B981;">(${c.trees_planted})</strong>`;
+                } else {
+                    treeBadges = `<span style="color: var(--text-muted); font-size: 0.85rem;">0 Trees</span>`;
+                }
+                
+                html += `
+                    <tr class="plantation-row" data-name="${(c.customer_name + ' ' + c.customer_phone).toLowerCase()}">
+                        <td data-label="Customer Info">
+                            <div style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem;">${c.customer_name}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);"><i data-lucide="phone" style="width:12px; height:12px; display:inline-block; vertical-align:-2px;"></i> ${c.customer_phone}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top:2px;">📍 ${c.customer_address.substring(0, 35)}${c.customer_address.length > 35 ? '...' : ''}</div>
+                        </td>
+                        <td data-label="Delivered Orders">
+                            <span style="font-weight: 800; font-size: 1rem; color: var(--text-primary);">${c.total_delivered_orders}</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);"> / ${c.total_all_orders} total</span>
+                        </td>
+                        <td data-label="11th Order Progress" style="min-width: 160px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; margin-bottom: 4px;">
+                                <span>Cycle: ${c.cycle_progress} / 11</span>
+                                <span>${pct}%</span>
+                            </div>
+                            <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px; overflow: hidden;">
+                                <div style="width: ${pct}%; height: 100%; background: ${isEligible ? '#10B981' : (c.cycle_progress >= 9 ? '#F59E0B' : 'var(--primary-accent)')}; border-radius: 4px; transition: width 0.4s ease;"></div>
+                            </div>
+                        </td>
+                        <td data-label="Trees Planted">
+                            ${treeBadges}
+                        </td>
+                        <td data-label="Next Tree Target">
+                            <span style="font-size: 0.85rem; font-weight: 700;">Order #${c.next_milestone_order_number}</span>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">${isEligible ? 'Milestone Reached!' : `${c.orders_needed_for_next_tree} order(s) left`}</div>
+                        </td>
+                        <td data-label="Status / Milestone">
+                            ${statusBadge}
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+        }
+
+        function filterPlantationTable() {
+            let q = (document.getElementById('plantation-search-input')?.value || '').toLowerCase();
+            document.querySelectorAll('.plantation-row').forEach(row => {
+                let name = row.getAttribute('data-name') || '';
+                row.style.display = name.includes(q) ? '' : 'none';
             });
         }
     </script>
