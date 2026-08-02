@@ -489,10 +489,14 @@ def seed_db():
             ON CONFLICT (phone) DO UPDATE SET password = EXCLUDED.password
         ''', (partner[0], partner[1], partner[2], partner[3], partner[4]))
             
-    # Seed system settings for delivery fee defaults
+    # Seed system settings for delivery fee defaults and webhooks
     cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('delivery_fee_flat', '15.0')")
     cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('delivery_fee_threshold', '199.0')")
     cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('admin_qr_code', '/static/images/upi_qr_mockup.jpg')")
+    cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('webhook_url', 'https://n8n.hamarai.in/webhook-test/167078e4-ccf5-4507-b605-fe218217f4b0')")
+    cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('webhook_enabled', '1')")
+    cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('webhook_events', 'order_created,user_search,status_changed,stock_alert,user_flagged')")
+
     
     # Seed some product reviews (Check if already seeded to avoid duplicates)
     cursor.execute("SELECT COUNT(*) FROM product_reviews")

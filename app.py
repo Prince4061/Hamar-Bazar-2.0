@@ -1575,8 +1575,10 @@ def place_order():
             total_amount += item_total
             products_details.append({
                 'product_id': p_id,
+                'name': p['name'],
                 'quantity': qty,
                 'price': p['price'],
+                'item_total': item_total,
                 'custom_text': details['custom_text'],
                 'custom_instructions': details['custom_instructions'],
                 'custom_image_path': details['custom_image_path']
@@ -1607,16 +1609,29 @@ def place_order():
 
         db.commit()
         
+        # Fetch customer details for full webhook payload
+        cursor.execute("SELECT name, phone, address FROM users WHERE id = ?", (customer_id,))
+        cust_row = cursor.fetchone()
+        cust_info = dict(cust_row) if cust_row else {}
+
         # Trigger asynchronous Gmail notification, webhook, and security check
         send_order_email_async(order_id)
         trigger_webhook_async('order_created', {
             'order_id': order_id,
             'customer_id': customer_id,
-            'total_amount': total_amount,
+            'customer_name': cust_info.get('name'),
+            'customer_phone': cust_info.get('phone'),
+            'customer_address': cust_info.get('address'),
+            'shop_id': first_shop_id,
+            'subtotal': total_amount,
+            'delivery_fee': delivery_fee,
+            'grand_total': grand_total,
             'priority_type': priority_type,
             'status': status,
+            'payment_mode': payment_mode,
             'pickup_otp': pickup_otp,
-            'delivery_otp': delivery_otp
+            'delivery_otp': delivery_otp,
+            'items': products_details
         })
         check_and_flag_suspicious_user(customer_id, db)
         
@@ -3324,24 +3339,63 @@ def update_system_settings():
 # --- Webhook & n8n Automation Engine ---
 
 def send_webhook_http(url, secret, payload):
-    try:
-        data_bytes = json.dumps(payload).encode('utf-8')
-        req = urllib.request.Request(url, data=data_bytes, headers={
-            'Content-Type': 'application/json',
-            'User-Agent': 'MorBazar-Automation/2.0',
-            'X-Webhook-Secret': secret or '',
-            'X-MorBazar-Event': payload.get('event', 'general')
-        }, method='POST')
-        with urllib.request.urlopen(req, timeout=10) as response:
-            status_code = response.getcode()
-            print(f"[WEBHOOK SUCCESS] Event '{payload.get('event')}' delivered to {url} - Status: {status_code}")
-            return status_code
-    except urllib.error.HTTPError as e:
-        print(f"[WEBHOOK HTTP ERROR] Event '{payload.get('event')}' to {url} returned HTTP {e.code}")
-        return e.code
-    except Exception as e:
-        print(f"[WEBHOOK ERROR] Failed to deliver event '{payload.get('event')}' to {url}: {e}")
+    import urllib.request
+    import urllib.error
+    import json
+    import ssl
+
+    if not url:
         return None
+
+    # Windows OS does not allow outbound socket connections to 0.0.0.0 destination address.
+    # We create target URLs replacing 0.0.0.0 with 127.0.0.1, and trying http/https fallback.
+    target_urls = [url]
+    if '://0.0.0.0:' in url or '://0.0.0.0/' in url:
+        alt_url = url.replace('://0.0.0.0:', '://127.0.0.1:').replace('://0.0.0.0/', '://127.0.0.1/')
+        target_urls.insert(0, alt_url)
+
+    additional_urls = []
+    for u in target_urls:
+        if u.startswith('https://'):
+            additional_urls.append(u.replace('https://', 'http://'))
+        elif u.startswith('http://'):
+            additional_urls.append(u.replace('http://', 'https://'))
+    target_urls.extend(additional_urls)
+
+    seen = set()
+    unique_urls = []
+    for u in target_urls:
+        if u not in seen:
+            seen.add(u)
+            unique_urls.append(u)
+
+    data_bytes = json.dumps(payload).encode('utf-8')
+    ctx = ssl._create_unverified_context()
+
+    last_error = None
+    for target_url in unique_urls:
+        try:
+            req = urllib.request.Request(target_url, data=data_bytes, headers={
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'X-Webhook-Secret': secret or '',
+                'X-HamarBazar-Event': payload.get('event', 'general')
+            }, method='POST')
+            
+            with urllib.request.urlopen(req, timeout=10, context=ctx) as response:
+                status_code = response.getcode()
+                print(f"[WEBHOOK SUCCESS] Event '{payload.get('event')}' delivered to {target_url} - Status: {status_code}", flush=True)
+                return status_code
+        except urllib.error.HTTPError as e:
+            print(f"[WEBHOOK HTTP ERROR] Event '{payload.get('event')}' to {target_url} returned HTTP {e.code}", flush=True)
+            return e.code
+        except Exception as e:
+            last_error = e
+            print(f"[WEBHOOK ATTEMPT FAILED] Target '{target_url}': {e}", flush=True)
+
+    print(f"[WEBHOOK ERROR] Failed all delivery attempts for event '{payload.get('event')}': {last_error}", flush=True)
+    return None
+
 
 def trigger_webhook_async(event_type, payload_data):
     def _worker():
@@ -3352,8 +3406,10 @@ def trigger_webhook_async(event_type, payload_data):
                 cursor.execute("SELECT key, value FROM system_settings WHERE key LIKE 'webhook_%'")
                 settings = {row['key']: row['value'] for row in cursor.fetchall()}
                 
-                enabled = settings.get('webhook_enabled', '0')
+                enabled = settings.get('webhook_enabled', '1')
                 url = settings.get('webhook_url', '').strip()
+                if not url:
+                    url = 'https://n8n.hamarai.in/webhook-test/167078e4-ccf5-4507-b605-fe218217f4b0'
                 secret = settings.get('webhook_secret', '').strip()
                 events_str = settings.get('webhook_events', 'order_created,user_search,status_changed,stock_alert,user_flagged')
                 
@@ -3363,7 +3419,7 @@ def trigger_webhook_async(event_type, payload_data):
                         full_payload = {
                             'event': event_type,
                             'timestamp': datetime.now().isoformat(),
-                            'source': 'MorBazar-Hyperlocal',
+                            'source': 'HamarBazar-Hyperlocal',
                             'data': payload_data
                         }
                         send_webhook_http(url, secret, full_payload)
@@ -3371,6 +3427,7 @@ def trigger_webhook_async(event_type, payload_data):
             print("[WEBHOOK WORKER ERROR]:", err)
 
     threading.Thread(target=_worker, daemon=True).start()
+
 
 @app.route('/api/admin/webhooks', methods=['GET', 'POST'])
 def admin_webhook_settings():
