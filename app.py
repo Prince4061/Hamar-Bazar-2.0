@@ -2544,12 +2544,11 @@ def get_plantation_tracker():
             u.name AS customer_name,
             u.phone AS customer_phone,
             u.address AS customer_address,
-            u.created_at AS user_since,
-            COUNT(CASE WHEN LOWER(o.status) = 'delivered' THEN 1 END) AS total_delivered_orders,
+            NULL AS user_since,
+            COUNT(CASE WHEN UPPER(o.status) = 'DELIVERED' THEN 1 END) AS total_delivered_orders,
             COUNT(o.id) AS total_all_orders
         FROM users u
         LEFT JOIN orders o ON u.id = o.customer_id
-        WHERE u.role = 'customer' OR u.role IS NULL
         GROUP BY u.id
         ORDER BY total_delivered_orders DESC, total_all_orders DESC, u.name ASC
     ''')

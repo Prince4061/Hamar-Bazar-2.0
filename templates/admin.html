@@ -7089,8 +7089,10 @@
                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top:2px;">📍 ${c.customer_address.substring(0, 35)}${c.customer_address.length > 35 ? '...' : ''}</div>
                         </td>
                         <td data-label="Delivered Orders">
-                            <span style="font-weight: 800; font-size: 1rem; color: var(--text-primary);">${c.total_delivered_orders}</span>
-                            <span style="font-size: 0.75rem; color: var(--text-muted);"> / ${c.total_all_orders} total</span>
+                            <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(16, 185, 129, 0.12); color:#059669; padding:4px 10px; border-radius:12px; font-weight:800; font-size:0.95rem; border:1px solid rgba(16, 185, 129, 0.3);">
+                                <i data-lucide="check-circle-2" style="width:14px; height:14px;"></i> ${c.total_delivered_orders} Delivered
+                            </div>
+                            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:3px; padding-left:4px;">(${c.total_all_orders} total placed)</div>
                         </td>
                         <td data-label="11th Order Progress" style="min-width: 160px;">
                             <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; margin-bottom: 4px;">
