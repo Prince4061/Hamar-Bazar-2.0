@@ -628,9 +628,8 @@ def send_search_email_sync(customer_id, keyword):
             pass
 
 def send_search_email_async(customer_id, keyword):
-    thread = threading.Thread(target=send_search_email_sync, args=(customer_id, keyword))
-    thread.daemon = True
-    thread.start()
+    # Search email notifications disabled per configuration. Only new order emails are sent.
+    pass
 
 
 @app.before_request
@@ -4015,7 +4014,6 @@ def track_search():
     try:
         cursor.execute("INSERT INTO search_history (customer_id, keyword) VALUES (?, ?)", (int(customer_id), keyword))
         db.commit()
-        send_search_email_async(int(customer_id), keyword)
         trigger_webhook_async('user_search', {
             'customer_id': int(customer_id),
             'keyword': keyword,
