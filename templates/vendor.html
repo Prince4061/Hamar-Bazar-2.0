@@ -1500,6 +1500,63 @@
                 gap: 12px !important;
             }
         }
+
+        /* Mobile Vendor Panel Touch Optimizations */
+        .mobile-fab-add {
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .mobile-fab-add {
+                display: inline-flex !important;
+                align-items: center;
+                gap: 8px;
+                position: fixed;
+                bottom: 24px;
+                right: 20px;
+                background: linear-gradient(135deg, #10b981, #059669);
+                color: #ffffff;
+                border: none;
+                padding: 14px 22px;
+                border-radius: 50px;
+                font-size: 15px;
+                font-weight: 700;
+                box-shadow: 0 8px 25px rgba(16, 185, 129, 0.45);
+                z-index: 99999;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            .mobile-fab-add:active {
+                transform: scale(0.95);
+            }
+            .main-panel {
+                padding: 16px 12px 90px 12px !important;
+            }
+            .main-header {
+                padding: 16px 16px !important;
+                border-radius: 12px !important;
+            }
+            .inventory-section {
+                padding: 16px 12px !important;
+                border-radius: 12px !important;
+            }
+            .search-box-container {
+                width: 100% !important;
+            }
+            .search-input {
+                font-size: 15px !important;
+            }
+            .inventory-table th, .inventory-table td {
+                padding: 10px 8px !important;
+                font-size: 13px !important;
+            }
+            #vendor-product-modal .modal-content {
+                width: 95% !important;
+                max-height: 92vh !important;
+                overflow-y: auto !important;
+                padding: 18px 16px !important;
+                border-radius: 16px !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1622,6 +1679,12 @@
         </footer>
 
     </main>
+
+    <!-- Floating Action Button for Mobile Users -->
+    <button type="button" class="mobile-fab-add" onclick="openAddProductModal()" title="Add Product">
+        <i data-lucide="plus-circle" style="width: 20px; height: 20px; color: white;"></i>
+        <span>+ Add Product</span>
+    </button>
 
     <!-- Mobile Bottom Navigation -->
     <div class="mobile-bottom-nav">

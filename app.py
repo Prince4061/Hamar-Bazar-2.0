@@ -2039,7 +2039,8 @@ def vendor_upload_product_image():
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'product_pics')
         os.makedirs(upload_path, exist_ok=True)
         temp_name = f"v_prod_{int(datetime.now().timestamp())}_{random.randint(1000, 9999)}.webp"
-        webp_filename = optimize_and_save_image(file, upload_path, temp_name)
+        # Aggressive mobile-optimized WebP compression (max 450x450, 65% quality -> ~15KB per image)
+        webp_filename = optimize_and_save_image(file, upload_path, temp_name, max_size=(450, 450), quality=65)
         db_path = f"/static/uploads/product_pics/{webp_filename}"
         return jsonify({'success': True, 'file_path': db_path, 'message': 'Product image uploaded successfully.'})
     return jsonify({'error': 'Invalid file type.'}), 400
