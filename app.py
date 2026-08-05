@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, session, g, send_file, make_response
 import os
+import sqlite3
 import random
 import re
 from datetime import datetime, timedelta
@@ -1270,7 +1271,11 @@ def vendor_view():
     cursor.execute("SELECT * FROM shops")
     shops = cursor.fetchall()
     
-    return render_template('vendor.html', shops=shops, active_shop_id=session.get('role_id'))
+    resp = make_response(render_template('vendor.html', shops=shops, active_shop_id=session.get('role_id')))
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 @app.route('/delivery')
 def delivery_view():
@@ -2020,6 +2025,118 @@ def toggle_product_availability():
     cursor.execute("UPDATE products SET is_available = ? WHERE id = ?", (is_available, product_id))
     db.commit()
     return jsonify({'message': 'Product availability updated.'})
+
+@app.route('/api/vendor/products/upload-image', methods=['POST'])
+def vendor_upload_product_image():
+    if session.get('role') != 'vendor':
+        return jsonify({'error': 'Unauthorized. Please log in as Vendor.'}), 403
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded.'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected.'}), 400
+    if file and allowed_file(file.filename):
+        upload_path = os.path.join(app.root_path, 'static', 'uploads', 'product_pics')
+        os.makedirs(upload_path, exist_ok=True)
+        temp_name = f"v_prod_{int(datetime.now().timestamp())}_{random.randint(1000, 9999)}.webp"
+        webp_filename = optimize_and_save_image(file, upload_path, temp_name)
+        db_path = f"/static/uploads/product_pics/{webp_filename}"
+        return jsonify({'success': True, 'file_path': db_path, 'message': 'Product image uploaded successfully.'})
+    return jsonify({'error': 'Invalid file type.'}), 400
+
+@app.route('/api/vendor/products', methods=['POST'])
+def vendor_add_product():
+    if session.get('role') != 'vendor':
+        return jsonify({'error': 'Unauthorized. Please log in as Vendor.'}), 403
+    shop_id = session.get('role_id')
+    if not shop_id:
+        return jsonify({'error': 'Vendor shop session invalid.'}), 400
+    data = request.json or {}
+    name = data.get('name')
+    price = data.get('price')
+    mrp = data.get('mrp')
+    cost_price = data.get('cost_price')
+    image_path = data.get('image_path')
+    subcategory = data.get('subcategory', '')
+    description = data.get('description', '')
+    is_available = 1 if data.get('is_available', True) else 0
+    
+    if not name or price is None or str(price).strip() == '':
+        return jsonify({'error': 'Product name and price are required.'}), 400
+        
+    try:
+        price_val = float(price)
+        mrp_val = float(mrp) if mrp is not None and str(mrp).strip() != '' else price_val
+        cost_price_val = float(cost_price) if cost_price is not None and str(cost_price).strip() != '' else 0.0
+    except ValueError:
+        return jsonify({'error': 'Invalid price, MRP, or cost price value.'}), 400
+    
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        INSERT INTO products (shop_id, name, price, mrp, cost_price, image_path, subcategory, description, is_available)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (shop_id, name, price_val, mrp_val, cost_price_val, image_path, subcategory, description, is_available))
+    db.commit()
+    return jsonify({'success': True, 'message': 'Product added successfully.', 'id': cursor.lastrowid})
+
+@app.route('/api/vendor/products/<int:prod_id>', methods=['PUT', 'DELETE'])
+def vendor_modify_product(prod_id):
+    if session.get('role') != 'vendor':
+        return jsonify({'error': 'Unauthorized. Please log in as Vendor.'}), 403
+    shop_id = session.get('role_id')
+    
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT shop_id FROM products WHERE id = ?", (prod_id,))
+    prod = cursor.fetchone()
+    if not prod:
+        return jsonify({'error': 'Product not found.'}), 404
+    if prod['shop_id'] != shop_id:
+        return jsonify({'error': 'Unauthorized access to this product.'}), 403
+        
+    if request.method == 'DELETE':
+        try:
+            # Clean up dependent references to satisfy foreign key constraints
+            cursor.execute("DELETE FROM order_items WHERE product_id = ?", (prod_id,))
+            cursor.execute("DELETE FROM product_reviews WHERE product_id = ?", (prod_id,))
+            cursor.execute("UPDATE banners SET product_id = NULL WHERE product_id = ?", (prod_id,))
+            cursor.execute("DELETE FROM products WHERE id = ? AND shop_id = ?", (prod_id, shop_id))
+            db.commit()
+            return jsonify({'success': True, 'message': 'Product deleted successfully.'})
+        except Exception as e:
+            db.rollback()
+            return jsonify({'error': f'Failed to delete product: {str(e)}'}), 500
+        
+    elif request.method == 'PUT':
+        data = request.json or {}
+        name = data.get('name')
+        price = data.get('price')
+        mrp = data.get('mrp')
+        cost_price = data.get('cost_price')
+        image_path = data.get('image_path')
+        subcategory = data.get('subcategory', '')
+        description = data.get('description', '')
+        is_available = 1 if data.get('is_available', True) else 0
+        
+        if not name or price is None or str(price).strip() == '':
+            return jsonify({'error': 'Product name and price are required.'}), 400
+            
+        try:
+            price_val = float(price)
+            mrp_val = float(mrp) if mrp is not None and str(mrp).strip() != '' else price_val
+            cost_price_val = float(cost_price) if cost_price is not None and str(cost_price).strip() != '' else 0.0
+        except ValueError:
+            return jsonify({'error': 'Invalid price, MRP, or cost price value.'}), 400
+        
+        cursor.execute("""
+            UPDATE products 
+            SET name = ?, price = ?, mrp = ?, cost_price = ?, image_path = ?, subcategory = ?, description = ?, is_available = ?
+            WHERE id = ? AND shop_id = ?
+        """, (name, price_val, mrp_val, cost_price_val, image_path, subcategory, description, is_available, prod_id, shop_id))
+        db.commit()
+        return jsonify({'success': True, 'message': 'Product updated successfully.'})
 
 @app.route('/api/vendor/low-stock-prediction/<int:shop_id>', methods=['GET'])
 def get_low_stock_prediction(shop_id):
@@ -3321,11 +3438,12 @@ def admin_add_product():
     # Security: admin auth check
     if session.get('role') != 'admin':
         return jsonify({'error': 'Unauthorized. Please log in as Admin.'}), 403
-    data = request.json
+    data = request.json or {}
     shop_id = data.get('shop_id')
     name = data.get('name')
     price = data.get('price')
     mrp = data.get('mrp')
+    cost_price = data.get('cost_price')
     image_path = data.get('image_path')
     subcategory = data.get('subcategory', '')
     description = data.get('description', '')
@@ -3333,11 +3451,12 @@ def admin_add_product():
     if not shop_id or not name or price is None:
         return jsonify({'error': 'Parameters shop_id, name, and price are required.'}), 400
         
-    mrp_val = float(mrp) if mrp is not None else float(price)
+    mrp_val = float(mrp) if mrp is not None and str(mrp).strip() != '' else float(price)
+    cost_price_val = float(cost_price) if cost_price is not None and str(cost_price).strip() != '' else 0.0
     
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("INSERT INTO products (shop_id, name, price, mrp, image_path, subcategory, description) VALUES (?, ?, ?, ?, ?, ?, ?)", (shop_id, name, float(price), mrp_val, image_path, subcategory, description))
+    cursor.execute("INSERT INTO products (shop_id, name, price, mrp, cost_price, image_path, subcategory, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (shop_id, name, float(price), mrp_val, cost_price_val, image_path, subcategory, description))
     db.commit()
     return jsonify({'success': True, 'message': 'Product added successfully.', 'id': cursor.lastrowid})
 
@@ -3349,23 +3468,32 @@ def admin_modify_product(prod_id):
     db = get_db()
     cursor = db.cursor()
     if request.method == 'DELETE':
-        cursor.execute("DELETE FROM products WHERE id = ?", (prod_id,))
-        db.commit()
-        return jsonify({'success': True, 'message': 'Product deleted successfully.'})
+        try:
+            cursor.execute("DELETE FROM order_items WHERE product_id = ?", (prod_id,))
+            cursor.execute("DELETE FROM product_reviews WHERE product_id = ?", (prod_id,))
+            cursor.execute("UPDATE banners SET product_id = NULL WHERE product_id = ?", (prod_id,))
+            cursor.execute("DELETE FROM products WHERE id = ?", (prod_id,))
+            db.commit()
+            return jsonify({'success': True, 'message': 'Product deleted successfully.'})
+        except Exception as e:
+            db.rollback()
+            return jsonify({'error': f'Failed to delete product: {str(e)}'}), 500
         
     elif request.method == 'PUT':
-        data = request.json
+        data = request.json or {}
         name = data.get('name')
         price = data.get('price')
         mrp = data.get('mrp')
+        cost_price = data.get('cost_price')
         is_available = bool(data.get('is_available', True))
         image_path = data.get('image_path')
         subcategory = data.get('subcategory', '')
         description = data.get('description', '')
         
-        mrp_val = float(mrp) if mrp is not None else float(price)
+        mrp_val = float(mrp) if mrp is not None and str(mrp).strip() != '' else float(price)
+        cost_price_val = float(cost_price) if cost_price is not None and str(cost_price).strip() != '' else 0.0
         
-        cursor.execute("UPDATE products SET name = ?, price = ?, mrp = ?, is_available = ?, image_path = ?, subcategory = ?, description = ? WHERE id = ?", (name, float(price), mrp_val, is_available, image_path, subcategory, description, prod_id))
+        cursor.execute("UPDATE products SET name = ?, price = ?, mrp = ?, cost_price = ?, is_available = ?, image_path = ?, subcategory = ?, description = ? WHERE id = ?", (name, float(price), mrp_val, cost_price_val, is_available, image_path, subcategory, description, prod_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Product updated successfully.'})
 

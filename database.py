@@ -96,6 +96,7 @@ def init_db():
         name TEXT NOT NULL,
         price REAL NOT NULL,
         mrp REAL,
+        cost_price REAL DEFAULT 0.0,
         is_available BOOLEAN DEFAULT TRUE,
         subcategory TEXT,
         description TEXT,
@@ -255,6 +256,12 @@ def init_db():
     # Migrate products table by adding mrp column if missing
     try:
         cursor.execute("ALTER TABLE products ADD COLUMN mrp REAL")
+    except sqlite3.OperationalError:
+        pass
+
+    # Migrate products table by adding cost_price column if missing
+    try:
+        cursor.execute("ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0.0")
     except sqlite3.OperationalError:
         pass
         

@@ -3182,6 +3182,11 @@
                     <input type="number" id="modal-product-mrp" class="form-input-custom" style="width: 100%;" placeholder="e.g. 150" step="0.01">
                 </div>
 
+                <div class="form-group-custom">
+                    <label class="form-label-custom" style="color: #0284c7; font-weight: 700;">Vendor Cost Price (INR) - (Humko Kitna Padega)</label>
+                    <input type="number" id="modal-product-cost-price" class="form-input-custom" style="width: 100%; background: #f0f9ff;" placeholder="e.g. 80" step="0.01">
+                </div>
+
                 <div class="form-group-custom" id="modal-shop-select-group">
                     <label class="form-label-custom">Select Shop Category</label>
                     <select class="form-select-custom" style="width: 100%;" id="modal-product-shop">
@@ -4633,19 +4638,26 @@
                     </div>
                     
                     <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:12px; margin-top:auto; gap: 8px;">
-                        <div style="display: flex; gap: 8px;">
+                        <div style="display: flex; gap: 6px;">
                             <div>
                                 <span style="font-size:0.7rem; color:var(--text-muted); display:block; font-weight:600;">Price</span>
                                 <div style="display:flex; align-items:center; gap:2px;">
                                     <span style="font-weight:700; font-size:0.75rem;">₹</span>
-                                    <input type="number" value="${p.price.toFixed(2)}" class="form-input-custom" style="width:62px; padding:2px 4px; font-size:0.8rem;" onchange="updateProductInlinePrice(${p.id}, this.value)">
+                                    <input type="number" value="${p.price.toFixed(2)}" class="form-input-custom" style="width:54px; padding:2px 4px; font-size:0.75rem;" onchange="updateProductInlinePrice(${p.id}, this.value)">
                                 </div>
                             </div>
                             <div>
                                 <span style="font-size:0.7rem; color:var(--text-muted); display:block; font-weight:600;">MRP</span>
                                 <div style="display:flex; align-items:center; gap:2px;">
                                     <span style="font-weight:700; font-size:0.75rem;">₹</span>
-                                    <input type="number" value="${(p.mrp || p.price).toFixed(2)}" class="form-input-custom" style="width:62px; padding:2px 4px; font-size:0.8rem;" onchange="updateProductInlineMRP(${p.id}, this.value)">
+                                    <input type="number" value="${(p.mrp || p.price).toFixed(2)}" class="form-input-custom" style="width:54px; padding:2px 4px; font-size:0.75rem;" onchange="updateProductInlineMRP(${p.id}, this.value)">
+                                </div>
+                            </div>
+                            <div>
+                                <span style="font-size:0.7rem; color:#0284c7; display:block; font-weight:700;" title="Vendor Cost Price (Humko Padega)">Cost</span>
+                                <div style="display:flex; align-items:center; gap:2px;">
+                                    <span style="font-weight:700; font-size:0.75rem; color:#0284c7;">₹</span>
+                                    <input type="number" value="${(p.cost_price || 0).toFixed(2)}" class="form-input-custom" style="width:54px; padding:2px 4px; font-size:0.75rem; color:#0284c7; background:#f0f9ff;" onchange="updateProductInlineCostPrice(${p.id}, this.value)">
                                 </div>
                             </div>
                         </div>
@@ -4694,6 +4706,7 @@
                     name: p.name, 
                     price: pVal, 
                     mrp: p.mrp || pVal,
+                    cost_price: p.cost_price || 0,
                     is_available: p.is_available, 
                     image_path: p.image_path || '',
                     subcategory: p.subcategory || '',
@@ -4723,7 +4736,8 @@
                 body: JSON.stringify({ 
                     name: p.name, 
                     price: p.price, 
-                    mrp: mVal, 
+                    mrp: mVal,
+                    cost_price: p.cost_price || 0, 
                     is_available: p.is_available, 
                     image_path: p.image_path || '',
                     subcategory: p.subcategory || '',
@@ -4737,6 +4751,37 @@
             });
         }
 
+        // Inline Cost Price updating
+        function updateProductInlineCostPrice(prodId, costVal) {
+            const cVal = parseFloat(costVal);
+            if (isNaN(cVal) || cVal < 0) {
+                showAestheticToast("Please input a valid cost price.", "error");
+                return;
+            }
+            const p = productsCache.find(item => item.id === prodId);
+            if (!p) return;
+            
+            fetch(`/api/admin/products/${prodId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    name: p.name, 
+                    price: p.price, 
+                    mrp: p.mrp || p.price,
+                    cost_price: cVal, 
+                    is_available: p.is_available, 
+                    image_path: p.image_path || '',
+                    subcategory: p.subcategory || '',
+                    description: p.description || ''
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                showAestheticToast("Product cost price updated.", "success");
+                loadProductCatalog();
+            });
+        }
+
         // Add Product Dialog Modal
         function openAddProductModal() {
             document.getElementById("product-modal-title").innerText = "Add New Product";
@@ -4744,6 +4789,7 @@
             document.getElementById("modal-product-name").value = "";
             document.getElementById("modal-product-price").value = "";
             document.getElementById("modal-product-mrp").value = "";
+            const elCost = document.getElementById("modal-product-cost-price"); if (elCost) elCost.value = "";
             document.getElementById("modal-product-subcategory").value = "";
             document.getElementById("modal-product-description").value = "";
             document.getElementById("modal-available-group").style.display = "none";

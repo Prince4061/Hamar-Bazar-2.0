@@ -1542,25 +1542,15 @@
                 </div>
                 <div class="brand-text">
                     <span class="brand-name" title="{{ active_shop.shop_name }}">{{ active_shop.shop_name }}</span>
-                    <span class="brand-category" id="sidebar-category-label">Loading...</span>
+                    <span class="brand-category" id="sidebar-category-label">Product Management</span>
                 </div>
             </div>
             
             <nav class="nav-menu">
-                <a class="nav-link active" id="link-dashboard" onclick="switchTab('dashboard')">
-                    <i data-lucide="layout-dashboard"></i>
-                    Dashboard
-                </a>
-                <a class="nav-link" id="link-inventory" onclick="switchTab('inventory')">
+                <a class="nav-link active" id="link-inventory" onclick="switchTab('inventory')">
                     <i data-lucide="package"></i>
-                    Inventory
+                    Product Inventory
                 </a>
-                {% if active_shop.category == 'PHARMACY' or active_shop_id|string == '5' %}
-                <a class="nav-link" id="link-prescriptions" onclick="switchTab('prescriptions')">
-                    <i data-lucide="file-text"></i>
-                    Prescriptions Feed
-                </a>
-                {% endif %}
             </nav>
         </div>
         
@@ -1573,158 +1563,37 @@
     <!-- Main Working Panel -->
     <main class="main-panel">
         
-        <!-- Low Stock Warning Banner -->
-        <div id="low-stock-alert-banner" class="fade-in-up" style="display: none; background: var(--orange-light); border: 1px solid rgba(249, 115, 22, 0.2); border-radius: var(--radius-xl); padding: 16px 20px;">
-            <div style="display: flex; align-items: center; gap: 8px; color: var(--orange); font-weight: 800; font-size: 0.95rem; margin-bottom: 8px;">
-                <i data-lucide="alert-triangle" style="width: 18px; height: 18px; color: var(--orange);"></i> Stock Depletion Warnings
+        <!-- Main Header -->
+        <div class="main-header" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 20px 24px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03);">
+            <div>
+                <h2 class="welcome-title" style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin-bottom: 4px;">{{ active_shop.shop_name }} - Product Management</h2>
+                <p class="welcome-subtitle" style="color: #64748b; font-size: 14px;">Add new products, update prices, MRPs, and manage stock inventory.</p>
             </div>
-            <ul id="low-stock-predictions-list" style="font-size: 0.85rem; color: var(--text-secondary); padding-left: 20px; line-height: 1.6; font-weight: 500;">
-                <!-- Filled dynamically -->
-            </ul>
+            <div class="header-actions">
+                <a href="/session/logout" style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 14px;">
+                    <i data-lucide="log-out" style="width: 16px; height: 16px;"></i> Logout
+                </a>
+            </div>
         </div>
 
-        <!-- Dashboard View (Tab content) -->
-        <div id="dashboard-tab-view" style="display: flex; flex-direction: column; gap: 32px; width: 100%;">
-            
-            <!-- Dashboard Main Header -->
-            <div class="main-header">
-                <div>
-                    <h2 class="welcome-title">Welcome back, <span id="welcome-owner-name">Owner</span> 👋</h2>
-                    <p class="welcome-subtitle">Here's what's happening in your store.</p>
-                </div>
-                <div class="header-actions">
-                    <button id="btn-test-sound" class="btn-test-sound" onclick="toggleTestSound(event)">
-                        <i data-lucide="volume-2"></i>
-                        <span>Test Alarm Sound</span>
-                    </button>
-                    <div class="notification-bell">
-                        <i data-lucide="bell"></i>
-                        <div class="bell-badge" style="display:none;" id="desktop-bell-badge">0</div>
-                    </div>
-                    <div class="user-profile">
-                        <div class="user-avatar" id="desktop-avatar-box">..</div>
-                        <div class="user-details">
-                            <span class="user-name" id="profile-owner-name">Owner Name</span>
-                            <span class="user-role">Store Owner</span>
-                        </div>
-                        <i data-lucide="chevron-down" class="user-chevron"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Summary Cards Grid -->
-            <section class="stats-grid">
-                <!-- Total Orders -->
-                <div class="stats-card">
-                    <div class="stats-icon-box green">
-                        <i data-lucide="shopping-bag"></i>
-                    </div>
-                    <div class="stats-info">
-                        <span class="stats-label">Total Orders</span>
-                        <span class="stats-value" id="stats-total-orders">0</span>
-                        <span class="stats-sub">Today</span>
-                    </div>
-                </div>
-                <!-- Pending Orders -->
-                <div class="stats-card">
-                    <div class="stats-icon-box orange">
-                        <i data-lucide="clipboard-list"></i>
-                    </div>
-                    <div class="stats-info">
-                        <span class="stats-label">Pending Orders</span>
-                        <span class="stats-value" id="stats-pending-orders">0</span>
-                        <span class="stats-sub orange-text" id="stats-pending-sub">Needs Action</span>
-                    </div>
-                </div>
-                <!-- Revenue -->
-                <div class="stats-card">
-                    <div class="stats-icon-box blue">
-                        <i data-lucide="indian-rupee"></i>
-                    </div>
-                    <div class="stats-info">
-                        <span class="stats-label">Today's Revenue</span>
-                        <span class="stats-value" id="stats-revenue">₹0</span>
-                        <span class="stats-sub">Today</span>
-                    </div>
-                </div>
-                <!-- Avg Prep Time -->
-                <div class="stats-card">
-                    <div class="stats-icon-box purple">
-                        <i data-lucide="clock"></i>
-                    </div>
-                    <div class="stats-info">
-                        <span class="stats-label">Avg. Prep Time</span>
-                        <span class="stats-value" id="stats-prep-time">18 min</span>
-                        <span class="stats-sub">Today</span>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Dashboard Split Row -->
-            <div class="dashboard-row">
-                
-                <!-- Recent Orders Column -->
-                <div class="section-card">
-                    <div class="card-header">
-                        <h3 class="card-title">
-                            <i data-lucide="history"></i>
-                            Recent Orders
-                        </h3>
-                        <span class="card-action-link" onclick="loadOrders()">Refresh</span>
-                    </div>
-                    
-                    <div class="table-responsive">
-                        <table class="orders-table">
-                            <thead>
-                                <tr>
-                                    <th>Order ID</th>
-                                    <th>Customer</th>
-                                    <th>Items</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
-                                    <th>Time</th>
-                                </tr>
-                            </thead>
-                            <tbody id="orders-table-body">
-                                <!-- Loaded dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div id="empty-orders-placeholder" style="display:none; text-align: center; padding: 40px 10px; color: var(--text-muted);">
-                        <i data-lucide="check-circle-2" style="width: 42px; height: 42px; color: var(--primary); opacity: 0.6; margin-bottom: 12px; display: inline-block;"></i>
-                        <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">All caught up!</h4>
-                        <p style="font-size: 0.85rem;">No active orders right now.</p>
-                    </div>
-                </div>
-
-                <!-- OTP / Action Detail Card Column -->
-                <div class="detail-panel">
-                    <div class="section-card" id="detail-card">
-                        <!-- Loaded dynamically based on selected order -->
-                        <div id="detail-card-placeholder" style="text-align:center; padding:60px 20px; color:var(--text-muted);">
-                            <i data-lucide="info" style="width: 40px; height: 40px; color: var(--text-muted); opacity:0.4; margin-bottom:12px; display:inline-block;"></i>
-                            <p style="font-size:0.85rem; font-weight: 600;">Select an order from the list to view details and action controls here.</p>
-                        </div>
-                    </div>
-                </div>
-                
-            </div>
-            
-        </div>
-
-        <!-- Inventory View (Tab content / bottom row) -->
+        <!-- Inventory View (Main Content Area) -->
         <div id="inventory-tab-view" style="width: 100%; display: flex; flex-direction: column; gap: 32px;">
             
-            <section class="inventory-section" id="inventory-overview-card">
-                <div class="card-header" style="flex-wrap: wrap; gap: 16px;">
-                    <h3 class="card-title">
-                        <i data-lucide="package-search"></i>
-                        Inventory Overview
+            <section class="inventory-section" id="inventory-overview-card" style="background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                <div class="card-header" style="flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                    <h3 class="card-title" style="font-size: 1.2rem; font-weight: 700; color: #1e293b;">
+                        <i data-lucide="package-search" style="color: #10b981;"></i>
+                        Store Inventory & Product Catalog
                     </h3>
-                    <div class="search-box-container">
-                        <i data-lucide="search"></i>
-                        <input type="text" class="search-input" placeholder="Search products..." id="inventory-search-input" onkeyup="filterInventory()">
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <div class="search-box-container">
+                            <i data-lucide="search"></i>
+                            <input type="text" class="search-input" placeholder="Search products..." id="inventory-search-input" onkeyup="filterInventory()">
+                        </div>
+                        <button type="button" class="btn-add-product" onclick="openAddProductModal()" style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">
+                            <i data-lucide="plus-circle" style="width: 18px; height: 18px;"></i>
+                            + Add New Product
+                        </button>
                     </div>
                 </div>
                 
@@ -1747,45 +1616,9 @@
             
         </div>
 
-        <!-- Prescriptions View (Tab content) -->
-        <div id="prescriptions-tab-view" style="width: 100%; display: none; flex-direction: column; gap: 32px;">
-            <section class="inventory-section" id="prescriptions-overview-card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i data-lucide="file-text"></i>
-                        Prescriptions Feed
-                    </h3>
-                    <span class="card-action-link" onclick="loadPrescriptions()">Refresh</span>
-                </div>
-                
-                <div class="table-responsive">
-                    <table class="inventory-table">
-                        <thead>
-                            <tr>
-                                <th>Request ID</th>
-                                <th>Date Received</th>
-                                <th>Customer Details</th>
-                                <th>Medicine/Prescription Image</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="prescriptions-table-body">
-                            <!-- Loaded dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-                <div id="empty-prescriptions-placeholder" style="display:none; text-align: center; padding: 40px 10px; color: var(--text-muted);">
-                    <i data-lucide="check-circle-2" style="width: 42px; height: 42px; color: var(--primary); opacity: 0.6; margin-bottom: 12px; display: inline-block;"></i>
-                    <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">No prescriptions forwarded yet</h4>
-                    <p style="font-size: 0.85rem;">Prescriptions sent by admin will appear here.</p>
-                </div>
-            </section>
-        </div>
-
         <!-- Web Footer -->
-        <footer class="footer">
-            <p>© 2026 {{ active_shop.shop_name }} Vendor Panel. All rights reserved.</p>
+        <footer class="footer" style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; color: #64748b; font-size: 13px; text-align: center;">
+            <p>© 2026 {{ active_shop.shop_name }} Product Management Panel. All rights reserved.</p>
         </footer>
 
     </main>
@@ -1846,6 +1679,72 @@
                     <button class="btn-modal-accept" id="modal-accept-btn">
                         Accept Order
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VENDOR ADD/EDIT PRODUCT MODAL -->
+    <div id="vendor-product-modal" class="overlay-modal" style="display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); background-color: rgba(15, 23, 42, 0.65); z-index: 999999;">
+        <div class="modal-content" style="max-width: 540px; width: 92%; background: #ffffff; border-radius: 16px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i data-lucide="package-plus" style="color: #10b981; width: 24px; height: 24px;"></i>
+                    <span id="v-prod-modal-title" style="font-size: 18px; font-weight: 700; color: #1e293b;">Add New Product</span>
+                </div>
+                <button type="button" onclick="closeVendorProductModal()" style="background: none; border: none; color: #64748b; cursor: pointer; font-size: 24px; font-weight: 600; line-height: 1;">&times;</button>
+            </div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px; padding: 0;">
+                <input type="hidden" id="v-prod-id" value="">
+                
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 13px; font-weight: 600; color: #475569;">Product Name <span style="color: #ef4444;">*</span></label>
+                    <input type="text" id="v-prod-name" class="search-input" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; font-size: 14px;" placeholder="e.g. Amul Fresh Butter 100g">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: 600; color: #475569;">Selling Price (₹) <span style="color: #ef4444;">*</span></label>
+                        <input type="number" step="0.01" id="v-prod-price" class="search-input" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 10px; font-size: 13px;" placeholder="56.00">
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: 600; color: #475569;">MRP (₹)</label>
+                        <input type="number" step="0.01" id="v-prod-mrp" class="search-input" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 10px; font-size: 13px;" placeholder="60.00">
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: 700; color: #0284c7;" title="Humko Kitna Padega / Vendor Purchase Price">Cost Price (₹)</label>
+                        <input type="number" step="0.01" id="v-prod-cost-price" class="search-input" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 10px; font-size: 13px; background: #f0f9ff;" placeholder="40.00">
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 13px; font-weight: 600; color: #475569;">Subcategory</label>
+                    <input type="text" id="v-prod-subcategory" class="search-input" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; font-size: 14px;" placeholder="e.g. Dairy / Snacks / Cakes">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 13px; font-weight: 600; color: #475569;">Description</label>
+                    <textarea id="v-prod-description" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; min-height: 70px; resize: vertical; font-family: inherit; font-size: 14px;" placeholder="Brief details about the product..."></textarea>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 13px; font-weight: 600; color: #475569;">Product Image</label>
+                    <input type="file" id="v-prod-image-file" accept="image/*" style="font-size: 13px; width: 100%;">
+                    <input type="hidden" id="v-prod-image-path" value="">
+                    <div id="v-prod-image-preview-container" style="display: none; margin-top: 6px; align-items: center; gap: 10px;">
+                        <img id="v-prod-preview-img" src="" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1;">
+                        <span style="font-size: 12px; color: #64748b;">Current Image</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                    <input type="checkbox" id="v-prod-available" checked style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer;">
+                    <label for="v-prod-available" style="font-size: 14px; font-weight: 600; color: #334155; cursor: pointer;">Product Available for Order</label>
+                </div>
+
+                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+                    <button type="button" class="btn-modal-mute" onclick="closeVendorProductModal()" style="padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 14px;">Cancel</button>
+                    <button type="button" class="btn-modal-accept" id="v-prod-save-btn" onclick="saveVendorProduct()" style="padding: 10px 22px; border-radius: 8px; font-weight: 600; font-size: 14px; background: #10b981;">Save Product</button>
                 </div>
             </div>
         </div>
@@ -1959,20 +1858,13 @@
             const mobileAvatar = document.getElementById('mobile-avatar-box');
             if (mobileAvatar) mobileAvatar.innerText = initials;
 
-            // Load initial view
-            loadOrders();
+            // Load inventory view
             loadInventory();
-            loadStockPredictions();
             
-            // 10s Polls
+            // Periodic inventory polling
             pollInterval = setInterval(() => {
-                loadOrders();
                 loadInventory();
-                loadStockPredictions();
-                if (activeTab === 'prescriptions') {
-                    loadPrescriptions();
-                }
-            }, 10000);
+            }, 15000);
 
             // Pre-initialize alarm audio element for user activation
             try {
@@ -2777,30 +2669,245 @@
                 
                 const thumb = getProductThumbnail(prod.name || '');
                 const priceVal = typeof prod.price === 'number' ? prod.price : 0;
+                const costPriceVal = typeof prod.cost_price === 'number' ? prod.cost_price : 0;
                 
                 tr.innerHTML = `
                     <td>
                         <div class="product-cell">
                             <div class="product-image" style="background-color: ${thumb.color};">${thumb.emoji}</div>
-                            <span class="product-name">${prod.name || ''}</span>
+                            <div>
+                                <span class="product-name" style="font-weight: 600; color: #1e293b;">${prod.name || ''}</span>
+                                ${prod.subcategory ? `<div style="font-size: 11px; color: #64748b;">${prod.subcategory}</div>` : ''}
+                            </div>
                         </div>
                     </td>
-                    <td class="amount-cell">₹${priceVal.toFixed(0)}</td>
+                    <td class="amount-cell" style="font-weight: 700; color: #059669;">₹${priceVal.toFixed(2)}</td>
+                    <td class="amount-cell" style="font-weight: 700; color: #0284c7; background: #f0f9ff; border-radius: 6px;">₹${costPriceVal.toFixed(2)}</td>
                     <td>
                         <span class="stock-badge ${prod.is_available ? 'in-stock' : 'out-of-stock'}" id="inventory-status-badge-${prod.id}">
                             ${prod.is_available ? 'In Stock' : 'Out of Stock'}
                         </span>
                     </td>
                     <td>
-                        <label class="switch">
-                            <input type="checkbox" ${prod.is_available ? 'checked' : ''} onchange="toggleStock(${prod.id}, this.checked)">
-                            <span class="slider"></span>
-                        </label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <label class="switch" title="Toggle Stock Availability">
+                                <input type="checkbox" ${prod.is_available ? 'checked' : ''} onchange="toggleStock(${prod.id}, this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                            <button type="button" onclick="openEditProductModal(${prod.id})" style="background: #f1f5f9; color: #3b82f6; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Edit Product">
+                                <i data-lucide="edit-2" style="width: 14px; height: 14px;"></i> Edit
+                            </button>
+                            <button type="button" onclick="deleteVendorProduct(${prod.id})" style="background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Delete Product">
+                                <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Delete
+                            </button>
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
+            if (window.lucide) lucide.createIcons();
         }
+
+        // Open Modal to Add New Product (Globally accessible)
+        window.openAddProductModal = function() {
+            try {
+                const elId = document.getElementById("v-prod-id"); if (elId) elId.value = "";
+                const elName = document.getElementById("v-prod-name"); if (elName) elName.value = "";
+                const elPrice = document.getElementById("v-prod-price"); if (elPrice) elPrice.value = "";
+                const elMrp = document.getElementById("v-prod-mrp"); if (elMrp) elMrp.value = "";
+                const elCostPrice = document.getElementById("v-prod-cost-price"); if (elCostPrice) elCostPrice.value = "";
+                const elSub = document.getElementById("v-prod-subcategory"); if (elSub) elSub.value = "";
+                const elDesc = document.getElementById("v-prod-description"); if (elDesc) elDesc.value = "";
+                const elImgPath = document.getElementById("v-prod-image-path"); if (elImgPath) elImgPath.value = "";
+                const elImgFile = document.getElementById("v-prod-image-file"); if (elImgFile) elImgFile.value = "";
+                const elAvail = document.getElementById("v-prod-available"); if (elAvail) elAvail.checked = true;
+                
+                const previewContainer = document.getElementById("v-prod-image-preview-container");
+                if (previewContainer) previewContainer.style.display = "none";
+                
+                const titleEl = document.getElementById("v-prod-modal-title");
+                if (titleEl) titleEl.innerText = "Add New Product";
+                
+                const modal = document.getElementById("vendor-product-modal");
+                if (modal) {
+                    modal.style.setProperty("display", "flex", "important");
+                    modal.style.setProperty("z-index", "999999", "important");
+                } else {
+                    alert("Modal element not found. Please refresh page.");
+                }
+                if (window.lucide) lucide.createIcons();
+            } catch (err) {
+                console.error("Error opening add product modal:", err);
+                alert("Error opening modal: " + err.message);
+            }
+        };
+
+        // Open Modal to Edit Existing Product
+        window.openEditProductModal = function(prodId) {
+            try {
+                const prod = inventoryList.find(p => p.id === prodId);
+                if (!prod) return;
+
+                const elId = document.getElementById("v-prod-id"); if (elId) elId.value = prod.id;
+                const elName = document.getElementById("v-prod-name"); if (elName) elName.value = prod.name || "";
+                const elPrice = document.getElementById("v-prod-price"); if (elPrice) elPrice.value = prod.price !== undefined ? prod.price : "";
+                const elMrp = document.getElementById("v-prod-mrp"); if (elMrp) elMrp.value = prod.mrp !== undefined && prod.mrp !== null ? prod.mrp : "";
+                const elCostPrice = document.getElementById("v-prod-cost-price"); if (elCostPrice) elCostPrice.value = prod.cost_price !== undefined && prod.cost_price !== null ? prod.cost_price : "";
+                const elSub = document.getElementById("v-prod-subcategory"); if (elSub) elSub.value = prod.subcategory || "";
+                const elDesc = document.getElementById("v-prod-description"); if (elDesc) elDesc.value = prod.description || "";
+                const elImgPath = document.getElementById("v-prod-image-path"); if (elImgPath) elImgPath.value = prod.image_path || "";
+                const elImgFile = document.getElementById("v-prod-image-file"); if (elImgFile) elImgFile.value = "";
+                const elAvail = document.getElementById("v-prod-available"); if (elAvail) elAvail.checked = prod.is_available ? true : false;
+
+                const previewContainer = document.getElementById("v-prod-image-preview-container");
+                const previewImg = document.getElementById("v-prod-preview-img");
+                if (prod.image_path && previewContainer && previewImg) {
+                    previewImg.src = prod.image_path;
+                    previewContainer.style.display = "flex";
+                } else if (previewContainer) {
+                    previewContainer.style.display = "none";
+                }
+
+                const titleEl = document.getElementById("v-prod-modal-title");
+                if (titleEl) titleEl.innerText = "Edit Product";
+                
+                const modal = document.getElementById("vendor-product-modal");
+                if (modal) {
+                    modal.style.setProperty("display", "flex", "important");
+                    modal.style.setProperty("z-index", "999999", "important");
+                }
+                if (window.lucide) lucide.createIcons();
+            } catch (err) {
+                console.error("Error opening edit product modal:", err);
+            }
+        };
+
+        // Close Product Modal
+        window.closeVendorProductModal = function() {
+            const modal = document.getElementById("vendor-product-modal");
+            if (modal) modal.style.setProperty("display", "none", "important");
+        };
+
+        // Save Vendor Product (Add or Edit)
+        window.saveVendorProduct = async function() {
+            const prodId = document.getElementById("v-prod-id").value;
+            const name = document.getElementById("v-prod-name").value.trim();
+            const price = document.getElementById("v-prod-price").value;
+            const mrp = document.getElementById("v-prod-mrp").value;
+            const costPrice = document.getElementById("v-prod-cost-price").value;
+            const subcategory = document.getElementById("v-prod-subcategory").value.trim();
+            const description = document.getElementById("v-prod-description").value.trim();
+            let imagePath = document.getElementById("v-prod-image-path").value;
+            const isAvailable = document.getElementById("v-prod-available").checked;
+
+            if (!name) {
+                alert("Please enter a product name.");
+                return;
+            }
+            if (!price || isNaN(price) || parseFloat(price) <= 0) {
+                alert("Please enter a valid product price.");
+                return;
+            }
+
+            const saveBtn = document.getElementById("v-prod-save-btn");
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerText = "Saving...";
+            }
+
+            try {
+                // Check if new image file is selected
+                const fileInput = document.getElementById("v-prod-image-file");
+                if (fileInput && fileInput.files && fileInput.files[0]) {
+                    const formData = new FormData();
+                    formData.append("file", fileInput.files[0]);
+                    const imgRes = await fetch("/api/vendor/products/upload-image", {
+                        method: "POST",
+                        body: formData
+                    });
+                    const imgData = await imgRes.json();
+                    if (imgData.success && imgData.file_path) {
+                        imagePath = imgData.file_path;
+                    } else if (imgData.error) {
+                        alert("Image upload failed: " + imgData.error);
+                        if (saveBtn) {
+                            saveBtn.disabled = false;
+                            saveBtn.innerText = "Save Product";
+                        }
+                        return;
+                    }
+                }
+
+                const payload = {
+                    name: name,
+                    price: parseFloat(price),
+                    mrp: mrp ? parseFloat(mrp) : parseFloat(price),
+                    cost_price: costPrice ? parseFloat(costPrice) : 0,
+                    subcategory: subcategory,
+                    description: description,
+                    image_path: imagePath,
+                    is_available: isAvailable
+                };
+
+                const url = prodId ? `/api/vendor/products/${prodId}` : "/api/vendor/products";
+                const method = prodId ? "PUT" : "POST";
+
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (data.success || data.message) {
+                    window.closeVendorProductModal();
+                    if (typeof loadInventory === 'function') loadInventory();
+                } else {
+                    alert("Error saving product: " + (data.error || "Unknown error"));
+                }
+            } catch (err) {
+                console.error("Error saving vendor product:", err);
+                alert("Failed to save product. Please try again.");
+            } finally {
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerText = "Save Product";
+                }
+            }
+        };
+
+        // Delete Vendor Product
+        window.deleteVendorProduct = function(prodId) {
+            const prod = inventoryList.find(p => p.id === prodId);
+            const prodName = prod ? prod.name : "this product";
+            if (!confirm(`Are you sure you want to delete "${prodName}" from your shop inventory?`)) {
+                return;
+            }
+
+            fetch(`/api/vendor/products/${prodId}`, {
+                method: "DELETE"
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (typeof loadInventory === 'function') loadInventory();
+                } else {
+                    alert("Failed to delete product: " + (data.error || "Unknown error"));
+                }
+            })
+            .catch(err => {
+                console.error("Error deleting vendor product:", err);
+                alert("Error deleting product.");
+            });
+        };
+
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.btn-add-product');
+            if (btn) {
+                e.preventDefault();
+                window.openAddProductModal();
+            }
+        });
 
         // Filter products in table based on search text input
         function filterInventory() {
