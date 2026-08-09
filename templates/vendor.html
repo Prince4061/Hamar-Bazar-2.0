@@ -1604,10 +1604,20 @@
             </div>
             
             <nav class="nav-menu">
-                <a class="nav-link active" id="link-inventory" onclick="switchTab('inventory')">
+                <a class="nav-link active" id="link-dashboard" onclick="switchTab('dashboard')">
+                    <i data-lucide="layout-dashboard"></i>
+                    Orders Dashboard
+                </a>
+                <a class="nav-link" id="link-inventory" onclick="switchTab('inventory')">
                     <i data-lucide="package"></i>
                     Product Inventory
                 </a>
+                {% if active_shop.category == 'PHARMACY' or active_shop_id|string == '5' %}
+                <a class="nav-link" id="link-prescriptions" onclick="switchTab('prescriptions')">
+                    <i data-lucide="file-text"></i>
+                    Prescriptions
+                </a>
+                {% endif %}
             </nav>
         </div>
         
@@ -1623,18 +1633,108 @@
         <!-- Main Header -->
         <div class="main-header" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 20px 24px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03);">
             <div>
-                <h2 class="welcome-title" style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin-bottom: 4px;">{{ active_shop.shop_name }} - Product Management</h2>
-                <p class="welcome-subtitle" style="color: #64748b; font-size: 14px;">Add new products, update prices, MRPs, and manage stock inventory.</p>
+                <h2 class="welcome-title" style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin-bottom: 4px;">Welcome, <span id="welcome-owner-name">Merchant</span></h2>
+                <p class="welcome-subtitle" style="color: #64748b; font-size: 14px;">Manage your shop orders, product catalog, and real-time fulfillments.</p>
             </div>
-            <div class="header-actions">
+            <div class="header-actions" style="display: flex; align-items: center; gap: 12px;">
+                <button type="button" class="btn btn-secondary" onclick="toggleTestSound(event)" id="test-sound-btn" style="padding: 8px 14px; font-size: 13px; border-radius: 8px;">
+                    <i data-lucide="volume-2"></i> <span>Test Alarm Sound</span>
+                </button>
                 <a href="/session/logout" style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 14px;">
                     <i data-lucide="log-out" style="width: 16px; height: 16px;"></i> Logout
                 </a>
             </div>
         </div>
 
-        <!-- Inventory View (Main Content Area) -->
-        <div id="inventory-tab-view" style="width: 100%; display: flex; flex-direction: column; gap: 32px;">
+        <!-- Dashboard View (Orders & Real-Time Stream) -->
+        <div id="dashboard-tab-view" style="width: 100%; display: flex; flex-direction: column; gap: 24px;">
+            <!-- Stats Cards Grid -->
+            <div class="stats-grid">
+                <div class="stats-card">
+                    <div class="stats-icon-box blue">
+                        <i data-lucide="shopping-bag"></i>
+                    </div>
+                    <div class="stats-info">
+                        <span class="stats-label">Total Orders Today</span>
+                        <span class="stats-value" id="stats-total-orders">0</span>
+                        <span class="stats-sub">Live Updates</span>
+                    </div>
+                </div>
+
+                <div class="stats-card">
+                    <div class="stats-icon-box orange">
+                        <i data-lucide="clock"></i>
+                    </div>
+                    <div class="stats-info">
+                        <span class="stats-label">Pending Prep</span>
+                        <span class="stats-value" id="stats-pending-orders">0</span>
+                        <span class="stats-sub orange-text" id="stats-pending-sub">Needs Action</span>
+                    </div>
+                </div>
+
+                <div class="stats-card">
+                    <div class="stats-icon-box green">
+                        <i data-lucide="indian-rupee"></i>
+                    </div>
+                    <div class="stats-info">
+                        <span class="stats-label">Today's Revenue</span>
+                        <span class="stats-value" id="stats-revenue">₹0</span>
+                        <span class="stats-sub">Delivered Orders</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Grid (Orders Table Left + Details Card Right) -->
+            <div class="dashboard-grid" style="display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start;">
+                <!-- Left: Orders Table Section -->
+                <section class="orders-section">
+                    <div class="card-header flex-between mb-md" style="margin-bottom: 16px; display:flex; justify-content:space-between; align-items:center;">
+                        <h3 class="card-title" style="font-size: 1.1rem; font-weight: 700;">
+                            <i data-lucide="list-ordered"></i>
+                            Recent Orders Request
+                        </h3>
+                        <button class="btn btn-secondary" onclick="loadOrders()" style="padding: 6px 14px; font-size: 0.85rem;">
+                            <i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i> Refresh
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="orders-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Items</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Placed Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-table-body">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+
+                        <div id="empty-orders-placeholder" style="display: none; padding: 40px 20px; text-align: center; color: var(--text-muted);">
+                            <i data-lucide="package-open" style="width: 48px; height: 48px; margin-bottom: 12px; color: var(--text-secondary); opacity: 0.5;"></i>
+                            <p style="font-weight: 600; font-size: 1rem;">No active orders right now</p>
+                            <p style="font-size: 0.85rem; color: var(--text-secondary);">New orders placed by customers will appear here automatically with sound alert.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Right: Selected Order Detail / Action Card -->
+                <section class="detail-card" id="detail-card">
+                    <div style="text-align: center; padding: 50px 20px; color: var(--text-muted);">
+                        <i data-lucide="mouse-pointer-click" style="width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.4;"></i>
+                        <p style="font-weight: 600;">Select an order from table to view details & actions</p>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Inventory View (Product Catalog Area) -->
+        <div id="inventory-tab-view" style="width: 100%; display: flex; flex-direction: column; gap: 32px; margin-top: 24px;">
             
             <section class="inventory-section" id="inventory-overview-card" style="background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                 <div class="card-header" style="flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; margin-bottom: 20px;">
@@ -1814,7 +1914,7 @@
     </div>
 
     <script>
-        const shopId = {{ active_shop_id }};
+        const shopId = {{ active_shop_id if (active_shop_id is defined and active_shop_id) else (active_shop.id if (active_shop is defined and active_shop and active_shop.id) else 1) }};
         const shopCategory = "{{ active_shop.category }}";
         
         let activeTab = 'dashboard';
@@ -1921,13 +2021,15 @@
             const mobileAvatar = document.getElementById('mobile-avatar-box');
             if (mobileAvatar) mobileAvatar.innerText = initials;
 
-            // Load inventory view
+            // Load orders and inventory views
+            loadOrders();
             loadInventory();
             
-            // Periodic inventory polling
+            // Periodic orders & inventory polling (3 seconds for fast real-time alerts)
             pollInterval = setInterval(() => {
+                loadOrders();
                 loadInventory();
-            }, 15000);
+            }, 3000);
 
             // Pre-initialize alarm audio element for user activation
             try {
@@ -2230,12 +2332,12 @@
                     updateStats();
                     renderOrders();
                     
-                    // Check if there are active PENDING requests that are not muted
+                    // Check if there are active PENDING or ACCEPTED orders needing vendor preparation that are not muted
                     const mutedIds = getMutedOrders();
-                    const unacceptedPending = data.filter(o => o.status === 'PENDING' && !mutedIds.includes(o.id));
+                    const activeAlertOrders = data.filter(o => (o.status === 'PENDING' || o.status === 'ACCEPTED') && !mutedIds.includes(o.id));
                     
-                    if (unacceptedPending.length > 0) {
-                        const latest = unacceptedPending[0];
+                    if (activeAlertOrders.length > 0) {
+                        const latest = activeAlertOrders[0];
                         const modal = document.getElementById("new-order-modal");
                         
                         // Show modal alert if hidden or focusing a new order id
@@ -2244,7 +2346,7 @@
                         }
                         
                         // Update notification counts in title badges
-                        updateNotificationCount(unacceptedPending.length);
+                        updateNotificationCount(activeAlertOrders.length);
                     } else {
                         dismissNewOrderAlert();
                         updateNotificationCount(0);
@@ -2287,7 +2389,7 @@
                     if (details && Array.isArray(details.items)) {
                         const itemsSummary = details.items.map(item => `${item.quantity}x ${item.product_name}`).join(", ");
                         const summaryEl = document.getElementById("modal-items-summary");
-                        if (summaryEl) summaryEl.innerText = itemsSummary;
+                        if (summaryEl) summaryEl.innerText = `Order #${order.id}: ${itemsSummary} (Total: ₹${(order.total_amount || 0).toFixed(0)})`;
                     }
                 })
                 .catch(err => console.error("Error loading order items for alert modal:", err));
@@ -2295,10 +2397,10 @@
             const priorityContainer = document.getElementById("modal-priority-container");
             if (priorityContainer) {
                 if (order.priority_type === 'URGENT') {
-                    priorityContainer.innerHTML = `<span class="badge-urgent-flash"><i data-lucide="zap" style="width: 13px; height: 13px; fill: currentColor;"></i> URGENT ORDER REQUEST</span>`;
+                    priorityContainer.innerHTML = `<span class="badge-urgent-flash"><i data-lucide="zap" style="width: 13px; height: 13px; fill: currentColor;"></i> URGENT ORDER - PREPARE NOW</span>`;
                     startLoudAlarm(true);
                 } else {
-                    priorityContainer.innerHTML = '';
+                    priorityContainer.innerHTML = `<span style="font-size:0.85rem; font-weight:700; color:var(--primary); padding:4px 8px; background:var(--primary-light); border-radius:4px; display:inline-block; margin-top:8px;">STATUS: ${order.status === 'ACCEPTED' ? 'ACCEPTED BY ADMIN - PREPARE ITEMS' : 'NEW ORDER REQUEST'}</span>`;
                     startLoudAlarm(false);
                 }
             }
@@ -2306,10 +2408,21 @@
             
             const acceptBtn = document.getElementById("modal-accept-btn");
             if (acceptBtn) {
-                acceptBtn.onclick = () => {
-                    acceptIncomingOrder(order.id);
-                    dismissNewOrderAlert();
-                };
+                if (order.status === 'ACCEPTED') {
+                    acceptBtn.innerText = "Mark Ready for Pickup";
+                    acceptBtn.style.background = "#8b5cf6";
+                    acceptBtn.onclick = () => {
+                        markOrderReady(order.id);
+                        dismissNewOrderAlert();
+                    };
+                } else {
+                    acceptBtn.innerText = "Accept Order";
+                    acceptBtn.style.background = "";
+                    acceptBtn.onclick = () => {
+                        acceptIncomingOrder(order.id);
+                        dismissNewOrderAlert();
+                    };
+                }
             }
             
             const modal = document.getElementById("new-order-modal");
@@ -2426,7 +2539,7 @@
                 if (dateClean.indexOf('.') > -1) {
                     dateClean = dateClean.split('.')[0];
                 }
-                const orderTime = new Date(dateClean + "Z"); // Add Z to interpret as UTC
+                const orderTime = new Date(dateClean);
                 const diffMs = new Date() - orderTime;
                 
                 let diffMins = Math.floor(diffMs / 60000);
@@ -2490,12 +2603,15 @@
                 
                 const statusClass = o.status ? o.status.toLowerCase() : 'pending';
                 
+                const itemsCountStr = `${o.items_count || 1} Item${(o.items_count || 1) > 1 ? 's' : ''}`;
+                const itemsSummaryStr = o.items_summary || 'Order Items';
+
                 tr.innerHTML = `
                     <td class="order-id">#ORD-${o.id}</td>
                     <td class="customer-cell">${o.customer_name || 'Customer'}</td>
                     <td class="items-cell">
-                        <span class="items-count" id="items-count-col-${o.id}">Loading...</span>
-                        <span class="items-list" id="items-list-col-${o.id}">...</span>
+                        <span class="items-count">${itemsCountStr}</span>
+                        <span class="items-list">${itemsSummaryStr}</span>
                     </td>
                     <td class="amount-cell">₹${(o.total_amount || 0).toFixed(0)}</td>
                     <td>
@@ -2504,32 +2620,8 @@
                     <td class="time-cell">${priorityLabel}${timeStr}</td>
                 `;
                 tbody.appendChild(tr);
-                
-                // Asynchronously fetch item count and list for this order
-                fetchOrderItemsText(o.id);
             });
             refreshIcons();
-        }
-
-        // Fetch items list helper for columns
-        function fetchOrderItemsText(orderId) {
-            fetch(`/api/orders/${orderId}`)
-                .then(res => res.json())
-                .then(details => {
-                    if (details && Array.isArray(details.items)) {
-                        const countEl = document.getElementById(`items-count-col-${orderId}`);
-                        const listEl = document.getElementById(`items-list-col-${orderId}`);
-                        
-                        if (countEl && listEl) {
-                            const totalQty = details.items.reduce((sum, item) => sum + item.quantity, 0);
-                            countEl.innerText = `${totalQty} Item${totalQty > 1 ? 's' : ''}`;
-                            
-                            const listText = details.items.map(item => item.product_name).join(", ");
-                            listEl.innerText = listText;
-                        }
-                    }
-                })
-                .catch(err => console.error("Error fetching items text column:", err));
         }
 
         // Highlight selected row and load details panel
@@ -2545,7 +2637,7 @@
             loadSelectedOrderDetails(orderId);
         }
 
-        // Load detail actions / OTP card on the right side panel
+        // Load detail actions / OTP card & full billing breakdown on the right side panel
         function loadSelectedOrderDetails(orderId) {
             const panel = document.getElementById("detail-card");
             if (!panel) return;
@@ -2560,143 +2652,154 @@
                     
                     const timeStr = getRelativeTimeStr(order.created_at);
                     
-                    // Base template parts
                     let statusLabel = order.status ? order.status.replace(/_/g, ' ') : 'Pending';
                     if (order.status === 'ACCEPTED') statusLabel = 'Preparing';
+                    if (order.status === 'READY_FOR_PICKUP') statusLabel = 'Ready for Pickup';
                     
-                    let detailsHeaderHTML = `
-                        <div class="card-header">
-                            <h3 class="card-title">
-                                <i data-lucide="info"></i>
-                                Order details #ORD-${order.id}
+                    // Build Itemized Bill Rows
+                    let itemsTableRows = '';
+                    let subtotalCalculated = 0;
+                    
+                    if (Array.isArray(order.items) && order.items.length > 0) {
+                        order.items.forEach(item => {
+                            const unitPrice = item.price || 0;
+                            const qty = item.quantity || 1;
+                            const itemTotal = unitPrice * qty;
+                            subtotalCalculated += itemTotal;
+                            
+                            let customNotes = '';
+                            if (item.custom_text) {
+                                customNotes += `<div style="font-size:0.75rem; color:#0284c7; margin-top:2px;">✒️ Msg: "<strong>${item.custom_text}</strong>"</div>`;
+                            }
+                            if (item.custom_instructions) {
+                                customNotes += `<div style="font-size:0.75rem; color:#d97706; margin-top:2px;">📝 Note: <em>${item.custom_instructions}</em></div>`;
+                            }
+                            if (item.custom_image_path) {
+                                customNotes += `<div style="font-size:0.75rem; color:#16a34a; margin-top:2px;">🖼️ <a href="${item.custom_image_path}" target="_blank" style="color:#16a34a; text-decoration:underline;">View Design Image</a></div>`;
+                            }
+
+                            itemsTableRows += `
+                                <tr style="border-bottom: 1px dashed #e2e8f0;">
+                                    <td style="padding: 8px 4px; font-weight:600; color:#1e293b; font-size:0.85rem;">
+                                        ${item.product_name || 'Product'}
+                                        ${customNotes}
+                                    </td>
+                                    <td style="padding: 8px 4px; text-align:center; font-weight:700; color:#475569; font-size:0.85rem;">x${qty}</td>
+                                    <td style="padding: 8px 4px; text-align:right; color:#64748b; font-size:0.85rem;">₹${unitPrice.toFixed(0)}</td>
+                                    <td style="padding: 8px 4px; text-align:right; font-weight:700; color:#0f172a; font-size:0.85rem;">₹${itemTotal.toFixed(0)}</td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        itemsTableRows = `<tr><td colspan="4" style="text-align:center; padding:12px; color:#94a3b8;">No items listed</td></tr>`;
+                    }
+
+                    const deliveryFee = order.delivery_fee || 0;
+                    const grandTotal = order.total_amount || (subtotalCalculated + deliveryFee);
+
+                    // Action Button section HTML based on order status
+                    let actionButtonHTML = '';
+                    if (order.status === 'PENDING') {
+                        actionButtonHTML = `
+                            <button class="btn-green-action" onclick="acceptIncomingOrder(${order.id})" style="width:100%; margin-top:16px;">
+                                <i data-lucide="check"></i> Accept Order Request
+                            </button>
+                        `;
+                    } else if (order.status === 'ACCEPTED') {
+                        actionButtonHTML = `
+                            <button class="btn-green-action" onclick="markOrderReady(${order.id})" style="width:100%; margin-top:16px;">
+                                <i data-lucide="package"></i> Mark as Packed & Ready
+                            </button>
+                        `;
+                    } else if (order.status === 'READY_FOR_PICKUP') {
+                        const digits = (order.pickup_otp || '----').split('');
+                        actionButtonHTML = `
+                            <div style="margin-top:16px; padding:12px; background:#f8fafc; border:2px dashed #10b981; border-radius:12px; text-align:center;">
+                                <div style="font-size:0.8rem; font-weight:700; color:#059669; margin-bottom:4px;">🔑 Vendor Handover Pickup OTP</div>
+                                <div style="display:flex; justify-content:center; gap:8px; margin:8px 0;">
+                                    <div style="width:32px; height:36px; background:#ffffff; border:1px solid #10b981; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.2rem; color:#059669;">${digits[0]||'-'}</div>
+                                    <div style="width:32px; height:36px; background:#ffffff; border:1px solid #10b981; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.2rem; color:#059669;">${digits[1]||'-'}</div>
+                                    <div style="width:32px; height:36px; background:#ffffff; border:1px solid #10b981; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.2rem; color:#059669;">${digits[2]||'-'}</div>
+                                    <div style="width:32px; height:36px; background:#ffffff; border:1px solid #10b981; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.2rem; color:#059669;">${digits[3]||'-'}</div>
+                                </div>
+                                <div style="font-size:0.75rem; color:#64748b;">Share OTP with delivery partner on pickup</div>
+                            </div>
+                        `;
+                    } else if (order.status === 'OUT_FOR_DELIVERY') {
+                        actionButtonHTML = `
+                            <div style="margin-top:16px; padding:12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; text-align:center; color:#166534; font-weight:700; font-size:0.85rem;">
+                                🛵 En Route to Customer House (${order.rider_name || 'Rider'})
+                            </div>
+                        `;
+                    } else if (order.status === 'DELIVERED') {
+                        actionButtonHTML = `
+                            <div style="margin-top:16px; padding:12px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; text-align:center; color:#047857; font-weight:700; font-size:0.85rem;">
+                                ✅ Order Successfully Delivered!
+                            </div>
+                        `;
+                    }
+
+                    panel.innerHTML = `
+                        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:1px solid #e2e8f0; margin-bottom:16px;">
+                            <h3 class="card-title" style="font-size:1.1rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px;">
+                                <i data-lucide="receipt" style="color:#10b981; width:20px; height:20px;"></i>
+                                Bill Invoice #ORD-${order.id}
                             </h3>
                             <span class="status-badge ${(order.status || 'pending').toLowerCase()}">${statusLabel}</span>
                         </div>
-                        
-                        <div class="order-detail-summary">
-                            <div class="detail-row">
-                                <span class="detail-label">Customer Name</span>
-                                <span class="detail-value">${order.customer_name || 'Customer'}</span>
+
+                        <!-- Customer Details Card -->
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:16px; font-size:0.82rem; display:flex; flex-direction:column; gap:4px;">
+                            <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Customer:</span> <strong style="color:#0f172a;">${order.customer_name || 'Customer'}</strong></div>
+                            <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Phone:</span> <strong style="color:#0f172a;">${order.customer_phone || 'N/A'}</strong></div>
+                            <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Payment:</span> <strong style="color:#10b981;">${(order.payment_mode || 'COD').toUpperCase()} (${(order.payment_status || 'PENDING').toUpperCase()})</strong></div>
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start;"><span style="color:#64748b; min-width:60px;">Address:</span> <span style="color:#334155; text-align:right; font-weight:500;">${order.customer_address || ''}</span></div>
+                        </div>
+
+                        <!-- Itemized Billing Invoice Table -->
+                        <div style="border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; background:#ffffff;">
+                            <div style="background:#f1f5f9; padding:8px 12px; font-weight:700; font-size:0.8rem; color:#475569; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:6px;">
+                                <i data-lucide="shopping-cart" style="width:14px; height:14px;"></i> Items & Price Breakdown
                             </div>
-                            <div class="detail-row">
-                                <span class="detail-label">Mobile Number</span>
-                                <span class="detail-value">${order.customer_phone || ''}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="detail-label">Delivery Address</span>
-                                <span class="detail-value address">${order.customer_address || ''}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="detail-label">Placed Time</span>
-                                <span class="detail-value">${timeStr}</span>
+                            <div style="padding:0 8px; max-height:220px; overflow-y:auto;">
+                                <table style="width:100%; border-collapse:collapse; text-align:left;">
+                                    <thead>
+                                        <tr style="font-size:0.75rem; color:#94a3b8; border-bottom:1px solid #f1f5f9;">
+                                            <th style="padding:6px 4px;">Item</th>
+                                            <th style="padding:6px 4px; text-align:center;">Qty</th>
+                                            <th style="padding:6px 4px; text-align:right;">Price</th>
+                                            <th style="padding:6px 4px; text-align:right;">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${itemsTableRows}
+                                    </tbody>
+                                </table>
                             </div>
                             
-                            <div class="items-detail-list" id="detail-items-list-${order.id}">
-                                <span class="detail-label" style="margin-bottom: 6px; display:block;">Order Items</span>
-                                <!-- Loaded below -->
+                            <!-- Bill Calculation Summary Footer -->
+                            <div style="background:#f8fafc; border-top:1px solid #e2e8f0; padding:12px; font-size:0.82rem; display:flex; flex-direction:column; gap:6px;">
+                                <div style="display:flex; justify-content:space-between; color:#64748b;">
+                                    <span>Items Subtotal:</span>
+                                    <span>₹${subtotalCalculated.toFixed(0)}</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; color:#64748b;">
+                                    <span>Delivery Charge:</span>
+                                    <span>₹${deliveryFee.toFixed(0)}</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; font-weight:800; font-size:1.05rem; color:#0f172a; padding-top:6px; border-top:1px dashed #cbd5e1;">
+                                    <span>Total Bill Amount:</span>
+                                    <span style="color:#10b981;">₹${grandTotal.toFixed(0)}</span>
+                                </div>
                             </div>
                         </div>
-                    `;
 
-                    if (order.status === 'PENDING') {
-                        panel.innerHTML = `
-                            ${detailsHeaderHTML}
-                            <button class="btn-green-action" onclick="acceptIncomingOrder(${order.id})">
-                                <i data-lucide="check"></i>
-                                Accept Order Request
-                            </button>
-                        `;
-                    } 
-                    else if (order.status === 'ACCEPTED') {
-                        panel.innerHTML = `
-                            ${detailsHeaderHTML}
-                            <button class="btn-green-action" onclick="markOrderReady(${order.id})">
-                                <i data-lucide="package"></i>
-                                Mark as Packed & Ready
-                            </button>
-                        `;
-                    } 
-                    else if (order.status === 'READY_FOR_PICKUP') {
-                        const digits = (order.pickup_otp || '----').split('');
-                        const timerId = `otp-timer-text-${order.id}`;
-                        
-                        panel.innerHTML = `
-                            <div class="otp-card-header">
-                                <h3 class="otp-card-title">
-                                    <i data-lucide="shield-check"></i>
-                                    Pickup OTP
-                                </h3>
-                                <i data-lucide="shield" class="otp-shield-icon"></i>
-                            </div>
-                            <p class="otp-desc">Share this OTP with delivery partner to handover order.</p>
-                            
-                            <div class="otp-digits-container">
-                                <div class="otp-digit-box">${digits[0] || '-'}</div>
-                                <div class="otp-digit-box">${digits[1] || '-'}</div>
-                                <div class="otp-digit-box">${digits[2] || '-'}</div>
-                                <div class="otp-digit-box">${digits[3] || '-'}</div>
-                            </div>
-                            
-                            <div class="otp-timer">
-                                <i data-lucide="clock"></i>
-                                <span id="${timerId}">Valid for 10:00 min</span>
-                            </div>
-                            
-                            <button class="btn-green-action" disabled style="background-color:#f1f5f9; color:var(--text-secondary); cursor:not-allowed; box-shadow:none; border:1px solid var(--border-color); margin-top: 10px;">
-                                <i data-lucide="loader" class="icon-inline" style="animation: spin 3s linear infinite;"></i>
-                                Waiting for Rider Pickup...
-                            </button>
-                            
-                            <div class="otp-footer">
-                                Order ID #ORD-${order.id} | Handover OTP
-                            </div>
-                        `;
-                        
-                        if (!countdownIntervals[order.id]) {
-                            startOTPCountdown(order.id);
-                        }
-                    } 
-                    else if (order.status === 'OUT_FOR_DELIVERY') {
-                        panel.innerHTML = `
-                            ${detailsHeaderHTML}
-                            <div style="background-color: var(--primary-light); border: 1px solid rgba(0, 156, 98, 0.15); padding: 14px; border-radius: var(--radius-lg); text-align: center; color: var(--primary); font-weight: 700; display:flex; align-items:center; justify-content:center; gap:8px;">
-                                <i data-lucide="bike" style="width: 18px; height: 18px;"></i>
-                                En Route to Customer House
-                            </div>
-                            <div style="font-size:0.8rem; color:var(--text-secondary); margin-top: 8px; font-weight:600; text-align:center;">
-                                Assigned Rider: ${order.rider_name || 'Rider'} (${order.rider_phone_masked || 'xxxxxx'})
-                            </div>
-                        `;
-                    }
-                    
-                    const itemsContainer = document.getElementById(`detail-items-list-${order.id}`);
-                    if (itemsContainer && Array.isArray(order.items)) {
-                        order.items.forEach(item => {
-                            const row = document.createElement("div");
-                            row.className = "item-detail-row";
-                            row.style.alignItems = "flex-start";
-                            
-                            let customizationHtml = '';
-                            if (item.custom_text) {
-                                customizationHtml += `<div style="font-size: 0.8rem; color: #3498db; margin-top: 4px; font-weight: 500;">✒️ Print/Cake Msg: "<strong>${item.custom_text}</strong>"</div>`;
-                            }
-                            if (item.custom_instructions) {
-                                customizationHtml += `<div style="font-size: 0.8rem; color: #e67e22; margin-top: 2px;">📝 Instructions: <em>${item.custom_instructions}</em></div>`;
-                            }
-                            if (item.custom_image_path) {
-                                customizationHtml += `<div style="font-size: 0.8rem; color: #27ae60; margin-top: 2px;">🖼️ Design: <a href="${item.custom_image_path}" target="_blank" style="color: #27ae60; text-decoration: underline; font-weight: 600;">View File</a></div>`;
-                            }
-                            
-                            row.innerHTML = `
-                                <div style="display:flex; flex-direction:column; align-items:flex-start; text-align: left;">
-                                    <span class="item-detail-name">${item.product_name || ''}</span>
-                                    ${customizationHtml}
-                                </div>
-                                <span class="item-detail-qty" style="white-space: nowrap; margin-left: 10px;">x${item.quantity || 1} &nbsp;&nbsp; ₹${Math.round((item.price || 0) * (item.quantity || 1))}</span>
-                            `;
-                            itemsContainer.appendChild(row);
-                        });
-                    }
+                        ${actionButtonHTML}
+
+                        <button type="button" onclick="window.print()" class="btn btn-secondary" style="width:100%; margin-top:10px; padding:8px; font-size:0.82rem; display:flex; align-items:center; justify-content:center; gap:6px;">
+                            <i data-lucide="printer" style="width:14px; height:14px;"></i> Print Invoice Bill
+                        </button>
+                    `;
                     
                     refreshIcons();
                 })
@@ -3080,7 +3183,7 @@
                         let dateStr = item.created_at;
                         try {
                             const cleanD = item.created_at.replace(" ", "T").split(".")[0];
-                            dateStr = new Date(cleanD + "Z").toLocaleString();
+                            dateStr = new Date(cleanD).toLocaleString();
                         } catch(e) {}
                         
                         // Action button

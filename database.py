@@ -133,7 +133,7 @@ def init_db():
         delivery_otp TEXT,
         payment_mode TEXT DEFAULT 'COD',
         payment_screenshot TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
         assigned_at TIMESTAMP,
         accepted_at TIMESTAMP,
         ready_at TIMESTAMP,
@@ -165,7 +165,7 @@ def init_db():
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS failed_logins (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        timestamp TIMESTAMP DEFAULT (datetime('now', 'localtime')),
         username TEXT NOT NULL,
         ip_address TEXT NOT NULL
     )
@@ -176,7 +176,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS user_logins (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_phone TEXT NOT NULL,
-        login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        login_time TIMESTAMP DEFAULT (datetime('now', 'localtime'))
     )
     ''')
     
@@ -188,7 +188,7 @@ def init_db():
         image_path TEXT NOT NULL,
         status TEXT DEFAULT 'PENDING',
         shop_id INTEGER,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (customer_id) REFERENCES users(id),
         FOREIGN KEY (shop_id) REFERENCES shops(id)
     )
@@ -200,7 +200,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         customer_id INTEGER NOT NULL,
         keyword TEXT NOT NULL,
-        searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        searched_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
     )
     ''')
@@ -221,7 +221,7 @@ def init_db():
         customer_id INTEGER NOT NULL,
         rating INTEGER NOT NULL,
         comment TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
         FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
     )
@@ -235,7 +235,7 @@ def init_db():
         service_type TEXT NOT NULL,
         phone TEXT NOT NULL,
         description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT (datetime('now', 'localtime'))
     )
     ''')
 

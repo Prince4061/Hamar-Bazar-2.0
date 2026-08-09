@@ -295,7 +295,7 @@
         document.addEventListener('keydown', unlockAudio);
 
         loadDashboard();
-        pollInterval = setInterval(loadDashboard, 10000);
+        pollInterval = setInterval(loadDashboard, 3000);
         initBackButtonTrap();
     });
 
@@ -555,15 +555,17 @@
         fetch(`/api/delivery/rider/${riderId}/active`)
             .then(res => res.json())
             .then(data => {
-                if (data.active_order_id) {
-                    fetch(`/api/orders/${data.active_order_id}`)
-                        .then(res => res.json())
-                        .then(fullDetails => {
-                            activeJob = fullDetails;
-                            renderActiveJob();
+                const ids = data.active_order_ids || (data.active_order_id ? [data.active_order_id] : []);
+                if (ids && ids.length > 0) {
+                    Promise.all(ids.map(id => fetch(`/api/orders/${id}`).then(res => res.json())))
+                        .then(fullOrders => {
+                            activeJobs = fullOrders.filter(o => o && !o.error);
+                            activeJob = activeJobs.length > 0 ? activeJobs[0] : null;
+                            renderActiveJobs();
                             checkJobPoolNotifications(poolData);
                         });
                 } else {
+                    activeJobs = [];
                     activeJob = null;
                     document.getElementById("active-job-container").innerHTML = "";
                     document.getElementById("empty-job-placeholder").style.display = "block";
@@ -696,85 +698,94 @@
             });
     }
 
-    function renderActiveJob() {
+    function renderActiveJobs() {
         const container = document.getElementById("active-job-container");
         document.getElementById("empty-job-placeholder").style.display = "none";
         
-        const o = activeJob;
-        let otpForm = "";
-        
-        if (o.status === 'READY_FOR_PICKUP') {
-            otpForm = `
-                <div style="margin-top: 24px; padding: 20px; border: 2px dashed var(--primary-accent); border-radius: var(--radius-md); background: var(--primary-light);">
-                    <label class="form-label" style="color: var(--primary-accent); display: flex; align-items: center; gap: 6px;"><i data-lucide="key" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--primary-accent);"></i> Step 1: Verify Pickup OTP (Ask Vendor)</label>
-                    <div class="otp-verify-row" style="display:flex; gap:12px; margin-top: 12px;">
-                        <input type="text" id="pickup-otp-input-${o.id}" class="form-input" placeholder="4 Digits" maxlength="4" style="text-align:center; font-family: 'Outfit', sans-serif; font-weight:800; font-size:1.5rem; letter-spacing:8px; padding: 16px;">
-                        <button class="btn btn-primary" onclick="verifyPickupOTP(${o.id})" style="width:auto; padding: 0 32px; font-size: 1.1rem;">Verify</button>
-                    </div>
-                </div>
-            `;
-        } else if (o.status === 'OUT_FOR_DELIVERY') {
-            otpForm = `
-                <div style="margin-top: 24px; padding: 20px; border: 2px dashed var(--emerald-green); border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.05);">
-                    <label class="form-label" style="color:var(--emerald-green); display: flex; align-items: center; gap: 6px;"><i data-lucide="key" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--emerald-green);"></i> Step 2: Verify Delivery OTP (Ask Customer)</label>
-                    <div class="otp-verify-row" style="display:flex; gap:12px; margin-top: 12px;">
-                        <input type="text" id="delivery-otp-input-${o.id}" class="form-input" placeholder="4 Digits" maxlength="4" style="text-align:center; font-family: 'Outfit', sans-serif; font-weight:800; font-size:1.5rem; letter-spacing:8px; padding: 16px; border-color: #a7f3d0;">
-                        <button class="btn btn-primary" onclick="verifyDeliveryOTP(${o.id})" style="width:auto; padding: 0 32px; font-size: 1.1rem; background: var(--emerald-green); box-shadow: 0 8px 20px rgba(16,185,129,0.25);">Deliver</button>
-                    </div>
-                </div>
-            `;
+        if (!activeJobs || activeJobs.length === 0) {
+            container.innerHTML = "";
+            document.getElementById("empty-job-placeholder").style.display = "block";
+            return;
         }
-        
-        let itemsHtml = o.items.map(item => `<li style="margin-bottom: 6px;"><span style="font-weight: 700;">${item.quantity}x</span> ${item.product_name}</li>`).join("");
- 
-        container.innerHTML = `
-            <div class="fade-in-up" style="background:#ffffff; border-radius: var(--radius-md);">
-                <div class="flex-between mb-sm" style="border-bottom:1px solid var(--border-color); padding-bottom:16px;">
-                    <span style="font-weight:800; font-family: 'Outfit', sans-serif; font-size:1.25rem;">Order #${o.id}</span>
-                    <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}">${o.priority_type}</span>
-                </div>
-                
-                <div style="margin: 20px 0; position: relative;">
-                    <!-- Map Placeholder -->
-                    <div style="width: 100%; height: 120px; background: #e2e8f0; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
-                        <div style="position: absolute; width: 200%; height: 200%; background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.5) 10px, rgba(255,255,255,0.5) 20px);"></div>
-                        <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; position: relative; z-index: 1;"><i data-lucide="map" style="width: 20px; height: 20px; color: var(--text-secondary);"></i> Route Visualization</span>
-                    </div>
-                </div>
-                
-                <div style="font-size:0.95rem; color:var(--text-secondary); margin-bottom:24px; display: flex; flex-direction: column; gap: 16px;">
-                    <div style="display: flex; gap: 12px; align-items: start;">
-                        <div style="background: #f1f5f9; padding: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);"><i data-lucide="store" style="width: 18px; height: 18px;"></i></div>
-                        <div>
-                            <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">Pickup: ${o.shop_name}</strong>
-                            <span style="font-size: 0.85rem;">${o.category}</span>
+
+        let html = "";
+        if (activeJobs.length > 1) {
+            html += `<div style="margin-bottom:16px; padding:10px 16px; background:rgba(99, 102, 241, 0.1); border-radius:var(--radius-sm); color:var(--primary-accent); font-weight:700; font-size:0.95rem; display:flex; align-items:center; gap:8px;">
+                <i data-lucide="package-check" style="width:20px; height:20px;"></i> Active Deliveries Assigned (${activeJobs.length} Orders)
+            </div>`;
+        }
+
+        activeJobs.forEach(o => {
+            let otpForm = "";
+            
+            if (o.status === 'READY_FOR_PICKUP' || o.status === 'ACCEPTED' || o.status === 'PENDING') {
+                otpForm = `
+                    <div style="margin-top: 20px; padding: 16px; border: 2px dashed var(--primary-accent); border-radius: var(--radius-md); background: var(--primary-light);">
+                        <label class="form-label" style="color: var(--primary-accent); display: flex; align-items: center; gap: 6px;"><i data-lucide="key" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--primary-accent);"></i> Verify Pickup OTP (Vendor) or Delivery OTP (Customer)</label>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Enter Vendor Pickup OTP to start delivery, OR enter Customer Delivery OTP to complete immediately.</div>
+                        <div class="otp-verify-row" style="display:flex; gap:12px; margin-top: 12px;">
+                            <input type="text" id="pickup-otp-input-${o.id}" class="form-input" placeholder="4 Digits" maxlength="4" style="text-align:center; font-family: 'Outfit', sans-serif; font-weight:800; font-size:1.5rem; letter-spacing:8px; padding: 12px;">
+                            <button class="btn btn-primary" onclick="verifyPickupOTP(${o.id})" style="width:auto; padding: 0 24px; font-size: 1rem;">Verify OTP</button>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 12px; align-items: start;">
-                        <div style="background: var(--primary-light); padding: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary-accent);"><i data-lucide="map-pin" style="width: 18px; height: 18px;"></i></div>
-                        <div>
-                            <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">Deliver To: ${o.customer_name}</strong>
-                            <span style="font-size: 0.85rem; display: block;">${o.customer_address}</span>
-                            <span style="font-size: 0.85rem; color: var(--primary-accent); font-weight: 600;">📞 ${o.customer_phone}</span>
+                `;
+            } else if (o.status === 'OUT_FOR_DELIVERY') {
+                otpForm = `
+                    <div style="margin-top: 20px; padding: 16px; border: 2px dashed var(--emerald-green); border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.05);">
+                        <label class="form-label" style="color:var(--emerald-green); display: flex; align-items: center; gap: 6px;"><i data-lucide="key" class="icon-inline" style="margin: 0; width: 14px; height: 14px; color: var(--emerald-green);"></i> Verify Delivery OTP (Ask Customer)</label>
+                        <div class="otp-verify-row" style="display:flex; gap:12px; margin-top: 12px;">
+                            <input type="text" id="delivery-otp-input-${o.id}" class="form-input" placeholder="4 Digits" maxlength="4" style="text-align:center; font-family: 'Outfit', sans-serif; font-weight:800; font-size:1.5rem; letter-spacing:8px; padding: 12px; border-color: #a7f3d0;">
+                            <button class="btn btn-primary" onclick="verifyDeliveryOTP(${o.id})" style="width:auto; padding: 0 24px; font-size: 1rem; background: var(--emerald-green); box-shadow: 0 8px 20px rgba(16,185,129,0.25);">Deliver</button>
                         </div>
                     </div>
+                `;
+            }
+            
+            let itemsHtml = (o.items || []).map(item => `<li style="margin-bottom: 4px;"><span style="font-weight: 700;">${item.quantity}x</span> ${item.product_name}</li>`).join("");
+
+            html += `
+                <div class="fade-in-up" style="background:#ffffff; border-radius: var(--radius-md); margin-bottom: 24px; padding: 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                    <div class="flex-between mb-sm" style="border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+                        <span style="font-weight:800; font-family: 'Outfit', sans-serif; font-size:1.2rem;">Order #${o.id}</span>
+                        <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}">${o.priority_type}</span>
+                    </div>
+                    
+                    <div style="font-size:0.95rem; color:var(--text-secondary); margin:16px 0; display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; gap: 12px; align-items: start;">
+                            <div style="background: #f1f5f9; padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);"><i data-lucide="store" style="width: 16px; height: 16px;"></i></div>
+                            <div>
+                                <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">Pickup: ${o.shop_name}</strong>
+                                <span style="font-size: 0.85rem;">${o.category || ''}</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 12px; align-items: start;">
+                            <div style="background: var(--primary-light); padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary-accent);"><i data-lucide="map-pin" style="width: 16px; height: 16px;"></i></div>
+                            <div>
+                                <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">Deliver To: ${o.customer_name}</strong>
+                                <span style="font-size: 0.85rem; display: block;">${o.customer_address}</span>
+                                <span style="font-size: 0.85rem; color: var(--primary-accent); font-weight: 600;">📞 ${o.customer_phone}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: #f8fafc; padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 16px;">
+                        <strong style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; display: block; margin-bottom: 8px;">Items to Carry</strong>
+                        <ul style="padding-left:20px; font-size: 0.9rem; color: var(--text-primary);">
+                            ${itemsHtml}
+                        </ul>
+                    </div>
+
+                    <div class="flex-between" style="font-size:1rem; font-weight:800; color:var(--text-primary); border-top: 1px dashed var(--border-color); padding-top: 12px;">
+                        <span>Collect Cash (if COD)</span>
+                        <span style="color: var(--emerald-green); font-size: 1.3rem; font-family: 'Outfit', sans-serif;">₹${(o.total_amount || 0).toFixed(2)}</span>
+                    </div>
+                    
+                    ${otpForm}
                 </div>
-                
-                <div style="background: #f8fafc; padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 24px;">
-                    <strong style="font-size: 0.85rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; display: block; margin-bottom: 12px;">Items to Carry</strong>
-                    <ul style="padding-left:20px; font-size: 0.95rem; color: var(--text-primary);">
-                        ${itemsHtml}
-                    </ul>
-                </div>
- 
-                <div class="flex-between" style="font-size:1.1rem; font-weight:800; color:var(--text-primary); border-top: 2px dashed var(--border-color); padding-top: 16px;">
-                    <span>Collect Cash (if COD)</span>
-                    <span style="color: var(--emerald-green); font-size: 1.5rem; font-family: 'Outfit', sans-serif;">₹${o.total_amount.toFixed(2)}</span>
-                </div>
-                
-                ${otpForm}
-            </div>
-        `;
+            `;
+        });
+
+        container.innerHTML = html;
         refreshIcons();
     }
 

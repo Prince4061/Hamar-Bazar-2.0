@@ -3834,7 +3834,7 @@
                         let dateStr = item.created_at;
                         try {
                             const cleanD = item.created_at.replace(" ", "T").split(".")[0];
-                            dateStr = new Date(cleanD + "Z").toLocaleString();
+                            dateStr = new Date(cleanD).toLocaleString();
                         } catch(e) {}
                         
                         // Dropdown selection
@@ -3946,7 +3946,7 @@
                         let dateStr = item.created_at;
                         try {
                             const cleanD = item.created_at.replace(" ", "T").split(".")[0];
-                            dateStr = new Date(cleanD + "Z").toLocaleString();
+                            dateStr = new Date(cleanD).toLocaleString();
                         } catch(e) {}
                         
                         tr.innerHTML = `
@@ -4425,6 +4425,7 @@
                         <div style="display:flex; align-items:center; gap:8px;">
                             <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="resetRiderCooldown(${r.id})">Reset Timer</button>
                             <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="openEditDeliveryModal(${r.id}, '${(r.name || '').replace(/'/g, "\\'")}', '${(r.phone || '').replace(/'/g, "\\'")}', '${(r.password || 'password123').replace(/'/g, "\\'")}')"><i data-lucide="edit-2" style="width:12px; height:12px;"></i> Credentials</button>
+                            <button class="btn-custom btn-custom-danger" style="padding:4px 8px; font-size:0.75rem; margin:0; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2);" onclick="deleteDeliveryPartner(${r.id}, '${(r.name || '').replace(/'/g, "\\'")}')"><i data-lucide="trash-2" style="width:12px; height:12px;"></i> Delete</button>
                         </div>
                     </td>
                 `;
@@ -4461,6 +4462,29 @@
                     showAestheticToast(data.message, "success");
                     loadAllAnalytics(false);
                 });
+        }
+
+        // Delete Delivery Partner
+        function deleteDeliveryPartner(riderId, name) {
+            if (!confirm(`Are you sure you want to delete delivery partner "${name}" (#RDR${riderId})?`)) {
+                return;
+            }
+            showAestheticToast("Deleting delivery partner...", "info");
+            fetch(`/api/admin/riders/${riderId}/delete`, {
+                method: 'POST'
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showAestheticToast(data.message || "Delivery partner deleted.", "success");
+                    loadAllAnalytics(false);
+                } else {
+                    showAestheticToast(data.error || "Failed to delete rider.", "error");
+                }
+            })
+            .catch(err => {
+                showAestheticToast("Server error while deleting rider.", "error");
+            });
         }
 
         // Smart Rider Allocation

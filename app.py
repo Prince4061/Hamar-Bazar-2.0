@@ -1597,10 +1597,11 @@ def place_order():
         delivery_otp = f"{random.randint(1000, 9999)}"
         
         # Insert Order Master record (Single order)
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         cursor.execute('''
-            INSERT INTO orders (customer_id, shop_id, total_amount, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (customer_id, first_shop_id, grand_total, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot))
+            INSERT INTO orders (customer_id, shop_id, total_amount, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (customer_id, first_shop_id, grand_total, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot, now_str))
         
         order_id = cursor.lastrowid
         
@@ -1939,17 +1940,23 @@ def remove_avatar():
 
 @app.route('/api/vendor/orders/<int:shop_id>', methods=['GET'])
 def get_vendor_orders(shop_id):
-    if session.get('role') != 'vendor' or session.get('role_id') != shop_id:
+    role = session.get('role')
+    role_id = session.get('role_id')
+    if role != 'admin' and (role != 'vendor' or (role_id and role_id != shop_id)):
         return jsonify({'error': 'Unauthorized.'}), 403
     db = get_db()
     cursor = db.cursor()
     cursor.execute('''
-        SELECT o.*, u.name as customer_name, u.address as customer_address, u.phone as customer_phone
+        SELECT o.*, u.name as customer_name, u.address as customer_address, u.phone as customer_phone,
+               (SELECT COALESCE(SUM(quantity), 0) FROM order_items WHERE order_id = o.id) as items_count,
+               (SELECT GROUP_CONCAT(quantity || 'x ' || p.name, ', ') 
+                FROM order_items oi JOIN products p ON oi.product_id = p.id 
+                WHERE oi.order_id = o.id) as items_summary
         FROM orders o
         JOIN users u ON o.customer_id = u.id
         WHERE o.shop_id = ?
         ORDER BY 
-            CASE WHEN o.priority_type = 'URGENT' AND o.status = 'PENDING' THEN 1 ELSE 2 END,
+            CASE WHEN o.priority_type = 'URGENT' AND o.status IN ('PENDING', 'ACCEPTED') THEN 1 ELSE 2 END,
             o.id DESC
     ''', (shop_id,))
     orders = [dict(row) for row in cursor.fetchall()]
@@ -1970,11 +1977,12 @@ def accept_order(order_id):
     if order['status'] != 'PENDING':
         return jsonify({'error': 'Order already processed.'}), 400
         
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     cursor.execute('''
         UPDATE orders 
-        SET status = 'ACCEPTED', accepted_at = CURRENT_TIMESTAMP 
+        SET status = 'ACCEPTED', accepted_at = ? 
         WHERE id = ?
-    ''', (order_id,))
+    ''', (now_str, order_id))
     db.commit()
     return jsonify({'message': 'Order accepted successfully.'})
 
@@ -1990,14 +1998,15 @@ def ready_order(order_id):
         return jsonify({'error': 'Order not found.'}), 404
     if order['shop_id'] != session.get('role_id'):
         return jsonify({'error': 'Unauthorized for this shop.'}), 403
-    if order['status'] != 'ACCEPTED':
-        return jsonify({'error': 'Order must be ACCEPTED first.'}), 400
+    if order['status'] not in ['ACCEPTED', 'PENDING', 'AWAITING_PAYMENT_APPROVAL']:
+        return jsonify({'error': 'Order status must be active (ACCEPTED or PENDING).'}), 400
         
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     cursor.execute('''
         UPDATE orders 
-        SET status = 'READY_FOR_PICKUP', ready_at = CURRENT_TIMESTAMP 
+        SET status = 'READY_FOR_PICKUP', ready_at = ? 
         WHERE id = ?
-    ''', (order_id,))
+    ''', (now_str, order_id))
     db.commit()
     return jsonify({
         'message': 'Order marked ready for pickup.',
@@ -2209,14 +2218,7 @@ def claim_delivery(order_id):
     if not rider:
         return jsonify({'error': 'Rider not found.'}), 404
         
-    if rider['active_orders'] and rider['active_orders'] >= 1:
-        return jsonify({'error': 'You already have an active delivery job.'}), 400
-        
-    if rider['cooldown_until']:
-        cooldown_dt = datetime.strptime(rider['cooldown_until'], '%Y-%m-%d %H:%M:%S' if '.' not in rider['cooldown_until'] else '%Y-%m-%d %H:%M:%S.%f')
-        if datetime.now() < cooldown_dt:
-            time_left = int((cooldown_dt - datetime.now()).total_seconds())
-            return jsonify({'error': f'Cooldown mode active. Please wait {time_left} more seconds before claiming next job.'}), 400
+    # Multiple active orders permitted per rider
             
     # 2. Check Order Availability with DB row-locking-like logic (Atomic claim check)
     db.execute("BEGIN TRANSACTION")
@@ -2238,11 +2240,12 @@ def claim_delivery(order_id):
     # 3. Commit claim & start 10-minute cooldown
     cooldown_end = datetime.now() + timedelta(minutes=10)
     
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     cursor.execute('''
         UPDATE orders 
-        SET delivery_boy_id = ?, assigned_at = CURRENT_TIMESTAMP
+        SET delivery_boy_id = ?, assigned_at = ?
         WHERE id = ?
-    ''', (rider_id, order_id))
+    ''', (rider_id, now_str, order_id))
     
     cursor.execute('''
         UPDATE delivery_partners 
@@ -2269,22 +2272,32 @@ def verify_pickup(order_id):
         
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT pickup_otp, status, delivery_boy_id FROM orders WHERE id = ?", (order_id,))
+    cursor.execute("SELECT pickup_otp, delivery_otp, status, delivery_boy_id FROM orders WHERE id = ?", (order_id,))
     order = cursor.fetchone()
     
     if not order:
         return jsonify({'error': 'Order not found.'}), 404
     if order['delivery_boy_id'] != int(rider_id):
         return jsonify({'error': 'This order is not assigned to you.'}), 403
-    if order['status'] != 'READY_FOR_PICKUP':
-        return jsonify({'error': 'Order status must be READY FOR PICKUP.'}), 400
+    if order['status'] not in ['READY_FOR_PICKUP', 'ACCEPTED', 'PENDING', 'OUT_FOR_DELIVERY']:
+        return jsonify({'error': 'Invalid order status for OTP verification.'}), 400
         
-    if order['pickup_otp'] == entered_otp:
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # 1. Direct completion using Customer Delivery OTP (e.g. Admin force-allotted order)
+    if entered_otp == order['delivery_otp']:
+        cursor.execute("UPDATE orders SET status = 'DELIVERED', delivered_at = ? WHERE id = ?", (now_str, order_id))
+        cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (int(rider_id),))
+        db.commit()
+        return jsonify({'message': 'Customer Delivery OTP verified! Order successfully DELIVERED.', 'completed': True})
+    
+    # 2. Pickup verification using Vendor Pickup OTP
+    elif entered_otp == order['pickup_otp']:
         cursor.execute("UPDATE orders SET status = 'OUT_FOR_DELIVERY' WHERE id = ?", (order_id,))
         db.commit()
         return jsonify({'message': 'Pickup OTP verified successfully. Status changed to OUT FOR DELIVERY.'})
     else:
-        return jsonify({'error': 'Invalid Pickup OTP. Please check with shop vendor.'}), 400
+        return jsonify({'error': 'Invalid OTP. Enter Vendor Pickup OTP or Customer Delivery OTP.'}), 400
 
 @app.route('/api/orders/<int:order_id>/verify-delivery', methods=['POST'])
 def verify_delivery(order_id):
@@ -2299,21 +2312,22 @@ def verify_delivery(order_id):
         
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT delivery_otp, status, delivery_boy_id FROM orders WHERE id = ?", (order_id,))
+    cursor.execute("SELECT pickup_otp, delivery_otp, status, delivery_boy_id FROM orders WHERE id = ?", (order_id,))
     order = cursor.fetchone()
     
     if not order:
         return jsonify({'error': 'Order not found.'}), 404
     if order['delivery_boy_id'] != int(rider_id):
         return jsonify({'error': 'This order is not assigned to you.'}), 403
-    if order['status'] != 'OUT_FOR_DELIVERY':
-        return jsonify({'error': 'Order status must be OUT FOR DELIVERY.'}), 400
+    if order['status'] not in ['OUT_FOR_DELIVERY', 'READY_FOR_PICKUP', 'ACCEPTED', 'PENDING']:
+        return jsonify({'error': 'Order status must be active.'}), 400
         
-    if order['delivery_otp'] == entered_otp:
-        cursor.execute("UPDATE orders SET status = 'DELIVERED', delivered_at = CURRENT_TIMESTAMP WHERE id = ?", (order_id,))
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if entered_otp == order['delivery_otp'] or entered_otp == order['pickup_otp']:
+        cursor.execute("UPDATE orders SET status = 'DELIVERED', delivered_at = ? WHERE id = ?", (now_str, order_id))
         cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (int(rider_id),))
         db.commit()
-        return jsonify({'message': 'Delivery OTP verified! Order successfully DELIVERED.'})
+        return jsonify({'message': 'OTP verified! Order successfully DELIVERED.', 'completed': True})
     else:
         return jsonify({'error': 'Invalid Delivery OTP. Please verify with Customer.'}), 400
 
@@ -2375,11 +2389,12 @@ def approve_order_payment(order_id):
         return jsonify({'error': 'Order is not awaiting payment verification.'}), 400
         
     # Approve order: set status to PENDING and update created_at so it counts as placed now
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     cursor.execute('''
         UPDATE orders 
-        SET status = 'PENDING', created_at = CURRENT_TIMESTAMP 
+        SET status = 'PENDING', created_at = ? 
         WHERE id = ?
-    ''', (order_id,))
+    ''', (now_str, order_id))
     db.commit()
     return jsonify({'success': True, 'message': 'Payment approved. Order is now placed and visible to vendor.'})
 
@@ -2419,13 +2434,14 @@ def admin_force_accept_order(order_id):
     db = get_db()
     cursor = db.cursor()
     
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     if new_shop_id:
         cursor.execute("SELECT id FROM shops WHERE id = ?", (new_shop_id,))
         if not cursor.fetchone():
             return jsonify({'error': 'Selected shop does not exist.'}), 400
-        cursor.execute("UPDATE orders SET shop_id = ?, status = 'ACCEPTED', accepted_at = CURRENT_TIMESTAMP WHERE id = ?", (new_shop_id, order_id))
+        cursor.execute("UPDATE orders SET shop_id = ?, status = 'ACCEPTED', accepted_at = ? WHERE id = ?", (new_shop_id, now_str, order_id))
     else:
-        cursor.execute("UPDATE orders SET status = 'ACCEPTED', accepted_at = CURRENT_TIMESTAMP WHERE id = ?", (order_id,))
+        cursor.execute("UPDATE orders SET status = 'ACCEPTED', accepted_at = ? WHERE id = ?", (now_str, order_id))
         
     db.commit()
     return jsonify({'success': True, 'message': 'Order accepted successfully by Admin.'})
@@ -2468,11 +2484,12 @@ def admin_force_allot_order(order_id):
         if order['status'] in ['PENDING', 'ACCEPTED', 'AWAITING_PAYMENT_APPROVAL']:
             new_status = 'READY_FOR_PICKUP'
         
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         cursor.execute('''
             UPDATE orders 
-            SET delivery_boy_id = ?, assigned_at = CURRENT_TIMESTAMP, status = ?
+            SET delivery_boy_id = ?, assigned_at = ?, status = ?
             WHERE id = ?
-        ''', (rider_id, new_status, order_id))
+        ''', (rider_id, now_str, new_status, order_id))
         
         # Increment the new rider's active orders
         cursor.execute('''
@@ -2517,14 +2534,15 @@ def admin_change_order_status(order_id):
         cursor.execute("UPDATE orders SET status = ? WHERE id = ?", (new_status, order_id))
         
         # Also set timestamps depending on status changes
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         if new_status == 'ACCEPTED' and not order['accepted_at']:
-            cursor.execute("UPDATE orders SET accepted_at = CURRENT_TIMESTAMP WHERE id = ?", (order_id,))
+            cursor.execute("UPDATE orders SET accepted_at = ? WHERE id = ?", (now_str, order_id))
         elif new_status == 'READY_FOR_PICKUP' and not order['ready_at']:
-            cursor.execute("UPDATE orders SET ready_at = CURRENT_TIMESTAMP WHERE id = ?", (order_id,))
+            cursor.execute("UPDATE orders SET ready_at = ? WHERE id = ?", (now_str, order_id))
         elif new_status == 'OUT_FOR_DELIVERY' and not order['assigned_at']:
-            cursor.execute("UPDATE orders SET assigned_at = CURRENT_TIMESTAMP WHERE id = ?", (order_id,))
+            cursor.execute("UPDATE orders SET assigned_at = ? WHERE id = ?", (now_str, order_id))
         elif new_status == 'DELIVERED' and not order['delivered_at']:
-            cursor.execute("UPDATE orders SET delivered_at = CURRENT_TIMESTAMP WHERE id = ?", (order_id,))
+            cursor.execute("UPDATE orders SET delivered_at = ? WHERE id = ?", (now_str, order_id))
             
         # Adjust rider's active_orders count if applicable
         if rider_id:
@@ -3944,12 +3962,14 @@ def get_rider_active_order(rider_id):
     cursor.execute('''
         SELECT id FROM orders 
         WHERE delivery_boy_id = ? AND status NOT IN ('DELIVERED', 'FAILED')
-        LIMIT 1
+        ORDER BY id DESC
     ''', (rider_id,))
-    row = cursor.fetchone()
-    if row:
-        return jsonify({'active_order_id': row['id']})
-    return jsonify({'active_order_id': None})
+    rows = cursor.fetchall()
+    active_ids = [r['id'] for r in rows]
+    return jsonify({
+        'active_order_ids': active_ids,
+        'active_order_id': active_ids[0] if active_ids else None
+    })
 
 @app.route('/api/delivery/rider/<int:rider_id>/status', methods=['GET'])
 def get_rider_status(rider_id):
@@ -3975,6 +3995,35 @@ def reset_rider_cooldown(rider_id):
     cursor.execute("UPDATE delivery_partners SET cooldown_until = NULL, active_orders = 0 WHERE id = ?", (rider_id,))
     db.commit()
     return jsonify({'message': 'Rider cooldown and active orders reset.'})
+
+# --- Delete Delivery Partner API (Admin only) ---
+@app.route('/api/admin/riders/<int:rider_id>/delete', methods=['POST', 'DELETE'])
+def admin_delete_rider(rider_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized. Admin login required.'}), 403
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT * FROM delivery_partners WHERE id = ?", (rider_id,))
+    rider = cursor.fetchone()
+    if not rider:
+        return jsonify({'error': 'Delivery partner not found.'}), 404
+        
+    rider_name = rider['name']
+    
+    try:
+        db.execute("BEGIN TRANSACTION")
+        # Unassign rider from active/past orders without deleting the orders themselves
+        cursor.execute("UPDATE orders SET delivery_boy_id = NULL WHERE delivery_boy_id = ?", (rider_id,))
+        # Delete rider record
+        cursor.execute("DELETE FROM delivery_partners WHERE id = ?", (rider_id,))
+        db.commit()
+        return jsonify({'success': True, 'message': f'Delivery partner "{rider_name}" (#RDR{rider_id}) deleted successfully.'})
+    except Exception as e:
+        db.execute("ROLLBACK")
+        print("Delete delivery partner error:", e)
+        return jsonify({'error': f'Failed to delete delivery partner: {str(e)}'}), 500
 
 
 # --- Prescription / Medicine Upload APIs ---
@@ -4140,8 +4189,9 @@ def track_search():
         
     db = get_db()
     cursor = db.cursor()
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     try:
-        cursor.execute("INSERT INTO search_history (customer_id, keyword) VALUES (?, ?)", (int(customer_id), keyword))
+        cursor.execute("INSERT INTO search_history (customer_id, keyword, searched_at) VALUES (?, ?, ?)", (int(customer_id), keyword, now_str))
         db.commit()
         trigger_webhook_async('user_search', {
             'customer_id': int(customer_id),
@@ -4197,7 +4247,7 @@ def get_search_analytics():
     cursor.execute('''
         SELECT keyword, COUNT(*) as count 
         FROM search_history 
-        WHERE searched_at >= datetime('now', '-7 days')
+        WHERE searched_at >= datetime('now', 'localtime', '-7 days')
         GROUP BY keyword 
         ORDER BY count DESC 
         LIMIT 5
@@ -4208,7 +4258,7 @@ def get_search_analytics():
     cursor.execute('''
         SELECT keyword, COUNT(*) as count 
         FROM search_history 
-        WHERE searched_at >= datetime('now', '-30 days')
+        WHERE searched_at >= datetime('now', 'localtime', '-30 days')
         GROUP BY keyword 
         ORDER BY count DESC 
         LIMIT 5

@@ -3617,7 +3617,7 @@ html, body {
                     let timeStr = o.created_at;
                     try {
                         const dateClean = o.created_at.replace(" ", "T").split('.')[0];
-                        const date = new Date(dateClean + "Z");
+                        const date = new Date(dateClean);
                         timeStr = date.toLocaleDateString() + " " + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                     } catch(e) {}
 
@@ -3771,7 +3771,7 @@ html, body {
                     let dateStr = item.created_at;
                     try {
                         const cleanD = item.created_at.replace(" ", "T").split(".")[0];
-                        const date = new Date(cleanD + "Z");
+                        const date = new Date(cleanD);
                         dateStr = date.toLocaleDateString();
                     } catch(e) {}
                     
