@@ -343,11 +343,18 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         image_url TEXT NOT NULL,
         product_id INTEGER,
+        category TEXT,
         title TEXT,
         is_active INTEGER DEFAULT 1,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
     )
     ''')
+
+    # Migration: Add category column to banners table if missing
+    try:
+        cursor.execute("ALTER TABLE banners ADD COLUMN category TEXT")
+    except sqlite3.OperationalError:
+        pass
 
     conn.commit()
     conn.close()

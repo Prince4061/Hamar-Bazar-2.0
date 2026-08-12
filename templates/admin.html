@@ -2808,11 +2808,18 @@
                             </div>
                         </div>
                         
-                        <div style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 20px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
                             <div>
-                                <label style="display: block; font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; color: var(--text-primary);">Link to Product (Redirect Target)</label>
+                                <label style="display: block; font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; color: var(--text-primary);">Link to Product (Option 1)</label>
                                 <input type="text" id="banner-product-search" class="search-bar-input" style="width: 100%; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 8px;" placeholder="Type to search product name... 🔍" oninput="filterBannerProductsDropdown(this.value)">
                                 <select id="banner-product-select" class="search-bar-input" style="width: 100%; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; background: #fff;">
+                                    <!-- Loaded dynamically -->
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; color: var(--text-primary);">OR Link to Category (Option 2)</label>
+                                <select id="banner-category-select" class="search-bar-input" style="width: 100%; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; background: #fff; margin-top: 36px;">
+                                    <option value="">-- No Category Link --</option>
                                     <!-- Loaded dynamically -->
                                 </select>
                             </div>
@@ -6909,7 +6916,13 @@
                         tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-secondary);">No banners found. Add a banner above!</td></tr>`;
                         return;
                     }
-                    banners.forEach(b => {
+                        let targetBadge = '<span style="color: var(--text-secondary);">None</span>';
+                        if (b.product_id) {
+                            targetBadge = `<span class="badge" style="background: var(--primary-light); color: var(--primary-accent); font-weight: 700;">Product ID: ${b.product_id}</span>`;
+                        } else if (b.category) {
+                            targetBadge = `<span class="badge" style="background: #fef3c7; color: #d97706; font-weight: 700;">Category: ${escapeHtml(b.category)}</span>`;
+                        }
+
                         const row = document.createElement("tr");
                         row.id = `admin-banner-row-${b.id}`;
                         row.innerHTML = `
@@ -6918,7 +6931,7 @@
                                 <img src="${b.image_url && (b.image_url.startsWith('http://') || b.image_url.startsWith('https://')) ? `/api/proxy-image?url=${encodeURIComponent(b.image_url)}` : (b.image_url || '/static/images/grocery_basket.png')}" style="width: 120px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-color);" alt="Banner Preview">
                             </td>
                             <td><strong>${escapeHtml(b.title || 'Untitled Banner')}</strong></td>
-                            <td>${b.product_id ? `<span class="badge" style="background: var(--primary-light); color: var(--primary-accent); font-weight: 700;">Product ID: ${b.product_id}</span>` : '<span style="color: var(--text-secondary);">None</span>'}</td>
+                            <td>${targetBadge}</td>
                             <td>
                                 <span class="badge ${b.is_active ? 'badge-status-ready' : 'badge-status-failed'}" style="padding: 4px 8px; font-size: 0.72rem;">
                                     ${b.is_active ? 'Active' : 'Inactive'}
@@ -6958,6 +6971,24 @@
                     populateBannersProductsDropdown(adminProductsCache);
                 })
                 .catch(err => console.error("Error loading products dropdown:", err));
+
+            // Also fetch shops to populate Category Link dropdown
+            fetch('/api/shops')
+                .then(res => res.json())
+                .then(shops => {
+                    const catSelect = document.getElementById("banner-category-select");
+                    if (catSelect) {
+                        catSelect.innerHTML = `<option value="">-- No Category Link --</option>`;
+                        const uniqueCategories = [...new Set(shops.map(s => s.category).filter(Boolean))];
+                        uniqueCategories.forEach(cat => {
+                            const opt = document.createElement("option");
+                            opt.value = cat;
+                            opt.innerText = `${cat} (Shop Category)`;
+                            catSelect.appendChild(opt);
+                        });
+                    }
+                })
+                .catch(err => console.error("Error loading category dropdown:", err));
         }
 
         function populateBannersProductsDropdown(products) {
@@ -7046,12 +7077,14 @@
             const imageUrlInput = document.getElementById("banner-image-url");
             const titleInput = document.getElementById("banner-title");
             const productSelect = document.getElementById("banner-product-select");
+            const categorySelect = document.getElementById("banner-category-select");
             
             if (!imageUrlInput) return;
             
             const image_url = imageUrlInput.value.trim();
             const title = titleInput ? titleInput.value.trim() : "";
             const product_id = productSelect ? productSelect.value : null;
+            const category = categorySelect ? categorySelect.value : null;
             
             if (!image_url) {
                 showAestheticToast("Image URL is required.", "error");
@@ -7061,7 +7094,8 @@
             const payload = {
                 image_url: image_url,
                 title: title,
-                product_id: product_id ? parseInt(product_id) : null
+                product_id: product_id ? parseInt(product_id) : null,
+                category: category || null
             };
             
             fetch('/api/admin/banners', {
@@ -7076,6 +7110,7 @@
                     imageUrlInput.value = "";
                     if (titleInput) titleInput.value = "";
                     if (productSelect) productSelect.value = "";
+                    if (categorySelect) categorySelect.value = "";
                     loadAdminBanners();
                 } else {
                     showAestheticToast(data.error || "Failed to add banner.", "error");

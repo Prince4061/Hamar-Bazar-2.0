@@ -1841,6 +1841,27 @@ html, body {
     let currentBannerIndex = 0;
     let bannerInterval = null;
 
+    function selectCategoryFromBanner(catName) {
+        if (!catName) return;
+        ensureShopsCacheLoaded(() => {
+            const shop = shopsCache.find(s => 
+                s.category && (
+                    s.category.toUpperCase() === catName.toUpperCase() || 
+                    s.shop_name.toUpperCase().includes(catName.toUpperCase())
+                )
+            );
+            if (shop) {
+                selectCategory(shop.category, shop.id);
+            } else {
+                const searchInput = document.getElementById("search-input");
+                if (searchInput) {
+                    searchInput.value = catName;
+                    triggerGlobalSearch();
+                }
+            }
+        });
+    }
+
     function loadBanners() {
         fetch('/api/banners')
         .then(res => res.json())
@@ -1874,6 +1895,8 @@ html, body {
             slide.onclick = () => {
                 if (banner.product_id) {
                     showProductDetailModal(banner.product_id);
+                } else if (banner.category) {
+                    selectCategoryFromBanner(banner.category);
                 }
             };
             

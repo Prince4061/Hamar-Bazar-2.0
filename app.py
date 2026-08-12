@@ -3839,7 +3839,7 @@ def admin_test_webhook():
 def get_banners():
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT id, image_url, product_id, title FROM banners WHERE is_active = 1")
+    cursor.execute("SELECT id, image_url, product_id, category, title FROM banners WHERE is_active = 1")
     banners = [dict(row) for row in cursor.fetchall()]
     return jsonify(banners)
 
@@ -3849,7 +3849,7 @@ def get_admin_banners():
         return jsonify({'error': 'Unauthorized.'}), 403
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT id, image_url, product_id, title, is_active FROM banners")
+    cursor.execute("SELECT id, image_url, product_id, category, title, is_active FROM banners")
     banners = [dict(row) for row in cursor.fetchall()]
     return jsonify(banners)
 
@@ -3860,6 +3860,7 @@ def add_admin_banner():
     data = request.json or {}
     image_url = data.get('image_url', '').strip()
     product_id = data.get('product_id')
+    category = data.get('category', '').strip() or None
     title = data.get('title', '').strip()
     
     if not image_url:
@@ -3878,7 +3879,7 @@ def add_admin_banner():
         except ValueError:
             product_id = None
             
-    cursor.execute("INSERT INTO banners (image_url, product_id, title, is_active) VALUES (?, ?, ?, 1)", (image_url, product_id, title))
+    cursor.execute("INSERT INTO banners (image_url, product_id, category, title, is_active) VALUES (?, ?, ?, ?, 1)", (image_url, product_id, category, title))
     db.commit()
     return jsonify({'success': True, 'message': 'Banner added successfully.'})
 
