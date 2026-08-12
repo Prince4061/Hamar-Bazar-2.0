@@ -3534,10 +3534,12 @@
                 }
             }, 5000);
             
-            // Listeners for closing menus
+            // Listeners for closing menus safely
             window.addEventListener('click', () => {
-                document.getElementById('floating-menu').style.display = 'none';
-                document.getElementById('date-selector-drop').style.display = 'none';
+                const floatMenu = document.getElementById('floating-menu');
+                if (floatMenu) floatMenu.style.display = 'none';
+                const dateDrop = document.getElementById('date-selector-drop');
+                if (dateDrop) dateDrop.style.display = 'none';
             });
             
             // Read network mode from browser
@@ -3652,8 +3654,10 @@
                 subtitle = "Track successful logins and user interactions.";
             }
             
-            document.getElementById("header-tab-title").innerText = title;
-            document.getElementById("header-tab-subtitle").innerText = subtitle;
+            const hTitle = document.getElementById("header-tab-title");
+            if (hTitle) hTitle.innerText = title;
+            const hSub = document.getElementById("header-tab-subtitle");
+            if (hSub) hSub.innerText = subtitle;
             
             // Re-render responsive charts
             setTimeout(() => {
@@ -3662,7 +3666,8 @@
             }, 100);
             
             // Toggle sidebar & backdrop close on mobile click
-            document.getElementById('sidebar-panel').classList.remove('open');
+            const sidePanel = document.getElementById('sidebar-panel');
+            if (sidePanel) sidePanel.classList.remove('open');
             const backdrop = document.getElementById('sidebar-backdrop');
             if (backdrop) backdrop.classList.remove('show');
             
@@ -3678,6 +3683,7 @@
         function toggleMobileSidebar() {
             const sidebar = document.getElementById('sidebar-panel');
             const backdrop = document.getElementById('sidebar-backdrop');
+            if (!sidebar) return;
             const isOpen = sidebar.classList.toggle('open');
             if (backdrop) {
                 if (isOpen) {
@@ -3692,10 +3698,12 @@
         function handleGlobalSearch(query) {
             query = query.toLowerCase().trim();
             if (activeTab === 'orders') {
-                document.getElementById('order-search-input').value = query;
+                const sIn = document.getElementById('order-search-input');
+                if (sIn) sIn.value = query;
                 filterOrdersTable();
             } else if (activeTab === 'products') {
-                document.getElementById('product-search-input').value = query;
+                const pIn = document.getElementById('product-search-input');
+                if (pIn) pIn.value = query;
                 filterProductsCatalog();
             }
         }
@@ -3717,13 +3725,14 @@
 
         // Date selection widget
         function toggleDateDropdown(e) {
-            e.stopPropagation();
+            if (e) e.stopPropagation();
             const drop = document.getElementById("date-selector-drop");
-            drop.style.display = drop.style.display === 'block' ? 'none' : 'block';
+            if (drop) drop.style.display = drop.style.display === 'block' ? 'none' : 'block';
         }
         function setDateRange(range) {
             dateRange = range;
-            document.getElementById("date-range-label").innerText = range;
+            const lbl = document.getElementById("date-range-label");
+            if (lbl) lbl.innerText = range;
             showAestheticToast(`Date filter updated to: ${range}`, "success");
             loadAllAnalytics(true);
         }
@@ -3734,7 +3743,7 @@
                 showLoadingState();
             }
             
-            fetch(`/api/admin/analytics?range=${encodeURIComponent(dateRange)}`)
+            fetch(`/api/admin/analytics?range=${encodeURIComponent(dateRange)}`, { credentials: 'same-origin' })
                 .then(res => {
                     if (res.status === 401 || res.status === 403) {
                         window.location.href = '/staff-login?error=session_expired';
