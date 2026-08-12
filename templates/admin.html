@@ -9,7 +9,7 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/chart.min.js"></script>
     <!-- CSRF Protection & Cache Purge Interceptor -->
     <script>
         // Automatic Cache Storage & Service Worker Purge for Admin
@@ -3583,10 +3583,10 @@
             if (targetLink) targetLink.classList.add('active');
             
             // Show Panel
-            document.querySelectorAll('.tab-panel').forEach(el => {
-                el.classList.remove('active');
-            });
-            document.getElementById(`panel-${tabId}`).classList.add('active');
+            const targetPanel = document.getElementById(`panel-${tabId}`);
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+            }
             
             // Update Headers
             let title = "Operations Center Control Dashboard";
@@ -3735,7 +3735,13 @@
             }
             
             fetch(`/api/admin/analytics?range=${encodeURIComponent(dateRange)}`)
-                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 401 || res.status === 403) {
+                        window.location.href = '/staff-login?error=session_expired';
+                        return null;
+                    }
+                    return res.json();
+                })
                 .then(data => {
                     if (!data || !data.overview) {
                         console.error("Invalid analytics data received:", data);
