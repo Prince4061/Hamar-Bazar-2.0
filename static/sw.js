@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hamar-bazar-cache-v5';
+const CACHE_NAME = 'hamar-bazar-cache-v7';
 const ASSETS_TO_CACHE = [
   '/static/offline.html'
 ];
@@ -38,16 +38,23 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event (Network-First with Cache Fallback for assets, Network-Only for dynamic APIs)
+// Fetch Event (Network-First with Cache Fallback for assets, Network-Only for dynamic APIs & HTML routes)
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
 
-  // Dynamic routes, API requests, and external URLs should not be cached (Network-only)
+  // Dynamic routes, HTML pages, API requests, and external URLs should not be cached (Network-only)
   if (
     event.request.method !== 'GET' ||
     requestUrl.origin !== self.location.origin ||
     requestUrl.pathname.startsWith('/api/') ||
-    requestUrl.pathname.startsWith('/session/')
+    requestUrl.pathname.startsWith('/session/') ||
+    requestUrl.pathname === '/admin' ||
+    requestUrl.pathname === '/customer' ||
+    requestUrl.pathname === '/vendor' ||
+    requestUrl.pathname === '/delivery' ||
+    requestUrl.pathname === '/' ||
+    requestUrl.pathname === '/login' ||
+    requestUrl.pathname === '/staff-login'
   ) {
     event.respondWith(fetch(event.request));
     return;

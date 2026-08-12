@@ -74,8 +74,8 @@ def handle_csrf_error(e):
 
 @app.after_request
 def add_header(response):
-    if request.path.startswith('/api/'):
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    if request.path.startswith('/api/') or request.path in ['/admin', '/customer', '/vendor', '/delivery', '/login', '/staff-login', '/']:
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
     # Security headers — protect against common web attacks
@@ -394,7 +394,7 @@ def send_order_email_sync(order_id):
             
         # Fetch order details
         cursor.execute("""
-            SELECT o.id, o.total_amount, o.priority_type, o.status, o.payment_mode, o.created_at, 
+            SELECT o.id, o.total_amount, o.delivery_fee, o.priority_type, o.status, o.payment_mode, o.created_at, 
                    u.name as customer_name, u.phone as customer_phone, u.address as customer_address,
                    s.shop_name
             FROM orders o
@@ -416,6 +416,10 @@ def send_order_email_sync(order_id):
             WHERE oi.order_id = ?
         """, (order_id,))
         items = cursor.fetchall()
+        
+        items_subtotal = sum(item['quantity'] * item['price'] for item in items)
+        del_fee = float(order['delivery_fee']) if ('delivery_fee' in order.keys() and order['delivery_fee'] is not None) else max(0.0, float(order['total_amount']) - items_subtotal)
+        grand_tot = float(order['total_amount'])
         
         # Build Email Content
         subject = f"New Order Placed: #ORD{order_id} - {order['shop_name']}"
@@ -462,8 +466,16 @@ def send_order_email_sync(order_id):
                         <td style="padding: 10px; border: 1px solid #ddd;">{order['payment_mode']}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Total Amount:</strong></td>
-                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #2c3e50;">₹{order['total_amount']:.2f}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Items Subtotal:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">₹{items_subtotal:.2f}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Delivery Charge:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #d35400;">{'₹' + f'{del_fee:.2f}' if del_fee > 0 else 'FREE'}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Grand Total (Kul Bhugtan):</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #27ae60; font-size: 1.1em;">₹{grand_tot:.2f}</td>
                     </tr>
                 </table>
                 
@@ -493,6 +505,20 @@ def send_order_email_sync(order_id):
             """
         body_html += f"""
                     </tbody>
+                    <tfoot>
+                        <tr style="background-color: #f2f2f2; font-weight: bold;">
+                            <td colspan="4" style="padding: 10px; text-align: right; border: 1px solid #ddd;">Items Subtotal:</td>
+                            <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">₹{items_subtotal:.2f}</td>
+                        </tr>
+                        <tr style="background-color: #fff3cd; font-weight: bold; color: #856404;">
+                            <td colspan="4" style="padding: 10px; text-align: right; border: 1px solid #ddd;">Delivery Charge:</td>
+                            <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">{'₹' + f'{del_fee:.2f}' if del_fee > 0 else 'FREE'}</td>
+                        </tr>
+                        <tr style="background-color: #d4edda; font-weight: bold; color: #155724; font-size: 1.05em;">
+                            <td colspan="4" style="padding: 10px; text-align: right; border: 1px solid #ddd;">Grand Total (Kul Bhugtan):</td>
+                            <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">₹{grand_tot:.2f}</td>
+                        </tr>
+                    </tfoot>
                 </table>
                 <br>
                 <p style="font-size: 0.9em; color: #7f8c8d; border-top: 1px solid #ddd; padding-top: 10px;">
@@ -1306,7 +1332,7 @@ def admin_view():
 def get_shops():
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM shops WHERE is_active = 1")
+    cursor.execute("SELECT * FROM shops WHERE is_active = 1 ORDER BY display_order ASC, id ASC")
     shops = [dict(row) for row in cursor.fetchall()]
     return jsonify(shops)
 
@@ -1588,7 +1614,16 @@ def place_order():
                 'custom_image_path': details['custom_image_path']
             })
 
-        delivery_fee = delivery_fee_flat if total_amount < delivery_fee_threshold else 0.0
+        # Check if shop has additional delivery charge (e.g. far shop surcharge like Reyansh Gold)
+        shop_extra_delivery_fee = 0.0
+        if first_shop_id:
+            cursor.execute("SELECT extra_delivery_fee FROM shops WHERE id = ?", (first_shop_id,))
+            s_extra_row = cursor.fetchone()
+            if s_extra_row and s_extra_row['extra_delivery_fee']:
+                shop_extra_delivery_fee = float(s_extra_row['extra_delivery_fee'])
+
+        base_delivery_fee = delivery_fee_flat if total_amount < delivery_fee_threshold else 0.0
+        delivery_fee = base_delivery_fee + shop_extra_delivery_fee
         grand_total = total_amount + delivery_fee
         gst_amount = 0.0 # GST is inclusive in item prices
         
@@ -1777,7 +1812,7 @@ def get_customer_orders(customer_id):
     db = get_db()
     cursor = db.cursor()
     cursor.execute('''
-        SELECT o.id, o.created_at, o.total_amount, o.status, o.priority_type,
+        SELECT o.id, o.created_at, o.total_amount, o.delivery_fee, o.status, o.priority_type,
                s.shop_name, o.delivery_otp, o.pickup_otp,
                GROUP_CONCAT(p.name || ' x' || oi.quantity, ', ') as items_summary
         FROM orders o
@@ -2755,11 +2790,11 @@ def get_admin_analytics():
     db = get_db()
     cursor = db.cursor()
     
-    date_filter = request.args.get('range', 'All')
+    date_filter = request.args.get('range', 'All Time')
     # Security: Whitelist allowed date filter values to prevent injection
-    ALLOWED_FILTERS = {'All', 'Today', 'Yesterday', 'Month to Date', 'Last 7 Days'}
+    ALLOWED_FILTERS = {'All', 'All Time', 'Today', 'Yesterday', 'Month to Date', 'Last 7 Days'}
     if date_filter not in ALLOWED_FILTERS:
-        date_filter = 'All'
+        date_filter = 'All Time'
     
     # Build safe parameterized date filter (no string injection)
     date_params = ()    # Empty tuple = no date filter
@@ -2837,8 +2872,12 @@ def get_admin_analytics():
     yesterday_orders = yesterday_row[0] or 0
     yesterday_revenue = round(yesterday_row[1] or 0.0, 2)
     
-    orders_growth = round(((today_orders - yesterday_orders) / yesterday_orders * 100.0), 1) if yesterday_orders > 0 else 12.5
-    revenue_growth = round(((today_revenue - yesterday_revenue) / yesterday_revenue * 100.0), 1) if yesterday_revenue > 0.0 else 18.7
+    if date_filter in ('All', 'All Time'):
+        orders_growth = 100.0
+        revenue_growth = 100.0
+    else:
+        orders_growth = round(((today_orders - yesterday_orders) / yesterday_orders * 100.0), 1) if yesterday_orders > 0 else 12.5
+        revenue_growth = round(((today_revenue - yesterday_revenue) / yesterday_revenue * 100.0), 1) if yesterday_revenue > 0.0 else 18.7
     
     # 2. Timing Analytics
     cursor.execute('''
@@ -2864,7 +2903,7 @@ def get_admin_analytics():
     
     # 3. Shop-wise sales & ratings (Vendor Reputation Score, INT-010, ADMIN-001)
     cursor.execute('''
-        SELECT s.id as shop_id, s.shop_name, s.category, s.commission_pct, s.is_active, s.password, s.image_path, s.is_customizable,
+        SELECT s.id as shop_id, s.shop_name, s.category, s.commission_pct, s.is_active, s.password, s.image_path, s.is_customizable, s.display_order, s.extra_delivery_fee,
                COUNT(o.id) as total_orders,
                SUM(CASE WHEN o.status = 'DELIVERED' THEN o.total_amount ELSE 0 END) as sales,
                SUM(CASE WHEN o.status = 'DELIVERED' THEN 1 ELSE 0 END) as success_orders,
@@ -2872,6 +2911,7 @@ def get_admin_analytics():
         FROM shops s
         LEFT JOIN orders o ON s.id = o.shop_id
         GROUP BY s.id
+        ORDER BY s.display_order ASC, s.id ASC
     ''')
     shops_performance = [dict(row) for row in cursor.fetchall()]
     
@@ -2906,16 +2946,19 @@ def get_admin_analytics():
     ''')
     top_products = [dict(row) for row in cursor.fetchall()]
     
-    # 6. Order list for Admin details
-    cursor.execute('''
+    # 6. Order list for Admin details (Full history or filtered range)
+    orders_base_sql = '''
         SELECT o.id, o.created_at, o.total_amount, o.status, o.priority_type,
-               s.shop_name, u.name as customer_name, o.failure_reason
+               s.shop_name, u.name as customer_name, o.failure_reason,
+               o.pickup_otp, o.delivery_otp
         FROM orders o
         JOIN shops s ON o.shop_id = s.id
         JOIN users u ON o.customer_id = u.id
-        ORDER BY o.id DESC
-        LIMIT 20
-    ''')
+    '''
+    if date_params:
+        cursor.execute(orders_base_sql + " WHERE o.created_at BETWEEN ? AND ? ORDER BY o.id DESC LIMIT 5000", date_params)
+    else:
+        cursor.execute(orders_base_sql + " ORDER BY o.id DESC LIMIT 5000")
     recent_orders = [dict(row) for row in cursor.fetchall()]
     
     # 7. Top Selling Areas
@@ -3094,8 +3137,11 @@ def get_admin_analytics():
     ''')
     cat_rows = cursor.fetchall()
     category_demand = {row['category']: row['count'] for row in cat_rows}
-    # Ensure all categories are present
-    for cat in ['KIRANA', 'VEGGIES', 'CAKES', 'ELECTRONICS', 'PHARMACY', 'TECH']:
+    
+    # Dynamically include ALL existing and future categories created in database
+    cursor.execute("SELECT category FROM shops")
+    for row in cursor.fetchall():
+        cat = row['category']
         if cat not in category_demand:
             category_demand[cat] = 0
 
@@ -3158,6 +3204,7 @@ def admin_update_shop(shop_id):
     commission_pct = data.get('commission_pct', '5.0')
     password = data.get('password', '').strip()
     is_customizable = int(data.get('is_customizable', 0))
+    extra_delivery_fee = float(data.get('extra_delivery_fee', 0.0) or 0.0)
     
     if not shop_name or not category:
         return jsonify({'error': 'Shop Name and Category Code are required.'}), 400
@@ -3195,9 +3242,9 @@ def admin_update_shop(shop_id):
         hashed_shop_pass = generate_password_hash(password) if password else None
         cursor.execute('''
             UPDATE shops 
-            SET shop_name = ?, category = ?, commission_pct = ?, password = ?, image_path = ?, is_customizable = ? 
+            SET shop_name = ?, category = ?, commission_pct = ?, password = ?, image_path = ?, is_customizable = ?, extra_delivery_fee = ? 
             WHERE id = ?
-        ''', (shop_name, category, float(commission_pct), hashed_shop_pass, image_path, is_customizable, shop_id))
+        ''', (shop_name, category, float(commission_pct), hashed_shop_pass, image_path, is_customizable, extra_delivery_fee, shop_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Shop category credentials updated successfully.'})
     except Exception as e:
@@ -3336,7 +3383,62 @@ def admin_delete_shop(shop_id):
     except Exception as e:
         db.rollback()
         print("Delete shop error:", e)
-        return jsonify({'error': 'Failed to delete category/shop. Please try again.'}), 500
+@app.route('/api/admin/shops/<int:shop_id>/move', methods=['POST'])
+def move_shop_category(shop_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized: Admin access required'}), 403
+        
+    data = request.get_json() or {}
+    direction = data.get('direction', 'up') # 'up' or 'down'
+    
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT id, display_order, shop_name FROM shops ORDER BY display_order ASC, id ASC")
+    all_shops = [dict(r) for r in cursor.fetchall()]
+    
+    curr_idx = -1
+    for i, s in enumerate(all_shops):
+        if s['id'] == shop_id:
+            curr_idx = i
+            break
+            
+    if curr_idx == -1:
+        return jsonify({'error': 'Category/Shop not found.'}), 404
+        
+    target_idx = curr_idx - 1 if direction == 'up' else curr_idx + 1
+    if target_idx < 0 or target_idx >= len(all_shops):
+        return jsonify({'success': True, 'message': 'Category is already at boundary.'})
+        
+    # Swap elements
+    all_shops[curr_idx], all_shops[target_idx] = all_shops[target_idx], all_shops[curr_idx]
+    
+    for idx, s in enumerate(all_shops):
+        cursor.execute("UPDATE shops SET display_order = ? WHERE id = ?", (idx + 1, s['id']))
+        
+    db.commit()
+    moved_name = all_shops[target_idx]['shop_name']
+    return jsonify({'success': True, 'message': f'Category "{moved_name}" moved {direction} successfully.'})
+
+
+@app.route('/api/admin/shops/reorder', methods=['POST'])
+def reorder_all_shops():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized: Admin access required'}), 403
+        
+    data = request.get_json() or {}
+    order_ids = data.get('order', [])
+    if not order_ids or not isinstance(order_ids, list):
+        return jsonify({'error': 'Invalid order list provided.'}), 400
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    for idx, shop_id in enumerate(order_ids):
+        cursor.execute("UPDATE shops SET display_order = ? WHERE id = ?", (idx + 1, shop_id))
+        
+    db.commit()
+    return jsonify({'success': True, 'message': 'All categories re-ordered successfully.'})
 
 
 @app.route('/api/admin/shops/add', methods=['POST'])
@@ -3349,6 +3451,7 @@ def admin_add_shop():
     commission_pct = request.form.get('commission_pct', '5.0').strip()
     password = request.form.get('password', '').strip()
     is_customizable = int(request.form.get('is_customizable', 0))
+    extra_delivery_fee = float(request.form.get('extra_delivery_fee', 0.0) or 0.0)
     
     if not shop_name or not category:
         return jsonify({'error': 'Shop Name and Category Code are required.'}), 400
@@ -3383,9 +3486,9 @@ def admin_add_shop():
     try:
         hashed_shop_pass = generate_password_hash(password) if password else None
         cursor.execute('''
-            INSERT INTO shops (shop_name, category, commission_pct, password, image_path, is_active, is_customizable)
-            VALUES (?, ?, ?, ?, ?, 1, ?)
-        ''', (shop_name, category, float(commission_pct), hashed_shop_pass, image_path, is_customizable))
+            INSERT INTO shops (shop_name, category, commission_pct, password, image_path, is_active, is_customizable, extra_delivery_fee)
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+        ''', (shop_name, category, float(commission_pct), hashed_shop_pass, image_path, is_customizable, extra_delivery_fee))
         db.commit()
         
         # Dynamic seeding of 3 starter products for the new shop

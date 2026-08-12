@@ -284,6 +284,27 @@ def init_db():
         cursor.execute("ALTER TABLE shops ADD COLUMN is_customizable INTEGER DEFAULT 0")
     except sqlite3.OperationalError:
         pass
+
+    # Migrate shops table by adding display_order column if missing
+    try:
+        cursor.execute("ALTER TABLE shops ADD COLUMN display_order INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    cursor.execute("UPDATE shops SET display_order = id WHERE display_order IS NULL OR display_order = 0")
+
+    # Migrate shops table by adding extra_delivery_fee column if missing
+    try:
+        cursor.execute("ALTER TABLE shops ADD COLUMN extra_delivery_fee REAL DEFAULT 0.0")
+    except sqlite3.OperationalError:
+        pass
+    cursor.execute("UPDATE shops SET extra_delivery_fee = 0.0 WHERE extra_delivery_fee IS NULL")
+    cursor.execute("UPDATE shops SET extra_delivery_fee = 50.0 WHERE category = 'REAYANSH GOLD' OR shop_name LIKE '%REY%GOLD%'")
+
+    # Migrate orders table by adding delivery_fee column if missing
+    try:
+        cursor.execute("ALTER TABLE orders ADD COLUMN delivery_fee REAL DEFAULT 0.0")
+    except sqlite3.OperationalError:
+        pass
         
     # Populate default customizable flags for seeded categories
     cursor.execute("UPDATE shops SET is_customizable = 1 WHERE category IN ('CAKES', 'TECH')")

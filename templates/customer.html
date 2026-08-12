@@ -2136,6 +2136,7 @@ html, body {
             .then(res => res.json())
             .then(shops => {
                 shopsCache = shops;
+                try { updateCartUI(); } catch (e) {}
                 const grid = document.getElementById("homepage-category-grid");
                 grid.innerHTML = "";
                 
@@ -2799,13 +2800,48 @@ html, body {
         
 
         
-        const deliveryFee = subtotal >= deliveryFeeThreshold ? 0 : deliveryFeeFlat;
-        const grand = subtotal + deliveryFee;
+        // Calculate Far Shop Extra Delivery Fee
+        const cartValues = Object.values(cart || {});
+        let extraShopDeliveryFee = 0.0;
+        let extraShopName = "";
+
+        if (cartValues.length > 0 && shopsCache && shopsCache.length > 0) {
+            const firstShopId = cartValues[0].shop_id;
+            const shopObj = shopsCache.find(s => s.id == firstShopId);
+            if (shopObj && shopObj.extra_delivery_fee > 0) {
+                extraShopDeliveryFee = parseFloat(shopObj.extra_delivery_fee);
+                extraShopName = shopObj.shop_name.split(" (")[0];
+            }
+        }
+
+        const baseDeliveryFee = subtotal >= deliveryFeeThreshold ? 0 : deliveryFeeFlat;
+        const totalDeliveryFee = baseDeliveryFee + extraShopDeliveryFee;
+        const grand = subtotal + totalDeliveryFee;
         
         document.getElementById("cart-subtotal").innerText = `₹${subtotal.toFixed(2)}`;
-        document.getElementById("cart-delivery-fee").innerText = deliveryFee === 0 ? "FREE" : `₹${deliveryFee.toFixed(2)}`;
-        document.getElementById("cart-delivery-fee").style.color = deliveryFee === 0 ? "var(--emerald-green)" : "var(--text-primary)";
+        
+        const elFee = document.getElementById("cart-delivery-fee");
+        if (elFee) {
+            if (extraShopDeliveryFee > 0) {
+                const baseLabel = baseDeliveryFee === 0 ? "FREE Base" : `₹${baseDeliveryFee.toFixed(0)}`;
+                elFee.innerHTML = `₹${totalDeliveryFee.toFixed(2)} <span style="display:block; font-size:0.75rem; color:#d97706; font-weight:800;">(${baseLabel} + ₹${extraShopDeliveryFee.toFixed(0)} ${extraShopName} Fee)</span>`;
+                elFee.style.color = "#d97706";
+            } else {
+                elFee.innerText = baseDeliveryFee === 0 ? "FREE" : `₹${baseDeliveryFee.toFixed(2)}`;
+                elFee.style.color = baseDeliveryFee === 0 ? "var(--emerald-green)" : "var(--text-primary)";
+            }
+        }
+        
         document.getElementById("cart-grandtotal").innerText = `₹${grand.toFixed(2)}`;
+        
+        const elPromo = document.getElementById("delivery-promo-text");
+        if (elPromo) {
+            if (extraShopDeliveryFee > 0) {
+                elPromo.innerText = `₹199+ order par Base Delivery FREE hai, par ${extraShopName} Door Charge (+₹${extraShopDeliveryFee.toFixed(0)}) alag se rahega.`;
+            } else {
+                elPromo.innerText = "₹199 se upar ke orders par Delivery bilkul Free!";
+            }
+        }
         
         const checkoutBtn = document.getElementById("checkout-submit-btn");
         if (checkoutBtn) {
@@ -3048,15 +3084,58 @@ html, body {
                         }
                     }
                     
-                    // Populate items list
+                    // Populate items list with full financial breakdown
                     const itemsContainer = document.getElementById("tracking-items-list");
                     if (itemsContainer && data.items) {
-                        itemsContainer.innerHTML = data.items.map(item => `
-                            <div class="flex-between" style="padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.03);">
+                        const itemsSubtotal = data.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                        const grandTotal = parseFloat(data.total_amount || 0);
+                        
+                        // Calculate actual delivery fee paid (recorded delivery_fee or difference between grandTotal and subtotal)
+                        let recordedDeliveryFee = (data.delivery_fee !== undefined && data.delivery_fee !== null && parseFloat(data.delivery_fee) > 0)
+                            ? parseFloat(data.delivery_fee)
+                            : Math.max(0, grandTotal - itemsSubtotal);
+                            
+                        let deliveryFeeLabelHtml = '';
+                        if (recordedDeliveryFee > 0) {
+                            if (itemsSubtotal >= 199) {
+                                deliveryFeeLabelHtml = `₹${recordedDeliveryFee.toFixed(2)} <small style="display:block; font-size:0.72rem; color:#d97706; font-weight:700;">(FREE Base + ₹${recordedDeliveryFee.toFixed(0)} Far Shop Fee)</small>`;
+                            } else {
+                                const extraFee = Math.max(0, recordedDeliveryFee - 15);
+                                if (extraFee > 0) {
+                                    deliveryFeeLabelHtml = `₹${recordedDeliveryFee.toFixed(2)} <small style="display:block; font-size:0.72rem; color:#d97706; font-weight:700;">(₹15 Base + ₹${extraFee.toFixed(0)} Far Shop Fee)</small>`;
+                                } else {
+                                    deliveryFeeLabelHtml = `₹${recordedDeliveryFee.toFixed(2)}`;
+                                }
+                            }
+                        } else {
+                            deliveryFeeLabelHtml = `<span style="color:var(--emerald-green); font-weight:800;">FREE</span>`;
+                        }
+
+                        let itemsHtml = data.items.map(item => `
+                            <div class="flex-between" style="padding: 5px 0; border-bottom: 1px dashed rgba(0,0,0,0.05);">
                                 <span>• ${item.product_name} <strong>x${item.quantity}</strong></span>
                                 <strong>₹${(item.price * item.quantity).toFixed(0)}</strong>
                             </div>
                         `).join("");
+
+                        itemsHtml += `
+                            <div style="margin-top: 10px; padding-top: 8px; border-top: 2px solid #e2e8f0;">
+                                <div class="flex-between" style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 4px;">
+                                    <span>Saman ka Total (Subtotal)</span>
+                                    <span>₹${itemsSubtotal.toFixed(2)}</span>
+                                </div>
+                                <div class="flex-between" style="font-size: 0.82rem; color: #d97706; margin-bottom: 4px; font-weight: 700;">
+                                    <span>Delivery ka Kharcha</span>
+                                    <span>${deliveryFeeLabelHtml}</span>
+                                </div>
+                                <div class="flex-between" style="font-size: 0.95rem; font-weight: 800; color: var(--primary-accent); margin-top: 6px; padding-top: 6px; border-top: 1px solid #cbd5e1;">
+                                    <span>Kul Bhugtan (Grand Total)</span>
+                                    <span>₹${grandTotal.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        `;
+                        
+                        itemsContainer.innerHTML = itemsHtml;
                     }
                     
                     const steps = ["step-pending", "step-accepted", "step-ready", "step-out", "step-delivered"];
@@ -3621,6 +3700,7 @@ html, body {
                         timeStr = date.toLocaleDateString() + " " + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                     } catch(e) {}
 
+                    const recordedDelFee = (o.delivery_fee !== undefined && o.delivery_fee !== null) ? parseFloat(o.delivery_fee) : 0.0;
                     card.innerHTML = `
                         <div class="flex-between">
                             <span style="font-weight: 800; font-size: 0.9rem; color: var(--text-primary);">Order #${o.id}</span>
@@ -3629,7 +3709,8 @@ html, body {
                         <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px;">
                             <div><strong>Items:</strong> ${o.items_summary || 'N/A'}</div>
                             <div><strong>Date:</strong> ${timeStr}</div>
-                            <div><strong>Total:</strong> ₹${o.total_amount.toFixed(2)}</div>
+                            <div><strong>Delivery Charge:</strong> <span style="color:#d97706; font-weight:700;">${recordedDelFee > 0 ? '₹' + recordedDelFee.toFixed(2) : 'FREE'}</span></div>
+                            <div><strong>Kul Bhugtan (Grand Total):</strong> <strong style="color: var(--primary-accent);">₹${o.total_amount.toFixed(2)}</strong></div>
                         </div>
                         <div class="flex-between" style="align-items: center; margin-top: 4px;">
                             <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}" style="font-size:0.65rem; padding: 2px 6px;">${o.priority_type}</span>
