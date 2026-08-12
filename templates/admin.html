@@ -6927,10 +6927,11 @@
                 .then(res => res.json())
                 .then(banners => {
                     tableBody.innerHTML = "";
-                    if (banners.length === 0) {
+                    if (!Array.isArray(banners) || banners.length === 0) {
                         tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-secondary);">No banners found. Add a banner above!</td></tr>`;
                         return;
                     }
+                    banners.forEach(b => {
                         let targetBadge = '<span style="color: var(--text-secondary);">None</span>';
                         if (b.product_id) {
                             targetBadge = `<span class="badge" style="background: var(--primary-light); color: var(--primary-accent); font-weight: 700;">Product ID: ${b.product_id}</span>`;
