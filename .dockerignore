@@ -6,7 +6,6 @@ __pycache__/
 *.pyo
 *.pyd
 .db
-marketplace.db
 .secret_key
 .admin_password
 .agents
