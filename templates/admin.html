@@ -7,7 +7,7 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="/static/js/lucide.min.js"></script>
     <!-- Chart.js -->
     <script src="/static/js/chart.min.js"></script>
     <!-- CSRF Protection & Cache Purge Interceptor -->
@@ -3752,12 +3752,10 @@
                     return res.json();
                 })
                 .then(data => {
-                    if (!data || !data.overview) {
-                        console.error("Invalid analytics data received:", data);
-                        return;
-                    }
+                    if (!data) return;
                     analyticsData = data;
                     ordersCache = data.recent_orders || [];
+                    const overview = data.overview || {};
                     
                     // Helper to safely set inner text
                     const setTxt = (id, txt) => {
@@ -3772,22 +3770,24 @@
                     };
 
                     // Render KPIs safely
-                    const totalOrdersCount = (data.overview.delivered_count || 0) + (data.overview.pending_count || 0) + (data.overview.accepted_count || 0) + (data.overview.ready_count || 0) + (data.overview.transit_count || 0) + (data.overview.failed_count || 0);
+                    const totalOrdersCount = (overview.delivered_count || 0) + (overview.pending_count || 0) + (overview.accepted_count || 0) + (overview.ready_count || 0) + (overview.transit_count || 0) + (overview.failed_count || 0);
                     setTxt("kpi-orders", totalOrdersCount);
-                    setTxt("kpi-revenue", `₹${(data.overview.total_revenue || 0).toLocaleString('en-IN')}`);
-                    setTxt("kpi-vendors", data.overview.total_vendors || 0);
-                    setTxt("kpi-riders", data.overview.total_riders || 0);
-                    setTxt("kpi-riders-online", `${data.overview.online_riders || 0} online`);
-                    setTxt("kpi-customers", data.overview.total_customers || 0);
+                    setTxt("kpi-revenue", `₹${(overview.total_revenue || 0).toLocaleString('en-IN')}`);
+                    setTxt("kpi-vendors", overview.total_vendors || 0);
+                    setTxt("kpi-riders", overview.total_riders || 0);
+                    setTxt("kpi-riders-online", `${overview.online_riders || 0} online`);
+                    setTxt("kpi-customers", overview.total_customers || 0);
                     
                     // Render Growths
-                    setHtml("kpi-orders-trend", `<i data-lucide="${data.overview.orders_growth >= 0 ? 'arrow-up-right' : 'arrow-down-right'}"></i> ${data.overview.orders_growth >= 0 ? '+' : ''}${data.overview.orders_growth}%`);
+                    const og = overview.orders_growth || 0;
+                    const rg = overview.revenue_growth || 0;
+                    setHtml("kpi-orders-trend", `<i data-lucide="${og >= 0 ? 'arrow-up-right' : 'arrow-down-right'}"></i> ${og >= 0 ? '+' : ''}${og}%`);
                     const elOrdersTrend = document.getElementById("kpi-orders-trend");
-                    if (elOrdersTrend) elOrdersTrend.className = data.overview.orders_growth >= 0 ? 'trend-up' : 'trend-down';
+                    if (elOrdersTrend) elOrdersTrend.className = og >= 0 ? 'trend-up' : 'trend-down';
                     
-                    setHtml("kpi-revenue-trend", `<i data-lucide="${data.overview.revenue_growth >= 0 ? 'arrow-up-right' : 'arrow-down-right'}"></i> ${data.overview.revenue_growth >= 0 ? '+' : ''}${data.overview.revenue_growth}%`);
+                    setHtml("kpi-revenue-trend", `<i data-lucide="${rg >= 0 ? 'arrow-up-right' : 'arrow-down-right'}"></i> ${rg >= 0 ? '+' : ''}${rg}%`);
                     const elRevTrend = document.getElementById("kpi-revenue-trend");
-                    if (elRevTrend) elRevTrend.className = data.overview.revenue_growth >= 0 ? 'trend-up' : 'trend-down';
+                    if (elRevTrend) elRevTrend.className = rg >= 0 ? 'trend-up' : 'trend-down';
                     
                     const elRevLabel = document.getElementById("revenue-growth-label");
                     if (elRevLabel) {
@@ -3795,8 +3795,8 @@
                             elRevLabel.innerText = `All Time Lifetime Data`;
                             elRevLabel.className = `status-badge badge-delivered`;
                         } else {
-                            elRevLabel.innerText = `${data.overview.revenue_growth >= 0 ? '+' : ''}${data.overview.revenue_growth}% from last week`;
-                            elRevLabel.className = `status-badge ${data.overview.revenue_growth >= 0 ? 'badge-delivered' : 'badge-failed'}`;
+                            elRevLabel.innerText = `${rg >= 0 ? '+' : ''}${rg}% from last week`;
+                            elRevLabel.className = `status-badge ${rg >= 0 ? 'badge-delivered' : 'badge-failed'}`;
                         }
                     }
 
