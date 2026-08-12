@@ -3584,7 +3584,11 @@
             
             if (targetLink) targetLink.classList.add('active');
             
-            // Show Panel
+            // Hide all tab panels first
+            document.querySelectorAll('.tab-panel').forEach(el => {
+                el.classList.remove('active');
+            });
+            // Show target panel
             const targetPanel = document.getElementById(`panel-${tabId}`);
             if (targetPanel) {
                 targetPanel.classList.add('active');
