@@ -1614,13 +1614,14 @@ def place_order():
                 'custom_image_path': details['custom_image_path']
             })
 
-        # Check if shop has additional delivery charge (e.g. far shop surcharge like Reyansh Gold)
+        # Check if any shop in the cart has additional delivery charge (sum extra fees across all unique shops in cart)
         shop_extra_delivery_fee = 0.0
-        if first_shop_id:
-            cursor.execute("SELECT extra_delivery_fee FROM shops WHERE id = ?", (first_shop_id,))
+        if shop_ids:
+            placeholders = ','.join('?' for _ in shop_ids)
+            cursor.execute(f"SELECT SUM(COALESCE(extra_delivery_fee, 0.0)) as total_extra FROM shops WHERE id IN ({placeholders})", shop_ids)
             s_extra_row = cursor.fetchone()
-            if s_extra_row and s_extra_row['extra_delivery_fee']:
-                shop_extra_delivery_fee = float(s_extra_row['extra_delivery_fee'])
+            if s_extra_row and s_extra_row['total_extra']:
+                shop_extra_delivery_fee = float(s_extra_row['total_extra'])
 
         base_delivery_fee = delivery_fee_flat if total_amount < delivery_fee_threshold else 0.0
         delivery_fee = base_delivery_fee + shop_extra_delivery_fee
@@ -1634,9 +1635,9 @@ def place_order():
         # Insert Order Master record (Single order)
         now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         cursor.execute('''
-            INSERT INTO orders (customer_id, shop_id, total_amount, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (customer_id, first_shop_id, grand_total, gst_amount, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot, now_str))
+            INSERT INTO orders (customer_id, shop_id, total_amount, gst_amount, delivery_fee, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (customer_id, first_shop_id, grand_total, gst_amount, delivery_fee, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot, now_str))
         
         order_id = cursor.lastrowid
         

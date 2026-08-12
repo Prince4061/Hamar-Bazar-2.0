@@ -306,6 +306,25 @@ def init_db():
     except sqlite3.OperationalError:
         pass
         
+    # Backfill delivery_fee for existing orders if missing
+    try:
+        cursor.execute('''
+            UPDATE orders 
+            SET delivery_fee = MAX(0.0, total_amount - (
+                SELECT COALESCE(SUM(oi.price * oi.quantity), 0.0)
+                FROM order_items oi
+                WHERE oi.order_id = orders.id
+            ))
+            WHERE (delivery_fee IS NULL OR delivery_fee = 0.0)
+              AND total_amount > (
+                SELECT COALESCE(SUM(oi.price * oi.quantity), 0.0)
+                FROM order_items oi
+                WHERE oi.order_id = orders.id
+            )
+        ''')
+    except Exception as e:
+        print(f"Delivery fee backfill warning: {e}")
+        
     # Populate default customizable flags for seeded categories
     cursor.execute("UPDATE shops SET is_customizable = 1 WHERE category IN ('CAKES', 'TECH')")
 

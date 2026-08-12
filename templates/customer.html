@@ -776,7 +776,7 @@ html, body {
                 <button id="checkout-submit-btn" class="btn btn-primary mt-md w-full" style="font-size: 0.95rem; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: var(--radius-md);" onclick="checkoutOrder()">Checkout <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i></button>
                 
                 <div class="cart-promo-badge" style="font-size: 0.7rem; margin-top: 10px; padding: 6px; justify-content: center; background: var(--primary-light); color: var(--primary-accent); border-radius: var(--radius-sm); border: none;">
-                    <i data-lucide="shield-check" style="width: 12px; height: 12px;"></i> <span id="delivery-promo-text">₹199 se upar ke orders par Delivery bilkul Free!</span>
+                    <i data-lucide="shield-check" style="width: 12px; height: 12px;"></i> <span id="delivery-promo-text">Checking delivery offers...</span>
                 </div>
             </div>
         </div>
@@ -2131,49 +2131,76 @@ html, body {
     }
 
     let shopsCache = [];
-    function loadCategories() {
+    let isFetchingShops = false;
+    let shopsCacheCallbacks = [];
+
+    function ensureShopsCacheLoaded(callback) {
+        if (callback) shopsCacheCallbacks.push(callback);
+
+        if (shopsCache && shopsCache.length > 0) {
+            const callbacksToRun = [...shopsCacheCallbacks];
+            shopsCacheCallbacks = [];
+            callbacksToRun.forEach(cb => { try { cb(shopsCache); } catch(e){} });
+            return;
+        }
+
+        if (isFetchingShops) return;
+        isFetchingShops = true;
+
         fetch(`/api/shops`)
             .then(res => res.json())
             .then(shops => {
                 shopsCache = shops;
+                isFetchingShops = false;
+                const callbacksToRun = [...shopsCacheCallbacks];
+                shopsCacheCallbacks = [];
+                callbacksToRun.forEach(cb => { try { cb(shopsCache); } catch(e){} });
                 try { updateCartUI(); } catch (e) {}
-                const grid = document.getElementById("homepage-category-grid");
-                grid.innerHTML = "";
-                
-                shops.forEach(s => {
-                    if (!s.is_active) return;
-                    if (s.category === 'PHARMACY') return; // Dawaiyan category card removed as it has a dedicated top switcher tab!
-                    if (s.category === 'ELECTRONICS') return; // Bijli ka Saman category card removed as requested!
-                    
-                    const card = document.createElement("div");
-                    const catLower = s.category.toLowerCase();
-                    card.className = `hamar-category-card category-card-${catLower}`;
-                    card.onclick = () => selectCategory(s.category, s.id);
-                    
-                    let label = s.category.charAt(0).toUpperCase() + s.category.slice(1).toLowerCase();
-                    
-                    if (s.category === 'KIRANA') {
-                        label = "Kirana 🍪";
-                    } else if (s.category === 'CAKES') {
-                        label = "Cakes 🎂";
-                    } else if (s.category === 'VEGGIES') {
-                        label = "Phal & Sabzi 🍎";
-                    } else if (s.category === 'TECH') {
-                        label = "Tech & Laptop 💻";
-                    }
-                    
-                    card.innerHTML = `
-                        <div class="hamar-category-title" style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.2px; line-height: 1.2;">${label}</div>
-                        <img src="${getProductImageUrl(s.image_path)}" class="hamar-category-img" alt="${label}" referrerpolicy="no-referrer">
-                    `;
-                    grid.appendChild(card);
-                });
-                
-                if (window.lucide) lucide.createIcons();
             })
             .catch(err => {
-                console.error("Error loading shop categories:", err);
+                isFetchingShops = false;
+                shopsCacheCallbacks = [];
+                console.error("Error fetching shops cache:", err);
             });
+    }
+
+    function loadCategories() {
+        ensureShopsCacheLoaded(() => {
+            const grid = document.getElementById("homepage-category-grid");
+            if (!grid) return;
+            grid.innerHTML = "";
+            
+            shopsCache.forEach(s => {
+                if (!s.is_active) return;
+                if (s.category === 'PHARMACY') return; // Dawaiyan category card removed as it has a dedicated top switcher tab!
+                if (s.category === 'ELECTRONICS') return; // Bijli ka Saman category card removed as requested!
+                
+                const card = document.createElement("div");
+                const catLower = s.category.toLowerCase();
+                card.className = `hamar-category-card category-card-${catLower}`;
+                card.onclick = () => selectCategory(s.category, s.id);
+                
+                let label = s.category.charAt(0).toUpperCase() + s.category.slice(1).toLowerCase();
+                
+                if (s.category === 'KIRANA') {
+                    label = "Kirana 🍪";
+                } else if (s.category === 'CAKES') {
+                    label = "Cakes 🎂";
+                } else if (s.category === 'VEGGIES') {
+                    label = "Phal & Sabzi 🍎";
+                } else if (s.category === 'TECH') {
+                    label = "Tech & Laptop 💻";
+                }
+                
+                card.innerHTML = `
+                    <div class="hamar-category-title" style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.2px; line-height: 1.2;">${label}</div>
+                    <img src="${getProductImageUrl(s.image_path)}" class="hamar-category-img" alt="${label}" referrerpolicy="no-referrer">
+                `;
+                grid.appendChild(card);
+            });
+            
+            if (window.lucide) lucide.createIcons();
+        });
     }
 
     // Toggle Payment selection UI
@@ -2572,10 +2599,23 @@ html, body {
     }
 
     function addToCart(prodId, qty) {
-        let prod = productsList.find(p => p.id === prodId);
-        if (!prod && recommendedProductsCache) {
+        let prod = (typeof productsList !== 'undefined' && productsList) ? productsList.find(p => p.id === prodId) : null;
+        if (!prod && typeof recommendedProductsCache !== 'undefined' && recommendedProductsCache) {
             prod = recommendedProductsCache.find(p => p.id === prodId);
         }
+        if (!prod && typeof lastFilteredProducts !== 'undefined' && lastFilteredProducts) {
+            prod = lastFilteredProducts.find(p => p.id === prodId);
+        }
+        if (!prod && typeof currentCategoryProducts !== 'undefined' && currentCategoryProducts) {
+            prod = currentCategoryProducts.find(p => p.id === prodId);
+        }
+        if (!prod && typeof pharmacyProductsList !== 'undefined' && pharmacyProductsList) {
+            prod = pharmacyProductsList.find(p => p.id === prodId);
+        }
+        if (!prod && typeof allProductsCache !== 'undefined' && allProductsCache) {
+            prod = allProductsCache.find(p => p.id === prodId);
+        }
+
         if (prod) {
             processAddToCart(prod, qty);
         } else {
@@ -2649,9 +2689,9 @@ html, body {
 
     function processAddToCart(prod, qty) {
         console.log("processAddToCart called:", { prodId: prod.id, qty, cartKeys: Object.keys(cart) });
-        // Option B: Allow items from multiple merchants in the same cart
         if (cart[prod.id]) {
             cart[prod.id].quantity += qty;
+            if (prod.shop_id) cart[prod.id].shop_id = prod.shop_id;
         } else {
             cart[prod.id] = {
                 id: prod.id,
@@ -2800,18 +2840,59 @@ html, body {
         
 
         
-        // Calculate Far Shop Extra Delivery Fee
+        // Ensure shopsCache is loaded
+        if (!shopsCache || shopsCache.length === 0) {
+            ensureShopsCacheLoaded();
+        }
+
+        // Self-healing: Verify & update cart items shop_id from backend
         const cartValues = Object.values(cart || {});
+        const unverifiedIds = Object.keys(cart).filter(k => !cart[k].shop_id_synced || !cart[k].shop_id);
+        if (unverifiedIds.length > 0 && !window.isSyncingCartShops) {
+            window.isSyncingCartShops = true;
+            fetch('/api/products/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_ids: unverifiedIds.map(Number) })
+            })
+            .then(res => res.json())
+            .then(syncedProducts => {
+                window.isSyncingCartShops = false;
+                if (syncedProducts && syncedProducts.length > 0) {
+                    let updated = false;
+                    syncedProducts.forEach(sp => {
+                        if (cart[sp.id]) {
+                            if (cart[sp.id].shop_id !== sp.shop_id) {
+                                cart[sp.id].shop_id = sp.shop_id;
+                                updated = true;
+                            }
+                            cart[sp.id].shop_id_synced = true;
+                        }
+                    });
+                    if (updated) {
+                        localStorage.setItem(`cart_${customerId}`, JSON.stringify(cart));
+                        updateCartUI();
+                    }
+                }
+            })
+            .catch(() => { window.isSyncingCartShops = false; });
+        }
+
+        // Calculate Far Shop Extra Delivery Fee (sum extra fees across all unique shops in cart)
         let extraShopDeliveryFee = 0.0;
-        let extraShopName = "";
+        let extraFeeBreakdowns = [];
 
         if (cartValues.length > 0 && shopsCache && shopsCache.length > 0) {
-            const firstShopId = cartValues[0].shop_id;
-            const shopObj = shopsCache.find(s => s.id == firstShopId);
-            if (shopObj && shopObj.extra_delivery_fee > 0) {
-                extraShopDeliveryFee = parseFloat(shopObj.extra_delivery_fee);
-                extraShopName = shopObj.shop_name.split(" (")[0];
-            }
+            const uniqueShopIds = [...new Set(cartValues.map(item => item.shop_id))];
+            uniqueShopIds.forEach(sId => {
+                const shopObj = shopsCache.find(s => s.id == sId);
+                if (shopObj && shopObj.extra_delivery_fee > 0) {
+                    const fee = parseFloat(shopObj.extra_delivery_fee);
+                    extraShopDeliveryFee += fee;
+                    const sName = shopObj.shop_name.split(" (")[0];
+                    extraFeeBreakdowns.push(`+₹${fee.toFixed(0)} ${sName}`);
+                }
+            });
         }
 
         const baseDeliveryFee = subtotal >= deliveryFeeThreshold ? 0 : deliveryFeeFlat;
@@ -2824,7 +2905,8 @@ html, body {
         if (elFee) {
             if (extraShopDeliveryFee > 0) {
                 const baseLabel = baseDeliveryFee === 0 ? "FREE Base" : `₹${baseDeliveryFee.toFixed(0)}`;
-                elFee.innerHTML = `₹${totalDeliveryFee.toFixed(2)} <span style="display:block; font-size:0.75rem; color:#d97706; font-weight:800;">(${baseLabel} + ₹${extraShopDeliveryFee.toFixed(0)} ${extraShopName} Fee)</span>`;
+                const breakdownText = extraFeeBreakdowns.join(" ");
+                elFee.innerHTML = `₹${totalDeliveryFee.toFixed(2)} <span style="display:block; font-size:0.75rem; color:#d97706; font-weight:800;">(${baseLabel} ${breakdownText})</span>`;
                 elFee.style.color = "#d97706";
             } else {
                 elFee.innerText = baseDeliveryFee === 0 ? "FREE" : `₹${baseDeliveryFee.toFixed(2)}`;
@@ -2837,9 +2919,22 @@ html, body {
         const elPromo = document.getElementById("delivery-promo-text");
         if (elPromo) {
             if (extraShopDeliveryFee > 0) {
-                elPromo.innerText = `₹199+ order par Base Delivery FREE hai, par ${extraShopName} Door Charge (+₹${extraShopDeliveryFee.toFixed(0)}) alag se rahega.`;
+                const breakdownText = extraFeeBreakdowns.join(" ");
+                if (deliveryFeeFlat === 0) {
+                    elPromo.innerText = `Base Delivery FREE hai, par Extra Delivery Fee (${breakdownText}) laagu rahega.`;
+                } else if (deliveryFeeThreshold > 0) {
+                    elPromo.innerText = `₹${deliveryFeeThreshold.toFixed(0)}+ order par Base Delivery FREE hai, par Extra Delivery Fee (${breakdownText}) laagu rahega.`;
+                } else {
+                    elPromo.innerText = `Extra Delivery Fee (${breakdownText}) laagu rahega.`;
+                }
             } else {
-                elPromo.innerText = "₹199 se upar ke orders par Delivery bilkul Free!";
+                if (deliveryFeeFlat === 0) {
+                    elPromo.innerText = "Delivery bilkul Free hai sabhi orders par!";
+                } else if (deliveryFeeThreshold > 0) {
+                    elPromo.innerText = `₹${deliveryFeeThreshold.toFixed(0)} se upar ke orders par Base Delivery bilkul Free!`;
+                } else {
+                    elPromo.innerText = `Delivery charge ₹${deliveryFeeFlat.toFixed(0)} lagega sabhi orders par.`;
+                }
             }
         }
         
@@ -2910,8 +3005,20 @@ html, body {
             for (let k in cart) {
                 itemsTotal += cart[k].price * cart[k].quantity;
             }
-            let deliveryFee = itemsTotal < deliveryFeeThreshold ? deliveryFeeFlat : 0.0;
-            let grandTotalRupees = itemsTotal + deliveryFee;
+            let onlineExtraFee = 0.0;
+            const onlineCartVals = Object.values(cart || {});
+            if (onlineCartVals.length > 0 && shopsCache && shopsCache.length > 0) {
+                const uniqueShopIds = [...new Set(onlineCartVals.map(item => item.shop_id))];
+                uniqueShopIds.forEach(sId => {
+                    const shopObj = shopsCache.find(s => s.id == sId);
+                    if (shopObj && shopObj.extra_delivery_fee > 0) {
+                        onlineExtraFee += parseFloat(shopObj.extra_delivery_fee);
+                    }
+                });
+            }
+            let baseDeliveryFee = itemsTotal < deliveryFeeThreshold ? deliveryFeeFlat : 0.0;
+            let totalDeliveryFee = baseDeliveryFee + onlineExtraFee;
+            let grandTotalRupees = itemsTotal + totalDeliveryFee;
             let grandTotalPaise = Math.round(grandTotalRupees * 100);
 
             if (grandTotalPaise < 100) {
@@ -3097,12 +3204,13 @@ html, body {
                             
                         let deliveryFeeLabelHtml = '';
                         if (recordedDeliveryFee > 0) {
-                            if (itemsSubtotal >= 199) {
-                                deliveryFeeLabelHtml = `₹${recordedDeliveryFee.toFixed(2)} <small style="display:block; font-size:0.72rem; color:#d97706; font-weight:700;">(FREE Base + ₹${recordedDeliveryFee.toFixed(0)} Far Shop Fee)</small>`;
+                            if (deliveryFeeThreshold > 0 && itemsSubtotal >= deliveryFeeThreshold) {
+                                deliveryFeeLabelHtml = `₹${recordedDeliveryFee.toFixed(2)} <small style="display:block; font-size:0.72rem; color:#d97706; font-weight:700;">(FREE Base + ₹${recordedDeliveryFee.toFixed(0)} Extra Fee)</small>`;
                             } else {
-                                const extraFee = Math.max(0, recordedDeliveryFee - 15);
+                                const extraFee = Math.max(0, recordedDeliveryFee - deliveryFeeFlat);
                                 if (extraFee > 0) {
-                                    deliveryFeeLabelHtml = `₹${recordedDeliveryFee.toFixed(2)} <small style="display:block; font-size:0.72rem; color:#d97706; font-weight:700;">(₹15 Base + ₹${extraFee.toFixed(0)} Far Shop Fee)</small>`;
+                                    const baseLbl = deliveryFeeFlat > 0 ? `₹${deliveryFeeFlat.toFixed(0)} Base` : 'FREE Base';
+                                    deliveryFeeLabelHtml = `₹${recordedDeliveryFee.toFixed(2)} <small style="display:block; font-size:0.72rem; color:#d97706; font-weight:700;">(${baseLbl} + ₹${extraFee.toFixed(0)} Extra Fee)</small>`;
                                 } else {
                                     deliveryFeeLabelHtml = `₹${recordedDeliveryFee.toFixed(2)}`;
                                 }
