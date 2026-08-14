@@ -1,6 +1,6 @@
 services:
   hamar-bazar:
-    image: princekaushik9926/hamar-bazar:latest
+    image: princekaushik9926/hamar-bazar-2.0:latest
     container_name: hamar-bazar-container
     restart: always
     ports:
