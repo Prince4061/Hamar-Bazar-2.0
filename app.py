@@ -1378,8 +1378,8 @@ def search_products():
         # Split query by spaces to support multi-word, out-of-order searches
         words = query.split()
         for word in words:
-            where_clauses.append("(products.name LIKE ? OR products.subcategory LIKE ? OR products.description LIKE ? OR shops.shop_name LIKE ?)")
-            params.extend([f"%{word}%", f"%{word}%", f"%{word}%", f"%{word}%"])
+            where_clauses.append("(products.name LIKE ? OR products.subcategory LIKE ? OR products.description LIKE ? OR products.keywords LIKE ? OR shops.shop_name LIKE ?)")
+            params.extend([f"%{word}%", f"%{word}%", f"%{word}%", f"%{word}%", f"%{word}%"])
             
     if shop_id:
         where_clauses.append("products.shop_id = ?")
@@ -2105,6 +2105,7 @@ def vendor_add_product():
     image_path = data.get('image_path')
     subcategory = data.get('subcategory', '')
     description = data.get('description', '')
+    keywords = data.get('keywords', '')
     is_available = 1 if data.get('is_available', True) else 0
     
     if not name or price is None or str(price).strip() == '':
@@ -2120,9 +2121,9 @@ def vendor_add_product():
     db = get_db()
     cursor = db.cursor()
     cursor.execute("""
-        INSERT INTO products (shop_id, name, price, mrp, cost_price, image_path, subcategory, description, is_available)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (shop_id, name, price_val, mrp_val, cost_price_val, image_path, subcategory, description, is_available))
+        INSERT INTO products (shop_id, name, price, mrp, cost_price, image_path, subcategory, description, keywords, is_available)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (shop_id, name, price_val, mrp_val, cost_price_val, image_path, subcategory, description, keywords, is_available))
     db.commit()
     return jsonify({'success': True, 'message': 'Product added successfully.', 'id': cursor.lastrowid})
 
@@ -2164,6 +2165,7 @@ def vendor_modify_product(prod_id):
         image_path = data.get('image_path')
         subcategory = data.get('subcategory', '')
         description = data.get('description', '')
+        keywords = data.get('keywords', '')
         is_available = 1 if data.get('is_available', True) else 0
         
         if not name or price is None or str(price).strip() == '':
@@ -2178,9 +2180,9 @@ def vendor_modify_product(prod_id):
         
         cursor.execute("""
             UPDATE products 
-            SET name = ?, price = ?, mrp = ?, cost_price = ?, image_path = ?, subcategory = ?, description = ?, is_available = ?
+            SET name = ?, price = ?, mrp = ?, cost_price = ?, image_path = ?, subcategory = ?, description = ?, keywords = ?, is_available = ?
             WHERE id = ? AND shop_id = ?
-        """, (name, price_val, mrp_val, cost_price_val, image_path, subcategory, description, is_available, prod_id, shop_id))
+        """, (name, price_val, mrp_val, cost_price_val, image_path, subcategory, description, keywords, is_available, prod_id, shop_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Product updated successfully.'})
 
@@ -3570,6 +3572,7 @@ def admin_add_product():
     image_path = data.get('image_path')
     subcategory = data.get('subcategory', '')
     description = data.get('description', '')
+    keywords = data.get('keywords', '')
     
     if not shop_id or not name or price is None:
         return jsonify({'error': 'Parameters shop_id, name, and price are required.'}), 400
@@ -3579,7 +3582,7 @@ def admin_add_product():
     
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("INSERT INTO products (shop_id, name, price, mrp, cost_price, image_path, subcategory, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (shop_id, name, float(price), mrp_val, cost_price_val, image_path, subcategory, description))
+    cursor.execute("INSERT INTO products (shop_id, name, price, mrp, cost_price, image_path, subcategory, description, keywords) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (shop_id, name, float(price), mrp_val, cost_price_val, image_path, subcategory, description, keywords))
     db.commit()
     return jsonify({'success': True, 'message': 'Product added successfully.', 'id': cursor.lastrowid})
 
@@ -3612,11 +3615,12 @@ def admin_modify_product(prod_id):
         image_path = data.get('image_path')
         subcategory = data.get('subcategory', '')
         description = data.get('description', '')
+        keywords = data.get('keywords', '')
         
         mrp_val = float(mrp) if mrp is not None and str(mrp).strip() != '' else float(price)
         cost_price_val = float(cost_price) if cost_price is not None and str(cost_price).strip() != '' else 0.0
         
-        cursor.execute("UPDATE products SET name = ?, price = ?, mrp = ?, cost_price = ?, is_available = ?, image_path = ?, subcategory = ?, description = ? WHERE id = ?", (name, float(price), mrp_val, cost_price_val, is_available, image_path, subcategory, description, prod_id))
+        cursor.execute("UPDATE products SET name = ?, price = ?, mrp = ?, cost_price = ?, is_available = ?, image_path = ?, subcategory = ?, description = ?, keywords = ? WHERE id = ?", (name, float(price), mrp_val, cost_price_val, is_available, image_path, subcategory, description, keywords, prod_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Product updated successfully.'})
 

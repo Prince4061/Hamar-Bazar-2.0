@@ -1886,6 +1886,11 @@
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 13px; font-weight: 700; color: #6366f1;">Search Keywords / Tags (Comma-Separated for Search Matching)</label>
+                    <input type="text" id="v-prod-keywords" class="search-input" style="width: 100%; border: 1px solid #c7d2fe; background: #f5f3ff; border-radius: 8px; padding: 10px 14px; font-size: 14px;" placeholder="e.g. pauroti, double roti, toast, bakery, bread">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 6px;">
                     <label style="font-size: 13px; font-weight: 600; color: #475569;">Description</label>
                     <textarea id="v-prod-description" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; min-height: 70px; resize: vertical; font-family: inherit; font-size: 14px;" placeholder="Brief details about the product..."></textarea>
                 </div>
@@ -2883,6 +2888,7 @@
                 const elMrp = document.getElementById("v-prod-mrp"); if (elMrp) elMrp.value = "";
                 const elCostPrice = document.getElementById("v-prod-cost-price"); if (elCostPrice) elCostPrice.value = "";
                 const elSub = document.getElementById("v-prod-subcategory"); if (elSub) elSub.value = "";
+                const elKw = document.getElementById("v-prod-keywords"); if (elKw) elKw.value = "";
                 const elDesc = document.getElementById("v-prod-description"); if (elDesc) elDesc.value = "";
                 const elImgPath = document.getElementById("v-prod-image-path"); if (elImgPath) elImgPath.value = "";
                 const elImgFile = document.getElementById("v-prod-image-file"); if (elImgFile) elImgFile.value = "";
@@ -2920,6 +2926,7 @@
                 const elMrp = document.getElementById("v-prod-mrp"); if (elMrp) elMrp.value = prod.mrp !== undefined && prod.mrp !== null ? prod.mrp : "";
                 const elCostPrice = document.getElementById("v-prod-cost-price"); if (elCostPrice) elCostPrice.value = prod.cost_price !== undefined && prod.cost_price !== null ? prod.cost_price : "";
                 const elSub = document.getElementById("v-prod-subcategory"); if (elSub) elSub.value = prod.subcategory || "";
+                const elKw = document.getElementById("v-prod-keywords"); if (elKw) elKw.value = prod.keywords || "";
                 const elDesc = document.getElementById("v-prod-description"); if (elDesc) elDesc.value = prod.description || "";
                 const elImgPath = document.getElementById("v-prod-image-path"); if (elImgPath) elImgPath.value = prod.image_path || "";
                 const elImgFile = document.getElementById("v-prod-image-file"); if (elImgFile) elImgFile.value = "";
@@ -2962,6 +2969,7 @@
             const mrp = document.getElementById("v-prod-mrp").value;
             const costPrice = document.getElementById("v-prod-cost-price").value;
             const subcategory = document.getElementById("v-prod-subcategory").value.trim();
+            const keywords = document.getElementById("v-prod-keywords") ? document.getElementById("v-prod-keywords").value.trim() : "";
             const description = document.getElementById("v-prod-description").value.trim();
             let imagePath = document.getElementById("v-prod-image-path").value;
             const isAvailable = document.getElementById("v-prod-available").checked;
@@ -3011,6 +3019,7 @@
                     cost_price: costPrice ? parseFloat(costPrice) : 0,
                     subcategory: subcategory,
                     description: description,
+                    keywords: keywords,
                     image_path: imagePath,
                     is_available: isAvailable
                 };

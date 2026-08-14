@@ -264,6 +264,12 @@ def init_db():
         cursor.execute("ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0.0")
     except sqlite3.OperationalError:
         pass
+
+    # Migrate products table by adding keywords column if missing
+    try:
+        cursor.execute("ALTER TABLE products ADD COLUMN keywords TEXT")
+    except sqlite3.OperationalError:
+        pass
         
     # Migrate order_items table by adding customization columns
     try:

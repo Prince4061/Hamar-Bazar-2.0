@@ -3244,6 +3244,11 @@
                 </div>
 
                 <div class="form-group-custom">
+                    <label class="form-label-custom" style="color: #6366f1; font-weight: 700;">Search Keywords / Tags (Comma-Separated for Search Matching)</label>
+                    <input type="text" id="modal-product-keywords" class="form-input-custom" style="width: 100%; border-color: #c7d2fe; background: #f5f3ff;" placeholder="e.g. pauroti, double roti, toast, bakery, bread">
+                </div>
+
+                <div class="form-group-custom">
                     <label class="form-label-custom">Product Information / Description</label>
                     <textarea id="modal-product-description" class="form-input-custom" style="width: 100%; height: 80px; padding: 10px; resize: vertical;" placeholder="e.g. Detailed benefits, usage instructions, or product specifications..."></textarea>
                 </div>
@@ -4963,6 +4968,7 @@
             const elCost = document.getElementById("modal-product-cost-price"); if (elCost) elCost.value = "";
             document.getElementById("modal-product-subcategory").value = "";
             document.getElementById("modal-product-description").value = "";
+            const elKw = document.getElementById("modal-product-keywords"); if (elKw) elKw.value = "";
             document.getElementById("modal-available-group").style.display = "none";
             document.getElementById("modal-shop-select-group").style.display = "block";
             
@@ -5200,8 +5206,12 @@
             document.getElementById("modal-product-name").value = p.name || "";
             document.getElementById("modal-product-price").value = p.price;
             document.getElementById("modal-product-mrp").value = p.mrp || p.price;
+            const elCost = document.getElementById("modal-product-cost-price");
+            if (elCost) elCost.value = (p.cost_price !== undefined && p.cost_price !== null) ? p.cost_price : "";
             document.getElementById("modal-product-subcategory").value = p.subcategory || "";
             document.getElementById("modal-product-description").value = p.description || "";
+            const elKw = document.getElementById("modal-product-keywords");
+            if (elKw) elKw.value = p.keywords || "";
             
             document.getElementById("modal-available-group").style.display = "block";
             document.getElementById("modal-product-available").value = p.is_available ? "1" : "0";
@@ -5213,6 +5223,10 @@
 
         function closeProductModal() {
             document.getElementById("product-modal").style.display = "none";
+            const elCost = document.getElementById("modal-product-cost-price");
+            if (elCost) elCost.value = "";
+            const elKw = document.getElementById("modal-product-keywords");
+            if (elKw) elKw.value = "";
         }
 
         function saveProductCatalog() {
@@ -5220,9 +5234,13 @@
             const name = document.getElementById("modal-product-name").value.trim();
             const price = document.getElementById("modal-product-price").value;
             const mrp = document.getElementById("modal-product-mrp").value || price;
+            const costPriceInput = document.getElementById("modal-product-cost-price");
+            const costPrice = (costPriceInput && costPriceInput.value.trim() !== "") ? parseFloat(costPriceInput.value) : 0;
             const shopId = document.getElementById("modal-product-shop").value;
             const subcategory = document.getElementById("modal-product-subcategory").value.trim();
             const description = document.getElementById("modal-product-description").value.trim();
+            const keywordsInput = document.getElementById("modal-product-keywords");
+            const keywords = keywordsInput ? keywordsInput.value.trim() : "";
             const imageUrl = document.getElementById("modal-product-image-url").value.trim();
             
             if (!name || !price) {
@@ -5239,10 +5257,12 @@
                         name: name, 
                         price: price, 
                         mrp: mrp,
+                        cost_price: costPrice,
                         is_available: avail, 
                         image_path: imageUrl,
                         subcategory: subcategory,
-                        description: description
+                        description: description,
+                        keywords: keywords
                     })
                 })
                 .then(res => res.json())
@@ -5264,9 +5284,11 @@
                         name: name, 
                         price: price,
                         mrp: mrp,
+                        cost_price: costPrice,
                         image_path: imageUrl,
                         subcategory: subcategory,
-                        description: description
+                        description: description,
+                        keywords: keywords
                     })
                 })
                 .then(res => res.json())
