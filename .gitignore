@@ -161,6 +161,7 @@ credential.md
 
 # Uploaded user files
 static/uploads/
+scratch_js/
 
 # ── SECURITY: Never commit these files ──────────────────────────────────────────
 # Flask session secret key (auto-generated on first run)

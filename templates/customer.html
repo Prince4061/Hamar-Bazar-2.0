@@ -499,7 +499,7 @@ html, body {
     <!-- App Mobile Header -->
     <header class="app-mobile-header">
         <a href="/customer" class="hamar-logo-section" style="display: flex; align-items: center; gap: 8px;">
-            <img src="{{ system_settings.app_logo }}" alt="Hamar Bazaar Logo" style="height: 32px; width: 32px; object-fit: cover; border-radius: var(--radius-sm);">
+            <img src="{{ system_settings.app_logo or '/static/images/grocery_basket.png' }}" alt="Hamar Bazaar Logo" style="height: 32px; width: 32px; object-fit: cover; border-radius: var(--radius-sm);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
             <span class="hamar-logo-text" style="font-size: 1.15rem; font-weight: 800;"><span style="color: var(--primary-accent)">Hamar</span><span style="color: var(--text-primary)">Bazaar</span></span>
         </a>
     </header>
@@ -895,6 +895,22 @@ html, body {
             <div class="glass-card" style="padding: 16px; text-align: left;">
                 <div id="profile-error-msg" class="login-error-alert" style="display: none; margin-bottom: 12px; font-size: 0.8rem;"></div>
                 
+                <!-- Profile Avatar Uploader -->
+                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
+                    <div style="position: relative; width: 64px; height: 64px; flex-shrink: 0;">
+                        <img id="profile-avatar-preview" src="{{ session.get('profile_pic') or '/static/images/grocery_basket.png' }}" alt="Profile Avatar" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-accent); box-shadow: var(--shadow-sm);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
+                    </div>
+                    <div>
+                        <input type="file" id="profile-avatar-file-input" accept="image/*" style="display: none;" onchange="handleAvatarUpload(this)">
+                        <button type="button" class="btn-custom" style="padding: 6px 14px; font-size: 0.8rem; margin: 0 0 6px 0; display: inline-flex; align-items: center; gap: 6px;" onclick="document.getElementById('profile-avatar-file-input').click()">
+                            <i data-lucide="camera" style="width: 14px; height: 14px;"></i> Upload Photo
+                        </button>
+                        <div>
+                            <button type="button" id="btn-remove-avatar" class="btn-custom" style="padding: 4px 10px; font-size: 0.75rem; margin: 0; color: var(--ruby-danger); {% if not session.get('profile_pic') %}display: none;{% endif %}" onclick="removeAvatar()">Remove Photo</button>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Profile inputs -->
                 <div class="form-group" style="margin-bottom: 12px;">
                     <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Username / Full Name</label>
@@ -1175,7 +1191,7 @@ html, body {
         
         <!-- Header Image & Close Button -->
         <div style="position: relative; width: 100%; height: 240px; background: #f8fafc; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--border-color); overflow: hidden; padding: 16px;">
-            <img id="detail-modal-img" src="" alt="" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius-md);">
+            <img id="detail-modal-img" src="" alt="" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius-md);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
             <button onclick="closeProductDetailModal()" style="position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 50%; background: white; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; z-index: 10;">
                 <i data-lucide="x" style="width: 20px; height: 20px; color: var(--text-primary);"></i>
             </button>
@@ -1252,9 +1268,18 @@ html, body {
     const razorpayKeyId = "{{ razorpay_key_id or '' }}";
 
     function getProductImageUrl(imagePath) {
-        if (!imagePath) return '/static/images/grocery_basket.png';
+        if (!imagePath || typeof imagePath !== 'string' || imagePath.trim() === '') {
+            return '/static/images/grocery_basket.png';
+        }
+        imagePath = imagePath.trim();
         if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
             return `/api/proxy-image?url=${encodeURIComponent(imagePath)}`;
+        }
+        if (imagePath.startsWith('static/')) {
+            return '/' + imagePath;
+        }
+        if (!imagePath.startsWith('/') && !imagePath.startsWith('data:') && !imagePath.startsWith('blob:')) {
+            return '/' + imagePath;
         }
         return imagePath;
     }
@@ -2217,7 +2242,7 @@ html, body {
                 
                 card.innerHTML = `
                     <div class="hamar-category-title" style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.2px; line-height: 1.2;">${label}</div>
-                    <img src="${getProductImageUrl(s.image_path)}" class="hamar-category-img" alt="${label}" referrerpolicy="no-referrer">
+                    <img src="${getProductImageUrl(s.image_path)}" class="hamar-category-img" alt="${label}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
                 `;
                 grid.appendChild(card);
             });
@@ -2523,7 +2548,7 @@ html, body {
             <div onclick="showProductDetailModal(${prod.id})" style="cursor: pointer;">
                 ${prod.image_path ? 
                     `<div style="width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow: hidden; border: 1px solid var(--border-color);">
-                        <img src="${getProductImageUrl(prod.image_path)}" alt="${prod.name}" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                        <img src="${getProductImageUrl(prod.image_path)}" alt="${prod.name}" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
                      </div>` : 
                     `<div style="width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: ${iconBg}; border-radius: var(--radius-md); margin-bottom: 8px; border: 1px solid var(--border-color); color: ${iconColor};">
                         <i data-lucide="package" style="width: 24px; height: 24px;"></i>
@@ -2592,7 +2617,7 @@ html, body {
                 <div onclick="showProductDetailModal(${prod.id})" style="cursor: pointer; text-align: left;">
                     <div style="height: 80px; display:flex; align-items:center; justify-content:center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow:hidden; border: 1px solid var(--border-color);">
                         ${prod.image_path ? 
-                            `<img src="${getProductImageUrl(prod.image_path)}" alt="${prod.name}" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain;">` :
+                            `<img src="${getProductImageUrl(prod.image_path)}" alt="${prod.name}" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">` :
                             `<i data-lucide="package" style="width:24px; height:24px; color: var(--text-muted);"></i>`
                         }
                     </div>
@@ -3445,10 +3470,14 @@ html, body {
         .then(data => {
             if (data.success) {
                 customerProfilePic = data.profile_pic;
-                document.getElementById("profile-avatar-preview").src = customerProfilePic;
-                document.getElementById("btn-remove-avatar").style.display = "inline-block";
+                const previewImg = document.getElementById("profile-avatar-preview");
+                if (previewImg) {
+                    previewImg.src = customerProfilePic + '?t=' + Date.now();
+                }
+                const btnRemove = document.getElementById("btn-remove-avatar");
+                if (btnRemove) btnRemove.style.display = "inline-block";
                 alert("Profile picture uploaded successfully!");
-                refreshIcons();
+                if (window.lucide) lucide.createIcons();
             } else {
                 errorDiv.innerText = data.error || "Failed to upload avatar.";
                 errorDiv.style.display = "block";
@@ -3475,11 +3504,13 @@ html, body {
             .then(data => {
                 if (data.success) {
                     customerProfilePic = "";
-                    const defaultAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80";
-                    document.getElementById("profile-avatar-preview").src = defaultAvatar;
-                    document.getElementById("btn-remove-avatar").style.display = "none";
+                    const defaultAvatar = "/static/images/grocery_basket.png";
+                    const previewImg = document.getElementById("profile-avatar-preview");
+                    if (previewImg) previewImg.src = defaultAvatar;
+                    const btnRemove = document.getElementById("btn-remove-avatar");
+                    if (btnRemove) btnRemove.style.display = "none";
                     alert("Profile picture removed successfully!");
-                    refreshIcons();
+                    if (window.lucide) lucide.createIcons();
                 } else {
                     errorDiv.innerText = data.error || "Failed to remove profile picture.";
                     errorDiv.style.display = "block";
@@ -3991,8 +4022,8 @@ html, body {
                     row.style = "display: flex; align-items: center; justify-content: space-between; padding: 8px; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);";
                     row.innerHTML = `
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <a href="${item.image_path}" target="_blank">
-                                <img src="${item.image_path}" alt="Prescription" style="width: 36px; height: 36px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <a href="${getProductImageUrl(item.image_path)}" target="_blank">
+                                <img src="${getProductImageUrl(item.image_path)}" alt="Prescription" style="width: 36px; height: 36px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
                             </a>
                             <div>
                                 <div style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary);">Req #${item.id}</div>

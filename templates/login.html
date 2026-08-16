@@ -14,7 +14,7 @@
         <div class="login-left-panel">
             <div class="brand-header">
                 <div class="mor-bazar-logo-container" style="background: transparent; padding: 0; width: 56px; height: 56px;">
-                    <img src="{{ system_settings.app_logo }}" alt="Hamar Bazaar Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-md);">
+                    <img src="{{ system_settings.app_logo or '/static/images/grocery_basket.png' }}" alt="Hamar Bazaar Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-md);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
                 </div>
                 <div class="brand-text-group">
                     <span class="brand-name-main">Hamar Bazaar</span>
@@ -75,13 +75,13 @@
                 <div class="mobile-mockup-bezel">
                     <div class="mobile-mockup-screen">
                         <div class="mobile-screen-header">
-                            <img src="{{ system_settings.app_logo }}" alt="Hamar Bazaar Logo" style="width: 28px; height: 28px; object-fit: cover; border-radius: var(--radius-sm);">
+                            <img src="{{ system_settings.app_logo or '/static/images/grocery_basket.png' }}" alt="Hamar Bazaar Logo" style="width: 28px; height: 28px; object-fit: cover; border-radius: var(--radius-sm);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
                             <span style="font-weight: 700; color: #5e17eb; font-size: 0.95rem;">Hamar Bazaar</span>
                         </div>
                         <span class="mobile-screen-tagline">Sab kuch, aapke paas!</span>
                         
                         <div class="mobile-scooter-container">
-                            <img src="{{ url_for('static', filename='images/delivery_scooter.png') }}" alt="Delivery Boy on Scooter" class="scooter-vector">
+                            <img src="{{ url_for('static', filename='images/delivery_scooter.png') }}" alt="Delivery Boy on Scooter" class="scooter-vector" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
                         </div>
 
                         <div class="mobile-mockup-card">

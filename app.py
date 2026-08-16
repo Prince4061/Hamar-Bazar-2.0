@@ -37,7 +37,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # Security: 30 da
 app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True    # Prevent JS from reading session cookie
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF mitigation for cookies
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max upload size (DoS protection)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size (supports modern smartphone photos)
 
 # Secure secret key handling for production
 db_dir = os.path.dirname(database.DATABASE_PATH)
@@ -235,45 +235,66 @@ run_migrations()
 # Security: auto-migrate any plain-text passwords to hashed format on startup
 migrate_plain_text_passwords()
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'jfif', 'heic', 'heif'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def optimize_and_save_image(file_stream, upload_path, filename, max_size=(800, 800), quality=70):
+def optimize_and_save_image(file_stream, upload_path, filename, max_size=(800, 800), quality=75):
     """
-    Opens an image from file stream, resizes it if it exceeds max_size (keeping ratio),
-    and saves it as WebP format with target quality (for optimization).
+    Safely opens an image from file_stream or FileStorage object, auto-rotates phone photos
+    using EXIF metadata, resizes if exceeding max_size (keeping aspect ratio),
+    and saves it as WebP format with target quality without stream corruption or 0-byte files.
     """
     try:
-        from PIL import Image
-        img = Image.open(file_stream)
-        
-        # Convert to RGBA or RGB
-        if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
-            img = img.convert('RGBA')
+        os.makedirs(upload_path, exist_ok=True)
+        if hasattr(file_stream, 'read'):
+            raw_bytes = file_stream.read()
+        elif isinstance(file_stream, bytes):
+            raw_bytes = file_stream
         else:
-            img = img.convert('RGB')
-            
-        # Resize keeping aspect ratio (max width/height 800px)
-        img.thumbnail(max_size, Image.Resampling.LANCZOS)
-        
-        # Force filename extension to webp
-        base_name = os.path.splitext(filename)[0]
-        webp_filename = f"{base_name}.webp"
-        target_path = os.path.join(upload_path, webp_filename)
-        
-        # Save as WebP with 70% quality (great ratio between size and quality)
-        img.save(target_path, 'WEBP', quality=quality)
-        return webp_filename
-    except Exception as e:
-        print(f"Error optimizing image: {e}")
-        # Fallback: save original file
+            raw_bytes = None
+
+        if not raw_bytes:
+            print("[Image Warning] Empty file bytes received.")
+            return filename
+
+        import io
+        from PIL import Image, ImageOps
+
         try:
-            file_stream.seek(0)
-        except Exception:
-            pass
-        target_path = os.path.join(upload_path, filename)
-        file_stream.save(target_path)
+            img = Image.open(io.BytesIO(raw_bytes))
+            
+            # Correct orientation from smartphone EXIF metadata
+            try:
+                img = ImageOps.exif_transpose(img)
+            except Exception:
+                pass
+
+            # Convert color mode
+            if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+                img = img.convert('RGBA')
+            else:
+                img = img.convert('RGB')
+
+            # Resize keeping aspect ratio
+            img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+            # WebP target filename
+            base_name = os.path.splitext(filename)[0]
+            webp_filename = f"{base_name}.webp"
+            target_path = os.path.join(upload_path, webp_filename)
+
+            # Save as WebP
+            img.save(target_path, 'WEBP', quality=quality, optimize=True)
+            return webp_filename
+        except Exception as pil_err:
+            print(f"[Image Optimization Fallback] PIL failed ({pil_err}), saving raw bytes safely.")
+            target_path = os.path.join(upload_path, filename)
+            with open(target_path, 'wb') as f:
+                f.write(raw_bytes)
+            return filename
+    except Exception as e:
+        print(f"[Image Save Critical Error]: {e}")
         return filename
 
 def get_db():
@@ -1485,13 +1506,16 @@ def proxy_image():
             url,
             headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
         )
-        with urllib.request.urlopen(req, timeout=5) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:
             img_data = response.read()
             with open(cached_path, 'wb') as f:
                 f.write(img_data)
         return send_file(cached_path, max_age=86400 * 30)
     except Exception as e:
-        print("Proxy fetch failed, redirecting to original url:", e)
+        print("Proxy fetch failed:", e)
+        default_placeholder = os.path.join(app.root_path, 'static', 'images', 'grocery_basket.png')
+        if os.path.exists(default_placeholder):
+            return send_file(default_placeholder, max_age=3600)
         return redirect(url)
 
 @app.route('/api/create-order', methods=['POST'])
@@ -1904,28 +1928,26 @@ def upload_avatar():
         return jsonify({'error': 'No selected file.'}), 400
         
     if file and allowed_file(file.filename):
-        ext = file.filename.rsplit('.', 1)[1].lower()
         customer_id = session.get('role_id')
-        filename = f"profile_{customer_id}.{ext}"
+        timestamp = int(datetime.now().timestamp())
+        base_name = f"profile_{customer_id}_{timestamp}"
         
         # Ensure upload folder exists
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
         
-        # Remove any other profile avatar files of this user with different extensions to avoid duplicate files
-        for allowed_ext in ALLOWED_EXTENSIONS:
-            old_filename = f"profile_{customer_id}.{allowed_ext}"
-            old_path = os.path.join(UPLOAD_FOLDER, old_filename)
-            if os.path.exists(old_path):
-                try:
-                    os.remove(old_path)
-                except Exception:
-                    pass
+        # Remove any previous avatar files of this user to prevent clutter
+        try:
+            for existing_f in os.listdir(UPLOAD_FOLDER):
+                if existing_f.startswith(f"profile_{customer_id}_") or existing_f.startswith(f"profile_{customer_id}."):
+                    try:
+                        os.remove(os.path.join(UPLOAD_FOLDER, existing_f))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
                     
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(file_path)
-        
-        # Path relative to static/
-        relative_path = f"/static/uploads/profile_pics/{filename}"
+        saved_filename = optimize_and_save_image(file, UPLOAD_FOLDER, f"{base_name}.jpg", max_size=(400, 400), quality=75)
+        relative_path = f"/static/uploads/profile_pics/{saved_filename}"
         
         db = get_db()
         cursor = db.cursor()
@@ -2378,7 +2400,6 @@ def upload_payment_screenshot():
 @app.route('/api/orders/upload-customization-file', methods=['POST'])
 @csrf.exempt
 def upload_customization_file():
-    from werkzeug.utils import secure_filename
     import uuid
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': 'No file uploaded'}), 400
@@ -2386,10 +2407,10 @@ def upload_customization_file():
     if file.filename == '':
         return jsonify({'success': False, 'error': 'No file selected'}), 400
     if file and allowed_file(file.filename):
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"custom_{uuid.uuid4().hex}.{ext}"
-        file.save(os.path.join(CUSTOM_UPLOAD_FOLDER, filename))
-        file_path = f"/static/uploads/customizations/{filename}"
+        os.makedirs(CUSTOM_UPLOAD_FOLDER, exist_ok=True)
+        unique_name = f"custom_{uuid.uuid4().hex[:12]}_{int(datetime.now().timestamp())}.jpg"
+        saved_filename = optimize_and_save_image(file, CUSTOM_UPLOAD_FOLDER, unique_name, max_size=(800, 800), quality=75)
+        file_path = f"/static/uploads/customizations/{saved_filename}"
         return jsonify({'success': True, 'file_path': file_path})
     return jsonify({'success': False, 'error': 'Invalid file format'}), 400
 
@@ -4152,17 +4173,14 @@ def upload_prescription():
         return jsonify({'error': 'No selected file.'}), 400
         
     if file and allowed_file(file.filename):
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"presc_{customer_id}_{int(datetime.now().timestamp())}.{ext}"
+        timestamp = int(datetime.now().timestamp())
+        base_name = f"presc_{customer_id}_{timestamp}"
         
         # Ensure upload folder exists
         os.makedirs(PRESC_UPLOAD_FOLDER, exist_ok=True)
         
-        file_path = os.path.join(PRESC_UPLOAD_FOLDER, filename)
-        file.save(file_path)
-        
-        # Path relative to static/
-        relative_path = f"/static/uploads/prescriptions/{filename}"
+        saved_filename = optimize_and_save_image(file, PRESC_UPLOAD_FOLDER, f"{base_name}.jpg", max_size=(1200, 1200), quality=75)
+        relative_path = f"/static/uploads/prescriptions/{saved_filename}"
         
         db = get_db()
         cursor = db.cursor()
