@@ -1,7 +1,28 @@
 import sqlite3
 import os
 import shutil
+import time
+from datetime import datetime, timezone, timedelta
 from werkzeug.security import generate_password_hash
+
+# Process-level Timezone Setting (Indian Standard Time - Asia/Kolkata)
+try:
+    os.environ['TZ'] = 'Asia/Kolkata'
+    if hasattr(time, 'tzset'):
+        time.tzset()
+except Exception:
+    pass
+
+# Hardcoded IST Timezone definition (UTC + 5 hours 30 minutes)
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def ist_now():
+    """Returns current datetime in Indian Standard Time (IST)"""
+    return datetime.now(IST)
+
+def ist_now_str():
+    """Returns current timestamp string in format 'YYYY-MM-DD HH:MM:SS' in IST"""
+    return datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')
 
 # Read SQLite environment parameters with defaults
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -118,7 +139,7 @@ def init_db():
     )
     ''')
     
-    # 5. Orders Table
+    # 5. Orders Table - Note: SQLite DEFAULT evaluates to Indian Standard Time (UTC + 5:30)
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,7 +154,7 @@ def init_db():
         delivery_otp TEXT,
         payment_mode TEXT DEFAULT 'COD',
         payment_screenshot TEXT,
-        created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+        created_at TIMESTAMP DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
         assigned_at TIMESTAMP,
         accepted_at TIMESTAMP,
         ready_at TIMESTAMP,
@@ -165,7 +186,7 @@ def init_db():
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS failed_logins (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+        timestamp TIMESTAMP DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
         username TEXT NOT NULL,
         ip_address TEXT NOT NULL
     )
@@ -176,7 +197,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS user_logins (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_phone TEXT NOT NULL,
-        login_time TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+        login_time TIMESTAMP DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
     )
     ''')
     
@@ -188,7 +209,7 @@ def init_db():
         image_path TEXT NOT NULL,
         status TEXT DEFAULT 'PENDING',
         shop_id INTEGER,
-        created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+        created_at TIMESTAMP DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
         FOREIGN KEY (customer_id) REFERENCES users(id),
         FOREIGN KEY (shop_id) REFERENCES shops(id)
     )
@@ -200,7 +221,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         customer_id INTEGER NOT NULL,
         keyword TEXT NOT NULL,
-        searched_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+        searched_at TIMESTAMP DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
         FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
     )
     ''')
@@ -221,7 +242,7 @@ def init_db():
         customer_id INTEGER NOT NULL,
         rating INTEGER NOT NULL,
         comment TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+        created_at TIMESTAMP DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
         FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
     )
@@ -235,7 +256,7 @@ def init_db():
         service_type TEXT NOT NULL,
         phone TEXT NOT NULL,
         description TEXT,
-        created_at TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+        created_at TIMESTAMP DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
     )
     ''')
 
@@ -247,7 +268,7 @@ def init_db():
         customer_id INTEGER NOT NULL,
         rating INTEGER NOT NULL,
         comment TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
         FOREIGN KEY (provider_id) REFERENCES service_providers(id) ON DELETE CASCADE,
         FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
     )
@@ -648,7 +669,7 @@ def seed_historical_orders():
         conn.close()
         return
         
-    now = datetime.now()
+    now = ist_now().replace(tzinfo=None)
     statuses = ['DELIVERED', 'DELIVERED', 'DELIVERED', 'DELIVERED', 'FAILED', 'DELIVERED']
     failure_reasons = ['Rider unavailable', 'Customer cancelled', 'Out of stock', 'Invalid address']
     
@@ -751,7 +772,6 @@ def seed_search_history():
         return
         
     import random
-    from datetime import datetime, timedelta
     
     searches = []
     
@@ -765,7 +785,7 @@ def seed_search_history():
         for kw, cnt in alice_keywords:
             for _ in range(cnt):
                 hours_ago = random.randint(1, 120)
-                searched_at = (datetime.now() - timedelta(hours=hours_ago)).strftime('%Y-%m-%d %H:%M:%S')
+                searched_at = (ist_now() - timedelta(hours=hours_ago)).strftime('%Y-%m-%d %H:%M:%S')
                 searches.append((alice_id, kw, searched_at))
                 
     # Bob
@@ -778,7 +798,7 @@ def seed_search_history():
         for kw, cnt in bob_keywords:
             for _ in range(cnt):
                 hours_ago = random.randint(1, 120)
-                searched_at = (datetime.now() - timedelta(hours=hours_ago)).strftime('%Y-%m-%d %H:%M:%S')
+                searched_at = (ist_now() - timedelta(hours=hours_ago)).strftime('%Y-%m-%d %H:%M:%S')
                 searches.append((bob_id, kw, searched_at))
                 
     # Charlie
@@ -791,7 +811,7 @@ def seed_search_history():
         for kw, cnt in charlie_keywords:
             for _ in range(cnt):
                 hours_ago = random.randint(1, 120)
-                searched_at = (datetime.now() - timedelta(hours=hours_ago)).strftime('%Y-%m-%d %H:%M:%S')
+                searched_at = (ist_now() - timedelta(hours=hours_ago)).strftime('%Y-%m-%d %H:%M:%S')
                 searches.append((charlie_id, kw, searched_at))
                 
     cursor.executemany('INSERT INTO search_history (customer_id, keyword, searched_at) VALUES (?, ?, ?)', searches)
@@ -804,7 +824,6 @@ def sync_all_timestamps_to_now(force_sync=False):
     Synchronizes all historical orders, search history, reviews, and logs to the current local time.
     Ensures demo data is never frozen in the past while maintaining exact inter-event time intervals.
     """
-    from datetime import datetime, timedelta
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -825,7 +844,7 @@ def sync_all_timestamps_to_now(force_sync=False):
                 except Exception:
                     pass
                     
-        now_dt = datetime.now()
+        now_dt = ist_now().replace(tzinfo=None)
         target_max_dt = now_dt - timedelta(minutes=5)
         
         if max_dt:
@@ -833,7 +852,7 @@ def sync_all_timestamps_to_now(force_sync=False):
             # Only auto-sync if data is from a previous calendar day (stale by 24h+) or if force_sync requested
             is_stale_day = max_dt.date() < now_dt.date()
             if force_sync or is_stale_day:
-                print(f"[INFO] Synchronizing database timestamps to current local date (Shift: {delta})...")
+                print(f"[INFO] Synchronizing database timestamps to current IST date (Shift: {delta})...")
                 
                 def shift_time(val):
                     if not val:
@@ -885,9 +904,44 @@ def sync_all_timestamps_to_now(force_sync=False):
                     sync_table(t, c)
                     
                 conn.commit()
-                print("[SUCCESS] All database timestamps synchronized to current local time!")
+                print("[SUCCESS] All database timestamps synchronized to current IST date!")
     except Exception as e:
         print(f"[ERROR] Failed to synchronize timestamps: {e}")
+    finally:
+        conn.close()
+
+def fix_utc_orders_offset(hours=5.5):
+    """
+    Shifts all historical order timestamps forward by specified hours (default 5.5 for UTC -> IST).
+    Use this once after updating an existing VPS deployment where past orders were saved in UTC.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, created_at, assigned_at, accepted_at, ready_at, delivered_at FROM orders")
+        rows = cursor.fetchall()
+        shift_delta = timedelta(hours=hours)
+        
+        def apply_shift(val):
+            if not val:
+                return None
+            try:
+                dt = datetime.strptime(str(val).split('.')[0], '%Y-%m-%d %H:%M:%S')
+                return (dt + shift_delta).strftime('%Y-%m-%d %H:%M:%S')
+            except Exception:
+                return val
+                
+        for r in rows:
+            cursor.execute('''
+                UPDATE orders
+                SET created_at = ?, assigned_at = ?, accepted_at = ?, ready_at = ?, delivered_at = ?
+                WHERE id = ?
+            ''', (apply_shift(r['created_at']), apply_shift(r['assigned_at']), apply_shift(r['accepted_at']), apply_shift(r['ready_at']), apply_shift(r['delivered_at']), r['id']))
+            
+        conn.commit()
+        print(f"[SUCCESS] Shifted {len(rows)} order timestamps forward by {hours} hours (UTC -> IST).")
+    except Exception as e:
+        print(f"[ERROR] Failed to shift order timestamps: {e}")
     finally:
         conn.close()
 

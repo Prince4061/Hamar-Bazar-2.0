@@ -1,9 +1,34 @@
-from flask import Flask, render_template, request, jsonify, redirect, session, g, send_file, make_response
 import os
+import time
+from datetime import datetime, timedelta, timezone
+
+# Enforce Asia/Kolkata timezone at the process level (Linux/Unix/Docker)
+os.environ['TZ'] = 'Asia/Kolkata'
+if hasattr(time, 'tzset'):
+    try:
+        time.tzset()
+    except Exception:
+        pass
+
+# Explicit Indian Standard Time (IST, UTC+05:30) timezone definition
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def ist_now():
+    """Return timezone-aware current datetime in Indian Standard Time (IST)."""
+    return datetime.now(IST)
+
+def ist_now_str(fmt='%Y-%m-%d %H:%M:%S'):
+    """Return formatted IST timestamp string 'YYYY-MM-DD HH:MM:SS'."""
+    return ist_now().strftime(fmt)
+
+def ist_now_iso():
+    """Return ISO-8601 string in IST."""
+    return ist_now().isoformat()
+
+from flask import Flask, render_template, request, jsonify, redirect, session, g, send_file, make_response
 import sqlite3
 import random
 import re
-from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import threading
 import smtplib
@@ -365,7 +390,7 @@ def check_and_flag_suspicious_user(user_id, db):
         reasons.append(f"Phone number length is not standard ({len(phone_clean)} digits)")
         
     # 3. Transaction / Order checks in the last 24 hours
-    one_day_ago = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
+    one_day_ago = (ist_now() - timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
     cursor.execute("""
         SELECT COUNT(id) as cnt, SUM(total_amount) as total 
         FROM orders 
@@ -648,7 +673,7 @@ def send_search_email_sync(customer_id, keyword):
                     </tr>
                     <tr>
                         <td style="padding: 10px; border: 1px solid #ddd;"><strong>Timestamp:</strong></td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{ist_now_str()}</td>
                     </tr>
                 </table>
                 <br>
@@ -925,7 +950,7 @@ def login():
             cursor = db.cursor()
             
             # Rate-limiting brute-force block check (max 5 failed attempts within last 15 mins)
-            fifteen_mins_ago = (datetime.now() - timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
+            fifteen_mins_ago = (ist_now() - timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
             try:
                 cursor.execute("""
                     SELECT COUNT(*) FROM failed_logins 
@@ -1442,7 +1467,7 @@ def search_products():
             'results_count': total_count,
             'shop_id': shop_id,
             'subcategory': subcategory,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': ist_now_iso()
         })
 
     return jsonify({
@@ -1662,7 +1687,7 @@ def place_order():
         delivery_otp = f"{random.randint(1000, 9999)}"
         
         # Insert Order Master record (Single order)
-        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now_str = ist_now_str()
         cursor.execute('''
             INSERT INTO orders (customer_id, shop_id, total_amount, gst_amount, delivery_fee, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1934,7 +1959,7 @@ def upload_avatar():
         
     if file and allowed_file(file.filename):
         customer_id = session.get('role_id')
-        timestamp = int(datetime.now().timestamp())
+        timestamp = int(ist_now().timestamp())
         base_name = f"profile_{customer_id}_{timestamp}"
         
         # Ensure upload folder exists
@@ -2040,7 +2065,7 @@ def accept_order(order_id):
     if order['status'] != 'PENDING':
         return jsonify({'error': 'Order already processed.'}), 400
         
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now_str = ist_now_str()
     cursor.execute('''
         UPDATE orders 
         SET status = 'ACCEPTED', accepted_at = ? 
@@ -2064,7 +2089,7 @@ def ready_order(order_id):
     if order['status'] not in ['ACCEPTED', 'PENDING', 'AWAITING_PAYMENT_APPROVAL']:
         return jsonify({'error': 'Order status must be active (ACCEPTED or PENDING).'}), 400
         
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now_str = ist_now_str()
     cursor.execute('''
         UPDATE orders 
         SET status = 'READY_FOR_PICKUP', ready_at = ? 
@@ -2110,7 +2135,7 @@ def vendor_upload_product_image():
     if file and allowed_file(file.filename):
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'product_pics')
         os.makedirs(upload_path, exist_ok=True)
-        temp_name = f"v_prod_{int(datetime.now().timestamp())}_{random.randint(1000, 9999)}.webp"
+        temp_name = f"v_prod_{int(ist_now().timestamp())}_{random.randint(1000, 9999)}.webp"
         # Aggressive mobile-optimized WebP compression (max 450x450, 65% quality -> ~15KB per image)
         webp_filename = optimize_and_save_image(file, upload_path, temp_name, max_size=(450, 450), quality=65)
         db_path = f"/static/uploads/product_pics/{webp_filename}"
@@ -2303,9 +2328,9 @@ def claim_delivery(order_id):
         return jsonify({'error': 'Order already claimed by another rider.'}), 400
         
     # 3. Commit claim & start 10-minute cooldown
-    cooldown_end = datetime.now() + timedelta(minutes=10)
+    cooldown_end = ist_now() + timedelta(minutes=10)
     
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now_str = ist_now_str()
     cursor.execute('''
         UPDATE orders 
         SET delivery_boy_id = ?, assigned_at = ?
@@ -2347,7 +2372,7 @@ def verify_pickup(order_id):
     if order['status'] not in ['READY_FOR_PICKUP', 'ACCEPTED', 'PENDING', 'OUT_FOR_DELIVERY']:
         return jsonify({'error': 'Invalid order status for OTP verification.'}), 400
         
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now_str = ist_now_str()
     
     # 1. Direct completion using Customer Delivery OTP (e.g. Admin force-allotted order)
     if entered_otp == order['delivery_otp']:
@@ -2387,7 +2412,7 @@ def verify_delivery(order_id):
     if order['status'] not in ['OUT_FOR_DELIVERY', 'READY_FOR_PICKUP', 'ACCEPTED', 'PENDING']:
         return jsonify({'error': 'Order status must be active.'}), 400
         
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now_str = ist_now_str()
     if entered_otp == order['delivery_otp'] or entered_otp == order['pickup_otp']:
         cursor.execute("UPDATE orders SET status = 'DELIVERED', delivered_at = ? WHERE id = ?", (now_str, order_id))
         cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (int(rider_id),))
@@ -2413,7 +2438,7 @@ def upload_customization_file():
         return jsonify({'success': False, 'error': 'No file selected'}), 400
     if file and allowed_file(file.filename):
         os.makedirs(CUSTOM_UPLOAD_FOLDER, exist_ok=True)
-        unique_name = f"custom_{uuid.uuid4().hex[:12]}_{int(datetime.now().timestamp())}.jpg"
+        unique_name = f"custom_{uuid.uuid4().hex[:12]}_{int(ist_now().timestamp())}.jpg"
         saved_filename = optimize_and_save_image(file, CUSTOM_UPLOAD_FOLDER, unique_name, max_size=(800, 800), quality=75)
         file_path = f"/static/uploads/customizations/{saved_filename}"
         return jsonify({'success': True, 'file_path': file_path})
@@ -2453,7 +2478,7 @@ def approve_order_payment(order_id):
         return jsonify({'error': 'Order is not awaiting payment verification.'}), 400
         
     # Approve order: set status to PENDING and update created_at so it counts as placed now
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now_str = ist_now_str()
     cursor.execute('''
         UPDATE orders 
         SET status = 'PENDING', created_at = ? 
@@ -2498,7 +2523,7 @@ def admin_force_accept_order(order_id):
     db = get_db()
     cursor = db.cursor()
     
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now_str = ist_now_str()
     if new_shop_id:
         cursor.execute("SELECT id FROM shops WHERE id = ?", (new_shop_id,))
         if not cursor.fetchone():
@@ -2548,7 +2573,7 @@ def admin_force_allot_order(order_id):
         if order['status'] in ['PENDING', 'ACCEPTED', 'AWAITING_PAYMENT_APPROVAL']:
             new_status = 'READY_FOR_PICKUP'
         
-        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now_str = ist_now_str()
         cursor.execute('''
             UPDATE orders 
             SET delivery_boy_id = ?, assigned_at = ?, status = ?
@@ -2598,7 +2623,7 @@ def admin_change_order_status(order_id):
         cursor.execute("UPDATE orders SET status = ? WHERE id = ?", (new_status, order_id))
         
         # Also set timestamps depending on status changes
-        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now_str = ist_now_str()
         if new_status == 'ACCEPTED' and not order['accepted_at']:
             cursor.execute("UPDATE orders SET accepted_at = ? WHERE id = ?", (now_str, order_id))
         elif new_status == 'READY_FOR_PICKUP' and not order['ready_at']:
@@ -2815,7 +2840,7 @@ def get_plantation_tracker():
 
 @app.route('/api/admin/analytics', methods=['GET'])
 def get_admin_analytics():
-    start_time = datetime.now()
+    start_time = ist_now()
     db = get_db()
     cursor = db.cursor()
     
@@ -2828,7 +2853,7 @@ def get_admin_analytics():
     # Build safe parameterized date filter (no string injection)
     date_params = ()    # Empty tuple = no date filter
     date_clause = ""   # Used as part of WHERE for non-parameterized parts
-    now_dt = datetime.now()
+    now_dt = ist_now()
     if date_filter == 'Today':
         date_start = now_dt.strftime('%Y-%m-%d 00:00:00')
         date_end = now_dt.strftime('%Y-%m-%d 23:59:59')
@@ -2886,8 +2911,8 @@ def get_admin_analytics():
     urgent_count = run_date_query("SELECT COUNT(*) FROM orders WHERE priority_type = 'URGENT'")[0] or 0
     awaiting_payment_count = run_date_query("SELECT COUNT(*) FROM orders WHERE status = 'AWAITING_PAYMENT_APPROVAL'")[0] or 0
     
-    # Today vs Yesterday
-    now = datetime.now()
+    # Today vs Yesterday (IST Based)
+    now = ist_now()
     today_str = now.strftime('%Y-%m-%d')
     yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
     
@@ -3023,8 +3048,9 @@ def get_admin_analytics():
         if r['cooldown_until']:
             try:
                 cooldown_dt = datetime.strptime(r['cooldown_until'], '%Y-%m-%d %H:%M:%S' if '.' not in r['cooldown_until'] else '%Y-%m-%d %H:%M:%S.%f')
-                if datetime.now() < cooldown_dt:
-                    cooldown_secs = int((cooldown_dt - datetime.now()).total_seconds())
+                curr_ist = ist_now().replace(tzinfo=None)
+                if curr_ist < cooldown_dt:
+                    cooldown_secs = int((cooldown_dt - curr_ist).total_seconds())
             except Exception:
                 pass
         r['cooldown_secs'] = cooldown_secs
@@ -3074,14 +3100,14 @@ def get_admin_analytics():
     # Real DB activity (order counts in last 8 hours)
     db_activity = []
     for i in range(7, -1, -1):
-        dt = datetime.now() - timedelta(hours=i)
+        dt = ist_now() - timedelta(hours=i)
         dt_str = dt.strftime('%Y-%m-%d %H')
         cursor.execute("SELECT COUNT(*) FROM orders WHERE strftime('%Y-%m-%d %H', created_at) = ?", (dt_str,))
         count = cursor.fetchone()[0] or 0
         db_activity.append(count)
 
     # Actual request processing latency
-    latency_ms = round((datetime.now() - start_time).total_seconds() * 1000.0, 1)
+    latency_ms = round((ist_now() - start_time).total_seconds() * 1000.0, 1)
 
     # Get user logins
     try:
@@ -3260,7 +3286,7 @@ def admin_update_shop(shop_id):
         file = request.files['shop_image']
         if file and file.filename != '' and allowed_file(file.filename):
             ext = file.filename.rsplit('.', 1)[1].lower()
-            filename = f"category_{category.lower()}_{int(datetime.now().timestamp())}.{ext}"
+            filename = f"category_{category.lower()}_{int(ist_now().timestamp())}.{ext}"
             upload_path = os.path.join(app.root_path, 'static', 'uploads', 'category_pics')
             os.makedirs(upload_path, exist_ok=True)
             file_path = os.path.join(upload_path, filename)
@@ -3505,7 +3531,7 @@ def admin_add_shop():
         file = request.files['shop_image']
         if file and file.filename != '' and allowed_file(file.filename):
             ext = file.filename.rsplit('.', 1)[1].lower()
-            filename = f"category_{category.lower()}_{int(datetime.now().timestamp())}.{ext}"
+            filename = f"category_{category.lower()}_{int(ist_now().timestamp())}.{ext}"
             upload_path = os.path.join(app.root_path, 'static', 'uploads', 'category_pics')
             os.makedirs(upload_path, exist_ok=True)
             file_path = os.path.join(upload_path, filename)
@@ -3550,7 +3576,7 @@ def upload_product_image():
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'product_pics')
         os.makedirs(upload_path, exist_ok=True)
         
-        temp_name = f"product_{prod_id}_{int(datetime.now().timestamp())}.webp"
+        temp_name = f"product_{prod_id}_{int(ist_now().timestamp())}.webp"
         webp_filename = optimize_and_save_image(file, upload_path, temp_name)
         
         db_path = f"/static/uploads/product_pics/{webp_filename}"
@@ -3577,7 +3603,7 @@ def upload_admin_product_image_file():
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'product_pics')
         os.makedirs(upload_path, exist_ok=True)
         
-        temp_name = f"prod_{int(datetime.now().timestamp())}_{random.randint(1000, 9999)}.webp"
+        temp_name = f"prod_{int(ist_now().timestamp())}_{random.randint(1000, 9999)}.webp"
         webp_filename = optimize_and_save_image(file, upload_path, temp_name)
         
         db_path = f"/static/uploads/product_pics/{webp_filename}"
@@ -3785,7 +3811,7 @@ def trigger_webhook_async(event_type, payload_data):
                     if event_type in enabled_events or 'all' in enabled_events:
                         full_payload = {
                             'event': event_type,
-                            'timestamp': datetime.now().isoformat(),
+                            'timestamp': ist_now_iso(),
                             'source': 'HamarBazar-Hyperlocal',
                             'data': payload_data
                         }
@@ -3846,7 +3872,7 @@ def admin_test_webhook():
         
     test_payload = {
         'event': 'test_ping',
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': ist_now_iso(),
         'source': 'MorBazar-Hyperlocal',
         'data': {
             'message': 'Hello from MorBazar! Webhook automation test connection successful.',
@@ -3939,7 +3965,7 @@ def upload_admin_banner_image():
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'banners')
         os.makedirs(upload_path, exist_ok=True)
         
-        temp_name = f"banner_{int(datetime.now().timestamp())}_{random.randint(1000, 9999)}.webp"
+        temp_name = f"banner_{int(ist_now().timestamp())}_{random.randint(1000, 9999)}.webp"
         webp_filename = optimize_and_save_image(file, upload_path, temp_name)
         
         db_path = f"/static/uploads/banners/{webp_filename}"
@@ -3959,7 +3985,7 @@ def upload_team_photo():
         
     if file and allowed_file(file.filename):
         ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"team_photo_{int(datetime.now().timestamp())}.{ext}"
+        filename = f"team_photo_{int(ist_now().timestamp())}.{ext}"
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'system')
         os.makedirs(upload_path, exist_ok=True)
         file_path = os.path.join(upload_path, filename)
@@ -3995,7 +4021,7 @@ def upload_qr_code():
         
     if file and allowed_file(file.filename):
         ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"admin_qr_{int(datetime.now().timestamp())}.{ext}"
+        filename = f"admin_qr_{int(ist_now().timestamp())}.{ext}"
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'system')
         os.makedirs(upload_path, exist_ok=True)
         file_path = os.path.join(upload_path, filename)
@@ -4031,7 +4057,7 @@ def upload_app_logo():
         
     if file and allowed_file(file.filename):
         ext = file.filename.rsplit('.', 1)[1].lower()
-        timestamp = int(datetime.now().timestamp())
+        timestamp = int(ist_now().timestamp())
         filename = f"app_logo_{timestamp}.{ext}"
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'system')
         os.makedirs(upload_path, exist_ok=True)
@@ -4178,7 +4204,7 @@ def upload_prescription():
         return jsonify({'error': 'No selected file.'}), 400
         
     if file and allowed_file(file.filename):
-        timestamp = int(datetime.now().timestamp())
+        timestamp = int(ist_now().timestamp())
         base_name = f"presc_{customer_id}_{timestamp}"
         
         # Ensure upload folder exists
@@ -4191,9 +4217,9 @@ def upload_prescription():
         cursor = db.cursor()
         try:
             cursor.execute('''
-                INSERT INTO prescription_requests (customer_id, image_path, status)
-                VALUES (?, ?, 'PENDING')
-            ''', (customer_id, relative_path))
+                INSERT INTO prescription_requests (customer_id, image_path, status, created_at)
+                VALUES (?, ?, 'PENDING', ?)
+            ''', (customer_id, relative_path, ist_now_str()))
             db.commit()
             return jsonify({'success': True, 'image_path': relative_path, 'message': 'Medicine image uploaded successfully.'})
         except Exception as e:
@@ -4321,14 +4347,14 @@ def track_search():
         
     db = get_db()
     cursor = db.cursor()
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now_str = ist_now_str()
     try:
         cursor.execute("INSERT INTO search_history (customer_id, keyword, searched_at) VALUES (?, ?, ?)", (int(customer_id), keyword, now_str))
         db.commit()
         trigger_webhook_async('user_search', {
             'customer_id': int(customer_id),
             'keyword': keyword,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': ist_now_iso()
         })
         return jsonify({'success': True, 'message': 'Search tracked successfully.'})
     except Exception as e:
