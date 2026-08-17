@@ -234,6 +234,11 @@ except Exception as e:
 run_migrations()
 # Security: auto-migrate any plain-text passwords to hashed format on startup
 migrate_plain_text_passwords()
+# Sync database historical timestamps to the current local time on startup
+try:
+    database.sync_all_timestamps_to_now()
+except Exception as e:
+    print("Startup timestamp synchronization warning:", e)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'jfif', 'heic', 'heif'}
 def allowed_file(filename):

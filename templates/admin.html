@@ -3521,6 +3521,33 @@
             }
             return imagePath;
         }
+
+        function formatDateTimeDisplay(dateStr) {
+            if (!dateStr) return '--';
+            try {
+                const cleanD = dateStr.replace(" ", "T").split(".")[0];
+                const d = new Date(cleanD);
+                if (isNaN(d.getTime())) return dateStr;
+                
+                const now = new Date();
+                const isToday = d.toDateString() === now.toDateString();
+                
+                const yesterday = new Date();
+                yesterday.setDate(now.getDate() - 1);
+                const isYesterday = d.toDateString() === yesterday.toDateString();
+                
+                const timePart = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                const datePart = d.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
+                
+                let label = datePart;
+                if (isToday) label = 'Today';
+                else if (isYesterday) label = 'Yesterday';
+                
+                return `<div style="font-weight:700; color:var(--text-primary); font-size:0.82rem; line-height:1.2;">${label}, ${timePart}</div><div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace; margin-top:2px;">${dateStr}</div>`;
+            } catch(e) {
+                return dateStr;
+            }
+        }
         let categoryDemandChartObj = null;
         let vendorCommissionChart = null;
         let dbActivityChartObj = null;
@@ -3916,11 +3943,7 @@
                             statusText = "Completed / Quoted";
                         }
                         
-                        let dateStr = item.created_at;
-                        try {
-                            const cleanD = item.created_at.replace(" ", "T").split(".")[0];
-                            dateStr = new Date(cleanD).toLocaleString();
-                        } catch(e) {}
+                        let dateStr = formatDateTimeDisplay(item.created_at);
                         
                         // Dropdown selection
                         let selectHtml = "";
@@ -4028,11 +4051,7 @@
                     data.forEach(item => {
                         const tr = document.createElement("tr");
                         
-                        let dateStr = item.created_at;
-                        try {
-                            const cleanD = item.created_at.replace(" ", "T").split(".")[0];
-                            dateStr = new Date(cleanD).toLocaleString();
-                        } catch(e) {}
+                        let dateStr = formatDateTimeDisplay(item.created_at);
                         
                         tr.innerHTML = `
                             <td style="font-weight:700;">#ORD-${item.id}</td>
@@ -4337,7 +4356,7 @@
                   const tr = document.createElement("tr");
                   tr.innerHTML = `
                       <td data-label="Order ID" style="font-weight:700;">#ORD${o.id}</td>
-                      <td data-label="Date Created" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${o.created_at}</td>
+                      <td data-label="Date Created" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${formatDateTimeDisplay(o.created_at)}</td>
                       <td data-label="Customer" style="font-weight:600;">${o.customer_name}</td>
                       <td data-label="Shop">${o.shop_name}</td>
                       <td data-label="Amount" style="font-weight:700; color:var(--primary-accent);">₹${o.total_amount.toFixed(2)}</td>

@@ -8,6 +8,7 @@ services:
     networks:
       - app-network
     environment:
+      - TZ=Asia/Kolkata
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
       - ADMIN_USERNAME=${ADMIN_USERNAME}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}

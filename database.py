@@ -655,15 +655,15 @@ def seed_historical_orders():
     print("Generating 80 historical orders for the last 7 days...")
     
     for i in range(80):
-        hours_ago = random.randint(1, 168)
-        created_dt = now - timedelta(hours=hours_ago)
+        minutes_ago = random.randint(5, 10080)
+        created_dt = now - timedelta(minutes=minutes_ago)
         created_str = created_dt.strftime('%Y-%m-%d %H:%M:%S')
         
         cust_id = random.choice(user_ids)
         shop_id = random.choice(shop_ids)
         
         status = random.choice(statuses)
-        if hours_ago <= 3:
+        if minutes_ago <= 180:
             status = random.choice(['PENDING', 'ACCEPTED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED'])
             
         priority = 'URGENT' if random.random() < 0.2 else 'NORMAL'
@@ -799,8 +799,101 @@ def seed_search_history():
     conn.close()
     print("Search history seeded successfully!")
 
+def sync_all_timestamps_to_now(force_sync=False):
+    """
+    Synchronizes all historical orders, search history, reviews, and logs to the current local time.
+    Ensures demo data is never frozen in the past while maintaining exact inter-event time intervals.
+    """
+    from datetime import datetime, timedelta
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("SELECT id, created_at, assigned_at, accepted_at, ready_at, delivered_at FROM orders")
+        rows = cursor.fetchall()
+        if not rows:
+            conn.close()
+            return
+            
+        max_dt = None
+        for r in rows:
+            if r['created_at']:
+                try:
+                    dt = datetime.strptime(str(r['created_at']).split('.')[0], '%Y-%m-%d %H:%M:%S')
+                    if max_dt is None or dt > max_dt:
+                        max_dt = dt
+                except Exception:
+                    pass
+                    
+        now_dt = datetime.now()
+        target_max_dt = now_dt - timedelta(minutes=5)
+        
+        if max_dt:
+            delta = target_max_dt - max_dt
+            # Only auto-sync if data is from a previous calendar day (stale by 24h+) or if force_sync requested
+            is_stale_day = max_dt.date() < now_dt.date()
+            if force_sync or is_stale_day:
+                print(f"[INFO] Synchronizing database timestamps to current local date (Shift: {delta})...")
+                
+                def shift_time(val):
+                    if not val:
+                        return None
+                    try:
+                        dt = datetime.strptime(str(val).split('.')[0], '%Y-%m-%d %H:%M:%S')
+                        new_dt = dt + delta
+                        return new_dt.strftime('%Y-%m-%d %H:%M:%S')
+                    except Exception:
+                        return val
+                        
+                for r in rows:
+                    new_created = shift_time(r['created_at'])
+                    new_assigned = shift_time(r['assigned_at'])
+                    new_accepted = shift_time(r['accepted_at'])
+                    new_ready = shift_time(r['ready_at'])
+                    new_delivered = shift_time(r['delivered_at'])
+                    cursor.execute('''
+                        UPDATE orders 
+                        SET created_at = ?, assigned_at = ?, accepted_at = ?, ready_at = ?, delivered_at = ?
+                        WHERE id = ?
+                    ''', (new_created, new_assigned, new_accepted, new_ready, new_delivered, r['id']))
+                
+                # Sync other timestamped tables proportionally
+                def sync_table(table_name, col_name):
+                    try:
+                        cursor.execute(f"SELECT id, {col_name} FROM {table_name}")
+                        t_rows = cursor.fetchall()
+                        for tr in t_rows:
+                            val = tr[col_name]
+                            if val:
+                                try:
+                                    dt = datetime.strptime(str(val).split('.')[0], '%Y-%m-%d %H:%M:%S')
+                                    new_dt = dt + delta
+                                    cursor.execute(f"UPDATE {table_name} SET {col_name} = ? WHERE id = ?", (new_dt.strftime('%Y-%m-%d %H:%M:%S'), tr['id']))
+                                except Exception:
+                                    pass
+                    except Exception as te:
+                        pass
+
+                for t, c in [
+                    ('search_history', 'searched_at'),
+                    ('failed_logins', 'timestamp'),
+                    ('user_logins', 'login_time'),
+                    ('prescription_requests', 'created_at'),
+                    ('product_reviews', 'created_at'),
+                    ('service_reviews', 'created_at')
+                ]:
+                    sync_table(t, c)
+                    
+                conn.commit()
+                print("[SUCCESS] All database timestamps synchronized to current local time!")
+    except Exception as e:
+        print(f"[ERROR] Failed to synchronize timestamps: {e}")
+    finally:
+        conn.close()
+
 if __name__ == '__main__':
     init_db()
     seed_db()
     seed_historical_orders()
     seed_search_history()
+    sync_all_timestamps_to_now(force_sync=True)
