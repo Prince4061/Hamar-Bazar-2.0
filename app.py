@@ -27,7 +27,10 @@ def ist_now_iso():
 
 from flask import Flask, render_template, request, jsonify, redirect, session, g, send_file, make_response, Response
 import io
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 import sqlite3
 import random
 import re
