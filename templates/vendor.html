@@ -1742,14 +1742,22 @@
                         <i data-lucide="package-search" style="color: #10b981;"></i>
                         Store Inventory & Product Catalog
                     </h3>
-                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                         <div class="search-box-container">
                             <i data-lucide="search"></i>
                             <input type="text" class="search-input" placeholder="Search products..." id="inventory-search-input" onkeyup="filterInventory()">
                         </div>
-                        <button type="button" class="btn-add-product" onclick="openAddProductModal()" style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">
+                        <button type="button" class="btn-bulk-upload" onclick="openVendorBulkUploadModal()" style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
+                            <i data-lucide="file-spreadsheet" style="width: 16px; height: 16px;"></i>
+                            Bulk Excel Upload
+                        </button>
+                        <a href="/api/vendor/products/template?format=excel" download style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; transition: all 0.2s ease;">
+                            <i data-lucide="download" style="width: 15px; height: 15px;"></i>
+                            Sample Template
+                        </a>
+                        <button type="button" class="btn-add-product" onclick="openAddProductModal()" style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">
                             <i data-lucide="plus-circle" style="width: 18px; height: 18px;"></i>
-                            + Add New Product
+                            + Add Product
                         </button>
                     </div>
                 </div>
@@ -1913,6 +1921,68 @@
                 <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
                     <button type="button" class="btn-modal-mute" onclick="closeVendorProductModal()" style="padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 14px;">Cancel</button>
                     <button type="button" class="btn-modal-accept" id="v-prod-save-btn" onclick="saveVendorProduct()" style="padding: 10px 22px; border-radius: 8px; font-weight: 600; font-size: 14px; background: #10b981;">Save Product</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VENDOR BULK UPLOAD MODAL -->
+    <div id="vendor-bulk-upload-modal" class="overlay-modal" style="display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); background-color: rgba(15, 23, 42, 0.65); z-index: 999999;">
+        <div class="modal-content" style="max-width: 580px; width: 92%; background: #ffffff; border-radius: 16px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: #e0f2fe; display: flex; align-items: center; justify-content: center; color: #0284c7;">
+                        <i data-lucide="file-spreadsheet" style="width: 22px; height: 22px;"></i>
+                    </div>
+                    <div>
+                        <div style="font-size: 18px; font-weight: 700; color: #1e293b;">Bulk Upload Products (Excel / CSV)</div>
+                        <div style="font-size: 12px; color: #64748b;">Add or update multiple products at once in seconds</div>
+                    </div>
+                </div>
+                <button type="button" onclick="closeVendorBulkUploadModal()" style="background: none; border: none; color: #64748b; cursor: pointer; font-size: 24px; font-weight: 600; line-height: 1;">&times;</button>
+            </div>
+            
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px; padding: 0;">
+                <!-- Instructions Card -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; font-size: 13px; color: #475569;">
+                    <div style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="info" style="width: 16px; height: 16px; color: #0284c7;"></i>
+                        File Format & Instructions:
+                    </div>
+                    <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+                        <li>Supported formats: <strong>.xlsx, .xls, .csv</strong></li>
+                        <li>Required columns: <strong>Product Name</strong> & <strong>Price</strong></li>
+                        <li>Optional columns: <strong>MRP, Cost Price, Subcategory, Description, Image URL, Keywords, Available</strong></li>
+                        <li>Existing products with matching name will be <strong>updated</strong> automatically.</li>
+                    </ul>
+                    <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+                        <a href="/api/vendor/products/template?format=excel" download class="btn-template-download" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; background: #e0f2fe; color: #0369a1; font-weight: 600; font-size: 12px; text-decoration: none; border: 1px solid #bae6fd;">
+                            <i data-lucide="download" style="width: 14px; height: 14px;"></i> Download Excel Template (.xlsx)
+                        </a>
+                        <a href="/api/vendor/products/template?format=csv" download class="btn-template-download" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; background: #f1f5f9; color: #475569; font-weight: 600; font-size: 12px; text-decoration: none; border: 1px solid #cbd5e1;">
+                            <i data-lucide="file-text" style="width: 14px; height: 14px;"></i> Download CSV Template
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Dropzone -->
+                <div id="vendor-dropzone" style="border: 2px dashed #94a3b8; border-radius: 12px; padding: 28px 20px; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.2s;" onclick="document.getElementById('vendor-bulk-file-input').click()">
+                    <input type="file" id="vendor-bulk-file-input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleVendorFileSelected(this)">
+                    <div id="vendor-dropzone-content">
+                        <i data-lucide="upload-cloud" style="width: 44px; height: 44px; color: #0284c7; margin: 0 auto 10px;"></i>
+                        <div style="font-size: 15px; font-weight: 600; color: #1e293b;" id="vendor-file-name-label">Click or Drag & Drop Excel/CSV file here</div>
+                        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Supports Microsoft Excel (.xlsx, .xls) and CSV (.csv)</div>
+                    </div>
+                </div>
+
+                <!-- Result Message Box -->
+                <div id="vendor-bulk-result" style="display: none; border-radius: 10px; padding: 14px; font-size: 13px;"></div>
+
+                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+                    <button type="button" class="btn-modal-mute" onclick="closeVendorBulkUploadModal()" style="padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 14px;">Close</button>
+                    <button type="button" id="vendor-bulk-submit-btn" onclick="submitVendorBulkUpload()" disabled style="padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; background: #0284c7; color: white; border: none; cursor: not-allowed; opacity: 0.6; display: inline-flex; align-items: center; gap: 8px;">
+                        <i data-lucide="upload" style="width: 16px; height: 16px;"></i> Upload & Import Products
+                    </button>
                 </div>
             </div>
         </div>
@@ -3073,6 +3143,123 @@
             .catch(err => {
                 console.error("Error deleting vendor product:", err);
                 alert("Error deleting product.");
+            });
+        };
+
+        // Vendor Bulk Upload Functions
+        window.openVendorBulkUploadModal = function() {
+            const modal = document.getElementById('vendor-bulk-upload-modal');
+            if (modal) {
+                modal.style.display = 'flex';
+                document.getElementById('vendor-bulk-file-input').value = '';
+                document.getElementById('vendor-file-name-label').textContent = 'Click or Drag & Drop Excel/CSV file here';
+                const submitBtn = document.getElementById('vendor-bulk-submit-btn');
+                submitBtn.disabled = true;
+                submitBtn.style.cursor = 'not-allowed';
+                submitBtn.style.opacity = '0.6';
+                submitBtn.innerHTML = '<i data-lucide="upload" style="width: 16px; height: 16px;"></i> Upload & Import Products';
+                const resDiv = document.getElementById('vendor-bulk-result');
+                resDiv.style.display = 'none';
+                resDiv.innerHTML = '';
+                if (window.lucide) lucide.createIcons();
+            }
+        };
+
+        window.closeVendorBulkUploadModal = function() {
+            const modal = document.getElementById('vendor-bulk-upload-modal');
+            if (modal) modal.style.display = 'none';
+        };
+
+        window.handleVendorFileSelected = function(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                document.getElementById('vendor-file-name-label').innerHTML = `<strong style="color: #0284c7;">Selected:</strong> ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                const submitBtn = document.getElementById('vendor-bulk-submit-btn');
+                submitBtn.disabled = false;
+                submitBtn.style.cursor = 'pointer';
+                submitBtn.style.opacity = '1';
+                if (window.lucide) lucide.createIcons();
+            }
+        };
+
+        window.submitVendorBulkUpload = function() {
+            const input = document.getElementById('vendor-bulk-file-input');
+            if (!input.files || !input.files[0]) {
+                alert('Please select an Excel or CSV file first.');
+                return;
+            }
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const submitBtn = document.getElementById('vendor-bulk-submit-btn');
+            const resDiv = document.getElementById('vendor-bulk-result');
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span style="display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; margin-right:6px;"></span> Processing File...';
+            
+            fetch('/api/vendor/products/bulk-upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => {
+                if (!r.ok) {
+                    return r.json().then(errData => { throw new Error(errData.error || 'Server rejected the file.'); });
+                }
+                return r.json();
+            })
+            .then(data => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="upload" style="width: 16px; height: 16px;"></i> Upload & Import Products';
+                resDiv.style.display = 'block';
+                if (data.success) {
+                    resDiv.style.background = '#ecfdf5';
+                    resDiv.style.border = '1px solid #a7f3d0';
+                    resDiv.style.color = '#065f46';
+                    let errHtml = '';
+                    if (data.errors && data.errors.length > 0) {
+                        errHtml = `<div style="margin-top:8px; font-size:12px; color:#b91c1c; background: #fff5f5; padding: 8px; border-radius: 6px;"><strong>Warnings / Skipped Rows:</strong><br>${data.errors.join('<br>')}</div>`;
+                    }
+                    resDiv.innerHTML = `
+                        <div style="font-weight: 700; display:flex; align-items:center; gap:6px; font-size: 14px;">
+                            <i data-lucide="check-circle" style="color: #10b981; width:18px; height:18px;"></i>
+                            Upload Completed Successfully!
+                        </div>
+                        <div style="margin-top:4px;">${data.message}</div>
+                        <div style="margin-top:6px; font-size:12px; color:#047857;">New Products: <strong>${data.inserted_count}</strong> | Updated: <strong>${data.updated_count}</strong> | Skipped: <strong>${data.skipped_count}</strong></div>
+                        ${errHtml}
+                    `;
+                    // Refresh vendor inventory safely
+                    try {
+                        if (typeof fetchInventory === 'function') fetchInventory();
+                        if (typeof loadInventory === 'function') loadInventory();
+                    } catch (e) {
+                        console.warn("Inventory refresh warning:", e);
+                    }
+                } else {
+                    resDiv.style.background = '#fef2f2';
+                    resDiv.style.border = '1px solid #fecaca';
+                    resDiv.style.color = '#991b1b';
+                    resDiv.innerHTML = `
+                        <div style="font-weight: 700; display:flex; align-items:center; gap:6px; font-size: 14px;">
+                            <i data-lucide="alert-triangle" style="color: #ef4444; width:18px; height:18px;"></i>
+                            Upload Failed
+                        </div>
+                        <div style="margin-top:4px;">${data.error || 'Failed to process spreadsheet.'}</div>
+                    `;
+                }
+                if (window.lucide) lucide.createIcons();
+            })
+            .catch(err => {
+                console.error("Vendor bulk upload error:", err);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="upload" style="width: 16px; height: 16px;"></i> Upload & Import Products';
+                resDiv.style.display = 'block';
+                resDiv.style.background = '#fef2f2';
+                resDiv.style.border = '1px solid #fecaca';
+                resDiv.style.color = '#991b1b';
+                resDiv.innerHTML = `<strong>Error:</strong> ${err.message || 'Network error or server failed to respond.'}`;
+                if (window.lucide) lucide.createIcons();
             });
         };
 

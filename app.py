@@ -25,7 +25,9 @@ def ist_now_iso():
     """Return ISO-8601 string in IST."""
     return ist_now().isoformat()
 
-from flask import Flask, render_template, request, jsonify, redirect, session, g, send_file, make_response
+from flask import Flask, render_template, request, jsonify, redirect, session, g, send_file, make_response, Response
+import io
+import pandas as pd
 import sqlite3
 import random
 import re
@@ -1461,9 +1463,22 @@ def search_products():
     
     if query and not include_all:
         c_id = session.get('role_id') if session.get('role') == 'customer' else None
+        c_name = session.get('user_name')
+        c_phone = None
+        if c_id:
+            try:
+                cursor.execute("SELECT name, phone FROM users WHERE id = ?", (c_id,))
+                u_row = cursor.fetchone()
+                if u_row:
+                    c_name = u_row['name']
+                    c_phone = u_row['phone']
+            except Exception:
+                pass
         trigger_webhook_async('user_search', {
             'keyword': query,
             'customer_id': c_id,
+            'customer_name': c_name,
+            'customer_phone': c_phone,
             'results_count': total_count,
             'shop_id': shop_id,
             'subcategory': subcategory,
@@ -2072,6 +2087,12 @@ def accept_order(order_id):
         WHERE id = ?
     ''', (now_str, order_id))
     db.commit()
+    trigger_webhook_async('status_changed', {
+        'order_id': order_id,
+        'new_status': 'ACCEPTED',
+        'shop_id': session.get('role_id'),
+        'timestamp': ist_now_iso()
+    })
     return jsonify({'message': 'Order accepted successfully.'})
 
 @app.route('/api/orders/<int:order_id>/ready', methods=['POST'])
@@ -2096,6 +2117,13 @@ def ready_order(order_id):
         WHERE id = ?
     ''', (now_str, order_id))
     db.commit()
+    trigger_webhook_async('status_changed', {
+        'order_id': order_id,
+        'new_status': 'READY_FOR_PICKUP',
+        'pickup_otp': order['pickup_otp'],
+        'shop_id': session.get('role_id'),
+        'timestamp': ist_now_iso()
+    })
     return jsonify({
         'message': 'Order marked ready for pickup.',
         'pickup_otp': order['pickup_otp']
@@ -2238,6 +2266,291 @@ def vendor_modify_product(prod_id):
         db.commit()
         return jsonify({'success': True, 'message': 'Product updated successfully.'})
 
+# ─── BULK PRODUCT SPREADSHEET (EXCEL / CSV) IMPORT ENGINE ─────────────────────────
+
+def process_bulk_products(file_obj, default_shop_id=None, is_admin=False):
+    """
+    Parses an uploaded Excel (.xlsx, .xls) or CSV (.csv) file and inserts or updates products.
+    Returns a dict with success status, counts, and error details.
+    """
+    filename = getattr(file_obj, 'filename', '') or ''
+    lower_fn = filename.lower()
+    
+    if not (lower_fn.endswith('.xlsx') or lower_fn.endswith('.xls') or lower_fn.endswith('.csv')):
+        return {'success': False, 'error': 'Invalid file format. Please upload an Excel (.xlsx, .xls) or CSV (.csv) file.'}
+
+    try:
+        if lower_fn.endswith('.csv'):
+            try:
+                df = pd.read_csv(file_obj.stream)
+            except Exception:
+                file_obj.stream.seek(0)
+                df = pd.read_csv(file_obj.stream, encoding='latin-1')
+        else:
+            df = pd.read_excel(file_obj.stream)
+    except Exception as e:
+        return {'success': False, 'error': f'Failed to read spreadsheet file: {str(e)}'}
+
+    if df.empty:
+        return {'success': False, 'error': 'The uploaded file is empty.'}
+
+    # Normalize column names: lower, strip, remove spaces/dashes
+    normalized_cols = {}
+    for col in df.columns:
+        clean = re.sub(r'[^a-z0-9_]', '_', str(col).strip().lower())
+        clean = re.sub(r'_+', '_', clean).strip('_')
+        normalized_cols[col] = clean
+    df.rename(columns=normalized_cols, inplace=True)
+
+    # Column mappings
+    def find_col(possible_names):
+        for name in possible_names:
+            if name in df.columns:
+                return name
+        return None
+
+    col_name = find_col(['product_name', 'name', 'item_name', 'title', 'product', 'item'])
+    col_price = find_col(['price', 'selling_price', 'rate', 'unit_price', 'amount', 'our_price'])
+    col_mrp = find_col(['mrp', 'maximum_retail_price', 'market_price', 'original_price'])
+    col_cost_price = find_col(['cost_price', 'purchase_price', 'buying_price', 'cost', 'buy_rate'])
+    col_subcategory = find_col(['subcategory', 'sub_category', 'subcat', 'category_name', 'type', 'group'])
+    col_description = find_col(['description', 'desc', 'details', 'detail', 'info'])
+    col_image_path = find_col(['image_path', 'image_url', 'image', 'photo', 'img_url', 'img', 'picture'])
+    col_keywords = find_col(['keywords', 'keyword', 'tags', 'tag', 'search_tags', 'search_keywords'])
+    col_available = find_col(['is_available', 'available', 'in_stock', 'stock_status', 'status', 'stock'])
+    col_shop = find_col(['shop_id', 'shop_category', 'category', 'shop_name', 'shop', 'store'])
+
+    if not col_name or not col_price:
+        return {
+            'success': False, 
+            'error': f"Required columns missing. Your file must have 'Product Name' and 'Price' columns. Found columns: {', '.join(df.columns)}"
+        }
+
+    db = get_db()
+    cursor = db.cursor()
+
+    # Pre-fetch shops for shop matching
+    cursor.execute("SELECT id, shop_name, category FROM shops")
+    all_shops = cursor.fetchall()
+    shop_cat_map = {str(s['category']).strip().upper(): s['id'] for s in all_shops}
+    shop_name_map = {str(s['shop_name']).strip().lower(): s['id'] for s in all_shops}
+    shop_id_set = {s['id'] for s in all_shops}
+
+    inserted_count = 0
+    updated_count = 0
+    skipped_count = 0
+    row_errors = []
+
+    for index, row in df.iterrows():
+        row_num = index + 2  # 1-indexed header is row 1
+        raw_name = row.get(col_name)
+        if pd.isna(raw_name) or not str(raw_name).strip():
+            skipped_count += 1
+            continue
+        
+        name = str(raw_name).strip()
+
+        # Price validation
+        raw_price = row.get(col_price)
+        if pd.isna(raw_price) or str(raw_price).strip() == '':
+            row_errors.append(f"Row {row_num} ('{name}'): Missing price.")
+            skipped_count += 1
+            continue
+
+        try:
+            price_clean = re.sub(r'[^\d.]', '', str(raw_price))
+            price_val = float(price_clean)
+            if price_val < 0:
+                raise ValueError()
+        except Exception:
+            row_errors.append(f"Row {row_num} ('{name}'): Invalid price '{raw_price}'.")
+            skipped_count += 1
+            continue
+
+        # MRP
+        mrp_val = price_val
+        if col_mrp and not pd.isna(row.get(col_mrp)):
+            try:
+                mrp_clean = re.sub(r'[^\d.]', '', str(row.get(col_mrp)))
+                if mrp_clean:
+                    mrp_val = float(mrp_clean)
+            except Exception:
+                mrp_val = price_val
+
+        # Cost Price
+        cost_price_val = 0.0
+        if col_cost_price and not pd.isna(row.get(col_cost_price)):
+            try:
+                cp_clean = re.sub(r'[^\d.]', '', str(row.get(col_cost_price)))
+                if cp_clean:
+                    cost_price_val = float(cp_clean)
+            except Exception:
+                cost_price_val = 0.0
+
+        # Subcategory
+        subcategory = ''
+        if col_subcategory and not pd.isna(row.get(col_subcategory)):
+            subcategory = str(row.get(col_subcategory)).strip()
+
+        # Description
+        description = ''
+        if col_description and not pd.isna(row.get(col_description)):
+            description = str(row.get(col_description)).strip()
+
+        # Keywords
+        keywords = ''
+        if col_keywords and not pd.isna(row.get(col_keywords)):
+            keywords = str(row.get(col_keywords)).strip()
+
+        # Image Path
+        image_path = ''
+        if col_image_path and not pd.isna(row.get(col_image_path)):
+            image_path = str(row.get(col_image_path)).strip()
+
+        # Available
+        is_available = 1
+        if col_available and not pd.isna(row.get(col_available)):
+            avail_str = str(row.get(col_available)).strip().lower()
+            if avail_str in ['0', 'false', 'no', 'out of stock', 'inactive', 'off']:
+                is_available = 0
+
+        # Determine Target Shop ID
+        target_shop_id = default_shop_id
+        if is_admin and col_shop and not pd.isna(row.get(col_shop)):
+            shop_val = str(row.get(col_shop)).strip()
+            try:
+                s_int = int(shop_val)
+                if s_int in shop_id_set:
+                    target_shop_id = s_int
+            except ValueError:
+                if shop_val.upper() in shop_cat_map:
+                    target_shop_id = shop_cat_map[shop_val.upper()]
+                elif shop_val.lower() in shop_name_map:
+                    target_shop_id = shop_name_map[shop_val.lower()]
+
+        if not target_shop_id or target_shop_id not in shop_id_set:
+            row_errors.append(f"Row {row_num} ('{name}'): Could not determine valid shop category.")
+            skipped_count += 1
+            continue
+
+        # Check existing product with exact name in that shop
+        cursor.execute("SELECT id, image_path FROM products WHERE shop_id = ? AND LOWER(TRIM(name)) = ?", (target_shop_id, name.lower()))
+        existing = cursor.fetchone()
+        
+        if existing:
+            final_img = image_path if image_path else existing['image_path']
+            cursor.execute("""
+                UPDATE products 
+                SET price = ?, mrp = ?, cost_price = ?, 
+                    subcategory = CASE WHEN ? != '' THEN ? ELSE subcategory END,
+                    description = CASE WHEN ? != '' THEN ? ELSE description END,
+                    keywords = CASE WHEN ? != '' THEN ? ELSE keywords END,
+                    image_path = ?,
+                    is_available = ?
+                WHERE id = ?
+            """, (price_val, mrp_val, cost_price_val, subcategory, subcategory, description, description, keywords, keywords, final_img, is_available, existing['id']))
+            updated_count += 1
+        else:
+            final_img = image_path if image_path else '/static/images/grocery_basket.png'
+            cursor.execute("""
+                INSERT INTO products (shop_id, name, price, mrp, cost_price, subcategory, description, keywords, image_path, is_available)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (target_shop_id, name, price_val, mrp_val, cost_price_val, subcategory, description, keywords, final_img, is_available))
+            inserted_count += 1
+
+    db.commit()
+
+    return {
+        'success': True,
+        'inserted_count': inserted_count,
+        'updated_count': updated_count,
+        'skipped_count': skipped_count,
+        'total_processed': inserted_count + updated_count,
+        'errors': row_errors[:15],
+        'message': f"Bulk upload successful: {inserted_count} new products added, {updated_count} existing products updated."
+    }
+
+@app.route('/api/vendor/products/template', methods=['GET'])
+def download_vendor_product_template():
+    if session.get('role') != 'vendor':
+        return jsonify({'error': 'Unauthorized. Please log in as Vendor.'}), 403
+    
+    file_format = request.args.get('format', 'excel').lower()
+    sample_data = [
+        {
+            'Product Name': 'Amul Butter 100g',
+            'Price': 55.00,
+            'MRP': 58.00,
+            'Cost Price': 48.00,
+            'Subcategory': 'Dairy',
+            'Description': 'Pure dairy fresh butter',
+            'Image URL': 'https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?auto=format&fit=crop&w=300&q=80',
+            'Keywords': 'butter, amul, makhan, dairy',
+            'Available': 1
+        },
+        {
+            'Product Name': 'Britannia Brown Bread 400g',
+            'Price': 45.00,
+            'MRP': 50.00,
+            'Cost Price': 38.00,
+            'Subcategory': 'Bakery',
+            'Description': 'Healthy whole wheat brown bread',
+            'Image URL': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=300&q=80',
+            'Keywords': 'bread, brown bread, pauroti, breakfast',
+            'Available': 1
+        },
+        {
+            'Product Name': 'Lays Classic Salted 52g',
+            'Price': 20.00,
+            'MRP': 20.00,
+            'Cost Price': 16.00,
+            'Subcategory': 'Snacks',
+            'Description': 'Crispy potato chips salted flavor',
+            'Image URL': 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=300&q=80',
+            'Keywords': 'chips, lays, wafers, snacks, namkeen',
+            'Available': 1
+        }
+    ]
+    df = pd.DataFrame(sample_data)
+    
+    if file_format == 'csv':
+        buf = io.BytesIO()
+        df.to_csv(buf, index=False, encoding='utf-8')
+        buf.seek(0)
+        return Response(
+            buf.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment;filename=Vendor_Products_Template.csv"}
+        )
+    else:
+        buf = io.BytesIO()
+        df.to_excel(buf, index=False, engine='openpyxl')
+        buf.seek(0)
+        return Response(
+            buf.getvalue(),
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment;filename=Vendor_Products_Template.xlsx"}
+        )
+
+@app.route('/api/vendor/products/bulk-upload', methods=['POST'])
+def vendor_bulk_upload_products():
+    if session.get('role') != 'vendor':
+        return jsonify({'error': 'Unauthorized. Please log in as Vendor.'}), 403
+    shop_id = session.get('role_id')
+    if not shop_id:
+        return jsonify({'error': 'Vendor shop session invalid.'}), 400
+        
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part in the request.'}), 400
+    file = request.files['file']
+    if not file or file.filename == '':
+        return jsonify({'error': 'No file selected.'}), 400
+        
+    res = process_bulk_products(file, default_shop_id=shop_id, is_admin=False)
+    if not res.get('success'):
+        return jsonify(res), 400
+    return jsonify(res)
+
 @app.route('/api/vendor/low-stock-prediction/<int:shop_id>', methods=['GET'])
 def get_low_stock_prediction(shop_id):
     if session.get('role') != 'vendor' or session.get('role_id') != shop_id:
@@ -2379,12 +2692,24 @@ def verify_pickup(order_id):
         cursor.execute("UPDATE orders SET status = 'DELIVERED', delivered_at = ? WHERE id = ?", (now_str, order_id))
         cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (int(rider_id),))
         db.commit()
+        trigger_webhook_async('status_changed', {
+            'order_id': order_id,
+            'new_status': 'DELIVERED',
+            'delivery_boy_id': int(rider_id),
+            'timestamp': ist_now_iso()
+        })
         return jsonify({'message': 'Customer Delivery OTP verified! Order successfully DELIVERED.', 'completed': True})
     
     # 2. Pickup verification using Vendor Pickup OTP
     elif entered_otp == order['pickup_otp']:
         cursor.execute("UPDATE orders SET status = 'OUT_FOR_DELIVERY' WHERE id = ?", (order_id,))
         db.commit()
+        trigger_webhook_async('status_changed', {
+            'order_id': order_id,
+            'new_status': 'OUT_FOR_DELIVERY',
+            'delivery_boy_id': int(rider_id),
+            'timestamp': ist_now_iso()
+        })
         return jsonify({'message': 'Pickup OTP verified successfully. Status changed to OUT FOR DELIVERY.'})
     else:
         return jsonify({'error': 'Invalid OTP. Enter Vendor Pickup OTP or Customer Delivery OTP.'}), 400
@@ -2417,6 +2742,12 @@ def verify_delivery(order_id):
         cursor.execute("UPDATE orders SET status = 'DELIVERED', delivered_at = ? WHERE id = ?", (now_str, order_id))
         cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (int(rider_id),))
         db.commit()
+        trigger_webhook_async('status_changed', {
+            'order_id': order_id,
+            'new_status': 'DELIVERED',
+            'delivery_boy_id': int(rider_id),
+            'timestamp': ist_now_iso()
+        })
         return jsonify({'message': 'OTP verified! Order successfully DELIVERED.', 'completed': True})
     else:
         return jsonify({'error': 'Invalid Delivery OTP. Please verify with Customer.'}), 400
@@ -2647,6 +2978,13 @@ def admin_change_order_status(order_id):
                 cursor.execute("UPDATE delivery_partners SET active_orders = active_orders + 1 WHERE id = ?", (rider_id,))
                 
         db.commit()
+        trigger_webhook_async('status_changed', {
+            'order_id': order_id,
+            'old_status': old_status,
+            'new_status': new_status,
+            'changed_by': 'admin',
+            'timestamp': ist_now_iso()
+        })
         return jsonify({'success': True, 'message': f'Order status successfully changed to {new_status}.'})
     except Exception as e:
         db.execute("ROLLBACK")
@@ -3676,6 +4014,106 @@ def admin_modify_product(prod_id):
         db.commit()
         return jsonify({'success': True, 'message': 'Product updated successfully.'})
 
+@app.route('/api/admin/products/template', methods=['GET'])
+def download_admin_product_template():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized. Please log in as Admin.'}), 403
+        
+    file_format = request.args.get('format', 'excel').lower()
+    
+    sample_data = [
+        {
+            'Shop Category': 'KIRANA',
+            'Product Name': 'Amul Butter 100g',
+            'Price': 55.00,
+            'MRP': 58.00,
+            'Cost Price': 48.00,
+            'Subcategory': 'Dairy',
+            'Description': 'Pure dairy fresh butter',
+            'Image URL': 'https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?auto=format&fit=crop&w=300&q=80',
+            'Keywords': 'butter, amul, makhan, dairy',
+            'Available': 1
+        },
+        {
+            'Shop Category': 'CAKES',
+            'Product Name': 'Chocolate Truffle Cake 500g',
+            'Price': 450.00,
+            'MRP': 500.00,
+            'Cost Price': 300.00,
+            'Subcategory': 'Cakes',
+            'Description': 'Rich Belgian dark chocolate truffle cake',
+            'Image URL': 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=300&q=80',
+            'Keywords': 'cake, chocolate, truffle, bakery, birthday',
+            'Available': 1
+        },
+        {
+            'Shop Category': 'VEGGIES',
+            'Product Name': 'Fresh Farm Tomato 1kg',
+            'Price': 40.00,
+            'MRP': 45.00,
+            'Cost Price': 28.00,
+            'Subcategory': 'Vegetables',
+            'Description': 'Red farm fresh tomatoes',
+            'Image URL': 'https://images.unsplash.com/photo-1595855759920-86582396756a?auto=format&fit=crop&w=300&q=80',
+            'Keywords': 'tomato, tamatar, sabji, vegetables',
+            'Available': 1
+        },
+        {
+            'Shop Category': 'TECH',
+            'Product Name': 'Wireless Bluetooth Earbuds',
+            'Price': 999.00,
+            'MRP': 1499.00,
+            'Cost Price': 650.00,
+            'Subcategory': 'Audio',
+            'Description': 'TWS earbuds with 30hr battery backup',
+            'Image URL': 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=300&q=80',
+            'Keywords': 'earbuds, earphones, bluetooth, audio, tws',
+            'Available': 1
+        }
+    ]
+    df = pd.DataFrame(sample_data)
+    
+    if file_format == 'csv':
+        buf = io.BytesIO()
+        df.to_csv(buf, index=False, encoding='utf-8')
+        buf.seek(0)
+        return Response(
+            buf.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment;filename=Admin_Products_Bulk_Template.csv"}
+        )
+    else:
+        buf = io.BytesIO()
+        df.to_excel(buf, index=False, engine='openpyxl')
+        buf.seek(0)
+        return Response(
+            buf.getvalue(),
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment;filename=Admin_Products_Bulk_Template.xlsx"}
+        )
+
+@app.route('/api/admin/products/bulk-upload', methods=['POST'])
+def admin_bulk_upload_products():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized. Please log in as Admin.'}), 403
+        
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part in the request.'}), 400
+    file = request.files['file']
+    if not file or file.filename == '':
+        return jsonify({'error': 'No file selected.'}), 400
+        
+    default_shop_id = request.form.get('shop_id')
+    try:
+        default_shop_id = int(default_shop_id) if default_shop_id and str(default_shop_id).strip() != '' else None
+    except ValueError:
+        default_shop_id = None
+        
+    res = process_bulk_products(file, default_shop_id=default_shop_id, is_admin=True)
+    if not res.get('success'):
+        return jsonify(res), 400
+    return jsonify(res)
+
 # --- System Settings APIs ---
 @app.route('/api/system/settings', methods=['GET'])
 def get_system_settings():
@@ -3740,12 +4178,28 @@ def send_webhook_http(url, secret, payload):
     if not url:
         return None
 
-    # Windows OS does not allow outbound socket connections to 0.0.0.0 destination address.
-    # We create target URLs replacing 0.0.0.0 with 127.0.0.1, and trying http/https fallback.
-    target_urls = [url]
-    if '://0.0.0.0:' in url or '://0.0.0.0/' in url:
+    target_urls = []
+    
+    # Auto-map Docker / local ports to live n8n endpoint
+    if '167078e4-ccf5-4507-b605-fe218217f4b0' in url:
+        target_urls.append('https://n8n.hamarai.in/webhook/167078e4-ccf5-4507-b605-fe218217f4b0')
+        target_urls.append('https://n8n.hamarai.in/webhook-test/167078e4-ccf5-4507-b605-fe218217f4b0')
+
+    if '0.0.0.0:5678' in url or '127.0.0.1:5678' in url or 'localhost:5678' in url:
+        domain_url = url.replace('https://0.0.0.0:5678', 'https://n8n.hamarai.in')\
+                        .replace('http://0.0.0.0:5678', 'https://n8n.hamarai.in')\
+                        .replace('https://127.0.0.1:5678', 'https://n8n.hamarai.in')\
+                        .replace('http://127.0.0.1:5678', 'https://n8n.hamarai.in')\
+                        .replace('https://localhost:5678', 'https://n8n.hamarai.in')\
+                        .replace('http://localhost:5678', 'https://n8n.hamarai.in')
+        target_urls.append(domain_url)
+        alt_local = url.replace('://0.0.0.0:', '://127.0.0.1:').replace('://0.0.0.0/', '://127.0.0.1/')
+        target_urls.append(alt_local)
+    elif '://0.0.0.0:' in url or '://0.0.0.0/' in url:
         alt_url = url.replace('://0.0.0.0:', '://127.0.0.1:').replace('://0.0.0.0/', '://127.0.0.1/')
-        target_urls.insert(0, alt_url)
+        target_urls.append(alt_url)
+
+    target_urls.append(url)
 
     additional_urls = []
     for u in target_urls:
@@ -3780,8 +4234,11 @@ def send_webhook_http(url, secret, payload):
                 print(f"[WEBHOOK SUCCESS] Event '{payload.get('event')}' delivered to {target_url} - Status: {status_code}", flush=True)
                 return status_code
         except urllib.error.HTTPError as e:
+            if e.code in [200, 201, 204]:
+                print(f"[WEBHOOK SUCCESS] Event '{payload.get('event')}' delivered to {target_url} - Status: {e.code}", flush=True)
+                return e.code
             print(f"[WEBHOOK HTTP ERROR] Event '{payload.get('event')}' to {target_url} returned HTTP {e.code}", flush=True)
-            return e.code
+            last_error = f"HTTP {e.code}"
         except Exception as e:
             last_error = e
             print(f"[WEBHOOK ATTEMPT FAILED] Target '{target_url}': {e}", flush=True)
@@ -3802,7 +4259,7 @@ def trigger_webhook_async(event_type, payload_data):
                 enabled = settings.get('webhook_enabled', '1')
                 url = settings.get('webhook_url', '').strip()
                 if not url:
-                    url = 'https://n8n.hamarai.in/webhook-test/167078e4-ccf5-4507-b605-fe218217f4b0'
+                    url = 'https://n8n.hamarai.in/webhook/167078e4-ccf5-4507-b605-fe218217f4b0'
                 secret = settings.get('webhook_secret', '').strip()
                 events_str = settings.get('webhook_events', 'order_created,user_search,status_changed,stock_alert,user_flagged')
                 

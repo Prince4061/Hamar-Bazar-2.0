@@ -1,0 +1,232 @@
+{
+  "name": "Hamar Bazar - All Telegram Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "167078e4-ccf5-4507-b605-fe218217f4b0",
+        "options": {}
+      },
+      "id": "b9ec4e86-cab2-4411-b5cc-ee311f9d647e",
+      "name": "Hamar Bazar Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1392,
+        -336
+      ],
+      "webhookId": "167078e4-ccf5-4507-b605-fe218217f4b0"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "4098190b-f861-4c84-a91c-d34073d41b9e",
+                    "leftValue": "={{ $json.body.event || $json.headers['x-hamarbazar-event'] }}",
+                    "rightValue": "order_created",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "3a7e4080-113e-45f0-a0b6-f45b084493e9",
+                    "leftValue": "={{ $json.body.event || $json.headers['x-hamarbazar-event'] }}",
+                    "rightValue": "user_search",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "abf69796-4b9f-415d-96ad-5d42e35d30d6",
+                    "leftValue": "={{ $json.body.event || $json.headers['x-hamarbazar-event'] }}",
+                    "rightValue": "status_changed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6d2f2888-ba40-4c62-aaec-5083a1ca7eb2",
+      "name": "Check Event Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -1024,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "8612536915",
+        "text": "={{ '🛒 <b>Naya Order Recieved! (#ORD' + ($json.body.data.order_id || '') + ')</b>\\n\\n👤 <b>Customer:</b> ' + ($json.body.data.customer_name || 'Customer') + '\\n📞 <b>Phone:</b> ' + ($json.body.data.customer_phone || 'N/A') + '\\n📍 <b>Address:</b> ' + ($json.body.data.customer_address || 'Store Pickup') + '\\n\\n💰 <b>Grand Total:</b> ₹' + ($json.body.data.grand_total || '0') + ' (' + ($json.body.data.payment_mode || 'COD') + ')\\n⚡ <b>Priority:</b> ' + ($json.body.data.priority_type || 'NORMAL') + '\\n\\n🔐 <b>OTPs:</b>\\n• Vendor Pickup OTP: <code>' + ($json.body.data.pickup_otp || 'N/A') + '</code>\\n• Customer Delivery OTP: <code>' + ($json.body.data.delivery_otp || 'N/A') + '</code>\\n\\n🛍️ <b>Items:</b>\\n' + ($json.body.data.items ? $json.body.data.items.map(i => '• ' + i.name + ' x ' + i.quantity + ' = ₹' + i.item_total).join('\\n') : 'View in Admin Panel') }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "4d271aa1-a9ef-4459-9b81-ef0147287ade",
+      "name": "Send Order Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -624,
+        -464
+      ],
+      "webhookId": "6f621d29-faac-43d4-813a-8b8fcfd52768",
+      "credentials": {
+        "telegramApi": {
+          "id": "bPIrrjXBmNkz8Tli",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "8612536915",
+        "text": "={{ '🔍 <b>Customer Search Alert!</b>\\n\\n👤 <b>User:</b> ' + ($json.body.data.customer_name || 'Guest User') +\n  '\\n📞 <b>Mobile:</b> ' + ($json.body.data.customer_phone || 'Not Logged In') + '\\n🔎 <b>Searched:</b> <code>' +\n  ($json.body.data.keyword || 'N/A') + '</code>' }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "9e7a8303-ee78-40d6-9683-4670c0912693",
+      "name": "Send Search Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -624,
+        -288
+      ],
+      "webhookId": "97d9e0f2-68ca-42d7-8308-5b78db506d8e",
+      "credentials": {
+        "telegramApi": {
+          "id": "bPIrrjXBmNkz8Tli",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "8612536915",
+        "text": "={{ '🚚 <b>Order Status Update (#ORD' + ($json.body.data.order_id || '') + ')</b>\\n\\n📌 <b>Status:</b> <b>' + ($json.body.data.new_status || 'UPDATED') + '</b>\\n⏰ <b>Time:</b> ' + ($json.body.timestamp || '') }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "733ddba5-5fe4-4d97-8f17-2cf74d6abf2c",
+      "name": "Send Status Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -624,
+        -144
+      ],
+      "webhookId": "41654284-ad02-4fa7-8b5f-1a4b67fcb203",
+      "credentials": {
+        "telegramApi": {
+          "id": "bPIrrjXBmNkz8Tli",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Hamar Bazar Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Event Type": {
+      "main": [
+        [
+          {
+            "node": "Send Order Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Search Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Status Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "de4f1a6a-cfe7-4dc1-aacc-c16014bfcf3c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "33e730e56d3b90bbde0d4e4270041a6f309a862f323d0b12c998439a72e5f3e1"
+  },
+  "nodeGroups": [],
+  "id": "51I8N01aPeXxlg8D",
+  "tags": []
+}

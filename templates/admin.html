@@ -2051,7 +2051,9 @@
                             <option value="0">Out of Stock</option>
                         </select>
                     </div>
-                    <div class="card-header-actions">
+                    <div class="card-header-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn-custom" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none;" onclick="openAdminBulkUploadModal()"><i data-lucide="file-spreadsheet"></i> Bulk Upload Excel / CSV</button>
+                        <a href="/api/admin/products/template?format=excel" download class="btn-custom btn-custom-secondary" style="text-decoration: none;"><i data-lucide="download"></i> Sample Template</a>
                         <button class="btn-custom btn-custom-primary" onclick="openAddProductModal()"><i data-lucide="plus"></i> Add New Product</button>
                     </div>
                 </div>
@@ -3267,6 +3269,76 @@
             <div class="modal-popup-footer">
                 <button class="btn-custom btn-custom-secondary" onclick="closeProductModal()">Cancel</button>
                 <button class="btn-custom btn-custom-primary" onclick="saveProductCatalog()">Save Product</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN BULK UPLOAD MODAL -->
+    <div class="modal-popup-overlay" id="admin-bulk-upload-modal" style="display: none;">
+        <div class="modal-popup-card" style="max-width: 620px;">
+            <div class="modal-popup-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(2, 132, 199, 0.15); display: flex; align-items: center; justify-content: center; color: #0284c7;">
+                        <i data-lucide="file-spreadsheet" style="width: 20px; height: 20px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.15rem;">Bulk Product Upload (Excel / CSV)</h3>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">Quickly import or update products across any shop</div>
+                    </div>
+                </div>
+                <button class="drawer-close" onclick="closeAdminBulkUploadModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-popup-body" style="display: flex; flex-direction: column; gap: 14px;">
+                <!-- Instructions Card -->
+                <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; font-size: 0.85rem; color: var(--text-main);">
+                    <div style="font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="info" style="width: 16px; height: 16px; color: #0284c7;"></i>
+                        Spreadsheet Formatting Guide:
+                    </div>
+                    <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+                        <li>Supported file types: <strong>.xlsx, .xls, .csv</strong></li>
+                        <li>Required columns: <strong>Product Name</strong>, <strong>Price</strong></li>
+                        <li>Optional columns: <strong>Shop Category</strong> (or Shop ID), <strong>MRP</strong>, <strong>Cost Price</strong>, <strong>Subcategory</strong>, <strong>Description</strong>, <strong>Image URL</strong>, <strong>Keywords</strong>, <strong>Available</strong></li>
+                        <li>Existing products with matching name in the shop will have price and details <strong>automatically updated</strong>.</li>
+                    </ul>
+                    <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+                        <a href="/api/admin/products/template?format=excel" download class="btn-custom" style="padding: 6px 12px; font-size: 0.8rem; background: rgba(2, 132, 199, 0.15); color: #0284c7; text-decoration: none; border: 1px solid rgba(2, 132, 199, 0.3);">
+                            <i data-lucide="download" style="width: 14px; height: 14px;"></i> Download Excel Template (.xlsx)
+                        </a>
+                        <a href="/api/admin/products/template?format=csv" download class="btn-custom" style="padding: 6px 12px; font-size: 0.8rem; background: var(--bg-secondary); color: var(--text-muted); text-decoration: none; border: 1px solid var(--border-color);">
+                            <i data-lucide="file-text" style="width: 14px; height: 14px;"></i> Download CSV Template
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Shop Selection for Bulk Upload -->
+                <div class="form-group-custom">
+                    <label class="form-label-custom">Target Shop Category</label>
+                    <select class="form-select-custom" style="width: 100%;" id="admin-bulk-shop-select">
+                        <option value="">-- Auto-detect from 'Shop Category' column in Excel --</option>
+                    </select>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">If Excel has no shop column, products will be assigned to this selected shop.</div>
+                </div>
+
+                <!-- Dropzone -->
+                <div id="admin-dropzone" style="border: 2px dashed var(--border-color); border-radius: 12px; padding: 24px; text-align: center; background: var(--bg-card); cursor: pointer; transition: all 0.2s;" onclick="document.getElementById('admin-bulk-file-input').click()">
+                    <input type="file" id="admin-bulk-file-input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleAdminFileSelected(this)">
+                    <div id="admin-dropzone-content">
+                        <i data-lucide="upload-cloud" style="width: 40px; height: 40px; color: #0284c7; margin: 0 auto 8px;"></i>
+                        <div style="font-size: 0.95rem; font-weight: 600;" id="admin-file-name-label">Click or Drag & Drop Excel/CSV spreadsheet here</div>
+                        <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">Compatible with Microsoft Excel (.xlsx, .xls) and CSV (.csv)</div>
+                    </div>
+                </div>
+
+                <!-- Result Message Box -->
+                <div id="admin-bulk-result" style="display: none; border-radius: 10px; padding: 12px 14px; font-size: 0.85rem;"></div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; border-top: 1px solid var(--border-color); padding-top: 14px;">
+                    <button class="btn-custom btn-custom-secondary" onclick="closeAdminBulkUploadModal()">Cancel</button>
+                    <button id="admin-bulk-submit-btn" class="btn-custom" style="background: #0284c7; color: white; cursor: not-allowed; opacity: 0.6; display: inline-flex; align-items: center; gap: 6px;" onclick="submitAdminBulkUpload()" disabled>
+                        <i data-lucide="upload" style="width: 15px; height: 15px;"></i> Upload & Import Products
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -4847,21 +4919,21 @@
                                 <span style="font-size:0.7rem; color:var(--text-muted); display:block; font-weight:600;">Price</span>
                                 <div style="display:flex; align-items:center; gap:2px;">
                                     <span style="font-weight:700; font-size:0.75rem;">₹</span>
-                                    <input type="number" value="${p.price.toFixed(2)}" class="form-input-custom" style="width:54px; padding:2px 4px; font-size:0.75rem;" onchange="updateProductInlinePrice(${p.id}, this.value)">
+                                    <input type="number" value="${(parseFloat(p.price) || 0).toFixed(2)}" class="form-input-custom" style="width:54px; padding:2px 4px; font-size:0.75rem;" onchange="updateProductInlinePrice(${p.id}, this.value)">
                                 </div>
                             </div>
                             <div>
                                 <span style="font-size:0.7rem; color:var(--text-muted); display:block; font-weight:600;">MRP</span>
                                 <div style="display:flex; align-items:center; gap:2px;">
                                     <span style="font-weight:700; font-size:0.75rem;">₹</span>
-                                    <input type="number" value="${(p.mrp || p.price).toFixed(2)}" class="form-input-custom" style="width:54px; padding:2px 4px; font-size:0.75rem;" onchange="updateProductInlineMRP(${p.id}, this.value)">
+                                    <input type="number" value="${(parseFloat(p.mrp) || parseFloat(p.price) || 0).toFixed(2)}" class="form-input-custom" style="width:54px; padding:2px 4px; font-size:0.75rem;" onchange="updateProductInlineMRP(${p.id}, this.value)">
                                 </div>
                             </div>
                             <div>
                                 <span style="font-size:0.7rem; color:#0284c7; display:block; font-weight:700;" title="Vendor Cost Price (Humko Padega)">Cost</span>
                                 <div style="display:flex; align-items:center; gap:2px;">
                                     <span style="font-weight:700; font-size:0.75rem; color:#0284c7;">₹</span>
-                                    <input type="number" value="${(p.cost_price || 0).toFixed(2)}" class="form-input-custom" style="width:54px; padding:2px 4px; font-size:0.75rem; color:#0284c7; background:#f0f9ff;" onchange="updateProductInlineCostPrice(${p.id}, this.value)">
+                                    <input type="number" value="${(parseFloat(p.cost_price) || 0).toFixed(2)}" class="form-input-custom" style="width:54px; padding:2px 4px; font-size:0.75rem; color:#0284c7; background:#f0f9ff;" onchange="updateProductInlineCostPrice(${p.id}, this.value)">
                                 </div>
                             </div>
                         </div>
@@ -5346,6 +5418,147 @@
                         showAestheticToast(data.message, "success");
                         loadProductCatalog();
                     });
+            });
+        }
+
+        // Admin Bulk Upload Functions
+        function openAdminBulkUploadModal() {
+            const modal = document.getElementById("admin-bulk-upload-modal");
+            if (modal) {
+                modal.style.display = "flex";
+                document.getElementById("admin-bulk-file-input").value = "";
+                document.getElementById("admin-file-name-label").textContent = "Click or Drag & Drop Excel/CSV spreadsheet here";
+                const submitBtn = document.getElementById("admin-bulk-submit-btn");
+                submitBtn.disabled = true;
+                submitBtn.style.cursor = "not-allowed";
+                submitBtn.style.opacity = "0.6";
+                submitBtn.innerHTML = '<i data-lucide="upload" style="width: 15px; height: 15px;"></i> Upload & Import Products';
+                const resDiv = document.getElementById("admin-bulk-result");
+                resDiv.style.display = "none";
+                resDiv.innerHTML = "";
+
+                // Populate shop selector from existing options or API
+                const shopSelect = document.getElementById("admin-bulk-shop-select");
+                const currentShopFilter = document.getElementById("product-shop-filter");
+                if (shopSelect && currentShopFilter) {
+                    shopSelect.innerHTML = `<option value="">-- Auto-detect from 'Shop Category' column in Excel --</option>`;
+                    for (let i = 0; i < currentShopFilter.options.length; i++) {
+                        const opt = currentShopFilter.options[i];
+                        const newOpt = document.createElement("option");
+                        newOpt.value = opt.value;
+                        newOpt.textContent = `Assign all to: ${opt.text}`;
+                        shopSelect.appendChild(newOpt);
+                    }
+                    if (currentShopFilter.value) {
+                        shopSelect.value = currentShopFilter.value;
+                    }
+                }
+                refreshIcons();
+            }
+        }
+
+        function closeAdminBulkUploadModal() {
+            const modal = document.getElementById("admin-bulk-upload-modal");
+            if (modal) modal.style.display = "none";
+        }
+
+        function handleAdminFileSelected(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                document.getElementById("admin-file-name-label").innerHTML = `<strong style="color: #0284c7;">Selected:</strong> ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                const submitBtn = document.getElementById("admin-bulk-submit-btn");
+                submitBtn.disabled = false;
+                submitBtn.style.cursor = "pointer";
+                submitBtn.style.opacity = "1";
+                refreshIcons();
+            }
+        }
+
+        function submitAdminBulkUpload() {
+            const input = document.getElementById("admin-bulk-file-input");
+            if (!input.files || !input.files[0]) {
+                showAestheticToast("Please choose an Excel or CSV file first.", "error");
+                return;
+            }
+            const file = input.files[0];
+            const shopSelect = document.getElementById("admin-bulk-shop-select");
+            const selectedShopId = shopSelect ? shopSelect.value : "";
+            
+            const formData = new FormData();
+            formData.append("file", file);
+            if (selectedShopId) {
+                formData.append("shop_id", selectedShopId);
+            }
+
+            const submitBtn = document.getElementById("admin-bulk-submit-btn");
+            const resDiv = document.getElementById("admin-bulk-result");
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span style="display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; margin-right:6px;"></span> Processing Spreadsheet...';
+
+            fetch("/api/admin/products/bulk-upload", {
+                method: "POST",
+                body: formData
+            })
+            .then(r => {
+                if (!r.ok) {
+                    return r.json().then(errData => { throw new Error(errData.error || 'Server rejected the file.'); });
+                }
+                return r.json();
+            })
+            .then(data => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="upload" style="width: 15px; height: 15px;"></i> Upload & Import Products';
+                resDiv.style.display = "block";
+                if (data.success) {
+                    resDiv.style.background = "rgba(16, 185, 129, 0.12)";
+                    resDiv.style.border = "1px solid rgba(16, 185, 129, 0.35)";
+                    resDiv.style.color = "#059669";
+                    let errHtml = "";
+                    if (data.errors && data.errors.length > 0) {
+                        errHtml = `<div style="margin-top:8px; font-size:0.78rem; color:#dc2626; background: rgba(239, 68, 68, 0.08); padding: 8px; border-radius: 6px;"><strong>Warnings / Skipped Rows:</strong><br>${data.errors.join('<br>')}</div>`;
+                    }
+                    resDiv.innerHTML = `
+                        <div style="font-weight: 700; display:flex; align-items:center; gap:6px; font-size: 0.95rem;">
+                            <i data-lucide="check-circle" style="color: #10b981; width:18px; height:18px;"></i>
+                            Spreadsheet Imported Successfully!
+                        </div>
+                        <div style="margin-top:4px;">${data.message}</div>
+                        <div style="margin-top:6px; font-size:0.8rem; opacity:0.9;">New Products: <strong>${data.inserted_count}</strong> | Updated: <strong>${data.updated_count}</strong> | Skipped: <strong>${data.skipped_count}</strong></div>
+                        ${errHtml}
+                    `;
+                    showAestheticToast(data.message, "success");
+                    try {
+                        loadProductCatalog();
+                    } catch (e) {
+                        console.warn("Product catalog refresh warning:", e);
+                    }
+                } else {
+                    resDiv.style.background = "rgba(239, 68, 68, 0.12)";
+                    resDiv.style.border = "1px solid rgba(239, 68, 68, 0.35)";
+                    resDiv.style.color = "#dc2626";
+                    resDiv.innerHTML = `
+                        <div style="font-weight: 700; display:flex; align-items:center; gap:6px; font-size: 0.95rem;">
+                            <i data-lucide="alert-triangle" style="color: #ef4444; width:18px; height:18px;"></i>
+                            Import Failed
+                        </div>
+                        <div style="margin-top:4px;">${data.error || 'Failed to process spreadsheet.'}</div>
+                    `;
+                    showAestheticToast(data.error || "Failed to process spreadsheet.", "error");
+                }
+                refreshIcons();
+            })
+            .catch(err => {
+                console.error("Bulk upload error:", err);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="upload" style="width: 15px; height: 15px;"></i> Upload & Import Products';
+                resDiv.style.display = "block";
+                resDiv.style.background = "rgba(239, 68, 68, 0.12)";
+                resDiv.style.border = "1px solid rgba(239, 68, 68, 0.35)";
+                resDiv.style.color = "#dc2626";
+                resDiv.innerHTML = `<strong>Error:</strong> ${err.message || 'Network error or server failed to respond.'}`;
+                showAestheticToast(err.message || "Network error during upload.", "error");
+                refreshIcons();
             });
         }
 
@@ -7069,7 +7282,8 @@
             products.forEach(p => {
                 const opt = document.createElement("option");
                 opt.value = p.id;
-                opt.innerText = `${p.name} - ₹${p.price.toFixed(2)} (Shop: ${p.shop_name || p.shop_id})`;
+                const pPrice = (parseFloat(p.price) || 0).toFixed(2);
+                opt.innerText = `${p.name} - ₹${pPrice} (Shop: ${p.shop_name || p.shop_id})`;
                 dropdown.appendChild(opt);
             });
         }
