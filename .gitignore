@@ -173,3 +173,7 @@ scratch_js/
 *.key
 *.token
 # ────────────────────────────────────────────────────────────────────────────────
+
+# Local DB backups / snapshots (never commit)
+*.bak
+*.db.bak

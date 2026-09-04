@@ -273,7 +273,20 @@ def init_db():
         FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
     )
     ''')
-    
+
+    # 15. Product Requests Table — customers request products not found in search
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS product_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER,
+        product_name TEXT NOT NULL,
+        note TEXT,
+        status TEXT DEFAULT 'PENDING',
+        created_at TIMESTAMP DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
+        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE SET NULL
+    )
+    ''')
+
     # Migrate products table by adding mrp column if missing
     try:
         cursor.execute("ALTER TABLE products ADD COLUMN mrp REAL")

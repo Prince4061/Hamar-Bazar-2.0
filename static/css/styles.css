@@ -2982,23 +2982,34 @@ body.theme-customer .app-container {
 }
 
 /* Tactile Active Candy capsule states */
+/* Generic fallback so any active toggle always shows a filled state */
+.store-switch-btn.active {
+    background: var(--primary-accent);
+    color: #ffffff;
+    transform: scale(1.05);
+    box-shadow: 0 8px 20px rgba(0, 156, 98, 0.3);
+}
+.store-switch-btn.active i {
+    transform: scale(1.15) rotate(5deg);
+}
+
 .store-switch-btn.active#btn-switch-grocery {
     background: var(--primary-accent);
     color: #ffffff; /* Contrast text */
     transform: scale(1.05); /* Pop out! */
-    box-shadow: 0 8px 20px rgba(111, 44, 244, 0.3);
+    box-shadow: 0 8px 20px rgba(0, 156, 98, 0.3);
 }
 .store-switch-btn.active#btn-switch-grocery i {
     transform: scale(1.15) rotate(5deg);
 }
 
-.store-switch-btn.active#btn-switch-pharmacy {
-    background: #e11d48;
+.store-switch-btn.active#btn-switch-tech {
+    background: #2563eb; /* Tech blue — distinct from green Daily Needs */
     color: #ffffff; /* Contrast text */
     transform: scale(1.05); /* Pop out! */
-    box-shadow: 0 8px 20px rgba(225, 29, 72, 0.3);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
 }
-.store-switch-btn.active#btn-switch-pharmacy i {
+.store-switch-btn.active#btn-switch-tech i {
     transform: scale(1.15) rotate(-5deg);
 }
 

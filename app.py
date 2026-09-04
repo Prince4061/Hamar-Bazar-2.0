@@ -1899,6 +1899,237 @@ def get_customer_orders(customer_id):
     orders = [dict(row) for row in cursor.fetchall()]
     return jsonify(orders)
 
+# Number of delivered orders that plants one tree (green milestone)
+TREE_MILESTONE = 11
+
+def _mask_name(name, user_id):
+    """Privacy-preserving display name for the public leaderboard:
+    first name + first letter of the next word (e.g. 'Alice S.')."""
+    name = (name or '').strip()
+    if not name:
+        return f"Customer #{user_id}"
+    parts = name.split()
+    if len(parts) == 1:
+        return parts[0]
+    return f"{parts[0]} {parts[1][0].upper()}."
+
+def _leaderboard_cutoff(range_key):
+    """Return an IST 'YYYY-MM-DD HH:MM:SS' cutoff string for a range filter,
+    or None for all-time. Filters on when the order was delivered."""
+    now = ist_now()
+    if range_key == 'daily':
+        return now.strftime('%Y-%m-%d 00:00:00')
+    if range_key == 'weekly':
+        return (now - timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+    if range_key == 'monthly':
+        return (now - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+    return None  # all-time
+
+@app.route('/api/leaderboard', methods=['GET'])
+def get_leaderboard():
+    """Customer-facing green leaderboard.
+
+    Ranks customers by number of DELIVERED (completed) orders in the selected
+    time window (daily / weekly / monthly / all). Every TREE_MILESTONE (11)
+    completed orders plants one tree. Returns the top ranked customers plus the
+    logged-in customer's own progress towards their next tree.
+    """
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Please login as a customer.'}), 403
+
+    range_key = (request.args.get('range') or 'all').strip().lower()
+    if range_key not in ('daily', 'weekly', 'monthly', 'all'):
+        range_key = 'all'
+    cutoff = _leaderboard_cutoff(range_key)
+
+    me_id = session.get('role_id')
+    db = get_db()
+    cursor = db.cursor()
+
+    # Delivered-order counts per customer within the selected window, ranked.
+    # Only customers with at least one delivered order in the window appear.
+    if cutoff:
+        deliv_expr = "COUNT(CASE WHEN UPPER(o.status) = 'DELIVERED' AND COALESCE(o.delivered_at, o.created_at) >= ? THEN 1 END)"
+        params = (cutoff,)
+    else:
+        deliv_expr = "COUNT(CASE WHEN UPPER(o.status) = 'DELIVERED' THEN 1 END)"
+        params = ()
+    cursor.execute(f'''
+        SELECT
+            u.id   AS user_id,
+            u.name AS customer_name,
+            u.profile_pic AS profile_pic,
+            {deliv_expr} AS delivered_orders
+        FROM users u
+        LEFT JOIN orders o ON u.id = o.customer_id
+        WHERE COALESCE(u.is_blocked, 0) = 0
+        GROUP BY u.id
+        HAVING delivered_orders > 0
+        ORDER BY delivered_orders DESC, u.name ASC, u.id ASC
+    ''', params)
+    ranked = [dict(row) for row in cursor.fetchall()]
+
+    leaderboard = []
+    my_rank = None
+    my_delivered = 0
+    for idx, row in enumerate(ranked):
+        rank = idx + 1
+        deliv = row['delivered_orders']
+        is_me = (row['user_id'] == me_id)
+        if is_me:
+            my_rank = rank
+            my_delivered = deliv
+        leaderboard.append({
+            'rank': rank,
+            'user_id': row['user_id'],
+            'display_name': (row['customer_name'] or f"Customer #{row['user_id']}") if is_me else _mask_name(row['customer_name'], row['user_id']),
+            'delivered_orders': deliv,
+            'trees_planted': deliv // TREE_MILESTONE,
+            'profile_pic': row.get('profile_pic') or None,
+            'is_me': is_me
+        })
+
+    # If the logged-in customer has no delivered orders yet, they are not in
+    # the ranked list — fetch their delivered count directly so we can still
+    # show their progress card and motivate them.
+    if my_rank is None:
+        if cutoff:
+            cursor.execute('''
+                SELECT COUNT(CASE WHEN UPPER(status) = 'DELIVERED' AND COALESCE(delivered_at, created_at) >= ? THEN 1 END) AS delivered_orders
+                FROM orders WHERE customer_id = ?
+            ''', (cutoff, me_id))
+        else:
+            cursor.execute('''
+                SELECT COUNT(CASE WHEN UPPER(status) = 'DELIVERED' THEN 1 END) AS delivered_orders
+                FROM orders WHERE customer_id = ?
+            ''', (me_id,))
+        r = cursor.fetchone()
+        my_delivered = (r['delivered_orders'] if r else 0) or 0
+
+    cursor.execute("SELECT name, profile_pic FROM users WHERE id = ?", (me_id,))
+    me_row = cursor.fetchone()
+    my_name = me_row['name'] if me_row else 'You'
+    my_pic = (me_row['profile_pic'] if me_row else None) or None
+
+    cycle_progress = my_delivered % TREE_MILESTONE
+    my_trees = my_delivered // TREE_MILESTONE
+    # Orders still needed to complete the current cycle of 11 (0 only right
+    # after a milestone is hit; otherwise how many more to the next tree).
+    orders_needed = TREE_MILESTONE - cycle_progress if cycle_progress != 0 else (0 if my_delivered > 0 else TREE_MILESTONE)
+    # After a fresh milestone (cycle_progress == 0 and trees > 0) the next
+    # target is another full cycle of 11.
+    if my_delivered > 0 and cycle_progress == 0:
+        orders_needed = TREE_MILESTONE
+        cycle_progress = 0
+    next_tree_number = my_trees + 1
+
+    me = {
+        'user_id': me_id,
+        'name': my_name,
+        'profile_pic': my_pic,
+        'rank': my_rank,  # None if not yet on the board
+        'delivered_orders': my_delivered,
+        'trees_planted': my_trees,
+        'cycle_progress': cycle_progress,           # 0..10 within current cycle
+        'orders_needed_for_next_tree': orders_needed,
+        'next_tree_number': next_tree_number,
+        'milestone': TREE_MILESTONE
+    }
+
+    # Community total for a "together we planted" line.
+    total_trees = sum(item['trees_planted'] for item in leaderboard)
+
+    return jsonify({
+        'success': True,
+        'range': range_key,
+        'milestone': TREE_MILESTONE,
+        'total_participants': len(leaderboard),
+        'total_trees_planted': total_trees,
+        'leaderboard': leaderboard[:50],
+        'me': me
+    })
+
+# ─── Product Requests: customers ask for products not found in search ──────────
+@app.route('/api/product-requests', methods=['POST'])
+def create_product_request():
+    """A customer requests a product that didn't show up in search."""
+    data = request.json or {}
+    product_name = (data.get('product_name') or '').strip()
+    note = (data.get('note') or '').strip()
+
+    if not product_name:
+        return jsonify({'error': 'Product ka naam zaroori hai.'}), 400
+    if len(product_name) > 200:
+        product_name = product_name[:200]
+    if len(note) > 500:
+        note = note[:500]
+
+    # Attach the logged-in customer if available (not required).
+    customer_id = session.get('role_id') if session.get('role') == 'customer' else None
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "INSERT INTO product_requests (customer_id, product_name, note, status, created_at) VALUES (?, ?, ?, 'PENDING', ?)",
+        (customer_id, product_name, note, ist_now_str())
+    )
+    db.commit()
+    req_id = cursor.lastrowid
+
+    # Notify admin via the existing webhook engine (e.g. Telegram).
+    cust_info = {}
+    if customer_id:
+        cursor.execute("SELECT name, phone FROM users WHERE id = ?", (customer_id,))
+        row = cursor.fetchone()
+        cust_info = dict(row) if row else {}
+    trigger_webhook_async('product_requested', {
+        'request_id': req_id,
+        'product_name': product_name,
+        'note': note,
+        'customer_id': customer_id,
+        'customer_name': cust_info.get('name'),
+        'customer_phone': cust_info.get('phone')
+    })
+
+    return jsonify({'success': True, 'message': 'Aapki request mil gayi! Hum jaldi add karne ki koshish karenge.', 'request_id': req_id})
+
+@app.route('/api/admin/product-requests', methods=['GET'])
+def admin_list_product_requests():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('''
+        SELECT pr.id, pr.product_name, pr.note, pr.status, pr.created_at,
+               pr.customer_id, u.name AS customer_name, u.phone AS customer_phone
+        FROM product_requests pr
+        LEFT JOIN users u ON pr.customer_id = u.id
+        ORDER BY CASE WHEN UPPER(pr.status) = 'PENDING' THEN 0 ELSE 1 END, pr.id DESC
+    ''')
+    rows = [dict(r) for r in cursor.fetchall()]
+    pending = sum(1 for r in rows if (r['status'] or '').upper() == 'PENDING')
+    return jsonify({'success': True, 'requests': rows, 'pending_count': pending})
+
+@app.route('/api/admin/product-requests/<int:req_id>/resolve', methods=['POST'])
+def admin_resolve_product_request(req_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("UPDATE product_requests SET status = 'ADDED' WHERE id = ?", (req_id,))
+    db.commit()
+    return jsonify({'success': True, 'message': 'Request marked as added.'})
+
+@app.route('/api/admin/product-requests/<int:req_id>/delete', methods=['POST', 'DELETE'])
+def admin_delete_product_request(req_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM product_requests WHERE id = ?", (req_id,))
+    db.commit()
+    return jsonify({'success': True, 'message': 'Request deleted.'})
+
 @app.route('/api/customer/profile/update', methods=['POST'])
 def update_profile():
     if session.get('role') != 'customer':

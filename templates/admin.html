@@ -345,6 +345,54 @@
             box-shadow: 0 0 0 3px var(--primary-glow);
         }
 
+        /* ===== Global search results dropdown ===== */
+        .global-search-results {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            width: 380px;
+            max-width: 90vw;
+            max-height: 440px;
+            overflow-y: auto;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.25);
+            z-index: 5000;
+            text-align: left;
+        }
+        .global-search-results.open { display: block; }
+        .gs-group-title {
+            font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--text-muted); padding: 10px 14px 4px;
+            background: var(--bg-main); position: sticky; top: 0;
+        }
+        .gs-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 14px; cursor: pointer; border-bottom: 1px solid var(--border-color);
+            transition: background 0.15s ease;
+        }
+        .gs-item:last-child { border-bottom: none; }
+        .gs-item:hover, .gs-item.active { background: var(--primary-light); }
+        .gs-icon {
+            width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--primary-light); color: var(--primary-accent);
+        }
+        .gs-icon i { width: 16px; height: 16px; }
+        .gs-main { flex: 1; min-width: 0; }
+        .gs-title { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .gs-sub { font-size: 0.72rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .gs-meta { font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; }
+        .gs-empty { padding: 22px 14px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+        .gs-hint { padding: 8px 14px; font-size: 0.7rem; color: var(--text-muted); border-top: 1px solid var(--border-color); background: var(--bg-main); }
+        mark.gs-hl { background: #fff3a8; color: inherit; padding: 0 1px; border-radius: 2px; }
+        /* Row highlight when jumping from search */
+        @keyframes gsRowFlash { 0% { background: #fff3a8; } 100% { background: transparent; } }
+        tr.gs-flash { animation: gsRowFlash 2.5s ease-out; }
+        .gs-flash-card { outline: 3px solid var(--amber-warning); outline-offset: 2px; border-radius: var(--radius-md); }
+
         .date-range-selector {
             background: #ffffff;
             border: 1px solid var(--border-color);
@@ -1631,13 +1679,13 @@
                         </a>
                     </li>
                     <li>
-                        <a class="menu-item-link" onclick="switchTab('delivery')">
-                            <i data-lucide="bike"></i> Riders Pool
+                        <a class="menu-item-link" onclick="switchTab('productrequests')">
+                            <i data-lucide="clipboard-plus"></i> Product Requests <span id="product-requests-badge" style="display:none; background:var(--ruby-danger); color:#fff; font-size:0.68rem; font-weight:800; min-width:18px; height:18px; line-height:18px; text-align:center; border-radius:9px; padding:0 5px; margin-left:4px;"></span>
                         </a>
                     </li>
                     <li>
-                        <a class="menu-item-link" onclick="switchTab('prescriptions')">
-                            <i data-lucide="file-text"></i> Prescriptions
+                        <a class="menu-item-link" onclick="switchTab('delivery')">
+                            <i data-lucide="bike"></i> Riders Pool
                         </a>
                     </li>
                     <li>
@@ -1733,9 +1781,11 @@
                 <!-- Right Actions -->
                 <div class="header-actions">
                     <!-- Global Search Bar -->
-                    <div class="search-bar-container">
+                    <div class="search-bar-container" id="global-search-container">
                         <i data-lucide="search"></i>
-                        <input type="text" class="search-bar-input" placeholder="Search orders, shops, products..." onkeyup="handleGlobalSearch(this.value)">
+                        <input type="text" class="search-bar-input" id="global-search-input" placeholder="Search orders, shops, products, customers..." autocomplete="off"
+                               oninput="handleGlobalSearch(this.value)" onfocus="handleGlobalSearch(this.value)" onkeydown="globalSearchKeydown(event)">
+                        <div class="global-search-results" id="global-search-results"></div>
                     </div>
 
                     <!-- Date Range Selection Dropdown -->
@@ -2461,36 +2511,37 @@
             </div>
 
             <!-- --------------------------------------------------- -->
-            <!-- TAB 7: PRESCRIPTIONS REVIEW & FORWARDING -->
+            <!-- TAB: PRODUCT REQUESTS (customer-requested products) -->
             <!-- --------------------------------------------------- -->
-            <div class="tab-panel" id="panel-prescriptions">
+            <div class="tab-panel" id="panel-productrequests">
                 <div class="dashboard-card">
                     <div class="card-header-row">
-                        <h3 class="card-title-text"><i data-lucide="file-text"></i> Customer Prescriptions & Medicine Uploads</h3>
-                        <button class="btn-custom btn-custom-secondary" onclick="loadPrescriptions()"><i data-lucide="refresh-cw"></i> Refresh Feed</button>
+                        <h3 class="card-title-text"><i data-lucide="clipboard-plus"></i> Customer Product Requests</h3>
+                        <button class="btn-custom btn-custom-secondary" onclick="loadProductRequests()"><i data-lucide="refresh-cw"></i> Refresh Feed</button>
                     </div>
-                    
+                    <p style="font-size:0.85rem; color:var(--text-secondary); margin:0 0 12px;">Jab customer ko search me product nahi milta, woh yahan request bhejta hai. Add karne ke baad "Mark Added" karein.</p>
+
                     <div class="table-responsive-wrapper">
                         <table class="premium-table">
                             <thead>
                                 <tr>
-                                    <th>Request ID</th>
-                                    <th>Date Uploaded</th>
-                                    <th>Customer Details</th>
-                                    <th>Medicine/Prescription Image</th>
-                                    <th>Current Status</th>
-                                    <th>Forward to Medical Shop</th>
+                                    <th>Req ID</th>
+                                    <th>Date</th>
+                                    <th>Requested Product</th>
+                                    <th>Extra Note</th>
+                                    <th>Customer</th>
+                                    <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="prescriptions-admin-rows">
+                            <tbody id="product-requests-rows">
                                 <!-- Loaded dynamically -->
                             </tbody>
                         </table>
                     </div>
-                    <div id="empty-admin-prescriptions-placeholder" style="display:none; padding:40px; text-align:center; color:var(--text-muted);">
-                        <i data-lucide="package-open" style="width:48px; height:48px; stroke-width:1.5; margin-bottom:12px; display:inline-block;"></i>
-                        <p style="font-weight:600;">No prescription uploads in the log.</p>
+                    <div id="empty-product-requests-placeholder" style="display:none; padding:40px; text-align:center; color:var(--text-muted);">
+                        <i data-lucide="clipboard-check" style="width:48px; height:48px; stroke-width:1.5; margin-bottom:12px; display:inline-block;"></i>
+                        <p style="font-weight:600;">Abhi koi product request nahi hai.</p>
                     </div>
                 </div>
             </div>
@@ -3627,16 +3678,18 @@
         // On Load
         document.addEventListener("DOMContentLoaded", () => {
             loadAllAnalytics(false);
-            
+            updateProductRequestsBadge();
+
             // Auto-refresh stats every 15 seconds
             setInterval(() => {
                 loadAllAnalytics(false);
-                if (activeTab === 'prescriptions') {
-                    loadPrescriptions();
-                } else if (activeTab === 'payments') {
+                updateProductRequestsBadge();
+                if (activeTab === 'payments') {
                     loadPaymentApprovals();
                 } else if (activeTab === 'security') {
                     loadSuspiciousAccounts();
+                } else if (activeTab === 'productrequests') {
+                    loadProductRequests();
                 }
             }, 15000);
 
@@ -3679,9 +3732,9 @@
                 if (tabId === 'dashboard') return txt.includes('dashboard');
                 if (tabId === 'orders') return txt.includes('orders');
                 if (tabId === 'vendors') return txt.includes('shops');
-                if (tabId === 'products') return txt.includes('products');
+                if (tabId === 'products') return txt.includes('products') && !txt.includes('request');
+                if (tabId === 'productrequests') return txt.includes('product requests');
                 if (tabId === 'delivery') return txt.includes('riders');
-                if (tabId === 'prescriptions') return txt.includes('prescriptions');
                 if (tabId === 'payments') return txt.includes('payment');
                 if (tabId === 'security') return txt.includes('security');
                 if (tabId === 'system') return txt.includes('system');
@@ -3721,13 +3774,13 @@
                 title = "Universal Inventory Catalog CRUD";
                 subtitle = "Tweak product pricings, availabilities, and upload flat illustrations.";
                 loadProductCatalog();
+            } else if (tabId === 'productrequests') {
+                title = "Customer Product Requests";
+                subtitle = "Products customers couldn't find in search — add them and mark done.";
+                loadProductRequests();
             } else if (tabId === 'delivery') {
                 title = "Riders Pool & Cooldown monitors";
                 subtitle = "Dispatch active delivery partners and check double-OTP logs.";
-            } else if (tabId === 'prescriptions') {
-                title = "Prescription Review & Forwarding Center";
-                subtitle = "Approve customer uploads and forward them to chemistry shops.";
-                loadPrescriptions();
             } else if (tabId === 'payments') {
                 title = "Payment Verification & Approvals";
                 subtitle = "Approve or reject customer online payment screenshots to place orders.";
@@ -3812,17 +3865,221 @@
         }
 
         // Global Search Filter across active tab elements
+        // ===== Global Search (works from ANY tab: orders, shops, products, customers) =====
+        let gsDebounce = null;
+        let gsActiveIndex = -1;
+        let gsLastQuery = "";
+
+        function gsEsc(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+        // Highlight the matched part of a label
+        function gsHighlight(text, q) {
+            const safe = gsEsc(text);
+            if (!q) return safe;
+            const idx = safe.toLowerCase().indexOf(gsEsc(q).toLowerCase());
+            if (idx < 0) return safe;
+            return safe.slice(0, idx) + '<mark class="gs-hl">' + safe.slice(idx, idx + q.length) + '</mark>' + safe.slice(idx + q.length);
+        }
+
         function handleGlobalSearch(query) {
-            query = query.toLowerCase().trim();
-            if (activeTab === 'orders') {
-                const sIn = document.getElementById('order-search-input');
-                if (sIn) sIn.value = query;
-                filterOrdersTable();
-            } else if (activeTab === 'products') {
-                const pIn = document.getElementById('product-search-input');
-                if (pIn) pIn.value = query;
-                filterProductsCatalog();
+            const q = (query || '').trim();
+            const box = document.getElementById('global-search-results');
+            if (!box) return;
+            if (gsDebounce) clearTimeout(gsDebounce);
+            if (q.length < 1) { closeGlobalSearch(); return; }
+            gsLastQuery = q;
+            box.innerHTML = '<div class="gs-empty">Searching…</div>';
+            box.classList.add('open');
+            gsDebounce = setTimeout(() => runGlobalSearch(q), 220);
+        }
+
+        function runGlobalSearch(q) {
+            const ql = q.toLowerCase();
+            const has = (v) => (v == null ? '' : String(v)).toLowerCase().includes(ql);
+
+            // --- Orders (from analytics cache) ---
+            const orders = (ordersCache || []).filter(o =>
+                has(o.id) || has('#ORD' + o.id) || has(o.customer_name) || has(o.shop_name) || has(o.status)
+            ).slice(0, 5);
+
+            // --- Shops (from analytics cache) ---
+            const shopsAll = (analyticsData && analyticsData.shops_performance) ? analyticsData.shops_performance : [];
+            const shops = shopsAll.filter(s => has(s.shop_name) || has(s.category) || has(s.shop_id)).slice(0, 5);
+
+            // --- Customers (from analytics system_health) ---
+            const usersAll = (analyticsData && analyticsData.system_health && analyticsData.system_health.registered_users) ? analyticsData.system_health.registered_users : [];
+            const users = usersAll.filter(u => has(u.name) || has(u.phone) || has(u.id) || has(u.address)).slice(0, 5);
+
+            // --- Products (server-side, across ALL shops) ---
+            fetch(`/api/products/search?q=${encodeURIComponent(q)}&page=1&limit=6`)
+                .then(r => r.json())
+                .then(data => {
+                    if (gsLastQuery !== q) return; // stale response
+                    const products = (data && data.products) ? data.products.slice(0, 6) : [];
+                    renderGlobalSearchResults(q, { orders, shops, users, products, shopsAll });
+                })
+                .catch(() => {
+                    if (gsLastQuery !== q) return;
+                    renderGlobalSearchResults(q, { orders, shops, users, products: [], shopsAll });
+                });
+        }
+
+        function renderGlobalSearchResults(q, r) {
+            const box = document.getElementById('global-search-results');
+            if (!box) return;
+            gsActiveIndex = -1;
+            const total = r.orders.length + r.shops.length + r.products.length + r.users.length;
+            if (total === 0) {
+                box.innerHTML = `<div class="gs-empty">"${gsEsc(q)}" ke liye kuch nahi mila.<br><span style="font-size:0.75rem;">Order ID, shop, product ya customer ka naam/phone try karein.</span></div>`;
+                box.classList.add('open');
+                return;
             }
+            let html = '';
+            const shopName = (id) => { const s = (r.shopsAll || []).find(x => x.shop_id === id); return s ? s.shop_name : ('Shop #' + id); };
+
+            if (r.orders.length) {
+                html += `<div class="gs-group-title">Orders</div>`;
+                r.orders.forEach(o => {
+                    html += `<div class="gs-item" onclick="gsGoOrder(${o.id})">
+                        <div class="gs-icon"><i data-lucide="shopping-cart"></i></div>
+                        <div class="gs-main">
+                            <div class="gs-title">#ORD${gsHighlight(String(o.id), q)} · ${gsHighlight(o.customer_name, q)}</div>
+                            <div class="gs-sub">${gsHighlight(o.shop_name, q)} · ₹${(parseFloat(o.total_amount) || 0).toFixed(0)}</div>
+                        </div>
+                        <div class="gs-meta">${gsEsc(o.status)}</div>
+                    </div>`;
+                });
+            }
+            if (r.shops.length) {
+                html += `<div class="gs-group-title">Shops</div>`;
+                r.shops.forEach(s => {
+                    html += `<div class="gs-item" onclick="gsGoShop(${s.shop_id})">
+                        <div class="gs-icon" style="background:#fff7ed;color:#ea580c;"><i data-lucide="store"></i></div>
+                        <div class="gs-main">
+                            <div class="gs-title">${gsHighlight(s.shop_name, q)}</div>
+                            <div class="gs-sub">${gsHighlight(s.category, q)} · ${s.is_active ? 'Active' : 'Inactive'}</div>
+                        </div>
+                        <div class="gs-meta">#SHP${s.shop_id}</div>
+                    </div>`;
+                });
+            }
+            if (r.products.length) {
+                html += `<div class="gs-group-title">Products</div>`;
+                r.products.forEach(p => {
+                    html += `<div class="gs-item" onclick="gsGoProduct(${p.shop_id}, ${p.id}, '${gsEsc(p.name).replace(/'/g, "\\'")}')">
+                        <div class="gs-icon" style="background:#eefbf5;color:#009c62;"><i data-lucide="package"></i></div>
+                        <div class="gs-main">
+                            <div class="gs-title">${gsHighlight(p.name, q)}</div>
+                            <div class="gs-sub">${gsEsc(shopName(p.shop_id))} · ${p.is_available ? 'In stock' : 'Out of stock'}</div>
+                        </div>
+                        <div class="gs-meta">₹${(parseFloat(p.price) || 0).toFixed(0)}</div>
+                    </div>`;
+                });
+            }
+            if (r.users.length) {
+                html += `<div class="gs-group-title">Customers</div>`;
+                r.users.forEach(u => {
+                    html += `<div class="gs-item" onclick="gsGoUser(${u.id})">
+                        <div class="gs-icon" style="background:#f3eefc;color:#6f2cf4;"><i data-lucide="user"></i></div>
+                        <div class="gs-main">
+                            <div class="gs-title">${gsHighlight(u.name, q)}</div>
+                            <div class="gs-sub">${gsHighlight(u.phone, q)}${u.address ? ' · ' + gsEsc(u.address) : ''}</div>
+                        </div>
+                        <div class="gs-meta">#USR-${u.id}</div>
+                    </div>`;
+                });
+            }
+            html += `<div class="gs-hint">↑↓ navigate · Enter open · Esc close</div>`;
+            box.innerHTML = html;
+            box.classList.add('open');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeGlobalSearch() {
+            const box = document.getElementById('global-search-results');
+            if (box) { box.classList.remove('open'); box.innerHTML = ''; }
+            gsActiveIndex = -1;
+        }
+        function clearGlobalSearch() {
+            const inp = document.getElementById('global-search-input');
+            if (inp) inp.value = '';
+            closeGlobalSearch();
+        }
+
+        // Keyboard: ↑ ↓ Enter Esc
+        function globalSearchKeydown(e) {
+            const box = document.getElementById('global-search-results');
+            if (!box || !box.classList.contains('open')) return;
+            const items = box.querySelectorAll('.gs-item');
+            if (e.key === 'Escape') { closeGlobalSearch(); return; }
+            if (!items.length) return;
+            if (e.key === 'ArrowDown') { e.preventDefault(); gsActiveIndex = (gsActiveIndex + 1) % items.length; }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); gsActiveIndex = (gsActiveIndex - 1 + items.length) % items.length; }
+            else if (e.key === 'Enter') { e.preventDefault(); if (gsActiveIndex >= 0) items[gsActiveIndex].click(); else items[0].click(); return; }
+            else return;
+            items.forEach((it, i) => it.classList.toggle('active', i === gsActiveIndex));
+            if (items[gsActiveIndex]) items[gsActiveIndex].scrollIntoView({ block: 'nearest' });
+        }
+
+        // Close when clicking outside
+        document.addEventListener('click', (e) => {
+            const c = document.getElementById('global-search-container');
+            if (c && !c.contains(e.target)) closeGlobalSearch();
+        });
+
+        // Flash-highlight a table row / card after jumping to it
+        function gsFlashRow(selector, tries = 0) {
+            const el = document.querySelector(selector);
+            if (el) {
+                el.classList.remove('gs-flash'); void el.offsetWidth; el.classList.add('gs-flash');
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            if (tries < 12) setTimeout(() => gsFlashRow(selector, tries + 1), 250); // wait for tab render
+        }
+
+        // --- Jump helpers ---
+        function gsGoOrder(orderId) {
+            clearGlobalSearch();
+            switchTab('orders');
+            const sIn = document.getElementById('order-search-input');
+            if (sIn) sIn.value = String(orderId);
+            const st = document.getElementById('order-status-filter'); if (st) st.value = 'ALL';
+            const pr = document.getElementById('order-priority-filter'); if (pr) pr.value = 'ALL';
+            try { filterOrdersTable(); } catch (e) {}
+            showAestheticToast(`Order #ORD${orderId} dikha diya.`, "success");
+        }
+        function gsGoShop(shopId) {
+            clearGlobalSearch();
+            switchTab('vendors');
+            gsFlashRow(`#vendors-performance-rows tr[data-shop-id="${shopId}"]`);
+        }
+        function gsGoProduct(shopId, productId, productName) {
+            clearGlobalSearch();
+            switchTab('products');
+            const sel = document.getElementById('product-shop-filter');
+            const pIn = document.getElementById('product-search-input');
+            const av = document.getElementById('product-availability-filter'); if (av) av.value = 'ALL';
+            if (sel) sel.value = String(shopId);
+            if (pIn) pIn.value = productName || '';
+            // Load that shop's catalog, then filter to the product
+            const container = document.getElementById("products-catalog-container");
+            if (container) container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-muted);">Loading…</div>`;
+            fetch(`/api/shops/${shopId}/products?view_type=vendor`)
+                .then(res => res.json())
+                .then(products => {
+                    productsCache = products;
+                    try { filterProductsCatalog(); } catch (e) { renderProductsCatalogGrid(products); }
+                })
+                .catch(() => { try { loadProductCatalog(); } catch (e) {} });
+        }
+        function gsGoUser(userId) {
+            clearGlobalSearch();
+            switchTab('userinfo');
+            gsFlashRow(`#registered-users-rows tr[data-user-id="${userId}"]`);
         }
 
         // Lite network speed detection
@@ -3981,126 +4238,97 @@
                 });
         }
 
-        function loadPrescriptions() {
-            const container = document.getElementById("prescriptions-admin-rows");
-            const placeholder = document.getElementById("empty-admin-prescriptions-placeholder");
-            if (!container) return;
-            
-            container.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:20px;'>Loading prescriptions feed...</td></tr>";
-            if (placeholder) placeholder.style.display = "none";
-            
-            fetch('/api/admin/prescriptions')
+        // ===== Product Requests (customer-requested products) =====
+        function updateProductRequestsBadge() {
+            fetch('/api/admin/product-requests')
                 .then(res => res.json())
                 .then(data => {
+                    const badge = document.getElementById('product-requests-badge');
+                    if (!badge) return;
+                    const n = (data && data.pending_count) ? data.pending_count : 0;
+                    if (n > 0) { badge.textContent = n; badge.style.display = 'inline-block'; }
+                    else { badge.style.display = 'none'; }
+                })
+                .catch(() => {});
+        }
+
+        function loadProductRequests() {
+            const container = document.getElementById("product-requests-rows");
+            const placeholder = document.getElementById("empty-product-requests-placeholder");
+            if (!container) return;
+
+            container.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:20px;'>Loading requests...</td></tr>";
+            if (placeholder) placeholder.style.display = "none";
+
+            fetch('/api/admin/product-requests')
+                .then(res => res.json())
+                .then(data => {
+                    const rows = (data && data.requests) ? data.requests : [];
                     container.innerHTML = "";
-                    if (!Array.isArray(data) || data.length === 0) {
+                    if (!rows.length) {
                         if (placeholder) placeholder.style.display = "block";
                         return;
                     }
-                    
-                    // Filter shops for category 'PHARMACY' and active status to populate the dropdowns
-                    const pharmacies = (analyticsData && analyticsData.shops_performance) ? 
-                        analyticsData.shops_performance.filter(s => s.category === 'PHARMACY' && s.is_active) : [];
-                    
-                    data.forEach(item => {
+                    rows.forEach(item => {
                         const tr = document.createElement("tr");
-                        
-                        let badgeClass = "badge-pending";
-                        let statusText = "Pending Review";
-                        if (item.status === 'SENT_TO_VENDOR') {
-                            badgeClass = "badge-transit";
-                            statusText = `Sent to ${item.shop_name || 'Chemist'}`;
-                        } else if (item.status === 'COMPLETED') {
-                            badgeClass = "badge-delivered";
-                            statusText = "Completed / Quoted";
-                        }
-                        
-                        let dateStr = formatDateTimeDisplay(item.created_at);
-                        
-                        // Dropdown selection
-                        let selectHtml = "";
-                        let actionBtn = "";
-                        
-                        if (item.status === 'PENDING') {
-                            selectHtml = `<select class="form-select-custom" id="forward-shop-${item.id}">`;
-                            if (pharmacies.length === 0) {
-                                selectHtml += `<option value="">No Active Pharmacies</option>`;
-                            } else {
-                                pharmacies.forEach(p => {
-                                    selectHtml += `<option value="${p.shop_id}">${p.shop_name}</option>`;
-                                });
-                            }
-                            selectHtml += `</select>`;
-                            
-                            actionBtn = `<button class="btn-custom btn-custom-primary" onclick="forwardPrescription(${item.id})"><i data-lucide="send" style="width:12px; height:12px;"></i> Forward</button>`;
-                        } else {
-                            selectHtml = `<span style="font-weight:600; color:var(--text-secondary);">${item.shop_name || 'Medical Shop'}</span>`;
-                            actionBtn = `<span style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">Handover complete</span>`;
-                        }
-                        
+                        const isPending = (item.status || '').toUpperCase() === 'PENDING';
+                        const badgeClass = isPending ? "badge-pending" : "badge-delivered";
+                        const statusText = isPending ? "Pending" : "Added ✓";
+                        const dateStr = formatDateTimeDisplay(item.created_at);
+                        const custHtml = item.customer_name
+                            ? `<strong style="font-size:0.85rem;">${item.customer_name}</strong><br><span style="font-size:0.78rem; color:var(--text-secondary);">${item.customer_phone || ''}</span>`
+                            : `<span style="color:var(--text-muted); font-size:0.82rem;">Guest</span>`;
+                        const actionBtn = isPending
+                            ? `<button class="btn-custom btn-custom-primary" onclick="resolveProductRequest(${item.id})" style="margin:0 4px 4px 0;"><i data-lucide="check" style="width:12px;height:12px;"></i> Mark Added</button>`
+                            : ``;
                         tr.innerHTML = `
-                            <td style="font-weight:700;">#PR-${item.id}</td>
+                            <td style="font-weight:700;">#RQ-${item.id}</td>
                             <td style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${dateStr}</td>
-                            <td>
-                                <div style="display:flex; flex-direction:column; gap:2px;">
-                                    <strong style="color:var(--text-primary); font-size:0.85rem;">${item.customer_name}</strong>
-                                    <span style="font-size:0.8rem; color:var(--text-secondary);"><i data-lucide="phone" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i>${item.customer_phone}</span>
-                                </div>
-                            </td>
-                            <td>
-                                <a href="${getProductImageUrl(item.image_path)}" target="_blank" title="Click to view full size image">
-                                    <img src="${getProductImageUrl(item.image_path)}" alt="Prescription" style="width: 80px; height: 60px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
-                                </a>
-                            </td>
-                            <td>
-                                <span class="status-badge ${badgeClass}">${statusText}</span>
-                            </td>
-                            <td>
-                                ${selectHtml}
-                            </td>
-                            <td>
+                            <td style="font-weight:700; color:var(--text-primary);">${escapeHtmlAdmin(item.product_name)}</td>
+                            <td style="font-size:0.82rem; color:var(--text-secondary); max-width:200px;">${item.note ? escapeHtmlAdmin(item.note) : '<span style="color:var(--text-muted);">—</span>'}</td>
+                            <td>${custHtml}</td>
+                            <td><span class="status-badge ${badgeClass}">${statusText}</span></td>
+                            <td style="white-space:nowrap;">
                                 ${actionBtn}
-                            </td>
-                        `;
+                                <button class="btn-custom btn-custom-secondary" onclick="deleteProductRequest(${item.id})" style="margin:0;"><i data-lucide="trash-2" style="width:12px;height:12px;"></i></button>
+                            </td>`;
                         container.appendChild(tr);
                     });
                     if (window.lucide) lucide.createIcons();
                 })
                 .catch(err => {
-                    console.error("Error fetching prescriptions:", err);
-                    container.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:20px; color:var(--ruby-danger);'>Failed to retrieve prescription feed.</td></tr>";
+                    console.error("Error fetching product requests:", err);
+                    container.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:20px; color:var(--ruby-danger);'>Failed to load requests.</td></tr>";
                 });
         }
-        
-        function forwardPrescription(reqId) {
-            const selectEl = document.getElementById(`forward-shop-${reqId}`);
-            if (!selectEl) return;
-            const shopId = selectEl.value;
-            if (!shopId) {
-                showAestheticToast("Please select a medical shop first.", "error");
-                return;
-            }
-            
-            aestheticConfirm("Are you sure you want to forward this medicine request to the selected chemist?", () => {
-                fetch(`/api/admin/prescriptions/${reqId}/forward`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ shop_id: shopId })
-                })
+
+        function resolveProductRequest(reqId) {
+            fetch(`/api/admin/product-requests/${reqId}/resolve`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
                 .then(res => res.json())
                 .then(data => {
-                    if (data.success) {
-                        showAestheticToast("Prescription forwarded to merchant.", "success");
-                        loadPrescriptions();
-                    } else {
-                        showAestheticToast(data.error || "Failed to forward prescription.", "error");
-                    }
+                    if (data.success) { showAestheticToast("Marked as added.", "success"); loadProductRequests(); updateProductRequestsBadge(); }
+                    else { showAestheticToast(data.error || "Failed.", "error"); }
                 })
-                .catch(err => {
-                    console.error("Forward error:", err);
-                    showAestheticToast("Network communication error.", "error");
-                });
+                .catch(() => showAestheticToast("Network error.", "error"));
+        }
+
+        function deleteProductRequest(reqId) {
+            aestheticConfirm("Is product request ko delete karein?", () => {
+                fetch(`/api/admin/product-requests/${reqId}/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) { showAestheticToast("Request deleted.", "success"); loadProductRequests(); updateProductRequestsBadge(); }
+                        else { showAestheticToast(data.error || "Failed.", "error"); }
+                    })
+                    .catch(() => showAestheticToast("Network error.", "error"));
             });
+        }
+
+        // Minimal HTML escaper for admin dynamic text
+        function escapeHtmlAdmin(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
         function loadPaymentApprovals() {
@@ -4531,6 +4759,7 @@
                 const isFirst = idx === 0;
                 const isLast = idx === shops.length - 1;
                 const tr = document.createElement("tr");
+                tr.dataset.shopId = s.shop_id; // used by global search jump-highlight
                 tr.innerHTML = `
                     <td data-label="Reorder / Position">
                         <div style="display:inline-flex; align-items:center; gap:4px;">
@@ -4853,6 +5082,7 @@
                 if (sys.registered_users && sys.registered_users.length > 0) {
                     sys.registered_users.forEach(user => {
                         const tr = document.createElement("tr");
+                        tr.dataset.userId = user.id; // used by global search jump-highlight
                         tr.innerHTML = `
                             <td style="font-size:0.8rem; font-weight:700;">#USR-${user.id}</td>
                             <td style="font-weight:600; color:var(--text-primary);">${user.name}</td>

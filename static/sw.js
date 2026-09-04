@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hamar-bazar-cache-v7';
+const CACHE_NAME = 'hamar-bazar-cache-v8';
 const ASSETS_TO_CACHE = [
   '/static/offline.html'
 ];

@@ -104,11 +104,11 @@ html, body {
     background: transparent;
     cursor: pointer;
     color: var(--text-secondary);
-    font-size: 0.72rem;
+    font-size: 0.66rem;
     font-weight: 700;
     gap: 4px;
     transition: var(--transition-fast);
-    padding: 6px 10px;
+    padding: 6px 6px;
     border-radius: 12px;
 }
 
@@ -127,6 +127,216 @@ html, body {
     transform: scale(1.1);
     stroke-width: 2.5;
 }
+
+/* ===== Mera Van / Leaderboard (Propdeals-style) ===== */
+.lb-screen { padding-bottom: 0 !important; }
+/* Full-bleed gradient header — cancels mobile-app-body 12/16 padding */
+.lb-top {
+    margin: -12px -16px 0 -16px;
+    padding: 16px 18px 22px;
+    background:
+        radial-gradient(130% 90% at 80% -10%, rgba(183,247,90,0.4) 0%, rgba(183,247,90,0) 45%),
+        linear-gradient(150deg, #16b866 0%, #009c62 55%, #04704a 100%);
+    color:#fff; text-align:center; position:relative; overflow:hidden;
+}
+.lb-top::after {
+    content:"🌳"; position:absolute; right:-14px; bottom:-24px;
+    font-size:7rem; opacity:0.12; transform:rotate(-12deg); pointer-events:none;
+}
+.lb-top-head { display:flex; align-items:center; gap:8px; justify-content:center; position:relative; z-index:1; }
+.lb-top-title { font-family:'Outfit',sans-serif; font-size:1.25rem; font-weight:900; margin:0; }
+.lb-top-sub { margin:3px 0 0 0; font-size:0.76rem; opacity:0.92; font-weight:600; position:relative; z-index:1; }
+
+/* Segmented time tabs */
+.lb-tabs {
+    display:flex; gap:2px; margin:14px auto 4px; max-width:340px;
+    background: rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.25);
+    border-radius:100px; padding:4px; position:relative; z-index:1;
+}
+.lb-tab {
+    flex:1; border:none; background:transparent; cursor:pointer;
+    color:#fff; font-size:0.76rem; font-weight:800; padding:7px 4px;
+    border-radius:100px; transition:var(--transition-fast); white-space:nowrap;
+}
+.lb-tab.active { background:#fff; color:var(--emerald-green); box-shadow:0 3px 8px -2px rgba(0,0,0,0.2); }
+
+/* Podium (top 3), arranged 2 · 1 · 3 */
+.lb-podium3 { display:flex; align-items:flex-end; justify-content:center; gap:12px; margin-top:16px; position:relative; z-index:1; min-height:150px; }
+.lb-p3-col { flex:1; max-width:33%; display:flex; flex-direction:column; align-items:center; }
+.lb-p3-avawrap { position:relative; margin-bottom:9px; }
+.lb-p3-ava {
+    width:56px; height:56px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:900; font-size:1.15rem; color:#fff;
+    border:3px solid rgba(255,255,255,0.9); box-shadow:0 8px 18px -6px rgba(0,0,0,0.4);
+}
+.lb-p3-col.c1 .lb-p3-ava { width:72px; height:72px; font-size:1.45rem; border-color:#ffd54a; }
+.lb-p3-crown { position:absolute; top:-19px; left:50%; transform:translateX(-50%); font-size:1.5rem; }
+.lb-p3-badge {
+    position:absolute; bottom:-7px; left:50%; transform:translateX(-50%);
+    width:22px; height:22px; border-radius:50%; background:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:0.72rem; font-weight:900; border:2px solid #16b866; color:#16b866;
+}
+.lb-p3-col.c1 .lb-p3-badge { color:#e0972a; border-color:#ffd54a; }
+.lb-p3-name { font-size:0.78rem; font-weight:800; color:#fff; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lb-p3-score {
+    margin-top:5px; background:rgba(255,255,255,0.22); border:1px solid rgba(255,255,255,0.3);
+    color:#fff; font-weight:900; font-size:0.82rem; padding:2px 12px; border-radius:100px;
+}
+.lb-p3-pedestal {
+    width:100%; margin-top:12px; border-radius:14px 14px 0 0;
+    background:linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.08));
+    display:flex; align-items:flex-start; justify-content:center; padding-top:7px;
+    font-weight:900; color:#fff; font-size:1.05rem;
+}
+.lb-p3-col.c1 .lb-p3-pedestal { height:58px; background:linear-gradient(180deg,#ffd54a,rgba(255,213,74,0.35)); color:#7a5200; }
+.lb-p3-col.c2 .lb-p3-pedestal { height:40px; }
+.lb-p3-col.c3 .lb-p3-pedestal { height:30px; }
+
+/* White sheet with list */
+.lb-sheet {
+    margin: 0 -16px; background: var(--bg-main);
+    border-radius: 22px 22px 0 0; margin-top:-14px;
+    padding: 16px 16px 30px; position:relative; z-index:2;
+    box-shadow: 0 -8px 20px -8px rgba(0,0,0,0.12);
+}
+
+/* My rank strip */
+.lb-my-strip {
+    display:flex; align-items:center; gap:12px;
+    background: linear-gradient(135deg, var(--emerald-light), #ffffff);
+    border:1.5px solid var(--emerald-green);
+    border-radius: var(--radius-lg); padding:12px 14px; margin-bottom:16px;
+    box-shadow: 0 8px 20px -10px rgba(0,156,98,0.4);
+}
+.lb-my-rankno { font-size:1.15rem; font-weight:900; color:var(--emerald-green); min-width:38px; text-align:center; }
+
+/* List rows (rank 4+) */
+.lb-list { display:flex; flex-direction:column; }
+.lb-list-row {
+    display:flex; align-items:center; gap:12px;
+    padding:11px 6px; border-bottom:1px solid var(--border-color);
+}
+.lb-list-row:last-child { border-bottom:none; }
+.lb-list-row.is-me { background:var(--emerald-light); border-radius:var(--radius-md); border-bottom:none; padding-left:10px; padding-right:10px; }
+.lb-rankchip {
+    width:24px; height:24px; flex-shrink:0; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:0.72rem; font-weight:900; color:#fff;
+    background:linear-gradient(135deg, #16b866, #009c62);
+}
+.lb-avatar {
+    width: 42px; height: 42px; flex-shrink: 0; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 0.95rem; color: #fff; box-shadow: var(--shadow-soft);
+}
+/* Real profile photos inside leaderboard avatars (podium + list) */
+.lb-p3-ava, .lb-avatar { overflow: hidden; }
+.lb-p3-ava img, .lb-avatar img {
+    width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;
+}
+.lb-score { font-size:1.05rem; font-weight:900; color:var(--emerald-green); flex-shrink:0; }
+.lb-score small { font-size:0.62rem; color:var(--text-muted); font-weight:700; display:block; text-align:right; line-height:1; margin-top:1px; }
+
+/* ===================== UI POLISH: Home / Orders / Account ===================== */
+/* --- Home greeting header --- */
+.home-greet {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin: 2px 0 14px 0;
+}
+.home-greet-name { font-family:'Outfit',sans-serif; font-size:1.25rem; font-weight:900; color:var(--text-primary); margin:0; line-height:1.15; }
+.home-greet-sub { font-size:0.74rem; color:var(--text-secondary); margin:2px 0 0 0; display:flex; align-items:center; gap:4px; max-width:230px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.home-greet-sub i { width:13px; height:13px; flex-shrink:0; color:var(--primary-accent); }
+.home-greet-pill {
+    display:inline-flex; align-items:center; gap:6px; flex-shrink:0;
+    background: linear-gradient(135deg, #12a15c, #009c62);
+    color:#fff; text-decoration:none; padding:8px 12px; border-radius:100px;
+    font-size:0.76rem; font-weight:800; box-shadow:0 8px 18px -8px rgba(0,156,98,0.6);
+    cursor:pointer; border:none; transition:var(--transition-fast);
+}
+.home-greet-pill:active { transform:scale(0.96); }
+.home-greet-pill i { width:14px; height:14px; }
+/* Banner: graceful fallback look */
+.offers-slide img.is-fallback { object-fit:contain; padding:24px; background:linear-gradient(135deg,#eefbf5,#e0f7eb); }
+
+/* --- Orders: rich cards --- */
+.ord-card {
+    background:#ffffff; border:1px solid var(--border-color); border-radius:var(--radius-lg);
+    padding:14px; margin-bottom:12px; cursor:pointer; position:relative; overflow:hidden;
+    box-shadow:var(--shadow-soft); transition:var(--transition-fast);
+}
+.ord-card:active { transform:scale(0.99); }
+.ord-card::before { content:""; position:absolute; left:0; top:0; bottom:0; width:5px; background:var(--text-muted); }
+.ord-card.st-live::before { background:var(--primary-accent); }
+.ord-card.st-done::before { background:var(--emerald-green); }
+.ord-card.st-fail::before { background:var(--ruby-danger); }
+.ord-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.ord-id { font-family:'Outfit',sans-serif; font-weight:900; font-size:0.95rem; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+.ord-icon { width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:var(--primary-light); color:var(--primary-accent); flex-shrink:0; }
+.ord-icon i { width:16px; height:16px; }
+.ord-card.st-done .ord-icon { background:var(--emerald-light); color:var(--emerald-green); }
+.ord-card.st-fail .ord-icon { background:var(--ruby-light); color:var(--ruby-danger); }
+.ord-card.st-wait .ord-icon { background:var(--amber-light); color:#b45309; }
+.ord-status { font-size:0.66rem; font-weight:900; letter-spacing:0.04em; padding:4px 10px; border-radius:100px; white-space:nowrap; }
+.ord-status.live { background:var(--primary-light); color:var(--primary-accent); }
+.ord-status.done { background:var(--emerald-light); color:var(--emerald-green); }
+.ord-status.fail { background:var(--ruby-light); color:var(--ruby-danger); }
+.ord-status.wait { background:var(--amber-light); color:#b45309; }
+.ord-items { font-size:0.84rem; color:var(--text-primary); font-weight:600; line-height:1.4; margin:0 0 10px 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.ord-meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:0.72rem; color:var(--text-secondary); }
+.ord-meta span { display:inline-flex; align-items:center; gap:4px; }
+.ord-meta i { width:12px; height:12px; }
+.ord-foot { display:flex; align-items:center; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-color); }
+.ord-total { font-family:'Outfit',sans-serif; font-weight:900; font-size:1.05rem; color:var(--text-primary); }
+.ord-total small { font-size:0.68rem; color:var(--text-muted); font-weight:700; display:block; line-height:1; margin-bottom:2px; }
+.ord-cta { font-size:0.78rem; font-weight:800; color:var(--primary-accent); display:inline-flex; align-items:center; gap:2px; }
+.ord-cta.muted { color:var(--text-secondary); font-weight:700; }
+.ord-cta i { width:15px; height:15px; }
+.ord-empty { text-align:center; padding:36px 16px; }
+.ord-empty .big { font-size:2.6rem; line-height:1; margin-bottom:10px; }
+.ord-empty h4 { margin:0 0 4px 0; font-size:1rem; font-weight:800; color:var(--text-primary); }
+.ord-empty p { margin:0 0 14px 0; font-size:0.8rem; color:var(--text-secondary); }
+
+/* --- Account: sectioned profile --- */
+.acc-hero {
+    background: linear-gradient(135deg, #12a15c 0%, #009c62 55%, #05704a 100%);
+    color:#fff; border-radius:var(--radius-xl); padding:18px; display:flex; align-items:center; gap:14px;
+    box-shadow:0 16px 36px -14px rgba(0,156,98,0.6); position:relative; overflow:hidden; margin-bottom:14px;
+}
+.acc-hero::after { content:"🛍️"; position:absolute; right:-8px; bottom:-14px; font-size:5rem; opacity:0.14; transform:rotate(-12deg); }
+.acc-avatar-wrap { position:relative; flex-shrink:0; }
+.acc-avatar { width:72px; height:72px; border-radius:50%; object-fit:cover; border:3px solid #fff; box-shadow:0 8px 18px -6px rgba(0,0,0,0.4); display:block; background:#fff; }
+.acc-cam {
+    position:absolute; right:-2px; bottom:-2px; width:26px; height:26px; border-radius:50%;
+    background:#fff; color:var(--emerald-green); border:none; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 10px -3px rgba(0,0,0,0.35); cursor:pointer;
+}
+.acc-cam i { width:13px; height:13px; }
+.acc-name { font-family:'Outfit',sans-serif; font-size:1.2rem; font-weight:900; margin:0; line-height:1.15; position:relative; z-index:1; }
+.acc-phone { font-size:0.8rem; opacity:0.92; margin:3px 0 0 0; font-weight:600; position:relative; z-index:1; }
+.acc-remove { background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.35); color:#fff; font-size:0.68rem; font-weight:800; padding:3px 9px; border-radius:100px; margin-top:8px; cursor:pointer; position:relative; z-index:1; }
+.acc-section { background:#fff; border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:14px; margin-bottom:12px; box-shadow:var(--shadow-soft); text-align:left; }
+.acc-section-title { display:flex; align-items:center; gap:8px; font-size:0.92rem; font-weight:800; color:var(--text-primary); margin:0 0 12px 0; }
+.acc-section-title i { width:16px; height:16px; color:var(--primary-accent); }
+.acc-field { margin-bottom:12px; }
+.acc-field:last-child { margin-bottom:0; }
+.acc-label { font-size:0.72rem; font-weight:800; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px; }
+.acc-input, .acc-select, .acc-textarea {
+    width:100%; box-sizing:border-box; padding:11px 12px; font-size:0.9rem; border:1.5px solid var(--border-color);
+    border-radius:var(--radius-md); background:#fff; color:var(--text-primary); outline:none; transition:var(--transition-fast); font-family:inherit;
+}
+.acc-input:focus, .acc-select:focus, .acc-textarea:focus { border-color:var(--primary-accent); box-shadow:0 0 0 3px var(--primary-glow); }
+.acc-input[readonly] { background:#f1f5f9; color:var(--text-secondary); cursor:not-allowed; }
+.acc-textarea { min-height:64px; resize:none; }
+.acc-save {
+    width:100%; border:none; cursor:pointer; padding:13px; border-radius:var(--radius-md);
+    background:linear-gradient(135deg,#12a15c,#009c62); color:#fff; font-weight:900; font-size:0.95rem;
+    box-shadow:0 10px 22px -10px rgba(0,156,98,0.7); display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.acc-save:active { transform:scale(0.985); }
+.acc-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 12px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-main); }
+.acc-row + .acc-row { margin-top:8px; }
 
 .cart-icon-wrapper .badge {
     position: absolute;
@@ -537,6 +747,17 @@ html, body {
                 </div>
             </div>
 
+            <!-- Greeting header (name + delivery address + quick link to Mera Van) -->
+            <div class="home-greet">
+                <div style="min-width:0;">
+                    <p class="home-greet-name">Namaste, {{ (session.get('name') or 'Dost').split(' ')[0] }} 👋</p>
+                    <p class="home-greet-sub"><i data-lucide="map-pin"></i><span id="home-greet-address">Delivery address set karein</span></p>
+                </div>
+                <button class="home-greet-pill" onclick="switchTab('leaderboard')" title="Mera Van">
+                    <i data-lucide="sprout"></i> Mera Van
+                </button>
+            </div>
+
             <!-- standalone search input with clear action -->
             <div class="search-bar-container" style="margin-bottom: 16px;">
                 <input type="text" id="search-input-standalone" class="search-bar-input" placeholder="Chips, Cake, Milk search karein... 🔍" oninput="handleSearch(this.value)" onkeydown="if(event.key === 'Enter') triggerSearch()" style="flex: 1; border: none; padding: 12px 16px; font-size: 0.95rem; outline: none; background: transparent;">
@@ -578,10 +799,10 @@ html, body {
                 <!-- Store Switcher (Grocery vs Pharmacy) -->
                 <div class="store-switcher-container fade-in-up" style="margin-top: 0; margin-bottom: 20px;">
                     <button class="store-switch-btn active" id="btn-switch-grocery" onclick="showStorePage('grocery')">
-                        <i data-lucide="shopping-bag"></i> Daily Need & Tech 🛍️
+                        <i data-lucide="shopping-bag"></i> Daily Needs 🛍️
                     </button>
-                    <button class="store-switch-btn" id="btn-switch-pharmacy" onclick="showStorePage('pharmacy')">
-                        <i data-lucide="pill"></i> Dawaiyan 💊
+                    <button class="store-switch-btn" id="btn-switch-tech" onclick="showStorePage('tech')">
+                        <i data-lucide="smartphone"></i> Tech 💻
                     </button>
                 </div>
 
@@ -616,93 +837,18 @@ html, body {
 
                 </div>
 
-                <!-- Pharmacy Storefront Wrapper -->
-                <div id="pharmacy-storefront-wrapper" class="hidden-storefront pharmacy-container">
-                    <!-- Subcategories Grid (Moved to top of pharmacy section) -->
-                    <div class="hamar-section-header" style="margin-top: 0; margin-bottom: 8px;">
-                        <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--text-primary);">Shop Medicines by Need</h3>
+                <!-- Tech Storefront Wrapper (replaces Dawaiyan) — tech categories -->
+                <div id="tech-storefront-wrapper" class="hidden-storefront">
+                    <div class="hamar-section-header" style="margin-top: 0;">
+                        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">Tech ki Categories 💻</h3>
                     </div>
-                    <div class="pharmacy-category-grid" id="pharmacy-subcategory-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px;">
-                        <div class="pharmacy-category-card pain" onclick="selectPharmacySubcategory('Pain Relief')" style="padding: 12px; height: 75px !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; cursor: pointer; border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);">
-                            <div style="text-align: left;">
-                                <div class="pharmacy-category-title" style="font-size: 0.9rem; font-weight: 800; margin: 0; line-height: 1;">Pain Relief</div>
-                                <div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px;">Dard Nivarak</div>
-                            </div>
-                            <div class="pharmacy-category-icon-box" style="margin-top: 0; width: 32px; height: 32px; flex-shrink: 0;">
-                                <i data-lucide="flame" style="width: 16px; height: 16px;"></i>
-                            </div>
-                        </div>
-                        <div class="pharmacy-category-card cold" onclick="selectPharmacySubcategory('Cold & Cough')" style="padding: 12px; height: 75px !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; cursor: pointer; border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);">
-                            <div style="text-align: left;">
-                                <div class="pharmacy-category-title" style="font-size: 0.9rem; font-weight: 800; margin: 0; line-height: 1;">Cold & Cough</div>
-                                <div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px;">Sardi Zukam</div>
-                            </div>
-                            <div class="pharmacy-category-icon-box" style="margin-top: 0; width: 32px; height: 32px; flex-shrink: 0;">
-                                <i data-lucide="thermometer" style="width: 16px; height: 16px;"></i>
-                            </div>
-                        </div>
-                        <div class="pharmacy-category-card vitamins" onclick="selectPharmacySubcategory('Vitamins')" style="padding: 12px; height: 75px !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; cursor: pointer; border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);">
-                            <div style="text-align: left;">
-                                <div class="pharmacy-category-title" style="font-size: 0.9rem; font-weight: 800; margin: 0; line-height: 1;">Vitamins</div>
-                                <div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px;">Multivitamins</div>
-                            </div>
-                            <div class="pharmacy-category-icon-box" style="margin-top: 0; width: 32px; height: 32px; flex-shrink: 0;">
-                                <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>
-                            </div>
-                        </div>
-                        <div class="pharmacy-category-card firstaid" onclick="selectPharmacySubcategory('First Aid')" style="padding: 12px; height: 75px !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; cursor: pointer; border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);">
-                            <div style="text-align: left;">
-                                <div class="pharmacy-category-title" style="font-size: 0.9rem; font-weight: 800; margin: 0; line-height: 1;">First Aid</div>
-                                <div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px;">Patti & Dettol</div>
-                            </div>
-                            <div class="pharmacy-category-icon-box" style="margin-top: 0; width: 32px; height: 32px; flex-shrink: 0;">
-                                <i data-lucide="activity" style="width: 16px; height: 16px;"></i>
-                            </div>
-                        </div>
-                    </div>
+                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0 0 14px 0; text-align: left; line-height: 1.4;">
+                        Category select karein — gadgets, electronics, robotics aur accessories.
+                    </p>
 
-                    <!-- Prescription Upload Card -->
-                    <div style="border: 1px solid rgba(225, 29, 72, 0.15); background: #fffcfc; padding: 14px; border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); margin-bottom: 12px;">
-                        <h4 style="font-size: 0.85rem; font-weight: 800; color: #9f1239; display: flex; align-items: center; gap: 6px; margin: 0 0 4px 0;"><i data-lucide="image-plus" style="color: #e11d48; width:16px; height:16px;"></i> Upload Prescription / Medicine Image</h4>
-                        <p style="font-size: 0.7rem; color: var(--text-secondary); margin: 0 0 8px 0; text-align: left;">Dawai ki parchi ya packet ki photo upload karein</p>
-                        
-                        <div onclick="document.getElementById('pharmacy-upload-input').click()" style="border: 1.5px dashed rgba(225, 29, 72, 0.25); background: rgba(225, 29, 72, 0.02); border-radius: var(--radius-md); padding: 14px; text-align: center; cursor: pointer; transition: all 0.2s ease;">
-                            <input type="file" id="pharmacy-upload-input" accept="image/*" style="display: none;" onchange="handlePharmacyFileSelected(this)">
-                            <i data-lucide="upload-cloud" style="width: 24px; height: 24px; color: #e11d48; margin-bottom: 4px; display: inline-block;"></i>
-                            <p style="font-weight: 700; font-size: 0.75rem; color: var(--text-primary); margin: 0;">Prescription photo select karne ke liye click karein</p>
-                        </div>
-                        
-                        <div id="pharmacy-upload-preview-container" style="display: none; margin-top: 8px; padding: 8px; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-sm); text-align: center;">
-                            <img id="pharmacy-upload-preview-img" src="" alt="Selected Prescription" style="max-height: 100px; max-width: 100%; border-radius: var(--radius-sm); object-fit: contain;">
-                            <div style="display: flex; gap: 8px; justify-content: center; margin-top: 6px;">
-                                <button class="btn btn-secondary" style="width: auto; padding: 4px 8px; font-size: 0.7rem; margin: 0;" onclick="cancelPharmacyUpload()">Cancel</button>
-                                <button class="btn" style="width: auto; padding: 4px 8px; font-size: 0.7rem; background: #e11d48; color: white; margin: 0;" onclick="submitPharmacyPrescription()">Upload to Admin</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Toggle history button for uploaded prescriptions -->
-                        <div style="margin-top: 8px; text-align: center;">
-                            <button id="toggle-pharmacy-history-btn" onclick="togglePharmacyHistory()" style="background: transparent; border: none; color: #e11d48; font-size: 0.75rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 2px;">
-                                View Prescription Uploads History <i data-lucide="chevron-down" style="width: 12px; height: 12px;"></i>
-                            </button>
-                            
-                            <div id="pharmacy-history-container" style="display: none; margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 8px; text-align: left;">
-                                <div id="pharmacy-upload-history-list" style="display: flex; flex-direction: column; gap: 6px;">
-                                    <!-- Loaded dynamically -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Pharmacy Dynamic Products Panel -->
-                    <div class="glass-card mt-md" id="pharmacy-products-panel" style="display: none; border-color: #e11d48; background: #fffcfc; padding: 16px; margin-top: 16px;">
-                        <div class="flex-between mb-sm" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
-                            <h3 id="current-pharmacy-subcat-name" style="font-size: 1.1rem; font-weight: 800; color: #9f1239;">Category Name</h3>
-                            <button class="btn btn-secondary" onclick="closePharmacyShelf()" style="width: auto; padding: 6px 12px; font-size: 0.8rem;">Close</button>
-                        </div>
-                        <div class="products-grid" id="pharmacy-products-container">
-                            <!-- Loaded dynamically via JS -->
-                        </div>
+                    <!-- Tech category grid (each card opens that store's products) -->
+                    <div class="category-grid" id="tech-category-grid">
+                        <!-- Loaded dynamically via JS -->
                     </div>
                 </div>
 
@@ -869,6 +1015,40 @@ html, body {
             </div>
         </div>
 
+        <!-- ==================== SCREEN: MERA VAN / LEADERBOARD ==================== -->
+        <div id="screen-leaderboard" class="app-screen lb-screen">
+            <!-- Gradient header -->
+            <div class="lb-top">
+                <div class="lb-top-head">
+                    <i data-lucide="trees" style="width:20px;height:20px;"></i>
+                    <h3 class="lb-top-title">Mera Van Leaderboard</h3>
+                </div>
+                <p class="lb-top-sub">Har <b>11 order complete</b> = 1 ped 🌳 · Zyada order, zyada ped!</p>
+
+                <!-- Time-range tabs -->
+                <div class="lb-tabs">
+                    <button class="lb-tab" data-range="daily" onclick="setLbRange('daily')">Daily</button>
+                    <button class="lb-tab" data-range="weekly" onclick="setLbRange('weekly')">Weekly</button>
+                    <button class="lb-tab" data-range="monthly" onclick="setLbRange('monthly')">Monthly</button>
+                    <button class="lb-tab active" data-range="all" onclick="setLbRange('all')">All Time</button>
+                </div>
+
+                <!-- Podium top 3 -->
+                <div id="lb-podium" class="lb-podium3">
+                    <div style="width:100%;text-align:center;color:rgba(255,255,255,0.85);font-size:0.85rem;padding:30px 0;">Loading...</div>
+                </div>
+            </div>
+
+            <!-- White sheet -->
+            <div class="lb-sheet">
+                <!-- My rank + tree progress -->
+                <div id="lb-my-strip" class="lb-my-strip"></div>
+
+                <!-- Ranking list (rank 4 onward) -->
+                <div id="lb-list" class="lb-list"></div>
+            </div>
+        </div>
+
         <!-- ==================== SCREEN 6: SERVICES ==================== -->
         <div id="screen-services" class="app-screen" style="text-align: left;">
             <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 12px; color: var(--text-primary);">Local Services</h3>
@@ -889,52 +1069,52 @@ html, body {
         </div>
 
         <!-- ==================== SCREEN 5: PROFILE ==================== -->
-        <div id="screen-profile" class="app-screen">
-            <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 16px; color: var(--text-primary); text-align: left;">My Account</h3>
-            
-            <div class="glass-card" style="padding: 16px; text-align: left;">
-                <div id="profile-error-msg" class="login-error-alert" style="display: none; margin-bottom: 12px; font-size: 0.8rem;"></div>
-                
-                <!-- Profile Avatar Uploader -->
-                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
-                    <div style="position: relative; width: 64px; height: 64px; flex-shrink: 0;">
-                        <img id="profile-avatar-preview" src="{{ session.get('profile_pic') or '/static/images/grocery_basket.png' }}" alt="Profile Avatar" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-accent); box-shadow: var(--shadow-sm);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
-                    </div>
-                    <div>
-                        <input type="file" id="profile-avatar-file-input" accept="image/*" style="display: none;" onchange="handleAvatarUpload(this)">
-                        <button type="button" class="btn-custom" style="padding: 6px 14px; font-size: 0.8rem; margin: 0 0 6px 0; display: inline-flex; align-items: center; gap: 6px;" onclick="document.getElementById('profile-avatar-file-input').click()">
-                            <i data-lucide="camera" style="width: 14px; height: 14px;"></i> Upload Photo
-                        </button>
-                        <div>
-                            <button type="button" id="btn-remove-avatar" class="btn-custom" style="padding: 4px 10px; font-size: 0.75rem; margin: 0; color: var(--ruby-danger); {% if not session.get('profile_pic') %}display: none;{% endif %}" onclick="removeAvatar()">Remove Photo</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Profile inputs -->
-                <div class="form-group" style="margin-bottom: 12px;">
-                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Username / Full Name</label>
-                    <input type="text" id="profile-name-input" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem;" placeholder="Enter name" required>
-                </div>
-                
-                <div class="form-group" style="margin-bottom: 12px;">
-                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Mobile Number (ReadOnly)</label>
-                    <input type="text" id="profile-phone-input" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem; background: #f1f5f9; cursor: not-allowed;" readonly>
-                </div>
+        <div id="screen-profile" class="app-screen" style="text-align:left;">
+            <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 12px; color: var(--text-primary);">Mera Account</h3>
 
-                <div class="form-group" style="margin-bottom: 12px;">
-                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Delivery Address</label>
-                    <textarea id="profile-address-input" class="form-input-staff" style="width: 100%; height: 60px; resize: none; padding: 10px; font-size:0.9rem;" placeholder="Enter address" required></textarea>
-                </div>
+            <div id="profile-error-msg" class="login-error-alert" style="display: none; margin-bottom: 12px; font-size: 0.8rem;"></div>
 
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Password (Leave blank to keep current password)</label>
-                    <input type="password" id="profile-password-input" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem;" placeholder="Enter new password (optional)">
+            <!-- Hero: avatar + name + phone -->
+            <div class="acc-hero">
+                <div class="acc-avatar-wrap">
+                    <img id="profile-avatar-preview" class="acc-avatar" src="{{ session.get('profile_pic') or '/static/images/grocery_basket.png' }}" alt="Profile Avatar" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
+                    <input type="file" id="profile-avatar-file-input" accept="image/*" style="display: none;" onchange="handleAvatarUpload(this)">
+                    <button type="button" class="acc-cam" title="Photo badlein" onclick="document.getElementById('profile-avatar-file-input').click()"><i data-lucide="camera"></i></button>
                 </div>
-                
-                <div class="form-group" style="margin-bottom: 12px;">
-                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Security Question (Password Recovery ke liye)</label>
-                    <select id="profile-question-select" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem; background: white; border: 1px solid var(--border-color); border-radius: var(--radius-sm);" required>
+                <div style="min-width:0; flex:1;">
+                    <p class="acc-name" id="acc-hero-name">{{ session.get('name') or 'Customer' }}</p>
+                    <p class="acc-phone" id="acc-hero-phone">—</p>
+                    <button type="button" id="btn-remove-avatar" class="acc-remove" style="{% if not session.get('profile_pic') %}display: none;{% endif %}" onclick="removeAvatar()">Photo hataein</button>
+                </div>
+            </div>
+
+            <!-- Section: Personal details -->
+            <div class="acc-section">
+                <h4 class="acc-section-title"><i data-lucide="user"></i> Personal Details</h4>
+                <div class="acc-field">
+                    <label class="acc-label">Naam</label>
+                    <input type="text" id="profile-name-input" class="acc-input" placeholder="Apna naam likhein" required>
+                </div>
+                <div class="acc-field">
+                    <label class="acc-label">Mobile Number</label>
+                    <input type="text" id="profile-phone-input" class="acc-input" readonly>
+                </div>
+                <div class="acc-field">
+                    <label class="acc-label">Delivery Address</label>
+                    <textarea id="profile-address-input" class="acc-textarea" placeholder="Ghar ka poora pata" required></textarea>
+                </div>
+            </div>
+
+            <!-- Section: Security -->
+            <div class="acc-section">
+                <h4 class="acc-section-title"><i data-lucide="shield-check"></i> Security</h4>
+                <div class="acc-field">
+                    <label class="acc-label">Naya Password <span style="text-transform:none; font-weight:600; color:var(--text-muted);">(khaali chhodein to purana rahega)</span></label>
+                    <input type="password" id="profile-password-input" class="acc-input" placeholder="Naya password (optional)">
+                </div>
+                <div class="acc-field">
+                    <label class="acc-label">Security Question</label>
+                    <select id="profile-question-select" class="acc-select" required>
                         <option value="">Select a security question</option>
                         <option value="What is your childhood nickname?">What is your childhood nickname?</option>
                         <option value="What is your favorite color?">What is your favorite color?</option>
@@ -943,53 +1123,43 @@ html, body {
                         <option value="What is your pet's name?">What is your pet's name?</option>
                     </select>
                 </div>
-
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label style="font-weight: 700; margin-bottom: 4px; display: block; font-size: 0.8rem; color: var(--text-secondary);">Security Answer</label>
-                    <input type="text" id="profile-answer-input" class="form-input-staff" style="width: 100%; padding: 10px; font-size:0.9rem;" placeholder="Enter security answer" required>
+                <div class="acc-field">
+                    <label class="acc-label">Security Answer</label>
+                    <input type="text" id="profile-answer-input" class="acc-input" placeholder="Jawab likhein" required>
                 </div>
-                
-                <button class="btn btn-primary w-full" style="padding: 10px; font-size: 0.9rem; border-radius: var(--radius-sm);" onclick="saveProfile()">Save Changes</button>
             </div>
 
-            <!-- About Us & Contact Us Section -->
-            <div class="glass-card" style="padding: 16px; margin-top: 12px; text-align: left;">
-                <h4 style="font-size: 1rem; font-weight: 800; margin: 0 0 12px 0; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-                    <i data-lucide="info" style="width: 18px; height: 18px; color: var(--primary-accent);"></i> About Us
-                </h4>
-                
-                <!-- Team Image uploaded by Admin -->
-                <div style="width: 100%; border-radius: var(--radius-md); overflow: hidden; margin-bottom: 12px; border: 1px solid var(--border-color); background: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 120px;">
+            <button class="acc-save" onclick="saveProfile()"><i data-lucide="save" style="width:16px;height:16px;"></i> Save Changes</button>
+
+            <!-- Section: About & Contact -->
+            <div class="acc-section" style="margin-top:14px;">
+                <h4 class="acc-section-title"><i data-lucide="info"></i> About Hamar Bazar</h4>
+                <div style="width: 100%; border-radius: var(--radius-md); overflow: hidden; margin-bottom: 12px; border: 1px solid var(--border-color); background: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 110px;">
                     <img id="about-team-img" src="" alt="Our Team" style="width: 100%; max-height: 200px; object-fit: cover; display: none;">
-                    <div id="about-team-placeholder" style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
-                        <i data-lucide="users" style="width: 32px; height: 32px; display: inline-block; margin-bottom: 8px;"></i>
+                    <div id="about-team-placeholder" style="padding: 22px; text-align: center; color: var(--text-muted); font-size: 0.82rem;">
+                        <i data-lucide="users" style="width: 30px; height: 30px; display: inline-block; margin-bottom: 6px;"></i>
                         <p style="margin: 0;">Team Photo coming soon!</p>
                     </div>
                 </div>
-                
-                <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 16px;">
-                    Welcome to <strong>Hamar Bazar</strong>! We are dedicated to providing a premium, hyperlocal e-commerce experience right to your doorstep.
+                <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0 0 12px 0;">
+                    <strong>Hamar Bazar</strong> — aapke sheher ka apna hyperlocal bazaar. Local dukaanon se seedha aapke ghar tak, jaldi aur bharosemand.
                 </p>
-                
-                <h4 style="font-size: 1rem; font-weight: 800; margin: 0 0 12px 0; color: var(--text-primary); display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--border-color); padding-top: 12px;">
-                    <i data-lucide="phone-call" style="width: 18px; height: 18px; color: var(--primary-accent);"></i> Contact Us
-                </h4>
-                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-main); padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                <div class="acc-row">
                     <div>
-                        <span style="font-size: 0.72rem; color: var(--text-secondary); display: block;">Customer Care & Support</span>
+                        <span style="font-size: 0.7rem; color: var(--text-secondary); display: block; font-weight:700;">Customer Care</span>
                         <a href="tel:6263210328" style="font-size: 0.95rem; font-weight: 800; color: var(--primary-accent); text-decoration: none; font-family: 'Outfit', sans-serif;">+91 6263210328</a>
                     </div>
-                    <a href="https://wa.me/916263210328" target="_blank" class="btn" style="width: auto; margin: 0; padding: 6px 12px; background: #25d366; color: white; border: none; font-size: 0.75rem; border-radius: var(--radius-sm); font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
-                        <i data-lucide="message-square" style="width: 12px; height: 12px;"></i> WhatsApp
+                    <a href="https://wa.me/916263210328" target="_blank" style="margin: 0; padding: 8px 12px; background: #25d366; color: white; border: none; font-size: 0.76rem; border-radius: 100px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; text-decoration:none;">
+                        <i data-lucide="message-circle" style="width: 13px; height: 13px;"></i> WhatsApp
                     </a>
                 </div>
             </div>
-            
-            <!-- Quick Log out card -->
-            <div class="glass-card" style="padding: 12px; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; border-color: rgba(239, 68, 68, 0.15); background: #fffcfc;">
-                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">Finish Session</span>
-                <a href="/session/logout" class="btn" style="width: auto; margin: 0; padding: 6px 16px; background: var(--ruby-danger); color: white; font-size: 0.8rem; border-radius: var(--radius-sm); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-                    <i data-lucide="log-out" style="width: 12px; height: 12px;"></i> Logout
+
+            <!-- Logout -->
+            <div class="acc-row" style="border-color: rgba(239, 68, 68, 0.2); background: #fffcfc; margin-bottom:16px;">
+                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">Is device se logout</span>
+                <a href="/session/logout" style="margin: 0; padding: 8px 16px; background: var(--ruby-danger); color: white; font-size: 0.8rem; border-radius: 100px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-weight:800;">
+                    <i data-lucide="log-out" style="width: 13px; height: 13px;"></i> Logout
                 </a>
             </div>
         </div>
@@ -1053,6 +1223,10 @@ html, body {
         <button class="bottom-nav-item" onclick="switchTab('orders')" id="nav-orders">
             <i data-lucide="clipboard-list"></i>
             <span>Mere Orders</span>
+        </button>
+        <button class="bottom-nav-item" onclick="switchTab('leaderboard')" id="nav-leaderboard">
+            <i data-lucide="sprout"></i>
+            <span>Mera Van</span>
         </button>
         <button class="bottom-nav-item" onclick="switchTab('profile')" id="nav-profile">
             <i data-lucide="user"></i>
@@ -1746,6 +1920,8 @@ html, body {
         } else if (tabId === 'profile') {
             document.getElementById("profile-name-input").value = customerName;
             document.getElementById("profile-phone-input").value = customerPhone;
+            const heroName = document.getElementById("acc-hero-name"); if (heroName && customerName) heroName.innerText = customerName;
+            const heroPhone = document.getElementById("acc-hero-phone"); if (heroPhone) heroPhone.innerText = customerPhone ? ('+91 ' + customerPhone) : '—';
             document.getElementById("profile-address-input").value = document.getElementById("sidebar-address-display").innerText.trim();
             document.getElementById("profile-password-input").value = "";
             document.getElementById("profile-question-select").value = customerSecurityQuestion;
@@ -1753,7 +1929,151 @@ html, body {
             loadCustomerAboutTeamPhoto();
         } else if (tabId === 'services') {
             loadLocalServices();
+        } else if (tabId === 'leaderboard') {
+            loadLeaderboard();
         }
+    }
+
+    // ===== Mera Van / Green Leaderboard =====
+    let lbRange = 'all';
+    function setLbRange(range) {
+        lbRange = range;
+        document.querySelectorAll('.lb-tab').forEach(t => t.classList.toggle('active', t.dataset.range === range));
+        loadLeaderboard();
+    }
+
+    function loadLeaderboard() {
+        const listEl = document.getElementById("lb-list");
+        const podiumEl = document.getElementById("lb-podium");
+        const stripEl = document.getElementById("lb-my-strip");
+        fetch('/api/leaderboard?range=' + encodeURIComponent(lbRange))
+            .then(r => r.json())
+            .then(data => {
+                if (!data || !data.success) {
+                    if (listEl) listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:20px;">Leaderboard load nahi ho paya.</div>';
+                    return;
+                }
+                const me = data.me || {};
+                const milestone = data.milestone || 11;
+                const rows = data.leaderboard || [];
+                const rangeLabel = ({daily:'Aaj', weekly:'Is hafte', monthly:'Is mahine', all:'Ab tak'})[data.range] || '';
+
+                // ---- Podium (top 3) — 2 · 1 · 3 ----
+                if (podiumEl) {
+                    if (!rows.length) {
+                        podiumEl.innerHTML = '<div style="width:100%;text-align:center;color:rgba(255,255,255,0.9);font-size:0.85rem;padding:24px 0;">Is period me abhi koi champion nahi 🌱<br>Order karo aur sabse pehle ped lagao!</div>';
+                    } else {
+                        const byRank = {};
+                        rows.slice(0, 3).forEach(r => byRank[r.rank] = r);
+                        const order = [[2, byRank[2]], [1, byRank[1]], [3, byRank[3]]];  // left, center, right
+                        const crown = { 1: '👑' };
+                        podiumEl.innerHTML = order.map(([pos, r]) => {
+                            if (!r) return `<div class="lb-p3-col c${pos}"></div>`;
+                            return `
+                            <div class="lb-p3-col c${pos}">
+                                <div class="lb-p3-avawrap">
+                                    ${crown[pos] ? `<span class="lb-p3-crown">${crown[pos]}</span>` : ''}
+                                    ${lbAvatarHtml(r.profile_pic, r.display_name, 'lb-p3-ava')}
+                                    <span class="lb-p3-badge">${pos}</span>
+                                </div>
+                                <div class="lb-p3-name">${escapeHtmlLb(r.display_name)}${r.is_me ? ' (Aap)' : ''}</div>
+                                <div class="lb-p3-score">${r.delivered_orders} order</div>
+                                <div class="lb-p3-pedestal">${r.trees_planted}🌳</div>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+
+                // ---- My rank strip (rank + tree motivation) ----
+                if (stripEl) {
+                    const needed = me.orders_needed_for_next_tree || 0;
+                    let motiv;
+                    if ((me.delivered_orders || 0) === 0) {
+                        motiv = `Pehla ped lagane ke liye <b>${milestone} order</b> complete karein 🌱`;
+                    } else if (needed <= 0) {
+                        motiv = `Shaabaash! Ek ped laga 🎉 Agle ke liye <b>${milestone} order</b> aur.`;
+                    } else {
+                        motiv = `Ped no. <b>${me.next_tree_number}</b> ke liye sirf <b>${needed} order</b> aur baaki!`;
+                    }
+                    stripEl.innerHTML = `
+                        <div class="lb-my-rankno">${me.rank ? ('#' + me.rank) : '–'}</div>
+                        <div style="flex:1; min-width:0;">
+                            <p style="margin:0; font-size:0.9rem; font-weight:800; color:var(--text-primary);">Aap · ${me.delivered_orders || 0} order · ${me.trees_planted || 0} 🌳</p>
+                            <p style="margin:2px 0 0 0; font-size:0.76rem; color:var(--text-secondary);">${motiv}</p>
+                        </div>`;
+                }
+
+                // ---- Ranking list (rank 4 onward) ----
+                const rest = rows.slice(3);
+                if (!rest.length) {
+                    listEl.innerHTML = rows.length
+                        ? '<div style="text-align:center;color:var(--text-muted);font-size:0.8rem;padding:16px;">Bas itne hi champions is period me 🌳</div>'
+                        : '<div style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:24px;">Is period me abhi koi order complete nahi hua.</div>';
+                } else {
+                    listEl.innerHTML = rest.map(row => {
+                        const meTag = row.is_me ? ' <span style="font-size:0.64rem;background:var(--emerald-green);color:#fff;padding:1px 7px;border-radius:100px;font-weight:800;vertical-align:middle;">AAP</span>' : '';
+                        return `
+                        <div class="lb-list-row ${row.is_me ? 'is-me' : ''}">
+                            <div class="lb-rankchip">${row.rank}</div>
+                            ${lbAvatarHtml(row.profile_pic, row.display_name, 'lb-avatar')}
+                            <div style="flex:1; min-width:0;">
+                                <p style="margin:0; font-size:0.9rem; font-weight:800; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtmlLb(row.display_name)}${meTag}</p>
+                                <p style="margin:1px 0 0 0; font-size:0.72rem; color:var(--text-secondary);">${row.trees_planted} ped 🌳</p>
+                            </div>
+                            <div class="lb-score">${row.delivered_orders}<small>ORDERS</small></div>
+                        </div>`;
+                    }).join('');
+                }
+
+                if (window.lucide && lucide.createIcons) { try { lucide.createIcons(); } catch(e){} }
+            })
+            .catch(err => {
+                console.error('Leaderboard load error:', err);
+                if (listEl) listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:20px;">Network error. Dobara try karein.</div>';
+            });
+    }
+
+    // Minimal HTML escaper for leaderboard names
+    function escapeHtmlLb(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // Avatar for leaderboard: real profile photo if uploaded, else colored initials.
+    // Falls back to initials automatically if the image fails to load.
+    function lbAvatarHtml(pic, name, cls) {
+        const initials = initialsLb(name);
+        const color = avatarColorLb(name);
+        let src = (pic || '').trim();
+        if (src && !/^(https?:)?\/\//.test(src) && !src.startsWith('/')) {
+            src = '/static/uploads/profile_pics/' + src;   // bare filename safety
+        }
+        if (!src) {
+            return `<div class="${cls}" style="background:${color};">${initials}</div>`;
+        }
+        return `<div class="${cls} has-pic" style="background:${color};">
+            <img src="${escapeHtmlLb(src)}" alt="${escapeHtmlLb(name)}" loading="lazy" referrerpolicy="no-referrer"
+                 onerror="this.parentNode.classList.remove('has-pic'); this.parentNode.textContent='${initials}';">
+        </div>`;
+    }
+
+    // Initials from a display name, e.g. "Alice S." -> "AS"
+    function initialsLb(name) {
+        const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) return '?';
+        let ini = parts[0][0] || '';
+        if (parts.length > 1) ini += (parts[1][0] || '');
+        return ini.toUpperCase();
+    }
+
+    // Deterministic pleasant avatar colour derived from the name
+    function avatarColorLb(name) {
+        const palette = ['#6f2cf4','#009c62','#e0972a','#e11d48','#0ea5e9','#7c3aed','#db2777','#0891b2','#65a30d','#ea580c'];
+        let h = 0;
+        const s = String(name || '');
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+        return palette[h % palette.length];
     }
 
     // Orders Segment Switcher
@@ -1783,34 +2103,97 @@ html, body {
     function showStorePage(page) {
         activeStorefront = page;
         clearHomeSearch();
-        
+
         const btnGrocery = document.getElementById("btn-switch-grocery");
-        const btnPharmacy = document.getElementById("btn-switch-pharmacy");
+        const btnTech = document.getElementById("btn-switch-tech");
         const wrapGrocery = document.getElementById("grocery-storefront-wrapper");
-        const wrapPharmacy = document.getElementById("pharmacy-storefront-wrapper");
+        const wrapTech = document.getElementById("tech-storefront-wrapper");
         const searchInput = document.getElementById("search-input-standalone");
-        
+
         if (searchInput) {
-            if (page === "grocery") {
-                searchInput.placeholder = "Chips, Cake, Milk search karein... 🔍";
-            } else {
-                searchInput.placeholder = "Dawa, Cough Syrup, Vitamin search karein... 🔍";
-            }
+            searchInput.placeholder = (page === "grocery")
+                ? "Chips, Cake, Milk search karein... 🔍"
+                : "Mobile, Charger, Earphone search karein... 🔍";
         }
-        
+
         if (page === "grocery") {
             btnGrocery.classList.add("active");
-            btnPharmacy.classList.remove("active");
+            if (btnTech) btnTech.classList.remove("active");
             wrapGrocery.classList.remove("hidden-storefront");
-            wrapPharmacy.classList.add("hidden-storefront");
-            closePharmacyShelf();
-        } else {
-            btnGrocery.classList.remove("active");
-            btnPharmacy.classList.add("active");
-            wrapGrocery.classList.add("hidden-storefront");
-            wrapPharmacy.classList.remove("hidden-storefront");
+            if (wrapTech) wrapTech.classList.add("hidden-storefront");
             closeShopShelf();
+        } else {
+            // Tech storefront — only tech products
+            btnGrocery.classList.remove("active");
+            if (btnTech) btnTech.classList.add("active");
+            wrapGrocery.classList.add("hidden-storefront");
+            if (wrapTech) wrapTech.classList.remove("hidden-storefront");
+            closeShopShelf();
+            loadTechCategories();
         }
+    }
+
+    // ===== Tech storefront (category cards, like Daily Needs) =====
+
+    // A shop counts as "tech" if its category matches tech-type keywords.
+    // New tech stores the admin adds will automatically appear in the Tech tab.
+    function isTechCategory(cat) {
+        const c = (cat || '').toUpperCase();
+        return ['TECH', 'ELECTRON', 'ELECTRIC', 'ROBOT', 'GADGET', 'MOBILE', 'LAPTOP', 'COMPUTER']
+            .some(k => c.includes(k));
+    }
+
+    // Resolve the primary tech shop id (for tech-scoped search); falls back to 6.
+    function getTechShopId() {
+        try {
+            const t = (shopsCache || []).find(s =>
+                (s.category || '').toUpperCase() === 'TECH' ||
+                (s.shop_name || '').toUpperCase().includes('TECH'));
+            if (t) return t.id;
+            const anyTech = (shopsCache || []).find(s => s.is_active && isTechCategory(s.category));
+            if (anyTech) return anyTech.id;
+        } catch (e) {}
+        return 6;
+    }
+
+    // Nice display label for a tech store category card
+    function techCategoryLabel(shop) {
+        const c = (shop.category || '').toUpperCase();
+        if (c.includes('TECH') || c.includes('GADGET')) return 'Gadgets & Accessories 💻';
+        if (c.includes('ROBOT') || c.includes('ELECTRIC') || c.includes('ELECTRON')) return 'Electronics & Robotics 🤖';
+        if (c.includes('MOBILE')) return 'Mobiles & Phones 📱';
+        if (c.includes('LAPTOP') || c.includes('COMPUTER')) return 'Laptops & Computers 💻';
+        return shop.shop_name || 'Tech Store';
+    }
+
+    // Render tech category cards (each opens that store's products, like Daily Needs)
+    function loadTechCategories() {
+        ensureShopsCacheLoaded(() => {
+            const grid = document.getElementById("tech-category-grid");
+            if (!grid) return;
+            grid.innerHTML = "";
+
+            const techShops = (shopsCache || []).filter(s => s.is_active && isTechCategory(s.category));
+            if (!techShops.length) {
+                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:24px;">Abhi koi tech category available nahi hai.</div>';
+                return;
+            }
+
+            techShops.forEach(s => {
+                const card = document.createElement("div");
+                const catLower = (s.category || '').toLowerCase();
+                card.className = `hamar-category-card category-card-${catLower}`;
+                card.onclick = () => selectCategory(s.category, s.id);
+                const label = techCategoryLabel(s);
+                card.innerHTML = `
+                    <div class="hamar-category-title" style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.2px; line-height: 1.2;">${label}</div>
+                    <img src="${getProductImageUrl(s.image_path)}" class="hamar-category-img" alt="${label}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='/static/images/tech_category.png';">
+                `;
+                grid.appendChild(card);
+            });
+
+            if (window.lucide) lucide.createIcons();
+        });
     }
 
     // Select pharmacy subcategory
@@ -1933,6 +2316,12 @@ html, body {
             }
             img.alt = banner.title || "Special Offer";
             img.loading = "lazy";
+            // Graceful fallback if the banner image is missing/broken
+            img.onerror = function() {
+                this.onerror = null;
+                this.src = '/static/images/grocery_basket.png';
+                this.classList.add('is-fallback');
+            };
             
             const overlay = document.createElement("div");
             overlay.className = "offers-overlay";
@@ -2046,6 +2435,8 @@ html, body {
                 
                 const addressDisplay = document.getElementById("sidebar-address-display");
                 if (addressDisplay) addressDisplay.innerText = {{ u.address | tojson }};
+                const greetAddr = document.getElementById("home-greet-address");
+                if (greetAddr) greetAddr.innerText = {{ u.address | tojson }} || "Delivery address set karein";
                 
                 customerName = {{ u.name | tojson }};
                 customerPhone = {{ u.phone | tojson }};
@@ -2221,7 +2612,7 @@ html, body {
             shopsCache.forEach(s => {
                 if (!s.is_active) return;
                 if (s.category === 'PHARMACY') return; // Dawaiyan category card removed as it has a dedicated top switcher tab!
-                if (s.category === 'ELECTRONICS') return; // Bijli ka Saman category card removed as requested!
+                if (isTechCategory(s.category)) return; // Saare tech-type shops ab dedicated "Tech" tab me hain (Daily Needs grid me duplicate na ho)
                 
                 const card = document.createElement("div");
                 const catLower = s.category.toLowerCase();
@@ -2339,6 +2730,7 @@ html, body {
             .then(data => {
                 if (data.success) {
                     document.getElementById("sidebar-address-display").innerText = trimmedAddr;
+                    const ga1 = document.getElementById("home-greet-address"); if (ga1) ga1.innerText = trimmedAddr;
                     document.getElementById("address-input").value = trimmedAddr;
                     showAestheticToast("Delivery address updated successfully!");
                 } else {
@@ -3567,6 +3959,7 @@ html, body {
                 // Update frontend models
                 customerName = nameInput;
                 document.getElementById("sidebar-address-display").innerText = addressInput;
+                const ga2 = document.getElementById("home-greet-address"); if (ga2) ga2.innerText = addressInput;
                 document.getElementById("address-input").value = addressInput;
                 if (passwordInput) {
                     customerPassword = passwordInput;
@@ -3654,12 +4047,8 @@ html, body {
                 carousel.style.display = "block";
             }
             
-            if (activeStorefront === "pharmacy") {
-                if (currentPharmacySubcat) {
-                    selectPharmacySubcategory(currentPharmacySubcat);
-                } else {
-                    closePharmacyShelf();
-                }
+            if (activeStorefront === "tech") {
+                loadTechCategories();
             } else {
                 if (currentShopId) renderProducts();
                 else closeShopShelf();
@@ -3717,8 +4106,8 @@ html, body {
         }
         
         let url = `/api/products/search?q=${encodeURIComponent(query)}&page=${page}&limit=20`;
-        if (activeStorefront === "pharmacy") {
-            url += `&shop_id=5`;
+        if (activeStorefront === "tech") {
+            url += `&shop_id=${getTechShopId()}`;
         }
         
         console.log("loadSearchResults fetching URL:", url);
@@ -3789,18 +4178,33 @@ html, body {
         if (searchGrid && searchSection) {
             searchSection.style.display = "block";
             searchGrid.innerHTML = "";
-            
+
             if (list.length === 0) {
-                searchGrid.innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; color: var(--text-muted);">No products match your search.</div>`;
+                // Nothing found → let the customer request this product
+                searchGrid.innerHTML =
+                    `<div style="grid-column: 1/-1; padding: 4px 0 0; text-align: center; color: var(--text-muted); font-size:0.9rem;">"${escapeHtmlLb(currentSearchQuery || '')}" ke liye koi product nahi mila 😔</div>` +
+                    productRequestBoxHtml(currentSearchQuery || '', true);
+                refreshIcons();
                 return;
             }
-            
+
             list.forEach(prod => {
                 const card = document.createElement("div");
                 card.className = "product-card";
                 card.innerHTML = buildProductCardHtml(prod);
                 searchGrid.appendChild(card);
             });
+
+            // Even when results exist, offer a "request it" option at the bottom
+            const footer = document.createElement("div");
+            footer.style.gridColumn = "1/-1";
+            footer.innerHTML = `
+                <div style="text-align:center; margin-top:16px; padding-top:14px; border-top:1px dashed var(--border-color);">
+                    <p style="font-size:0.82rem; color:var(--text-secondary); margin:0 0 8px;">Jo dhoondh rahe the woh nahi mila?</p>
+                    <button onclick="toggleProductRequestBox('${encodeURIComponent(currentSearchQuery || '')}')" class="btn-custom" style="padding:8px 18px; font-size:0.85rem; font-weight:800; border-radius:100px; margin:0;">📩 Product Request karein</button>
+                    <div id="product-request-slot" style="display:none; margin-top:12px; text-align:left;"></div>
+                </div>`;
+            searchGrid.appendChild(footer);
         }
         
         // Also fallback to main home shelf if open
@@ -3819,6 +4223,75 @@ html, body {
         refreshIcons();
     }
 
+    // ===== Product Request (customer asks for a product not found) =====
+    function productRequestBoxHtml(query, visible) {
+        const q = escapeHtmlLb(query || '');
+        return `
+        <div class="product-request-box" style="grid-column:1/-1; ${visible ? '' : ''} background: var(--primary-light); border:1.5px dashed var(--primary-accent); border-radius: var(--radius-lg); padding:16px; text-align:center; margin-top:10px;">
+            <div style="font-size:1.8rem; line-height:1;">🛒✨</div>
+            <p style="font-weight:800; color:var(--text-primary); margin:8px 0 2px;">Ye product add karwana hai?</p>
+            <p style="font-size:0.78rem; color:var(--text-secondary); margin:0 0 12px; line-height:1.4;">Hume batayein — hum ise jaldi store me add karne ki koshish karenge.</p>
+            <input class="prod-req-name" type="text" value="${q}" placeholder="Product ka naam" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid var(--border-color); border-radius:var(--radius-md); font-size:0.9rem; margin-bottom:8px; background:#fff;">
+            <input class="prod-req-note" type="text" placeholder="Extra detail (brand, size...) — optional" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid var(--border-color); border-radius:var(--radius-md); font-size:0.9rem; margin-bottom:10px; background:#fff;">
+            <button onclick="submitProductRequest(this)" class="action-btn-primary" style="width:100%; padding:11px; font-weight:800; border-radius:var(--radius-md); font-size:0.95rem; border:none; cursor:pointer;">📩 Request bhejein</button>
+            <div class="prod-req-msg" style="font-size:0.82rem; margin-top:8px; font-weight:700;"></div>
+        </div>`;
+    }
+
+    function toggleProductRequestBox(encodedQuery) {
+        const slot = document.getElementById("product-request-slot");
+        if (!slot) return;
+        if (slot.style.display === "none" || !slot.innerHTML.trim()) {
+            slot.innerHTML = productRequestBoxHtml(decodeURIComponent(encodedQuery || ''), true);
+            slot.style.display = "block";
+            refreshIcons();
+        } else {
+            slot.style.display = "none";
+        }
+    }
+
+    function submitProductRequest(btn) {
+        const box = btn.closest(".product-request-box");
+        if (!box) return;
+        const nameInput = box.querySelector(".prod-req-name");
+        const noteInput = box.querySelector(".prod-req-note");
+        const msg = box.querySelector(".prod-req-msg");
+        const productName = (nameInput.value || "").trim();
+        const note = (noteInput.value || "").trim();
+
+        if (!productName) {
+            if (msg) { msg.style.color = "var(--ruby-danger)"; msg.textContent = "Product ka naam likhein."; }
+            return;
+        }
+
+        btn.disabled = true;
+        const oldLabel = btn.innerHTML;
+        btn.innerHTML = "Bhej rahe hain...";
+
+        fetch("/api/product-requests", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ product_name: productName, note: note })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.success) {
+                box.innerHTML = `
+                    <div style="font-size:2rem;">✅</div>
+                    <p style="font-weight:800; color:var(--emerald-green); margin:8px 0 2px;">Request bhej di gayi!</p>
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin:0;">Shukriya — hum jaldi <b>${escapeHtmlLb(productName)}</b> add karne ki koshish karenge.</p>`;
+            } else {
+                if (msg) { msg.style.color = "var(--ruby-danger)"; msg.textContent = (data && data.error) ? data.error : "Request bhejne me dikkat aayi."; }
+                btn.disabled = false; btn.innerHTML = oldLabel;
+            }
+        })
+        .catch(err => {
+            console.error("Product request error:", err);
+            if (msg) { msg.style.color = "var(--ruby-danger)"; msg.textContent = "Network error. Dobara try karein."; }
+            btn.disabled = false; btn.innerHTML = oldLabel;
+        });
+    }
+
     // Orders History loader
     function loadOrdersHistory() {
         const listContainer = document.getElementById("orders-history-list");
@@ -3831,56 +4304,66 @@ html, body {
                 listContainer.innerHTML = "";
                 
                 if (orders.length === 0) {
-                    listContainer.innerHTML = `<div style="text-align: center; padding: 24px 0;"><i data-lucide="shopping-bag" style="width: 32px; height: 32px; stroke-width: 1.5; color: var(--text-muted); margin-bottom: 8px; display: inline-block;"></i><p style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">No orders yet.</p></div>`;
+                    listContainer.innerHTML = `
+                        <div class="ord-empty">
+                            <div class="big">🛍️</div>
+                            <h4>Abhi koi order nahi</h4>
+                            <p>Pehla order karein aur apne pehle ped ki taraf badhein 🌱</p>
+                            <button class="home-greet-pill" onclick="switchTab('home')"><i data-lucide="shopping-bag"></i> Shopping shuru karein</button>
+                        </div>`;
                     refreshIcons();
                     return;
                 }
-                
+
+                // Status → visual tone (live / done / fail / wait)
+                const toneOf = (st) => {
+                    if (st === 'DELIVERED') return 'done';
+                    if (st === 'FAILED' || st === 'CANCELLED') return 'fail';
+                    if (st === 'ACCEPTED' || st === 'READY_FOR_PICKUP' || st === 'OUT_FOR_DELIVERY') return 'live';
+                    return 'wait';
+                };
+                const labelOf = (st) => ({
+                    'PENDING': 'Order Placed', 'ACCEPTED': 'Ban raha hai', 'READY_FOR_PICKUP': 'Pack ho gaya',
+                    'OUT_FOR_DELIVERY': 'Raaste me', 'DELIVERED': 'Deliver ho gaya', 'FAILED': 'Failed', 'CANCELLED': 'Cancelled'
+                })[st] || st.replace(/_/g, ' ');
+                const iconOf = (st) => ({
+                    'PENDING': 'clock', 'ACCEPTED': 'chef-hat', 'READY_FOR_PICKUP': 'package-check',
+                    'OUT_FOR_DELIVERY': 'bike', 'DELIVERED': 'check-circle-2', 'FAILED': 'x-circle', 'CANCELLED': 'x-circle'
+                })[st] || 'package';
+
                 orders.forEach(o => {
+                    const tone = toneOf(o.status);
                     const card = document.createElement("div");
-                    card.style = "background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s ease;";
+                    card.className = `ord-card st-${tone}`;
                     card.onclick = () => openTrackingView(o.id);
-                    
-                    let statusBadgeClass = "badge-status-pending";
-                    if (o.status === "DELIVERED") {
-                        statusBadgeClass = "badge-status-delivered";
-                    } else if (o.status === "FAILED") {
-                        statusBadgeClass = "badge-status-pending";
-                    } else if (o.status === "ACCEPTED" || o.status === "READY_FOR_PICKUP" || o.status === "OUT_FOR_DELIVERY") {
-                        statusBadgeClass = "badge-status-ready";
-                    }
-                    
-                    let statusColorStyle = "";
-                    if (o.status === "FAILED") {
-                        statusColorStyle = "background: var(--ruby-light); color: var(--ruby-danger);";
-                    }
-                    
+
                     let timeStr = o.created_at;
                     try {
                         const dateClean = o.created_at.replace(" ", "T").split('.')[0];
                         const date = new Date(dateClean);
-                        timeStr = date.toLocaleDateString() + " " + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                    } catch(e) {}
+                        timeStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) + ', ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    } catch (e) {}
 
                     const recordedDelFee = (o.delivery_fee !== undefined && o.delivery_fee !== null) ? parseFloat(o.delivery_fee) : 0.0;
+                    const itemsTxt = (o.items_summary || 'N/A').replace(/\s*,\s*/g, ' · ');
+                    const isActive = (o.status !== 'DELIVERED' && o.status !== 'FAILED' && o.status !== 'CANCELLED');
+
                     card.innerHTML = `
-                        <div class="flex-between">
-                            <span style="font-weight: 800; font-size: 0.9rem; color: var(--text-primary);">Order #${o.id}</span>
-                            <span class="badge ${statusBadgeClass}" style="${statusColorStyle}">${o.status.replace(/_/g, " ")}</span>
+                        <div class="ord-head">
+                            <div class="ord-id"><span class="ord-icon"><i data-lucide="${iconOf(o.status)}"></i></span> #${o.id}</div>
+                            <span class="ord-status ${tone}">${labelOf(o.status)}</span>
                         </div>
-                        <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px;">
-                            <div><strong>Items:</strong> ${o.items_summary || 'N/A'}</div>
-                            <div><strong>Date:</strong> ${timeStr}</div>
-                            <div><strong>Delivery Charge:</strong> <span style="color:#d97706; font-weight:700;">${recordedDelFee > 0 ? '₹' + recordedDelFee.toFixed(2) : 'FREE'}</span></div>
-                            <div><strong>Kul Bhugtan (Grand Total):</strong> <strong style="color: var(--primary-accent);">₹${o.total_amount.toFixed(2)}</strong></div>
+                        <p class="ord-items">${escapeHtmlLb(itemsTxt)}</p>
+                        <div class="ord-meta">
+                            <span><i data-lucide="store"></i>${escapeHtmlLb(o.shop_name || '')}</span>
+                            <span><i data-lucide="calendar"></i>${timeStr}</span>
+                            ${o.priority_type === 'URGENT' ? `<span style="color:var(--ruby-danger);font-weight:800;"><i data-lucide="zap"></i>Urgent</span>` : ``}
                         </div>
-                        <div class="flex-between" style="align-items: center; margin-top: 4px;">
-                            <span class="badge ${o.priority_type === 'URGENT' ? 'badge-urgent' : 'badge-normal'}" style="font-size:0.65rem; padding: 2px 6px;">${o.priority_type}</span>
-                            ${o.status !== 'DELIVERED' && o.status !== 'FAILED' ? `
-                            <span style="font-size: 0.75rem; color: var(--primary-accent); font-weight: 700; display: flex; align-items: center; gap: 2px;">Track Order <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i></span>
-                            ` : `
-                            <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">View Details <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i></span>
-                            `}
+                        <div class="ord-foot">
+                            <div class="ord-total"><small>${recordedDelFee > 0 ? 'Delivery ₹' + recordedDelFee.toFixed(0) + ' incl.' : 'Free delivery'}</small>₹${o.total_amount.toFixed(2)}</div>
+                            ${isActive
+                                ? `<span class="ord-cta">Track karein <i data-lucide="chevron-right"></i></span>`
+                                : `<span class="ord-cta muted">Details <i data-lucide="chevron-right"></i></span>`}
                         </div>
                     `;
                     listContainer.appendChild(card);
