@@ -358,11 +358,15 @@ def init_db():
     # Populate existing product mrp fields if null
     cursor.execute("UPDATE products SET mrp = ROUND(price * 1.25, 2) WHERE mrp IS NULL")
 
-    # Create indexes for products table to optimize scaling and search speed (especially up to 100k+ products)
+    # Create indexes for products & orders table to optimize scaling and search speed (especially up to 100k+ products)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_shop_id ON products(shop_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_subcategory ON products(subcategory)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_is_available ON products(is_available)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_orders_shop_id ON orders(shop_id)")
 
     # 14. Banners Table
     cursor.execute('''

@@ -27,5 +27,5 @@ COPY . /app/
 # Expose port 5001
 EXPOSE 5001
 
-# Command to run the application using Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "app:app"]
+# Command to run the application using Gunicorn (4 workers + 2 threads per worker + 120s timeout)
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "4", "--threads", "2", "--timeout", "120", "app:app"]
