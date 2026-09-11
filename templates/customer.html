@@ -863,10 +863,12 @@ html, body {
                     <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0 0 12px 0; line-height: 1.4;">
                         Apni pasand ki gaadi chuniye — driver saath aayega aur aapko chhod kar aayega.
                     </p>
-                    <div id="rides-fare-info" style="border-radius:14px; padding:12px 14px; background:linear-gradient(135deg,#ecfeff,#f0fdfa); border:1px solid #a5f3fc; margin-bottom:14px; font-size:.8rem; color:#155e75; line-height:1.5;">
-                        <b>Fare kaise banta hai?</b><br>
-                        <span id="rides-fare-formula">₹10 per km × distance + driver fee</span>. Booking par driver aapko call karega aur bataye hue location se pick karega. Payment seedha driver ko cash.
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; background:#fff; border:1.5px solid #99f6e4; border-radius:100px; padding:4px 6px 4px 14px; box-shadow:var(--shadow-sm);">
+                        <i data-lucide="search" style="width:18px; height:18px; color:#0f766e; flex-shrink:0;"></i>
+                        <input type="text" id="rides-search-input" placeholder="Gaadi search karein — Bike, Auto, Car, naam ya number 🔍" oninput="rideSearchChanged(this.value)" style="flex:1; border:none; outline:none; background:transparent; font-size:.9rem; padding:8px 0; min-width:0;">
+                        <button type="button" id="rides-search-clear" onclick="rideSearchChanged(''); document.getElementById('rides-search-input').value='';" style="display:none; width:30px; height:30px; border-radius:50%; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:var(--text-secondary);">×</button>
                     </div>
+                    <div id="rides-type-chips" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:6px; scrollbar-width:none;"></div>
                     <div id="rides-drivers-container" style="display:flex; flex-direction:column; gap:12px; padding-bottom:24px;"></div>
                 </div>
 
@@ -4710,22 +4712,45 @@ html, body {
         showStorePage('sawari');
     }
 
+    let rideTypeFilter = "";
+    function rideSearchChanged(q) {
+        rideDriverFilter = (q || "").trim();
+        const clr = document.getElementById("rides-search-clear");
+        if (clr) clr.style.display = rideDriverFilter ? "inline-flex" : "none";
+        try { renderRideDrivers(); } catch (e) {}
+    }
+    function setRideTypeFilter(vt) {
+        rideTypeFilter = (rideTypeFilter === vt) ? "" : vt;
+        renderRideTypeChips();
+        try { renderRideDrivers(); } catch (e) {}
+    }
+    function renderRideTypeChips() {
+        const box = document.getElementById("rides-type-chips");
+        if (!box) return;
+        const present = [...new Set((rideDrivers || []).map(d => d.vehicle_type))];
+        box.innerHTML = "";
+        if (present.length < 2) { rideTypeFilter = ""; return; }
+        [["", "Sab"], ...present.map(vt => [vt, `${RIDE_ICON[vt] || '🚘'} ${RIDE_LABEL[vt] || vt}`])].forEach(([vt, label]) => {
+            const on = rideTypeFilter === vt;
+            const b = document.createElement("button");
+            b.type = "button";
+            b.onclick = () => setRideTypeFilter(vt);
+            b.style.cssText = `flex-shrink:0; padding:6px 14px; border-radius:100px; font-size:.78rem; font-weight:700; cursor:pointer; border:1.5px solid ${on ? '#0f766e' : 'var(--border-color)'}; background:${on ? '#0f766e' : '#fff'}; color:${on ? '#fff' : 'var(--text-primary)'};`;
+            b.innerText = label;
+            box.appendChild(b);
+        });
+    }
+
     function loadRideScreen() {
+        rideDriverFilter = ""; rideTypeFilter = "";
+        const si = document.getElementById("rides-search-input"); if (si) si.value = "";
         const c = document.getElementById("rides-drivers-container");
         c.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:.85rem;">Drivers load ho rahe hain...</div>`;
         fetch('/api/rides/drivers').then(r => r.json()).then(d => {
             rideDrivers = d.drivers || [];
             rideGlobalRate = Number(d.per_km_rate || 10);
             rideTypeCfg = d.types || {};
-            const f = document.getElementById("rides-fare-formula");
-            if (f) {
-                const parts = [];
-                const fmt = (lbl, t) => `${lbl} ₹${Number(t.per_km_rate).toFixed(0)}/km + ₹${Number(t.driver_fee || 0).toFixed(0)} fee`;
-                if (rideTypeCfg.BIKE) parts.push(fmt('Bike', rideTypeCfg.BIKE));
-                if (rideTypeCfg.AUTO) parts.push(fmt('Auto', rideTypeCfg.AUTO));
-                if (rideTypeCfg.CAR) parts.push(fmt('Car', rideTypeCfg.CAR) + ' (lambi doori)');
-                f.innerText = parts.length ? parts.join(' · ') : `₹${rideGlobalRate.toFixed(0)} per km × distance + driver fee`;
-            }
+            renderRideTypeChips();
             if (!d.enabled) {
                 c.innerHTML = `<div style="text-align:center; padding:28px 12px; color:var(--text-secondary); font-size:.85rem;">😴 Sawari service abhi band hai. Thodi der baad try karein.</div>`;
                 return;
@@ -4738,7 +4763,8 @@ html, body {
         const c = document.getElementById("rides-drivers-container");
         c.innerHTML = "";
         const q = (rideDriverFilter || "").toLowerCase();
-        const list = q ? rideDrivers.filter(d => [d.name, d.vehicle_name, d.vehicle_type, d.vehicle_number, d.notes].join(' ').toLowerCase().includes(q)) : rideDrivers;
+        let list = rideTypeFilter ? rideDrivers.filter(d => d.vehicle_type === rideTypeFilter) : rideDrivers;
+        if (q) list = list.filter(d => [d.name, d.vehicle_name, d.vehicle_type, RIDE_LABEL[d.vehicle_type], d.vehicle_number, d.notes].join(' ').toLowerCase().includes(q));
         if (!list.length) {
             c.innerHTML = `<div style="text-align:center; padding:28px 12px; color:var(--text-muted); font-size:.85rem;">${q ? 'Is naam ki koi gaadi nahi mili.' : 'Abhi koi gaadi available nahi hai.'}</div>`;
             return;
