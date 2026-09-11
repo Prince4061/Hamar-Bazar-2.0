@@ -2877,8 +2877,8 @@
                     <!-- Drivers -->
                     <div class="dashboard-card">
                         <div class="card-header-row" style="margin-bottom: 16px;">
-                            <h3 class="card-title-text"><i data-lucide="bike" style="color: var(--primary-accent);"></i> Drivers (Sawari Partners)</h3>
-                            <button onclick="openRideDriverModal()" class="btn-custom btn-custom-primary" style="margin:0;"><i data-lucide="plus"></i> Add Driver</button>
+                            <h3 class="card-title-text"><i data-lucide="bike" style="color: var(--primary-accent);"></i> Gaadiyan & Drivers (Sawari Partners)</h3>
+                            <button onclick="openRideDriverModal()" class="btn-custom btn-custom-primary" style="margin:0;"><i data-lucide="plus"></i> Add Gaadi / Driver</button>
                         </div>
                         <div class="table-responsive-wrapper">
                             <table class="premium-table responsive-cards">
@@ -7340,7 +7340,7 @@
                             <td data-label="Gaadi">
                                 <div style="display:flex; align-items:center; gap:8px;">
                                     ${d.vehicle_photo ? `<img src="${d.vehicle_photo}" style="width:48px; height:34px; border-radius:6px; object-fit:cover; border:1px solid var(--border-color);">` : ''}
-                                    <span>${RIDE_VEHICLE_ICON[d.vehicle_type] || '🚘'} ${escAdmin(d.vehicle_type)}</span>
+                                    <span>${RIDE_VEHICLE_ICON[d.vehicle_type] || '🚘'} <b>${escAdmin(d.vehicle_name || '')}</b><div style="font-size:0.7rem; color:var(--text-secondary);">${escAdmin(d.vehicle_type)}</div></span>
                                 </div>
                             </td>
                             <td data-label="Number" style="font-family:monospace; font-weight:700;">${escAdmin(d.vehicle_number || '—')}</td>
@@ -7381,12 +7381,13 @@
 
         function openRideDriverModal(id) {
             const d = id ? adminRideDrivers.find(x => x.id === id) : null;
-            document.getElementById("ride-driver-modal-title").innerHTML = `<i data-lucide="bike" style="color: var(--primary-accent);"></i> ${d ? 'Edit Driver' : 'Add Driver'}`;
+            document.getElementById("ride-driver-modal-title").innerHTML = `<i data-lucide="bike" style="color: var(--primary-accent);"></i> ${d ? 'Edit Gaadi / Driver' : 'Add Gaadi / Driver'}`;
             document.getElementById("rd-id").value = d ? d.id : "";
             document.getElementById("rd-name").value = d ? d.name : "";
             document.getElementById("rd-phone").value = d ? d.phone : "";
             document.getElementById("rd-vehicle-type").value = d ? d.vehicle_type : "BIKE";
             document.getElementById("rd-vehicle-number").value = d ? (d.vehicle_number || "") : "";
+            document.getElementById("rd-vehicle-name").value = d ? (d.vehicle_name || "") : "";
             document.getElementById("rd-experience").value = d ? d.experience_years : 1;
             document.getElementById("rd-fee").value = d ? d.driver_fee : 0;
             document.getElementById("rd-per-km").value = d && d.per_km_rate ? d.per_km_rate : "";
@@ -7427,6 +7428,7 @@
                 phone: document.getElementById("rd-phone").value.trim(),
                 vehicle_type: document.getElementById("rd-vehicle-type").value,
                 vehicle_number: document.getElementById("rd-vehicle-number").value.trim(),
+                vehicle_name: document.getElementById("rd-vehicle-name").value.trim(),
                 experience_years: document.getElementById("rd-experience").value,
                 driver_fee: document.getElementById("rd-fee").value,
                 per_km_rate: document.getElementById("rd-per-km").value,
@@ -8239,6 +8241,7 @@
                     </div>
                     <div class="form-group-custom"><label class="form-label-custom">Gaadi Number</label><input type="text" id="rd-vehicle-number" class="form-input-custom" style="width:100%; text-transform:uppercase;" placeholder="e.g. BR01AB1234"></div>
                 </div>
+                <div class="form-group-custom"><label class="form-label-custom" style="color:var(--primary-accent); font-weight:700;">Gaadi ka Naam / Model (customer ko yahi dikhega)</label><input type="text" id="rd-vehicle-name" class="form-input-custom" style="width:100%;" placeholder="e.g. Maruti Swift Dzire, Bajaj Auto, Honda Activa"></div>
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
                     <div class="form-group-custom"><label class="form-label-custom">Experience (saal)</label><input type="number" id="rd-experience" class="form-input-custom" style="width:100%;" step="0.5" min="0" value="1"></div>
                     <div class="form-group-custom"><label class="form-label-custom">Driver Fee (₹)</label><input type="number" id="rd-fee" class="form-input-custom" style="width:100%;" step="1" min="0" value="0"></div>

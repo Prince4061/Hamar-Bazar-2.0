@@ -325,6 +325,10 @@ def init_db():
         FOREIGN KEY (driver_id) REFERENCES ride_drivers(id) ON DELETE CASCADE
     )
     ''')
+    try:
+        cursor.execute("ALTER TABLE ride_drivers ADD COLUMN vehicle_name TEXT")
+    except sqlite3.OperationalError:
+        pass
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ride_bookings_customer ON ride_bookings(customer_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ride_bookings_status ON ride_bookings(status)")
     cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('ride_per_km_rate', '10.0')")

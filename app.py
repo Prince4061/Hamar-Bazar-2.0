@@ -5794,7 +5794,7 @@ def _driver_effective_rate(driver_row, global_rate):
 def _fetch_ride_booking(cursor, booking_id):
     cursor.execute("""
         SELECT b.*, u.name AS customer_name, u.phone AS customer_phone, u.address AS customer_address,
-               d.name AS driver_name, d.phone AS driver_phone, d.vehicle_type, d.vehicle_number,
+               d.name AS driver_name, d.phone AS driver_phone, d.vehicle_type, d.vehicle_name, d.vehicle_number,
                d.driver_photo, d.vehicle_photo, d.experience_years
         FROM ride_bookings b
         JOIN users u ON b.customer_id = u.id
@@ -5838,7 +5838,7 @@ def send_ride_email_sync(booking_id):
             </p>
             <h3 style="margin:0 0 8px;font-size:15px;color:#0f766e;">🧑‍✈️ Driver</h3>
             <p style="margin:0 0 14px;line-height:1.6;">
-              <b>{b['driver_name']}</b> ({b['vehicle_type']} · {b['vehicle_number'] or '—'})<br>📞 {b['driver_phone']}<br>Experience: {b['experience_years']:g} saal
+              <b>{b['driver_name']}</b> — 🚘 {b.get('vehicle_name') or b['vehicle_type']} ({b['vehicle_type']} · {b['vehicle_number'] or '—'})<br>📞 {b['driver_phone']}<br>Experience: {b['experience_years']:g} saal
             </p>
             <h3 style="margin:0 0 8px;font-size:15px;color:#0f766e;">📍 Ride Details</h3>
             <table style="border-collapse:collapse;width:100%;font-size:13px;">
@@ -5912,6 +5912,8 @@ def book_ride():
         return jsonify({'error': 'Distance 0 se zyada aur 200 km se kam honi chahiye.'}), 400
     pickup_note = (data.get('pickup_note') or '').strip()[:200]
     drop_note = (data.get('drop_note') or '').strip()[:200]
+    if not pickup_note or not drop_note:
+        return jsonify({'error': 'Kahan se aur kahan tak jaana hai, dono likhein.'}), 400
 
     db = get_db()
     cursor = db.cursor()
@@ -5948,7 +5950,8 @@ def book_ride():
         'driver_id': driver_id,
         'driver_name': booking.get('driver_name'),
         'driver_phone': booking.get('driver_phone'),
-        'vehicle': f"{booking.get('vehicle_type')} {booking.get('vehicle_number') or ''}".strip(),
+        'vehicle': f"{booking.get('vehicle_name') or booking.get('vehicle_type')} {booking.get('vehicle_number') or ''}".strip(),
+        'vehicle_type': booking.get('vehicle_type'),
         'distance_km': distance_km,
         'pickup_note': pickup_note,
         'drop_note': drop_note,
@@ -5967,7 +5970,7 @@ def my_ride_bookings():
     db = get_db()
     cursor = db.cursor()
     cursor.execute("""
-        SELECT b.*, d.name AS driver_name, d.phone AS driver_phone, d.vehicle_type, d.vehicle_number, d.driver_photo, d.vehicle_photo
+        SELECT b.*, d.name AS driver_name, d.phone AS driver_phone, d.vehicle_type, d.vehicle_name, d.vehicle_number, d.driver_photo, d.vehicle_photo
         FROM ride_bookings b JOIN ride_drivers d ON b.driver_id = d.id
         WHERE b.customer_id = ?
         ORDER BY b.id DESC LIMIT 30
@@ -6055,6 +6058,7 @@ def _parse_driver_payload(data):
             per_km_val = None
     return {
         'name': name, 'phone': phone, 'vehicle_type': vehicle_type,
+        'vehicle_name': (data.get('vehicle_name') or '').strip()[:80],
         'vehicle_number': (data.get('vehicle_number') or '').strip().upper(),
         'driver_photo': (data.get('driver_photo') or '').strip() or None,
         'vehicle_photo': (data.get('vehicle_photo') or '').strip() or None,
@@ -6095,8 +6099,8 @@ def admin_add_ride_driver():
     db = get_db()
     cursor = db.cursor()
     cursor.execute("""
-        INSERT INTO ride_drivers (name, phone, vehicle_type, vehicle_number, driver_photo, vehicle_photo, experience_years, driver_fee, per_km_rate, is_available, notes)
-        VALUES (:name, :phone, :vehicle_type, :vehicle_number, :driver_photo, :vehicle_photo, :experience_years, :driver_fee, :per_km_rate, :is_available, :notes)
+        INSERT INTO ride_drivers (name, phone, vehicle_type, vehicle_name, vehicle_number, driver_photo, vehicle_photo, experience_years, driver_fee, per_km_rate, is_available, notes)
+        VALUES (:name, :phone, :vehicle_type, :vehicle_name, :vehicle_number, :driver_photo, :vehicle_photo, :experience_years, :driver_fee, :per_km_rate, :is_available, :notes)
     """, payload)
     db.commit()
     return jsonify({'success': True, 'message': f"Driver '{payload['name']}' add ho gaya.", 'driver_id': cursor.lastrowid})
@@ -6115,7 +6119,7 @@ def admin_update_ride_driver(driver_id):
         return jsonify({'error': 'Driver nahi mila.'}), 404
     payload['id'] = driver_id
     cursor.execute("""
-        UPDATE ride_drivers SET name=:name, phone=:phone, vehicle_type=:vehicle_type, vehicle_number=:vehicle_number,
+        UPDATE ride_drivers SET name=:name, phone=:phone, vehicle_type=:vehicle_type, vehicle_name=:vehicle_name, vehicle_number=:vehicle_number,
             driver_photo=:driver_photo, vehicle_photo=:vehicle_photo, experience_years=:experience_years,
             driver_fee=:driver_fee, per_km_rate=:per_km_rate, is_available=:is_available, notes=:notes
         WHERE id=:id
@@ -6155,7 +6159,7 @@ def admin_list_ride_bookings():
     cursor = db.cursor()
     cursor.execute("""
         SELECT b.*, u.name AS customer_name, u.phone AS customer_phone, u.address AS customer_address,
-               d.name AS driver_name, d.phone AS driver_phone, d.vehicle_type, d.vehicle_number
+               d.name AS driver_name, d.phone AS driver_phone, d.vehicle_type, d.vehicle_name, d.vehicle_number
         FROM ride_bookings b
         JOIN users u ON b.customer_id = u.id
         JOIN ride_drivers d ON b.driver_id = d.id
