@@ -5865,6 +5865,11 @@ def send_ride_email_sync(booking_id):
         db.close()
         if not b or not recipients:
             return
+        import html as _html
+        for _k in ('customer_name', 'customer_phone', 'customer_address', 'driver_name', 'driver_phone',
+                   'vehicle_type', 'vehicle_name', 'vehicle_number', 'pickup_note', 'drop_note', 'status'):
+            if b.get(_k) is not None:
+                b[_k] = _html.escape(str(b[_k]))
 
         subject = f"🛵 Nayi Sawari Booking #{b['id']} — {b['customer_name']} ({b['distance_km']:g} km, ₹{b['total_fare']:.0f})"
         body_html = f"""
@@ -5948,7 +5953,7 @@ def get_ride_drivers():
 def book_ride():
     if session.get('role') != 'customer':
         return jsonify({'error': 'Sawari book karne ke liye pehle customer login karein.'}), 403
-    data = request.json or {}
+    data = request.get_json(silent=True) or {}
     try:
         driver_id = int(data.get('driver_id'))
         distance_km = float(data.get('distance_km'))
@@ -6054,7 +6059,7 @@ def _admin_only():
 def admin_update_ride_settings():
     guard = _admin_only()
     if guard: return guard
-    data = request.json or {}
+    data = request.get_json(silent=True) or {}
     db = get_db()
     cursor = db.cursor()
     if 'ride_per_km_rate' in data:
@@ -6235,7 +6240,7 @@ def admin_list_ride_bookings():
 def admin_update_ride_booking_status(booking_id):
     guard = _admin_only()
     if guard: return guard
-    data = request.json or {}
+    data = request.get_json(silent=True) or {}
     status = (data.get('status') or '').strip().upper()
     if status not in RIDE_STATUSES:
         return jsonify({'error': f'Status in {RIDE_STATUSES} me se hona chahiye.'}), 400

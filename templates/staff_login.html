@@ -169,7 +169,7 @@
             idInput.placeholder = "Enter ID / Email (e.g. rahul, amit)";
             helpText.innerHTML = `<i data-lucide="lightbulb" class="icon-inline" style="width: 14px; height: 14px; color: var(--primary-accent); margin-right: 4px;"></i> Seed riders: <code>rahul</code>, <code>amit</code>, <code>vicky</code>`;
         }
-        refreshIcons();
+        if (typeof refreshIcons === 'function') refreshIcons(); else if (window.lucide) lucide.createIcons();
     }
 
     function togglePasswordVisibility() {
