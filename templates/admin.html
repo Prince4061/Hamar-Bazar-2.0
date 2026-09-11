@@ -1720,6 +1720,11 @@
                         </a>
                     </li>
                     <li>
+                        <a class="menu-item-link" onclick="switchTab('rides')">
+                            <i data-lucide="bike"></i> Sawari / Rides
+                        </a>
+                    </li>
+                    <li>
                         <a class="menu-item-link" onclick="switchTab('banners')">
                             <i data-lucide="image"></i> Banner Ads Manage
                         </a>
@@ -2834,6 +2839,97 @@
             </div>
 
             <!-- --------------------------------------------------- -->
+            <!-- TAB: SAWARI / RIDE BOOKING -->
+            <!-- --------------------------------------------------- -->
+            <div class="tab-panel" id="panel-rides">
+                <div style="display: flex; flex-direction: column; gap: 20px; text-align: left;">
+
+                    <!-- Settings + KPIs -->
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                        <div class="dashboard-card" style="background: linear-gradient(135deg, #ecfeff 0%, #ffffff 100%); border: 1px solid #a5f3fc;">
+                            <div class="card-header-row" style="margin-bottom: 10px;">
+                                <h3 class="card-title-text" style="color:#0e7490;"><i data-lucide="route"></i> Per KM Rate (Default)</h3>
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <span style="font-weight:800; font-size:1.1rem; color:#0e7490;">₹</span>
+                                <input type="number" id="ride-per-km-input" class="form-input-custom" step="0.5" min="0" style="flex:1;" placeholder="e.g. 10">
+                                <button class="btn-custom btn-custom-primary" style="margin:0; padding:8px 14px;" onclick="saveRideSettings()">Save</button>
+                            </div>
+                            <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px;">Fare = (Per KM × Distance) + Driver Fee. Kisi driver ka alag rate ho to uske card me set karein.</p>
+                            <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:0.82rem; font-weight:700; cursor:pointer;">
+                                <input type="checkbox" id="ride-enabled-toggle" style="width:16px; height:16px;" onchange="saveRideSettings()"> Sawari service ON
+                            </label>
+                        </div>
+                        <div class="dashboard-card kpi-card">
+                            <div class="kpi-label">Active Drivers</div>
+                            <div class="kpi-value" id="kpi-ride-drivers">--</div>
+                        </div>
+                        <div class="dashboard-card kpi-card">
+                            <div class="kpi-label">Pending Bookings</div>
+                            <div class="kpi-value" id="kpi-ride-pending" style="color:#d97706;">--</div>
+                        </div>
+                        <div class="dashboard-card kpi-card">
+                            <div class="kpi-label">Completed Rides</div>
+                            <div class="kpi-value" id="kpi-ride-completed" style="color:var(--emerald-green);">--</div>
+                        </div>
+                    </div>
+
+                    <!-- Drivers -->
+                    <div class="dashboard-card">
+                        <div class="card-header-row" style="margin-bottom: 16px;">
+                            <h3 class="card-title-text"><i data-lucide="bike" style="color: var(--primary-accent);"></i> Drivers (Sawari Partners)</h3>
+                            <button onclick="openRideDriverModal()" class="btn-custom btn-custom-primary" style="margin:0;"><i data-lucide="plus"></i> Add Driver</button>
+                        </div>
+                        <div class="table-responsive-wrapper">
+                            <table class="premium-table responsive-cards">
+                                <thead>
+                                    <tr>
+                                        <th>Driver</th>
+                                        <th>Phone</th>
+                                        <th>Gaadi</th>
+                                        <th>Number</th>
+                                        <th>Experience</th>
+                                        <th>Driver Fee</th>
+                                        <th>Per KM</th>
+                                        <th>Rides</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-ride-drivers-rows"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Bookings -->
+                    <div class="dashboard-card">
+                        <div class="card-header-row" style="margin-bottom: 16px;">
+                            <h3 class="card-title-text"><i data-lucide="clipboard-list" style="color: var(--amber-warning);"></i> Ride Bookings</h3>
+                            <button onclick="loadAdminRideBookings()" class="btn-custom btn-custom-secondary" style="margin:0;"><i data-lucide="refresh-cw" style="width:12px; height:12px;"></i> Refresh</button>
+                        </div>
+                        <div class="table-responsive-wrapper" style="max-height: 520px; overflow-y:auto;">
+                            <table class="premium-table responsive-cards">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Time</th>
+                                        <th>Customer</th>
+                                        <th>Driver</th>
+                                        <th>Route</th>
+                                        <th>KM</th>
+                                        <th>Fare</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-ride-bookings-rows"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- --------------------------------------------------- -->
             <!-- TAB 14: BANNER ADS MANAGEMENT -->
             <!-- --------------------------------------------------- -->
             <div class="tab-panel" id="panel-banners">
@@ -3756,6 +3852,7 @@
                 if (tabId === 'searches') return txt.includes('search');
                 if (tabId === 'reviews') return txt.includes('reviews');
                 if (tabId === 'services') return txt.includes('services');
+                if (tabId === 'rides') return txt.includes('sawari') || txt.includes('rides');
                 if (tabId === 'userinfo') return txt.includes('user info');
                 if (tabId === 'banners') return txt.includes('banner');
                 if (tabId === 'webhooks') return txt.includes('webhook');
@@ -3821,6 +3918,10 @@
                 subtitle = "Add or remove local service providers and monitor feedback/ratings.";
                 loadAdminServices();
                 loadAdminServiceReviews();
+            } else if (tabId === 'rides') {
+                title = "Sawari — Local Ride Booking (Drivers & Bookings)";
+                subtitle = "Driver ka photo, gaadi, number aur experience add karein. Per-km rate set karein aur bookings manage karein.";
+                loadAdminRides();
             } else if (tabId === 'banners') {
                 title = "Banner Ads & Offers Manager";
                 subtitle = "Add, list, and configure homepage sliding banners linking to promotional products.";
@@ -7197,6 +7298,220 @@
         }
 
         // --- Admin Services Control Logic ---
+        // ===================== SAWARI / RIDES (Admin) =====================
+        let adminRideDrivers = [];
+        const RIDE_VEHICLE_ICON = { BIKE: '🏍️', CAR: '🚗', AUTO: '🛺', 'E-RICKSHAW': '🛺', TEMPO: '🚚', OTHER: '🚘' };
+
+        function loadAdminRides() {
+            loadAdminRideDrivers();
+            loadAdminRideBookings();
+        }
+
+        function loadAdminRideDrivers() {
+            const rows = document.getElementById("admin-ride-drivers-rows");
+            if (!rows) return;
+            rows.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:20px;">Loading drivers...</td></tr>`;
+            fetch('/api/admin/rides/drivers')
+                .then(r => r.json())
+                .then(data => {
+                    adminRideDrivers = data.drivers || [];
+                    const st = data.settings || {};
+                    const rateInput = document.getElementById("ride-per-km-input");
+                    if (rateInput && document.activeElement !== rateInput) rateInput.value = st.per_km_rate ?? 10;
+                    const tog = document.getElementById("ride-enabled-toggle");
+                    if (tog) tog.checked = !!st.enabled;
+                    document.getElementById("kpi-ride-drivers").innerText = adminRideDrivers.filter(d => d.is_available).length;
+                    document.getElementById("kpi-ride-completed").innerText = adminRideDrivers.reduce((a, d) => a + (d.completed_rides || 0), 0);
+                    rows.innerHTML = "";
+                    if (!adminRideDrivers.length) {
+                        rows.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--text-muted);">Abhi koi driver nahi hai. "Add Driver" par click karein.</td></tr>`;
+                        return;
+                    }
+                    adminRideDrivers.forEach(d => {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td data-label="Driver">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <img src="${d.driver_photo || '/static/images/default_category.png'}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid var(--border-color);" onerror="this.onerror=null; this.src='/static/images/default_category.png';">
+                                    <div><strong>${escAdmin(d.name)}</strong>${d.notes ? `<div style="font-size:0.7rem; color:var(--text-secondary);">${escAdmin(d.notes)}</div>` : ''}</div>
+                                </div>
+                            </td>
+                            <td data-label="Phone" style="font-weight:600;">${escAdmin(d.phone)}</td>
+                            <td data-label="Gaadi">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    ${d.vehicle_photo ? `<img src="${d.vehicle_photo}" style="width:48px; height:34px; border-radius:6px; object-fit:cover; border:1px solid var(--border-color);">` : ''}
+                                    <span>${RIDE_VEHICLE_ICON[d.vehicle_type] || '🚘'} ${escAdmin(d.vehicle_type)}</span>
+                                </div>
+                            </td>
+                            <td data-label="Number" style="font-family:monospace; font-weight:700;">${escAdmin(d.vehicle_number || '—')}</td>
+                            <td data-label="Experience">${d.experience_years} saal</td>
+                            <td data-label="Driver Fee" style="font-weight:700;">₹${Number(d.driver_fee || 0).toFixed(0)}</td>
+                            <td data-label="Per KM">₹${Number(d.effective_per_km_rate).toFixed(1)}${d.per_km_rate ? ' <span style="font-size:0.65rem; color:var(--primary-accent);">(custom)</span>' : ''}</td>
+                            <td data-label="Rides">${d.completed_rides || 0} / ${d.total_bookings || 0}</td>
+                            <td data-label="Status"><span class="status-badge ${d.is_available ? 'badge-delivered' : 'badge-failed'}">${d.is_available ? 'Available' : 'Off'}</span></td>
+                            <td data-label="Actions">
+                                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                    <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.72rem; margin:0;" onclick="openRideDriverModal(${d.id})"><i data-lucide="edit-2" style="width:12px; height:12px;"></i> Edit</button>
+                                    <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.72rem; margin:0;" onclick="toggleRideDriver(${d.id})">${d.is_available ? 'Set Off' : 'Set On'}</button>
+                                    <button class="btn-custom" style="padding:4px 8px; font-size:0.72rem; margin:0; background:var(--ruby-light); color:var(--ruby-danger); border:1px solid rgba(239,68,68,0.2); border-radius:var(--radius-sm); font-weight:700; cursor:pointer;" onclick="deleteRideDriver(${d.id}, '${escAdmin(d.name).replace(/'/g, "\\'")}')"><i data-lucide="trash-2" style="width:12px; height:12px;"></i></button>
+                                </div>
+                            </td>`;
+                        rows.appendChild(tr);
+                    });
+                    if (window.lucide) lucide.createIcons();
+                })
+                .catch(err => { console.error(err); rows.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--ruby-danger);">Drivers load nahi ho paye.</td></tr>`; });
+        }
+
+        function escAdmin(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+
+        function saveRideSettings() {
+            const rate = document.getElementById("ride-per-km-input").value;
+            const enabled = document.getElementById("ride-enabled-toggle").checked ? '1' : '0';
+            fetch('/api/admin/rides/settings', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ride_per_km_rate: rate, ride_enabled: enabled })
+            }).then(r => r.json()).then(d => {
+                if (d.success) { showAestheticToast(d.message, "success"); loadAdminRideDrivers(); }
+                else showAestheticToast(d.error || "Save failed", "error");
+            }).catch(() => showAestheticToast("Save failed", "error"));
+        }
+
+        function openRideDriverModal(id) {
+            const d = id ? adminRideDrivers.find(x => x.id === id) : null;
+            document.getElementById("ride-driver-modal-title").innerHTML = `<i data-lucide="bike" style="color: var(--primary-accent);"></i> ${d ? 'Edit Driver' : 'Add Driver'}`;
+            document.getElementById("rd-id").value = d ? d.id : "";
+            document.getElementById("rd-name").value = d ? d.name : "";
+            document.getElementById("rd-phone").value = d ? d.phone : "";
+            document.getElementById("rd-vehicle-type").value = d ? d.vehicle_type : "BIKE";
+            document.getElementById("rd-vehicle-number").value = d ? (d.vehicle_number || "") : "";
+            document.getElementById("rd-experience").value = d ? d.experience_years : 1;
+            document.getElementById("rd-fee").value = d ? d.driver_fee : 0;
+            document.getElementById("rd-per-km").value = d && d.per_km_rate ? d.per_km_rate : "";
+            document.getElementById("rd-notes").value = d ? (d.notes || "") : "";
+            document.getElementById("rd-available").checked = d ? !!d.is_available : true;
+            setRidePhotoPreview('driver', d ? d.driver_photo : "");
+            setRidePhotoPreview('vehicle', d ? d.vehicle_photo : "");
+            document.getElementById("ride-driver-modal").style.display = "flex";
+            if (window.lucide) lucide.createIcons();
+        }
+        function closeRideDriverModal() { document.getElementById("ride-driver-modal").style.display = "none"; }
+
+        function setRidePhotoPreview(kind, path) {
+            document.getElementById(`rd-${kind}-photo`).value = path || "";
+            const img = document.getElementById(`rd-${kind}-photo-preview`);
+            img.style.visibility = path ? 'visible' : 'hidden';
+            img.src = path || "";
+        }
+
+        function uploadRidePhoto(input, kind) {
+            if (!input.files || !input.files[0]) return;
+            const fd = new FormData();
+            fd.append("file", input.files[0]);
+            fd.append("kind", kind);
+            showAestheticToast("Photo upload ho rahi hai...", "info");
+            fetch('/api/admin/rides/upload-photo', { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success) { setRidePhotoPreview(kind, d.file_path); showAestheticToast("Photo upload ho gayi.", "success"); }
+                    else showAestheticToast(d.error || "Upload failed", "error");
+                }).catch(() => showAestheticToast("Upload failed", "error"));
+        }
+
+        function saveRideDriver() {
+            const id = document.getElementById("rd-id").value;
+            const payload = {
+                name: document.getElementById("rd-name").value.trim(),
+                phone: document.getElementById("rd-phone").value.trim(),
+                vehicle_type: document.getElementById("rd-vehicle-type").value,
+                vehicle_number: document.getElementById("rd-vehicle-number").value.trim(),
+                experience_years: document.getElementById("rd-experience").value,
+                driver_fee: document.getElementById("rd-fee").value,
+                per_km_rate: document.getElementById("rd-per-km").value,
+                driver_photo: document.getElementById("rd-driver-photo").value,
+                vehicle_photo: document.getElementById("rd-vehicle-photo").value,
+                notes: document.getElementById("rd-notes").value.trim(),
+                is_available: document.getElementById("rd-available").checked ? '1' : '0'
+            };
+            if (!payload.name || !payload.phone) { showAestheticToast("Naam aur phone zaroori hai.", "error"); return; }
+            const url = id ? `/api/admin/rides/drivers/${id}/update` : '/api/admin/rides/drivers';
+            fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success) { showAestheticToast(d.message, "success"); closeRideDriverModal(); loadAdminRideDrivers(); }
+                    else showAestheticToast(d.error || "Save failed", "error");
+                }).catch(() => showAestheticToast("Save failed", "error"));
+        }
+
+        function toggleRideDriver(id) {
+            fetch(`/api/admin/rides/drivers/${id}/toggle`, { method: 'POST' }).then(r => r.json()).then(d => {
+                if (d.success) loadAdminRideDrivers(); else showAestheticToast(d.error || "Failed", "error");
+            });
+        }
+
+        function deleteRideDriver(id, name) {
+            if (!confirm(`Driver "${name}" aur uski saari bookings delete karein?`)) return;
+            fetch(`/api/admin/rides/drivers/${id}/delete`, { method: 'POST' }).then(r => r.json()).then(d => {
+                if (d.success) { showAestheticToast(d.message, "success"); loadAdminRides(); }
+                else showAestheticToast(d.error || "Failed", "error");
+            });
+        }
+
+        function loadAdminRideBookings() {
+            const rows = document.getElementById("admin-ride-bookings-rows");
+            if (!rows) return;
+            rows.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px;">Loading bookings...</td></tr>`;
+            fetch('/api/admin/rides/bookings').then(r => r.json()).then(list => {
+                rows.innerHTML = "";
+                const pending = (list || []).filter(b => b.status === 'PENDING').length;
+                document.getElementById("kpi-ride-pending").innerText = pending;
+                if (!list || !list.length) {
+                    rows.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px; color:var(--text-muted);">Abhi koi booking nahi.</td></tr>`;
+                    return;
+                }
+                const badge = { PENDING: 'badge-pending', CONFIRMED: 'badge-processing', COMPLETED: 'badge-delivered', CANCELLED: 'badge-failed' };
+                list.forEach(b => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td data-label="#" style="font-weight:700;">#${b.id}</td>
+                        <td data-label="Time" style="font-size:0.75rem;">${escAdmin(b.created_at)}</td>
+                        <td data-label="Customer"><strong>${escAdmin(b.customer_name)}</strong><div style="font-size:0.72rem;">📞 ${escAdmin(b.customer_phone)}</div><div style="font-size:0.7rem; color:var(--text-secondary);">${escAdmin(b.customer_address || '')}</div></td>
+                        <td data-label="Driver"><strong>${escAdmin(b.driver_name)}</strong><div style="font-size:0.72rem;">${RIDE_VEHICLE_ICON[b.vehicle_type] || ''} ${escAdmin(b.vehicle_number || '')} · 📞 ${escAdmin(b.driver_phone)}</div></td>
+                        <td data-label="Route" style="font-size:0.78rem;">${escAdmin(b.pickup_note || '—')} → ${escAdmin(b.drop_note || '—')}</td>
+                        <td data-label="KM" style="font-weight:700;">${b.distance_km} km</td>
+                        <td data-label="Fare" style="font-weight:800; color:var(--primary-accent);">₹${Number(b.total_fare).toFixed(0)}<div style="font-size:0.65rem; color:var(--text-secondary); font-weight:500;">₹${b.per_km_rate}/km + ₹${b.driver_fee}</div></td>
+                        <td data-label="Status"><span class="status-badge ${badge[b.status] || 'badge-pending'}">${b.status}</span></td>
+                        <td data-label="Actions">
+                            <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                                <select class="form-input-custom" style="padding:4px 6px; font-size:0.72rem;" onchange="updateRideBookingStatus(${b.id}, this.value)">
+                                    ${['PENDING','CONFIRMED','COMPLETED','CANCELLED'].map(s => `<option value="${s}" ${s === b.status ? 'selected' : ''}>${s}</option>`).join('')}
+                                </select>
+                                <button class="btn-custom" style="padding:4px 8px; font-size:0.72rem; margin:0; background:var(--ruby-light); color:var(--ruby-danger); border:1px solid rgba(239,68,68,0.2); border-radius:var(--radius-sm); cursor:pointer;" onclick="deleteRideBooking(${b.id})"><i data-lucide="trash-2" style="width:12px; height:12px;"></i></button>
+                            </div>
+                        </td>`;
+                    rows.appendChild(tr);
+                });
+                if (window.lucide) lucide.createIcons();
+            }).catch(() => { rows.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--ruby-danger);">Bookings load nahi ho payi.</td></tr>`; });
+        }
+
+        function updateRideBookingStatus(id, status) {
+            fetch(`/api/admin/rides/bookings/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
+                .then(r => r.json()).then(d => {
+                    if (d.success) { showAestheticToast(d.message, "success"); loadAdminRideBookings(); loadAdminRideDrivers(); }
+                    else showAestheticToast(d.error || "Failed", "error");
+                });
+        }
+
+        function deleteRideBooking(id) {
+            if (!confirm(`Booking #${id} delete karein?`)) return;
+            fetch(`/api/admin/rides/bookings/${id}/delete`, { method: 'POST' }).then(r => r.json()).then(d => {
+                if (d.success) loadAdminRideBookings(); else showAestheticToast(d.error || "Failed", "error");
+            });
+        }
+
         function loadAdminServices() {
             const rowsContainer = document.getElementById("admin-services-rows");
             if (!rowsContainer) return;
@@ -7904,6 +8219,59 @@
     </script>
 
     <!-- Add Service Provider Modal -->
+    <div id="ride-driver-modal" class="modal-popup-overlay" style="display: none;" onclick="closeRideDriverModal()">
+        <div style="background: white; width: 100%; max-width: 520px; border-radius: 20px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); animation: slideUp 0.25s ease-out; overflow: hidden; max-height: 92vh; display:flex; flex-direction:column;" onclick="event.stopPropagation()">
+            <div style="padding: 18px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="ride-driver-modal-title" style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.15rem; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;"><i data-lucide="bike" style="color: var(--primary-accent);"></i> Add Driver</h3>
+                <button onclick="closeRideDriverModal()" style="border: none; background: #f1f5f9; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i data-lucide="x" style="width: 16px; height: 16px;"></i></button>
+            </div>
+            <div style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; text-align: left; overflow-y:auto;">
+                <input type="hidden" id="rd-id">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="form-group-custom"><label class="form-label-custom">Driver Name *</label><input type="text" id="rd-name" class="form-input-custom" style="width:100%;" placeholder="e.g. Ramesh Yadav"></div>
+                    <div class="form-group-custom"><label class="form-label-custom">Phone *</label><input type="text" id="rd-phone" class="form-input-custom" style="width:100%;" placeholder="10-digit mobile"></div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="form-group-custom"><label class="form-label-custom">Gaadi Type</label>
+                        <select id="rd-vehicle-type" class="form-input-custom" style="width:100%;">
+                            <option value="BIKE">🏍️ Bike</option><option value="CAR">🚗 Car</option><option value="AUTO">🛺 Auto</option><option value="E-RICKSHAW">🛺 E-Rickshaw</option><option value="TEMPO">🚚 Tempo</option><option value="OTHER">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group-custom"><label class="form-label-custom">Gaadi Number</label><input type="text" id="rd-vehicle-number" class="form-input-custom" style="width:100%; text-transform:uppercase;" placeholder="e.g. BR01AB1234"></div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+                    <div class="form-group-custom"><label class="form-label-custom">Experience (saal)</label><input type="number" id="rd-experience" class="form-input-custom" style="width:100%;" step="0.5" min="0" value="1"></div>
+                    <div class="form-group-custom"><label class="form-label-custom">Driver Fee (₹)</label><input type="number" id="rd-fee" class="form-input-custom" style="width:100%;" step="1" min="0" value="0"></div>
+                    <div class="form-group-custom"><label class="form-label-custom">Per KM (₹, blank = default)</label><input type="number" id="rd-per-km" class="form-input-custom" style="width:100%;" step="0.5" min="0" placeholder="default"></div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="form-group-custom">
+                        <label class="form-label-custom">Driver Photo</label>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <img id="rd-driver-photo-preview" src="" style="width:56px; height:56px; border-radius:50%; object-fit:cover; background:#f1f5f9; border:1px solid var(--border-color);" onerror="this.style.visibility='hidden'">
+                            <label class="btn-custom btn-custom-secondary" style="margin:0; padding:6px 10px; font-size:0.75rem; cursor:pointer;">Upload <input type="file" accept="image/*" style="display:none;" onchange="uploadRidePhoto(this, 'driver')"></label>
+                        </div>
+                        <input type="hidden" id="rd-driver-photo">
+                    </div>
+                    <div class="form-group-custom">
+                        <label class="form-label-custom">Gaadi Photo</label>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <img id="rd-vehicle-photo-preview" src="" style="width:80px; height:56px; border-radius:8px; object-fit:cover; background:#f1f5f9; border:1px solid var(--border-color);" onerror="this.style.visibility='hidden'">
+                            <label class="btn-custom btn-custom-secondary" style="margin:0; padding:6px 10px; font-size:0.75rem; cursor:pointer;">Upload <input type="file" accept="image/*" style="display:none;" onchange="uploadRidePhoto(this, 'vehicle')"></label>
+                        </div>
+                        <input type="hidden" id="rd-vehicle-photo">
+                    </div>
+                </div>
+                <div class="form-group-custom"><label class="form-label-custom">Notes (customer ko dikhega)</label><input type="text" id="rd-notes" class="form-input-custom" style="width:100%;" placeholder="e.g. Helmet available, raat me bhi available"></div>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; font-weight:700; cursor:pointer;"><input type="checkbox" id="rd-available" checked style="width:16px; height:16px;"> Available (customer ko dikhega)</label>
+            </div>
+            <div class="modal-popup-footer" style="padding: 14px 20px; border-top:1px solid var(--border-color); display:flex; justify-content:flex-end; gap:8px;">
+                <button class="btn-custom btn-custom-secondary" onclick="closeRideDriverModal()">Cancel</button>
+                <button class="btn-custom btn-custom-primary" onclick="saveRideDriver()">Save Driver</button>
+            </div>
+        </div>
+    </div>
+
     <div id="add-service-provider-modal" class="modal-popup-overlay" style="display: none;" onclick="closeAddServiceProviderModal()">
         <div style="background: white; width: 100%; max-width: 420px; border-radius: 20px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); animation: slideUp 0.25s ease-out; overflow: hidden;" onclick="event.stopPropagation()">
             <div style="padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">

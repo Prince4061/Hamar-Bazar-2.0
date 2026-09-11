@@ -287,6 +287,49 @@ def init_db():
     )
     ''')
 
+    # 16. Ride Drivers Table — "Sawari" local ride booking (no GPS, per-km pricing)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS ride_drivers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        vehicle_type TEXT DEFAULT 'BIKE',
+        vehicle_number TEXT,
+        driver_photo TEXT,
+        vehicle_photo TEXT,
+        experience_years REAL DEFAULT 0,
+        driver_fee REAL DEFAULT 0.0,
+        per_km_rate REAL,
+        is_available INTEGER DEFAULT 1,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
+    )
+    ''')
+
+    # 17. Ride Bookings Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS ride_bookings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL,
+        driver_id INTEGER NOT NULL,
+        distance_km REAL NOT NULL,
+        pickup_note TEXT,
+        drop_note TEXT,
+        per_km_rate REAL NOT NULL,
+        driver_fee REAL NOT NULL,
+        total_fare REAL NOT NULL,
+        status TEXT DEFAULT 'PENDING',
+        created_at TIMESTAMP DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
+        updated_at TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (driver_id) REFERENCES ride_drivers(id) ON DELETE CASCADE
+    )
+    ''')
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ride_bookings_customer ON ride_bookings(customer_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ride_bookings_status ON ride_bookings(status)")
+    cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('ride_per_km_rate', '10.0')")
+    cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('ride_enabled', '1')")
+
     # Migrate products table by adding mrp column if missing
     try:
         cursor.execute("ALTER TABLE products ADD COLUMN mrp REAL")

@@ -4503,7 +4503,7 @@ def trigger_webhook_async(event_type, payload_data):
                 if not url:
                     url = 'https://n8n.hamarai.in/webhook/167078e4-ccf5-4507-b605-fe218217f4b0'
                 secret = settings.get('webhook_secret', '').strip()
-                events_str = settings.get('webhook_events', 'order_created,user_search,status_changed,stock_alert,user_flagged')
+                events_str = settings.get('webhook_events', 'order_created,user_search,status_changed,stock_alert,user_flagged,ride_booked,ride_status_changed')
                 
                 if enabled == '1' and url:
                     enabled_events = [e.strip() for e in events_str.split(',')]
@@ -5765,6 +5765,431 @@ def delete_service_review(review_id):
         return jsonify({'success': True, 'message': 'Service review deleted successfully.'})
     except Exception as e:
         return jsonify({'error': f'Failed to delete service review: {str(e)}'}), 500
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SAWARI — Local Ride Booking (Rapido-style, no GPS; per-km fare + driver fee)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+RIDE_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'rides')
+os.makedirs(RIDE_UPLOAD_FOLDER, exist_ok=True)
+
+RIDE_STATUSES = ('PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED')
+
+def _ride_settings(cursor):
+    cursor.execute("SELECT key, value FROM system_settings WHERE key IN ('ride_per_km_rate', 'ride_enabled')")
+    rows = {r['key']: r['value'] for r in cursor.fetchall()}
+    try:
+        rate = float(rows.get('ride_per_km_rate', '10.0') or 10.0)
+    except (TypeError, ValueError):
+        rate = 10.0
+    return {'per_km_rate': rate, 'enabled': (rows.get('ride_enabled', '1') == '1')}
+
+def _driver_effective_rate(driver_row, global_rate):
+    r = driver_row.get('per_km_rate') if isinstance(driver_row, dict) else driver_row['per_km_rate']
+    try:
+        return float(r) if r not in (None, '', 0, 0.0) else float(global_rate)
+    except (TypeError, ValueError):
+        return float(global_rate)
+
+def _fetch_ride_booking(cursor, booking_id):
+    cursor.execute("""
+        SELECT b.*, u.name AS customer_name, u.phone AS customer_phone, u.address AS customer_address,
+               d.name AS driver_name, d.phone AS driver_phone, d.vehicle_type, d.vehicle_number,
+               d.driver_photo, d.vehicle_photo, d.experience_years
+        FROM ride_bookings b
+        JOIN users u ON b.customer_id = u.id
+        JOIN ride_drivers d ON b.driver_id = d.id
+        WHERE b.id = ?
+    """, (booking_id,))
+    row = cursor.fetchone()
+    return dict(row) if row else None
+
+def send_ride_email_sync(booking_id):
+    """Gmail notification to admin when a customer books a ride (same SMTP config as order emails)."""
+    try:
+        db = database.get_db_connection()
+        cursor = db.cursor()
+        cursor.execute("SELECT key, value FROM system_settings WHERE key IN ('smtp_email','smtp_password','admin_notification_email')")
+        cfg = {r['key']: r['value'] for r in cursor.fetchall()}
+        smtp_email = cfg.get('smtp_email') or os.environ.get('SMTP_EMAIL')
+        smtp_password = cfg.get('smtp_password') or os.environ.get('SMTP_PASSWORD')
+        admin_email = cfg.get('admin_notification_email') or os.environ.get('ADMIN_NOTIFICATION_EMAIL')
+        if not smtp_email or not smtp_password or not admin_email:
+            print("Ride email skipped: SMTP configuration or Admin Email missing.")
+            db.close()
+            return
+        recipients = [e.strip() for e in admin_email.split(',') if e.strip()]
+        b = _fetch_ride_booking(cursor, booking_id)
+        db.close()
+        if not b or not recipients:
+            return
+
+        subject = f"🛵 Nayi Sawari Booking #{b['id']} — {b['customer_name']} ({b['distance_km']:g} km, ₹{b['total_fare']:.0f})"
+        body_html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+          <div style="background:#0f766e;color:#fff;padding:18px 22px;">
+            <h2 style="margin:0;font-size:20px;">🛵 Sawari Booking #{b['id']}</h2>
+            <p style="margin:6px 0 0;opacity:.9;font-size:13px;">Hamar Bazar — Local Ride Service</p>
+          </div>
+          <div style="padding:20px 22px;font-size:14px;color:#111827;">
+            <h3 style="margin:0 0 8px;font-size:15px;color:#0f766e;">👤 Customer</h3>
+            <p style="margin:0 0 14px;line-height:1.6;">
+              <b>{b['customer_name']}</b><br>📞 {b['customer_phone']}<br>🏠 {b['customer_address'] or '—'}
+            </p>
+            <h3 style="margin:0 0 8px;font-size:15px;color:#0f766e;">🧑‍✈️ Driver</h3>
+            <p style="margin:0 0 14px;line-height:1.6;">
+              <b>{b['driver_name']}</b> ({b['vehicle_type']} · {b['vehicle_number'] or '—'})<br>📞 {b['driver_phone']}<br>Experience: {b['experience_years']:g} saal
+            </p>
+            <h3 style="margin:0 0 8px;font-size:15px;color:#0f766e;">📍 Ride Details</h3>
+            <table style="border-collapse:collapse;width:100%;font-size:13px;">
+              <tr><td style="padding:6px 0;color:#6b7280;">Kahan se</td><td style="padding:6px 0;"><b>{b['pickup_note'] or '—'}</b></td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280;">Kahan tak</td><td style="padding:6px 0;"><b>{b['drop_note'] or '—'}</b></td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280;">Distance</td><td style="padding:6px 0;"><b>{b['distance_km']:g} km</b></td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280;">Per km</td><td style="padding:6px 0;">₹{b['per_km_rate']:.2f}</td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280;">Driver fee</td><td style="padding:6px 0;">₹{b['driver_fee']:.2f}</td></tr>
+              <tr><td style="padding:8px 0;color:#6b7280;border-top:1px solid #e5e7eb;font-size:15px;">Total Fare</td><td style="padding:8px 0;border-top:1px solid #e5e7eb;font-size:17px;"><b style="color:#0f766e;">₹{b['total_fare']:.2f}</b></td></tr>
+            </table>
+            <p style="margin:16px 0 0;font-size:12px;color:#6b7280;">Booked at: {b['created_at']} (IST) · Status: {b['status']}</p>
+          </div>
+        </div>
+        """
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = smtp_email
+        msg['To'] = ", ".join(recipients)
+        msg.attach(MIMEText(body_html, 'html'))
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.starttls()
+        server.login(smtp_email, smtp_password)
+        server.sendmail(smtp_email, recipients, msg.as_string())
+        server.quit()
+        print(f"Ride booking email for #{booking_id} sent successfully.")
+    except Exception as e:
+        print(f"Error sending ride booking email: {e}")
+
+def send_ride_email_async(booking_id):
+    t = threading.Thread(target=send_ride_email_sync, args=(booking_id,))
+    t.daemon = True
+    t.start()
+
+# ---- Public / Customer endpoints ----
+
+@app.route('/api/rides/settings', methods=['GET'])
+def get_ride_settings():
+    db = get_db()
+    return jsonify(_ride_settings(db.cursor()))
+
+@app.route('/api/rides/drivers', methods=['GET'])
+def get_ride_drivers():
+    db = get_db()
+    cursor = db.cursor()
+    settings = _ride_settings(cursor)
+    cursor.execute("""
+        SELECT d.*,
+               (SELECT COUNT(*) FROM ride_bookings b WHERE b.driver_id = d.id AND b.status = 'COMPLETED') AS completed_rides
+        FROM ride_drivers d
+        WHERE d.is_available = 1
+        ORDER BY d.experience_years DESC, d.id ASC
+    """)
+    drivers = []
+    for row in cursor.fetchall():
+        d = dict(row)
+        d['effective_per_km_rate'] = _driver_effective_rate(d, settings['per_km_rate'])
+        drivers.append(d)
+    return jsonify({'drivers': drivers, 'per_km_rate': settings['per_km_rate'], 'enabled': settings['enabled']})
+
+@app.route('/api/rides/book', methods=['POST'])
+def book_ride():
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Sawari book karne ke liye pehle customer login karein.'}), 403
+    data = request.json or {}
+    try:
+        driver_id = int(data.get('driver_id'))
+        distance_km = float(data.get('distance_km'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Driver aur distance (km) zaroori hai.'}), 400
+    if distance_km <= 0 or distance_km > 200:
+        return jsonify({'error': 'Distance 0 se zyada aur 200 km se kam honi chahiye.'}), 400
+    pickup_note = (data.get('pickup_note') or '').strip()[:200]
+    drop_note = (data.get('drop_note') or '').strip()[:200]
+
+    db = get_db()
+    cursor = db.cursor()
+    settings = _ride_settings(cursor)
+    if not settings['enabled']:
+        return jsonify({'error': 'Sawari service abhi band hai. Thodi der baad try karein.'}), 400
+    cursor.execute("SELECT * FROM ride_drivers WHERE id = ?", (driver_id,))
+    driver = cursor.fetchone()
+    if not driver:
+        return jsonify({'error': 'Driver nahi mila.'}), 404
+    if not driver['is_available']:
+        return jsonify({'error': 'Yeh driver abhi available nahi hai.'}), 400
+
+    per_km = _driver_effective_rate(dict(driver), settings['per_km_rate'])
+    driver_fee = float(driver['driver_fee'] or 0.0)
+    total = round(per_km * distance_km + driver_fee, 2)
+    customer_id = session.get('role_id')
+    now_str = ist_now_str()
+    cursor.execute("""
+        INSERT INTO ride_bookings (customer_id, driver_id, distance_km, pickup_note, drop_note, per_km_rate, driver_fee, total_fare, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
+    """, (customer_id, driver_id, distance_km, pickup_note, drop_note, per_km, driver_fee, total, now_str, now_str))
+    db.commit()
+    booking_id = cursor.lastrowid
+    booking = _fetch_ride_booking(cursor, booking_id)
+
+    send_ride_email_async(booking_id)
+    trigger_webhook_async('ride_booked', {
+        'booking_id': booking_id,
+        'customer_id': customer_id,
+        'customer_name': booking.get('customer_name'),
+        'customer_phone': booking.get('customer_phone'),
+        'customer_address': booking.get('customer_address'),
+        'driver_id': driver_id,
+        'driver_name': booking.get('driver_name'),
+        'driver_phone': booking.get('driver_phone'),
+        'vehicle': f"{booking.get('vehicle_type')} {booking.get('vehicle_number') or ''}".strip(),
+        'distance_km': distance_km,
+        'pickup_note': pickup_note,
+        'drop_note': drop_note,
+        'per_km_rate': per_km,
+        'driver_fee': driver_fee,
+        'total_fare': total,
+        'status': 'PENDING',
+        'timestamp': ist_now_iso()
+    })
+    return jsonify({'success': True, 'message': 'Sawari book ho gayi! Driver aapko call karega.', 'booking': booking})
+
+@app.route('/api/rides/my', methods=['GET'])
+def my_ride_bookings():
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT b.*, d.name AS driver_name, d.phone AS driver_phone, d.vehicle_type, d.vehicle_number, d.driver_photo, d.vehicle_photo
+        FROM ride_bookings b JOIN ride_drivers d ON b.driver_id = d.id
+        WHERE b.customer_id = ?
+        ORDER BY b.id DESC LIMIT 30
+    """, (session.get('role_id'),))
+    return jsonify([dict(r) for r in cursor.fetchall()])
+
+@app.route('/api/rides/<int:booking_id>/cancel', methods=['POST'])
+def cancel_ride_booking(booking_id):
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT customer_id, status FROM ride_bookings WHERE id = ?", (booking_id,))
+    b = cursor.fetchone()
+    if not b or b['customer_id'] != session.get('role_id'):
+        return jsonify({'error': 'Booking nahi mili.'}), 404
+    if b['status'] not in ('PENDING', 'CONFIRMED'):
+        return jsonify({'error': 'Yeh booking ab cancel nahi ho sakti.'}), 400
+    cursor.execute("UPDATE ride_bookings SET status = 'CANCELLED', updated_at = ? WHERE id = ?", (ist_now_str(), booking_id))
+    db.commit()
+    trigger_webhook_async('ride_status_changed', {'booking_id': booking_id, 'new_status': 'CANCELLED', 'by': 'customer', 'timestamp': ist_now_iso()})
+    return jsonify({'success': True, 'message': 'Sawari cancel ho gayi.'})
+
+# ---- Admin endpoints ----
+
+def _admin_only():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized. Please log in as Admin.'}), 403
+    return None
+
+@app.route('/api/admin/rides/settings', methods=['POST'])
+def admin_update_ride_settings():
+    guard = _admin_only()
+    if guard: return guard
+    data = request.json or {}
+    db = get_db()
+    cursor = db.cursor()
+    if 'ride_per_km_rate' in data:
+        try:
+            rate = float(data['ride_per_km_rate'])
+            if rate < 0: raise ValueError
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Per km rate valid number hona chahiye.'}), 400
+        cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('ride_per_km_rate', ?)", (str(rate),))
+    if 'ride_enabled' in data:
+        cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('ride_enabled', ?)", ('1' if str(data['ride_enabled']) in ('1', 'true', 'True') else '0',))
+    db.commit()
+    return jsonify({'success': True, 'message': 'Sawari settings updated.', 'settings': _ride_settings(cursor)})
+
+@app.route('/api/admin/rides/upload-photo', methods=['POST'])
+def admin_upload_ride_photo():
+    guard = _admin_only()
+    if guard: return guard
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part in the request.'}), 400
+    file = request.files['file']
+    if file.filename == '' or not allowed_file(file.filename):
+        return jsonify({'error': 'Invalid or missing image file.'}), 400
+    kind = request.form.get('kind', 'driver')
+    kind = 'vehicle' if kind == 'vehicle' else 'driver'
+    temp_name = f"{kind}_{int(ist_now().timestamp())}_{random.randint(1000, 9999)}.webp"
+    saved = optimize_and_save_image(file, RIDE_UPLOAD_FOLDER, temp_name, max_size=(600, 600), quality=78)
+    return jsonify({'success': True, 'file_path': f"/static/uploads/rides/{saved}"})
+
+def _parse_driver_payload(data):
+    name = (data.get('name') or '').strip()
+    phone = (data.get('phone') or '').strip()
+    if not name or not phone:
+        return None, 'Driver ka naam aur phone zaroori hai.'
+    vehicle_type = (data.get('vehicle_type') or 'BIKE').strip().upper()
+    if vehicle_type not in ('BIKE', 'CAR', 'AUTO', 'E-RICKSHAW', 'TEMPO', 'OTHER'):
+        vehicle_type = 'OTHER'
+    def _num(key, default=0.0):
+        v = data.get(key)
+        if v in (None, ''): return default
+        try: return float(v)
+        except (TypeError, ValueError): return default
+    per_km = data.get('per_km_rate')
+    per_km_val = None
+    if per_km not in (None, ''):
+        try:
+            per_km_val = float(per_km)
+            if per_km_val <= 0: per_km_val = None
+        except (TypeError, ValueError):
+            per_km_val = None
+    return {
+        'name': name, 'phone': phone, 'vehicle_type': vehicle_type,
+        'vehicle_number': (data.get('vehicle_number') or '').strip().upper(),
+        'driver_photo': (data.get('driver_photo') or '').strip() or None,
+        'vehicle_photo': (data.get('vehicle_photo') or '').strip() or None,
+        'experience_years': _num('experience_years'),
+        'driver_fee': _num('driver_fee'),
+        'per_km_rate': per_km_val,
+        'is_available': 1 if str(data.get('is_available', '1')) in ('1', 'true', 'True') else 0,
+        'notes': (data.get('notes') or '').strip()[:300],
+    }, None
+
+@app.route('/api/admin/rides/drivers', methods=['GET'])
+def admin_list_ride_drivers():
+    guard = _admin_only()
+    if guard: return guard
+    db = get_db()
+    cursor = db.cursor()
+    settings = _ride_settings(cursor)
+    cursor.execute("""
+        SELECT d.*,
+               (SELECT COUNT(*) FROM ride_bookings b WHERE b.driver_id = d.id) AS total_bookings,
+               (SELECT COUNT(*) FROM ride_bookings b WHERE b.driver_id = d.id AND b.status = 'COMPLETED') AS completed_rides
+        FROM ride_drivers d ORDER BY d.id DESC
+    """)
+    drivers = []
+    for row in cursor.fetchall():
+        d = dict(row)
+        d['effective_per_km_rate'] = _driver_effective_rate(d, settings['per_km_rate'])
+        drivers.append(d)
+    return jsonify({'drivers': drivers, 'settings': settings})
+
+@app.route('/api/admin/rides/drivers', methods=['POST'])
+def admin_add_ride_driver():
+    guard = _admin_only()
+    if guard: return guard
+    data = request.json if request.is_json else request.form
+    payload, err = _parse_driver_payload(data or {})
+    if err: return jsonify({'error': err}), 400
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        INSERT INTO ride_drivers (name, phone, vehicle_type, vehicle_number, driver_photo, vehicle_photo, experience_years, driver_fee, per_km_rate, is_available, notes)
+        VALUES (:name, :phone, :vehicle_type, :vehicle_number, :driver_photo, :vehicle_photo, :experience_years, :driver_fee, :per_km_rate, :is_available, :notes)
+    """, payload)
+    db.commit()
+    return jsonify({'success': True, 'message': f"Driver '{payload['name']}' add ho gaya.", 'driver_id': cursor.lastrowid})
+
+@app.route('/api/admin/rides/drivers/<int:driver_id>/update', methods=['POST'])
+def admin_update_ride_driver(driver_id):
+    guard = _admin_only()
+    if guard: return guard
+    data = request.json if request.is_json else request.form
+    payload, err = _parse_driver_payload(data or {})
+    if err: return jsonify({'error': err}), 400
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id FROM ride_drivers WHERE id = ?", (driver_id,))
+    if not cursor.fetchone():
+        return jsonify({'error': 'Driver nahi mila.'}), 404
+    payload['id'] = driver_id
+    cursor.execute("""
+        UPDATE ride_drivers SET name=:name, phone=:phone, vehicle_type=:vehicle_type, vehicle_number=:vehicle_number,
+            driver_photo=:driver_photo, vehicle_photo=:vehicle_photo, experience_years=:experience_years,
+            driver_fee=:driver_fee, per_km_rate=:per_km_rate, is_available=:is_available, notes=:notes
+        WHERE id=:id
+    """, payload)
+    db.commit()
+    return jsonify({'success': True, 'message': 'Driver details update ho gaye.'})
+
+@app.route('/api/admin/rides/drivers/<int:driver_id>/toggle', methods=['POST'])
+def admin_toggle_ride_driver(driver_id):
+    guard = _admin_only()
+    if guard: return guard
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("UPDATE ride_drivers SET is_available = CASE WHEN is_available = 1 THEN 0 ELSE 1 END WHERE id = ?", (driver_id,))
+    db.commit()
+    cursor.execute("SELECT is_available FROM ride_drivers WHERE id = ?", (driver_id,))
+    row = cursor.fetchone()
+    if not row: return jsonify({'error': 'Driver nahi mila.'}), 404
+    return jsonify({'success': True, 'is_available': row['is_available']})
+
+@app.route('/api/admin/rides/drivers/<int:driver_id>/delete', methods=['POST', 'DELETE'])
+def admin_delete_ride_driver(driver_id):
+    guard = _admin_only()
+    if guard: return guard
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM ride_bookings WHERE driver_id = ?", (driver_id,))
+    cursor.execute("DELETE FROM ride_drivers WHERE id = ?", (driver_id,))
+    db.commit()
+    return jsonify({'success': True, 'message': 'Driver aur uski bookings delete ho gayi.'})
+
+@app.route('/api/admin/rides/bookings', methods=['GET'])
+def admin_list_ride_bookings():
+    guard = _admin_only()
+    if guard: return guard
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT b.*, u.name AS customer_name, u.phone AS customer_phone, u.address AS customer_address,
+               d.name AS driver_name, d.phone AS driver_phone, d.vehicle_type, d.vehicle_number
+        FROM ride_bookings b
+        JOIN users u ON b.customer_id = u.id
+        JOIN ride_drivers d ON b.driver_id = d.id
+        ORDER BY b.id DESC LIMIT 200
+    """)
+    return jsonify([dict(r) for r in cursor.fetchall()])
+
+@app.route('/api/admin/rides/bookings/<int:booking_id>/status', methods=['POST'])
+def admin_update_ride_booking_status(booking_id):
+    guard = _admin_only()
+    if guard: return guard
+    data = request.json or {}
+    status = (data.get('status') or '').strip().upper()
+    if status not in RIDE_STATUSES:
+        return jsonify({'error': f'Status in {RIDE_STATUSES} me se hona chahiye.'}), 400
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("UPDATE ride_bookings SET status = ?, updated_at = ? WHERE id = ?", (status, ist_now_str(), booking_id))
+    if cursor.rowcount == 0:
+        return jsonify({'error': 'Booking nahi mili.'}), 404
+    db.commit()
+    trigger_webhook_async('ride_status_changed', {'booking_id': booking_id, 'new_status': status, 'by': 'admin', 'timestamp': ist_now_iso()})
+    return jsonify({'success': True, 'message': f'Booking #{booking_id} ab {status} hai.'})
+
+@app.route('/api/admin/rides/bookings/<int:booking_id>/delete', methods=['POST', 'DELETE'])
+def admin_delete_ride_booking(booking_id):
+    guard = _admin_only()
+    if guard: return guard
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM ride_bookings WHERE id = ?", (booking_id,))
+    db.commit()
+    return jsonify({'success': True, 'message': 'Booking delete ho gayi.'})
+
 
 # Programmatically exempt all API routes from CSRF protection to prevent unexpected CSRF validation errors
 try:

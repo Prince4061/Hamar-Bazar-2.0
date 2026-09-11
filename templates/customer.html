@@ -65,6 +65,8 @@ html, body {
 }
 
 /* Tab screens */
+.ride-tab-btn { background:#fff; border:1.5px solid var(--border-color); color:var(--text-secondary); cursor:pointer; }
+.ride-tab-btn.active { background:#0f766e; border-color:#0f766e; color:#fff; }
 .app-screen {
     display: none;
     opacity: 0;
@@ -796,6 +798,19 @@ html, body {
             </div>
 
             <div id="home-default-storefronts">
+                <!-- Sawari (Ride Booking) entry card -->
+                <div id="home-sawari-card" class="fade-in-up" onclick="switchTab('rides')" style="display:none; cursor:pointer; margin-bottom:16px; border-radius:18px; padding:14px 16px; background:linear-gradient(135deg,#0f766e 0%,#14b8a6 60%,#5eead4 100%); color:#fff; box-shadow:0 10px 24px -10px rgba(13,148,136,.7); position:relative; overflow:hidden;">
+                    <div style="position:absolute; right:-18px; top:-18px; width:110px; height:110px; border-radius:50%; background:rgba(255,255,255,.12);"></div>
+                    <div style="display:flex; align-items:center; gap:12px; position:relative;">
+                        <div style="width:48px; height:48px; border-radius:14px; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; font-size:1.6rem;">🛵</div>
+                        <div style="flex:1; text-align:left;">
+                            <div style="font-weight:800; font-size:1.05rem; letter-spacing:-.2px;">Sawari Book Karein</div>
+                            <div style="font-size:.75rem; opacity:.92; margin-top:2px;">Bike / Auto / Car · Sirf <b id="home-sawari-rate">₹10</b>/km + driver fee · Location dalne ki zaroorat nahi</div>
+                        </div>
+                        <i data-lucide="chevron-right" style="width:22px; height:22px; opacity:.9;"></i>
+                    </div>
+                </div>
+
                 <!-- Store Switcher (Grocery vs Pharmacy) -->
                 <div class="store-switcher-container fade-in-up" style="margin-top: 0; margin-bottom: 20px;">
                     <button class="store-switch-btn active" id="btn-switch-grocery" onclick="showStorePage('grocery')">
@@ -1050,6 +1065,30 @@ html, body {
         </div>
 
         <!-- ==================== SCREEN 6: SERVICES ==================== -->
+        <!-- ===================== SAWARI / RIDE BOOKING SCREEN ===================== -->
+        <div id="screen-rides" class="app-screen" style="text-align: left;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+                <button onclick="switchTab('home')" style="width:36px; height:36px; border-radius:50%; border:1px solid var(--border-color); background:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;"><i data-lucide="arrow-left" style="width:18px; height:18px;"></i></button>
+                <div>
+                    <h3 style="font-size:1.3rem; font-weight:800; margin:0; color:var(--text-primary);">🛵 Sawari Book Karein</h3>
+                    <p style="font-size:.75rem; color:var(--text-secondary); margin:2px 0 0;">Driver chuniye, kitne km jaana hai bataiye, bas!</p>
+                </div>
+            </div>
+
+            <div id="rides-fare-info" style="border-radius:14px; padding:12px 14px; background:linear-gradient(135deg,#ecfeff,#f0fdfa); border:1px solid #a5f3fc; margin-bottom:14px; font-size:.8rem; color:#155e75; line-height:1.5;">
+                <b>Fare kaise banta hai?</b><br>
+                <span id="rides-fare-formula">₹10 per km × distance + driver fee</span>. Booking par driver aapko call karega aur ghar se pick karega. Payment seedha driver ko cash.
+            </div>
+
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <button class="btn-custom active ride-tab-btn" id="ride-tab-drivers" onclick="showRideTab('drivers')" style="flex:1; padding:8px; font-size:.8rem; font-weight:700; border-radius:100px; margin:0;">Drivers</button>
+                <button class="btn-custom ride-tab-btn" id="ride-tab-mine" onclick="showRideTab('mine')" style="flex:1; padding:8px; font-size:.8rem; font-weight:700; border-radius:100px; margin:0;">Meri Sawari</button>
+            </div>
+
+            <div id="rides-drivers-container" style="display:flex; flex-direction:column; gap:12px; padding-bottom:24px;"></div>
+            <div id="rides-mine-container" style="display:none; flex-direction:column; gap:12px; padding-bottom:24px;"></div>
+        </div>
+
         <div id="screen-services" class="app-screen" style="text-align: left;">
             <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 12px; color: var(--text-primary);">Local Services</h3>
             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.4;">Need help with repairs or fittings? Contact local verified service providers below.</p>
@@ -1060,6 +1099,15 @@ html, body {
                 <button onclick="filterServices('Plumber')" class="btn-custom service-filter-btn" id="filter-plumber" style="padding: 6px 14px; font-size: 0.78rem; font-weight:700; white-space: nowrap; margin:0; border-radius:100px;">Plumber</button>
                 <button onclick="filterServices('Electrician')" class="btn-custom service-filter-btn" id="filter-electrician" style="padding: 6px 14px; font-size: 0.78rem; font-weight:700; white-space: nowrap; margin:0; border-radius:100px;">Electrician</button>
                 <button onclick="filterServices('Carpenter')" class="btn-custom service-filter-btn" id="filter-carpenter" style="padding: 6px 14px; font-size: 0.78rem; font-weight:700; white-space: nowrap; margin:0; border-radius:100px;">Carpenter</button>
+            </div>
+
+            <div onclick="switchTab('rides')" style="cursor:pointer; margin-bottom:16px; border-radius:14px; padding:12px 14px; background:#f0fdfa; border:1px solid #99f6e4; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.4rem;">🛵</span>
+                <div style="flex:1;">
+                    <div style="font-weight:800; font-size:.92rem; color:#0f766e;">Sawari / Ride Booking</div>
+                    <div style="font-size:.72rem; color:#0d9488;">Local driver book karein, per-km fare, koi GPS nahi</div>
+                </div>
+                <i data-lucide="chevron-right" style="width:18px; height:18px; color:#0f766e;"></i>
             </div>
 
             <!-- Services List Grid -->
@@ -1241,6 +1289,60 @@ html, body {
 <div id="expense-modal" style="display: none;"></div>
 
 <!-- Service Reviews Modal -->
+<div id="ride-book-modal" class="modal-popup-overlay" style="display: none;" onclick="closeRideBookModal()">
+    <div style="background: white; width: 100%; max-width: 440px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,.15); overflow: hidden; display: flex; flex-direction: column; max-height: 92vh; border: 1px solid var(--border-color); animation: slideUp .3s cubic-bezier(.16,1,.3,1);" onclick="event.stopPropagation()">
+        <div style="padding: 16px 18px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background:#f0fdfa;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <img id="rb-driver-photo" src="" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid #99f6e4; background:#fff;" onerror="this.onerror=null; this.src='/static/images/default_category.png';">
+                <div>
+                    <h3 id="rb-driver-name" style="font-size:1.05rem; font-weight:800; color:var(--text-primary); margin:0;">Driver</h3>
+                    <div id="rb-driver-meta" style="font-size:.72rem; color:var(--text-secondary);">Bike · BR01AB1234</div>
+                </div>
+            </div>
+            <button onclick="closeRideBookModal()" style="width:34px; height:34px; border-radius:50%; background:#fff; border:1px solid var(--border-color); display:flex; align-items:center; justify-content:center; cursor:pointer;"><i data-lucide="x" style="width:18px; height:18px;"></i></button>
+        </div>
+        <div style="padding:16px 18px; overflow-y:auto; display:flex; flex-direction:column; gap:14px;">
+            <div>
+                <label style="font-size:.8rem; font-weight:800; color:var(--text-primary); display:block; margin-bottom:8px;">Kitne km jaana hai?</label>
+                <div id="rb-km-quick" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;"></div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <input type="number" id="rb-km-input" min="0.5" max="200" step="0.5" value="2" oninput="rideKmChanged(this.value)" style="flex:1; padding:10px 12px; border:1.5px solid var(--border-color); border-radius:12px; font-size:1rem; font-weight:700;">
+                    <span style="font-weight:700; color:var(--text-secondary);">km</span>
+                </div>
+                <p style="font-size:.7rem; color:var(--text-muted); margin-top:6px;">Andaaza bataiye. Driver aapse confirm kar lega.</p>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                    <label style="font-size:.75rem; font-weight:700; display:block; margin-bottom:4px;">Kahan se? (optional)</label>
+                    <input type="text" id="rb-pickup" maxlength="200" placeholder="e.g. Ghar / Bagga Ji" style="width:100%; padding:9px 10px; border:1.5px solid var(--border-color); border-radius:10px; font-size:.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:.75rem; font-weight:700; display:block; margin-bottom:4px;">Kahan tak? (optional)</label>
+                    <input type="text" id="rb-drop" maxlength="200" placeholder="e.g. Station / Hospital" style="width:100%; padding:9px 10px; border:1.5px solid var(--border-color); border-radius:10px; font-size:.85rem;">
+                </div>
+            </div>
+            <div style="border-radius:14px; padding:12px 14px; background:#f8fafc; border:1px dashed var(--border-color); font-size:.8rem;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Per km × distance</span><b id="rb-km-cost">₹0</b></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span>Driver fee</span><b id="rb-fee-cost">₹0</b></div>
+                <div style="display:flex; justify-content:space-between; border-top:1px solid var(--border-color); padding-top:8px; font-size:1rem;"><span style="font-weight:800;">Total Fare</span><b id="rb-total" style="color:#0f766e; font-size:1.15rem;">₹0</b></div>
+            </div>
+        </div>
+        <div style="padding:12px 18px 16px; border-top:1px solid var(--border-color);">
+            <button id="rb-confirm-btn" onclick="confirmRideBooking()" class="btn w-full" style="padding:13px; font-size:.95rem; font-weight:800; background:#0f766e; color:#fff; border-radius:14px; border:none; cursor:pointer;">✅ Book Karein</button>
+        </div>
+    </div>
+</div>
+
+<div id="ride-success-modal" class="modal-popup-overlay" style="display: none;" onclick="closeRideSuccessModal()">
+    <div style="background: white; width: 100%; max-width: 400px; border-radius: 24px; padding:24px 20px; text-align:center; box-shadow: 0 20px 25px -5px rgba(0,0,0,.15); animation: slideUp .3s cubic-bezier(.16,1,.3,1);" onclick="event.stopPropagation()">
+        <div style="width:72px; height:72px; border-radius:50%; background:#dcfce7; margin:0 auto 12px; display:flex; align-items:center; justify-content:center; font-size:2rem;">🎉</div>
+        <h3 style="font-size:1.2rem; font-weight:800; margin:0 0 4px;">Sawari Book Ho Gayi!</h3>
+        <p id="rs-summary" style="font-size:.82rem; color:var(--text-secondary); margin:0 0 14px; line-height:1.5;"></p>
+        <a id="rs-call-btn" href="#" class="btn w-full" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:12px; font-weight:800; background:#10b981; color:#fff; border-radius:14px; text-decoration:none; margin-bottom:8px;"><i data-lucide="phone" style="width:16px; height:16px;"></i> Driver ko Call Karein</a>
+        <button onclick="closeRideSuccessModal(); showRideTab('mine');" class="btn w-full" style="padding:11px; font-weight:700; background:#f1f5f9; color:var(--text-primary); border-radius:14px; border:none; cursor:pointer;">Meri Sawari Dekhein</button>
+    </div>
+</div>
+
 <div id="service-reviews-modal" class="modal-popup-overlay" style="display: none;" onclick="closeServiceReviewsModal()">
     <div style="background: white; width: 100%; max-width: 440px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; border: 1px solid var(--border-color); animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);" onclick="event.stopPropagation()">
         
@@ -1929,6 +2031,8 @@ html, body {
             loadCustomerAboutTeamPhoto();
         } else if (tabId === 'services') {
             loadLocalServices();
+        } else if (tabId === 'rides') {
+            loadRideScreen();
         } else if (tabId === 'leaderboard') {
             loadLeaderboard();
         }
@@ -2608,6 +2712,7 @@ html, body {
     }
 
     function loadCategories() {
+        try { initHomeSawariCard(); } catch (e) {}
         ensureShopsCacheLoaded(() => {
             const grid = document.getElementById("homepage-category-grid");
             if (!grid) return;
@@ -4586,6 +4691,209 @@ html, body {
             })
             .catch(err => console.error("Error loading delivery settings:", err));
     }
+    // ===================== SAWARI / RIDE BOOKING (Customer) =====================
+    let rideDrivers = [];
+    let rideGlobalRate = 10;
+    let rideSelectedDriver = null;
+    let rideKm = 2;
+    const RIDE_ICON = { BIKE: '🏍️', CAR: '🚗', AUTO: '🛺', 'E-RICKSHAW': '🛺', TEMPO: '🚚', OTHER: '🚘' };
+    const RIDE_LABEL = { BIKE: 'Bike', CAR: 'Car', AUTO: 'Auto', 'E-RICKSHAW': 'E-Rickshaw', TEMPO: 'Tempo', OTHER: 'Gaadi' };
+
+    // Home card: show only if service enabled & at least one driver
+    function initHomeSawariCard() {
+        fetch('/api/rides/drivers').then(r => r.json()).then(d => {
+            const card = document.getElementById("home-sawari-card");
+            if (!card) return;
+            if (d.enabled && (d.drivers || []).length) {
+                card.style.display = "block";
+                const r = document.getElementById("home-sawari-rate");
+                if (r) r.innerText = '₹' + Number(d.per_km_rate).toFixed(0);
+                refreshIcons();
+            } else {
+                card.style.display = "none";
+            }
+        }).catch(() => {});
+    }
+
+    function showRideTab(which) {
+        document.getElementById("rides-drivers-container").style.display = which === 'drivers' ? 'flex' : 'none';
+        document.getElementById("rides-mine-container").style.display = which === 'mine' ? 'flex' : 'none';
+        document.querySelectorAll('.ride-tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(which === 'drivers' ? 'ride-tab-drivers' : 'ride-tab-mine').classList.add('active');
+        if (which === 'mine') loadMyRides();
+    }
+
+    function loadRideScreen() {
+        showRideTab('drivers');
+        const c = document.getElementById("rides-drivers-container");
+        c.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:.85rem;">Drivers load ho rahe hain...</div>`;
+        fetch('/api/rides/drivers').then(r => r.json()).then(d => {
+            rideDrivers = d.drivers || [];
+            rideGlobalRate = Number(d.per_km_rate || 10);
+            const f = document.getElementById("rides-fare-formula");
+            if (f) f.innerText = `₹${rideGlobalRate.toFixed(0)} per km × distance + driver fee`;
+            if (!d.enabled) {
+                c.innerHTML = `<div style="text-align:center; padding:28px 12px; color:var(--text-secondary); font-size:.85rem;">😴 Sawari service abhi band hai. Thodi der baad try karein.</div>`;
+                return;
+            }
+            renderRideDrivers();
+        }).catch(() => { c.innerHTML = `<div style="text-align:center; padding:24px; color:var(--ruby-danger); font-size:.85rem;">Drivers load nahi ho paye.</div>`; });
+    }
+
+    function renderRideDrivers() {
+        const c = document.getElementById("rides-drivers-container");
+        c.innerHTML = "";
+        if (!rideDrivers.length) {
+            c.innerHTML = `<div style="text-align:center; padding:28px 12px; color:var(--text-muted); font-size:.85rem;">Abhi koi driver available nahi hai.</div>`;
+            return;
+        }
+        rideDrivers.forEach(d => {
+            const card = document.createElement("div");
+            card.style.cssText = "background:#fff; border:1px solid var(--border-color); border-radius:18px; overflow:hidden; box-shadow:var(--shadow-sm);";
+            const veh = RIDE_LABEL[d.vehicle_type] || d.vehicle_type;
+            card.innerHTML = `
+                ${d.vehicle_photo ? `<div style="height:130px; background:#f8fafc; overflow:hidden;"><img src="${d.vehicle_photo}" style="width:100%; height:100%; object-fit:cover;" onerror="this.parentNode.style.display='none'"></div>` : ''}
+                <div style="padding:12px 14px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <img src="${d.driver_photo || '/static/images/default_category.png'}" style="width:56px; height:56px; border-radius:50%; object-fit:cover; border:2px solid #99f6e4; flex-shrink:0;" onerror="this.onerror=null; this.src='/static/images/default_category.png';">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:800; font-size:1rem; color:var(--text-primary);">${escapeHtmlLb(d.name)}</div>
+                            <div style="font-size:.76rem; color:var(--text-secondary); margin-top:2px;">${RIDE_ICON[d.vehicle_type] || '🚘'} ${escapeHtmlLb(veh)}${d.vehicle_number ? ` · <span style="font-family:monospace; font-weight:700; background:#f1f5f9; padding:1px 6px; border-radius:6px; color:var(--text-primary);">${escapeHtmlLb(d.vehicle_number)}</span>` : ''}</div>
+                            <div style="font-size:.74rem; color:#0f766e; font-weight:700; margin-top:3px;">⭐ ${Number(d.experience_years).toFixed(d.experience_years % 1 ? 1 : 0)} saal ka experience${d.completed_rides ? ` · ${d.completed_rides} rides` : ''}</div>
+                        </div>
+                    </div>
+                    ${d.notes ? `<p style="font-size:.76rem; color:var(--text-secondary); margin:8px 0 0; line-height:1.4;">${escapeHtmlLb(d.notes)}</p>` : ''}
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-color);">
+                        <div style="font-size:.78rem; color:var(--text-secondary);">
+                            <b style="color:var(--text-primary); font-size:.95rem;">₹${Number(d.effective_per_km_rate).toFixed(0)}</b>/km
+                            <span style="margin:0 4px;">+</span>
+                            <b style="color:var(--text-primary);">₹${Number(d.driver_fee || 0).toFixed(0)}</b> driver fee
+                        </div>
+                        <button onclick="openRideBookModal(${d.id})" class="btn" style="padding:9px 18px; font-size:.85rem; font-weight:800; background:#0f766e; color:#fff; border:none; border-radius:100px; cursor:pointer; margin:0;">Book Karein</button>
+                    </div>
+                </div>`;
+            c.appendChild(card);
+        });
+        refreshIcons();
+    }
+
+    function openRideBookModal(driverId) {
+        if (!customerId) { showAestheticToast("Sawari book karne ke liye login karein.", "error"); return; }
+        rideSelectedDriver = rideDrivers.find(d => d.id === driverId);
+        if (!rideSelectedDriver) return;
+        const d = rideSelectedDriver;
+        document.getElementById("rb-driver-photo").src = d.driver_photo || '/static/images/default_category.png';
+        document.getElementById("rb-driver-name").innerText = d.name;
+        document.getElementById("rb-driver-meta").innerText = `${RIDE_LABEL[d.vehicle_type] || d.vehicle_type}${d.vehicle_number ? ' · ' + d.vehicle_number : ''} · ₹${Number(d.effective_per_km_rate).toFixed(0)}/km + ₹${Number(d.driver_fee || 0).toFixed(0)} fee`;
+        document.getElementById("rb-pickup").value = "";
+        document.getElementById("rb-drop").value = "";
+        const quick = document.getElementById("rb-km-quick");
+        quick.innerHTML = [1, 2, 3, 5, 8, 10, 15].map(k => `<button type="button" class="rb-km-chip" data-km="${k}" onclick="rideKmChanged(${k}, true)" style="padding:7px 14px; border-radius:100px; border:1.5px solid var(--border-color); background:#fff; font-weight:700; font-size:.82rem; cursor:pointer;">${k} km</button>`).join('');
+        rideKmChanged(2, true);
+        document.getElementById("rb-confirm-btn").disabled = false;
+        document.getElementById("rb-confirm-btn").innerText = "✅ Book Karein";
+        document.getElementById("ride-book-modal").style.display = "flex";
+        refreshIcons();
+    }
+    function closeRideBookModal() { document.getElementById("ride-book-modal").style.display = "none"; }
+
+    function rideKmChanged(val, fromChip) {
+        rideKm = Math.max(0, parseFloat(val) || 0);
+        if (fromChip) document.getElementById("rb-km-input").value = rideKm;
+        document.querySelectorAll('.rb-km-chip').forEach(b => {
+            const on = parseFloat(b.dataset.km) === rideKm;
+            b.style.background = on ? '#0f766e' : '#fff';
+            b.style.color = on ? '#fff' : 'var(--text-primary)';
+            b.style.borderColor = on ? '#0f766e' : 'var(--border-color)';
+        });
+        if (!rideSelectedDriver) return;
+        const rate = Number(rideSelectedDriver.effective_per_km_rate);
+        const fee = Number(rideSelectedDriver.driver_fee || 0);
+        const kmCost = rate * rideKm;
+        document.getElementById("rb-km-cost").innerText = `₹${kmCost.toFixed(0)} (${rideKm} km × ₹${rate.toFixed(0)})`;
+        document.getElementById("rb-fee-cost").innerText = `₹${fee.toFixed(0)}`;
+        document.getElementById("rb-total").innerText = `₹${(kmCost + fee).toFixed(0)}`;
+    }
+
+    function confirmRideBooking() {
+        if (!rideSelectedDriver) return;
+        if (!rideKm || rideKm <= 0) { showAestheticToast("Kitne km jaana hai, yeh bataiye.", "error"); return; }
+        const btn = document.getElementById("rb-confirm-btn");
+        btn.disabled = true; btn.innerText = "Booking ho rahi hai...";
+        fetch('/api/rides/book', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                driver_id: rideSelectedDriver.id,
+                distance_km: rideKm,
+                pickup_note: document.getElementById("rb-pickup").value.trim(),
+                drop_note: document.getElementById("rb-drop").value.trim()
+            })
+        }).then(r => r.json()).then(d => {
+            if (d.success) {
+                closeRideBookModal();
+                const b = d.booking || {};
+                document.getElementById("rs-summary").innerHTML = `Booking <b>#${b.id}</b> · ${b.distance_km} km · Total <b style="color:#0f766e;">₹${Number(b.total_fare).toFixed(0)}</b><br>Driver <b>${escapeHtmlLb(b.driver_name || '')}</b> (${escapeHtmlLb(b.vehicle_number || RIDE_LABEL[b.vehicle_type] || '')}) aapko jaldi call karega.`;
+                document.getElementById("rs-call-btn").href = `tel:${b.driver_phone || ''}`;
+                document.getElementById("ride-success-modal").style.display = "flex";
+                refreshIcons();
+            } else {
+                showAestheticToast(d.error || "Booking fail ho gayi.", "error");
+                btn.disabled = false; btn.innerText = "✅ Book Karein";
+            }
+        }).catch(() => { showAestheticToast("Network error. Dobara try karein.", "error"); btn.disabled = false; btn.innerText = "✅ Book Karein"; });
+    }
+    function closeRideSuccessModal() { document.getElementById("ride-success-modal").style.display = "none"; }
+
+    function loadMyRides() {
+        const c = document.getElementById("rides-mine-container");
+        c.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:.85rem;">Load ho raha hai...</div>`;
+        fetch('/api/rides/my').then(r => r.json()).then(list => {
+            c.innerHTML = "";
+            if (!Array.isArray(list) || !list.length) {
+                c.innerHTML = `<div style="text-align:center; padding:28px 12px; color:var(--text-muted); font-size:.85rem;">Aapne abhi tak koi sawari book nahi ki.</div>`;
+                return;
+            }
+            const st = {
+                PENDING: ['⏳ Driver ka wait', '#fef3c7', '#b45309'],
+                CONFIRMED: ['✅ Confirm ho gayi', '#dbeafe', '#1d4ed8'],
+                COMPLETED: ['🏁 Poori ho gayi', '#dcfce7', '#15803d'],
+                CANCELLED: ['❌ Cancel', '#fee2e2', '#b91c1c']
+            };
+            list.forEach(b => {
+                const [label, bg, fg] = st[b.status] || ['', '#f1f5f9', '#334155'];
+                const el = document.createElement("div");
+                el.style.cssText = "background:#fff; border:1px solid var(--border-color); border-radius:16px; padding:12px 14px; box-shadow:var(--shadow-sm);";
+                el.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-weight:800; font-size:.9rem;">Booking #${b.id}</span>
+                        <span style="font-size:.7rem; font-weight:800; padding:3px 10px; border-radius:100px; background:${bg}; color:${fg};">${label}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <img src="${b.driver_photo || '/static/images/default_category.png'}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" onerror="this.onerror=null; this.src='/static/images/default_category.png';">
+                        <div style="flex:1; font-size:.78rem; color:var(--text-secondary);">
+                            <b style="color:var(--text-primary);">${escapeHtmlLb(b.driver_name)}</b> · ${RIDE_ICON[b.vehicle_type] || ''} ${escapeHtmlLb(b.vehicle_number || RIDE_LABEL[b.vehicle_type] || '')}<br>
+                            ${escapeHtmlLb(b.pickup_note || 'Ghar')} → ${escapeHtmlLb(b.drop_note || '—')} · ${b.distance_km} km
+                        </div>
+                        <b style="color:#0f766e; font-size:1rem;">₹${Number(b.total_fare).toFixed(0)}</b>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:10px;">
+                        <a href="tel:${b.driver_phone}" style="flex:1; text-align:center; padding:8px; border-radius:10px; background:#ecfdf5; color:#10b981; font-weight:700; font-size:.78rem; text-decoration:none; border:1px solid #a7f3d0;">📞 Call Driver</a>
+                        ${['PENDING', 'CONFIRMED'].includes(b.status) ? `<button onclick="cancelMyRide(${b.id})" style="flex:1; padding:8px; border-radius:10px; background:#fef2f2; color:#b91c1c; font-weight:700; font-size:.78rem; border:1px solid #fecaca; cursor:pointer;">Cancel</button>` : ''}
+                    </div>
+                    <div style="font-size:.66rem; color:var(--text-muted); margin-top:6px;">${escapeHtmlLb(b.created_at || '')}</div>`;
+                c.appendChild(el);
+            });
+        }).catch(() => { c.innerHTML = `<div style="text-align:center; padding:24px; color:var(--ruby-danger); font-size:.85rem;">Load nahi ho paya.</div>`; });
+    }
+
+    function cancelMyRide(id) {
+        if (!confirm(`Booking #${id} cancel karein?`)) return;
+        fetch(`/api/rides/${id}/cancel`, { method: 'POST' }).then(r => r.json()).then(d => {
+            showAestheticToast(d.message || d.error, d.success ? "success" : "error");
+            loadMyRides();
+        });
+    }
+
     // --- Local Services Helper Functions ---
     function loadLocalServices() {
         const container = document.getElementById("services-list-container");
