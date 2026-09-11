@@ -5775,21 +5775,52 @@ os.makedirs(RIDE_UPLOAD_FOLDER, exist_ok=True)
 
 RIDE_STATUSES = ('PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED')
 
-def _ride_settings(cursor):
-    cursor.execute("SELECT key, value FROM system_settings WHERE key IN ('ride_per_km_rate', 'ride_enabled')")
-    rows = {r['key']: r['value'] for r in cursor.fetchall()}
-    try:
-        rate = float(rows.get('ride_per_km_rate', '10.0') or 10.0)
-    except (TypeError, ValueError):
-        rate = 10.0
-    return {'per_km_rate': rate, 'enabled': (rows.get('ride_enabled', '1') == '1')}
+RIDE_VEHICLE_TYPES = ('BIKE', 'AUTO', 'E-RICKSHAW', 'CAR', 'TEMPO', 'OTHER')
+# Defaults per vehicle type: (per_km_rate, min_km, max_km). Car = higher rate, long-distance range.
+RIDE_TYPE_DEFAULTS = {
+    'BIKE':       (10.0, 1, 30),
+    'AUTO':       (12.0, 1, 40),
+    'E-RICKSHAW': (8.0,  1, 15),
+    'CAR':        (18.0, 5, 300),
+    'TEMPO':      (20.0, 2, 150),
+    'OTHER':      (12.0, 1, 50),
+}
 
-def _driver_effective_rate(driver_row, global_rate):
+def _ride_settings(cursor):
+    cursor.execute("SELECT key, value FROM system_settings WHERE key LIKE 'ride_%'")
+    rows = {r['key']: r['value'] for r in cursor.fetchall()}
+    def _f(key, default):
+        try:
+            return float(rows.get(key) if rows.get(key) not in (None, '') else default)
+        except (TypeError, ValueError):
+            return float(default)
+    global_rate = _f('ride_per_km_rate', 10.0)
+    types = {}
+    for vt, (rate, mn, mx) in RIDE_TYPE_DEFAULTS.items():
+        k = vt.replace('-', '_')
+        r = _f(f'ride_rate_{k}', rate if vt != 'BIKE' else global_rate)
+        mn_v = int(_f(f'ride_minkm_{k}', mn))
+        mx_v = int(_f(f'ride_maxkm_{k}', mx))
+        if mn_v < 1: mn_v = 1
+        if mx_v < mn_v: mx_v = mn_v
+        types[vt] = {'per_km_rate': r, 'min_km': mn_v, 'max_km': mx_v}
+    return {'per_km_rate': global_rate, 'enabled': (rows.get('ride_enabled', '1') == '1'), 'types': types}
+
+def _driver_type_cfg(driver_row, settings):
+    vt = (driver_row.get('vehicle_type') if isinstance(driver_row, dict) else driver_row['vehicle_type']) or 'OTHER'
+    return settings['types'].get(vt, settings['types']['OTHER'])
+
+def _driver_effective_rate(driver_row, settings):
+    """Driver-level override > vehicle-type rate > global default."""
     r = driver_row.get('per_km_rate') if isinstance(driver_row, dict) else driver_row['per_km_rate']
     try:
-        return float(r) if r not in (None, '', 0, 0.0) else float(global_rate)
+        if r not in (None, '', 0, 0.0):
+            return float(r)
     except (TypeError, ValueError):
-        return float(global_rate)
+        pass
+    if isinstance(settings, dict) and 'types' in settings:
+        return float(_driver_type_cfg(driver_row, settings)['per_km_rate'])
+    return float(settings)
 
 def _fetch_ride_booking(cursor, booking_id):
     cursor.execute("""
@@ -5894,9 +5925,12 @@ def get_ride_drivers():
     drivers = []
     for row in cursor.fetchall():
         d = dict(row)
-        d['effective_per_km_rate'] = _driver_effective_rate(d, settings['per_km_rate'])
+        d['effective_per_km_rate'] = _driver_effective_rate(d, settings)
+        cfg = _driver_type_cfg(d, settings)
+        d['min_km'] = cfg['min_km']
+        d['max_km'] = cfg['max_km']
         drivers.append(d)
-    return jsonify({'drivers': drivers, 'per_km_rate': settings['per_km_rate'], 'enabled': settings['enabled']})
+    return jsonify({'drivers': drivers, 'per_km_rate': settings['per_km_rate'], 'enabled': settings['enabled'], 'types': settings['types']})
 
 @app.route('/api/rides/book', methods=['POST'])
 def book_ride():
@@ -5908,8 +5942,8 @@ def book_ride():
         distance_km = float(data.get('distance_km'))
     except (TypeError, ValueError):
         return jsonify({'error': 'Driver aur distance (km) zaroori hai.'}), 400
-    if distance_km <= 0 or distance_km > 200:
-        return jsonify({'error': 'Distance 0 se zyada aur 200 km se kam honi chahiye.'}), 400
+    if distance_km <= 0 or distance_km > 1000:
+        return jsonify({'error': 'Distance sahi nahi hai.'}), 400
     pickup_note = (data.get('pickup_note') or '').strip()[:200]
     drop_note = (data.get('drop_note') or '').strip()[:200]
     if not pickup_note or not drop_note:
@@ -5927,7 +5961,10 @@ def book_ride():
     if not driver['is_available']:
         return jsonify({'error': 'Yeh driver abhi available nahi hai.'}), 400
 
-    per_km = _driver_effective_rate(dict(driver), settings['per_km_rate'])
+    cfg = _driver_type_cfg(dict(driver), settings)
+    if distance_km < cfg['min_km'] or distance_km > cfg['max_km']:
+        return jsonify({'error': f"Is gaadi ke liye distance {cfg['min_km']} se {cfg['max_km']} km ke beech honi chahiye."}), 400
+    per_km = _driver_effective_rate(dict(driver), settings)
     driver_fee = float(driver['driver_fee'] or 0.0)
     total = round(per_km * distance_km + driver_fee, 2)
     customer_id = session.get('role_id')
@@ -6017,6 +6054,20 @@ def admin_update_ride_settings():
         cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('ride_per_km_rate', ?)", (str(rate),))
     if 'ride_enabled' in data:
         cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('ride_enabled', ?)", ('1' if str(data['ride_enabled']) in ('1', 'true', 'True') else '0',))
+    # Per vehicle type: {"types": {"CAR": {"per_km_rate": 18, "min_km": 5, "max_km": 300}, ...}}
+    for vt, cfg in (data.get('types') or {}).items():
+        vt = str(vt).upper()
+        if vt not in RIDE_VEHICLE_TYPES or not isinstance(cfg, dict):
+            continue
+        k = vt.replace('-', '_')
+        for field, skey in (('per_km_rate', f'ride_rate_{k}'), ('min_km', f'ride_minkm_{k}'), ('max_km', f'ride_maxkm_{k}')):
+            if field in cfg and cfg[field] not in (None, ''):
+                try:
+                    v = float(cfg[field])
+                    if v < 0: raise ValueError
+                except (TypeError, ValueError):
+                    return jsonify({'error': f'{vt} ka {field} valid number hona chahiye.'}), 400
+                cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", (skey, str(v)))
     db.commit()
     return jsonify({'success': True, 'message': 'Sawari settings updated.', 'settings': _ride_settings(cursor)})
 
@@ -6085,7 +6136,7 @@ def admin_list_ride_drivers():
     drivers = []
     for row in cursor.fetchall():
         d = dict(row)
-        d['effective_per_km_rate'] = _driver_effective_rate(d, settings['per_km_rate'])
+        d['effective_per_km_rate'] = _driver_effective_rate(d, settings)
         drivers.append(d)
     return jsonify({'drivers': drivers, 'settings': settings})
 

@@ -2855,7 +2855,7 @@
                                 <input type="number" id="ride-per-km-input" class="form-input-custom" step="0.5" min="0" style="flex:1;" placeholder="e.g. 10">
                                 <button class="btn-custom btn-custom-primary" style="margin:0; padding:8px 14px;" onclick="saveRideSettings()">Save</button>
                             </div>
-                            <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px;">Fare = (Per KM × Distance) + Driver Fee. Kisi driver ka alag rate ho to uske card me set karein.</p>
+                            <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px;">Fare = (Per KM × Distance) + Driver Fee. Neeche har gaadi type ka alag rate aur km range set karein; kisi ek driver ka alag rate ho to uske card me.</p>
                             <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:0.82rem; font-weight:700; cursor:pointer;">
                                 <input type="checkbox" id="ride-enabled-toggle" style="width:16px; height:16px;" onchange="saveRideSettings()"> Sawari service ON
                             </label>
@@ -2871,6 +2871,21 @@
                         <div class="dashboard-card kpi-card">
                             <div class="kpi-label">Completed Rides</div>
                             <div class="kpi-value" id="kpi-ride-completed" style="color:var(--emerald-green);">--</div>
+                        </div>
+                    </div>
+
+                    <!-- Per vehicle type pricing -->
+                    <div class="dashboard-card" style="border:1px solid #a5f3fc;">
+                        <div class="card-header-row" style="margin-bottom: 12px;">
+                            <h3 class="card-title-text" style="color:#0e7490;"><i data-lucide="car"></i> Gaadi Type ke hisaab se Rate & Distance Range</h3>
+                            <button class="btn-custom btn-custom-primary" style="margin:0;" onclick="saveRideTypeRates()">Save Rates</button>
+                        </div>
+                        <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">Car ka rate zyada aur lambi doori ke liye hota hai (jaise 5–300 km), Bike/Auto local chhoti doori ke liye. Customer ka km slider isi range me chalega.</p>
+                        <div class="table-responsive-wrapper">
+                            <table class="premium-table">
+                                <thead><tr><th>Gaadi Type</th><th>Per KM Rate (₹)</th><th>Min KM</th><th>Max KM</th></tr></thead>
+                                <tbody id="ride-type-rates-rows"></tbody>
+                            </table>
                         </div>
                     </div>
 
@@ -7320,6 +7335,7 @@
                     if (rateInput && document.activeElement !== rateInput) rateInput.value = st.per_km_rate ?? 10;
                     const tog = document.getElementById("ride-enabled-toggle");
                     if (tog) tog.checked = !!st.enabled;
+                    renderRideTypeRates(st.types || {});
                     document.getElementById("kpi-ride-drivers").innerText = adminRideDrivers.filter(d => d.is_available).length;
                     document.getElementById("kpi-ride-completed").innerText = adminRideDrivers.reduce((a, d) => a + (d.completed_rides || 0), 0);
                     rows.innerHTML = "";
@@ -7365,6 +7381,35 @@
 
         function escAdmin(str) {
             return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+
+        const RIDE_TYPE_LABEL = { BIKE: '🏍️ Bike', AUTO: '🛺 Auto', 'E-RICKSHAW': '🛺 E-Rickshaw', CAR: '🚗 Car', TEMPO: '🚚 Tempo', OTHER: '🚘 Other' };
+        function renderRideTypeRates(types) {
+            const rows = document.getElementById("ride-type-rates-rows");
+            if (!rows || document.activeElement?.classList?.contains('rt-input')) return;
+            rows.innerHTML = "";
+            Object.keys(RIDE_TYPE_LABEL).forEach(vt => {
+                const c = types[vt] || {};
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td style="font-weight:800;">${RIDE_TYPE_LABEL[vt]}</td>
+                    <td><input type="number" class="form-input-custom rt-input" data-vt="${vt}" data-f="per_km_rate" step="0.5" min="0" value="${c.per_km_rate ?? ''}" style="width:110px;"></td>
+                    <td><input type="number" class="form-input-custom rt-input" data-vt="${vt}" data-f="min_km" step="1" min="1" value="${c.min_km ?? ''}" style="width:90px;"></td>
+                    <td><input type="number" class="form-input-custom rt-input" data-vt="${vt}" data-f="max_km" step="1" min="1" value="${c.max_km ?? ''}" style="width:90px;"></td>`;
+                rows.appendChild(tr);
+            });
+        }
+        function saveRideTypeRates() {
+            const types = {};
+            document.querySelectorAll('.rt-input').forEach(inp => {
+                const vt = inp.dataset.vt; types[vt] = types[vt] || {};
+                types[vt][inp.dataset.f] = inp.value;
+            });
+            fetch('/api/admin/rides/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ types }) })
+                .then(r => r.json()).then(d => {
+                    if (d.success) { showAestheticToast("Gaadi type rates save ho gaye.", "success"); loadAdminRideDrivers(); }
+                    else showAestheticToast(d.error || "Save failed", "error");
+                }).catch(() => showAestheticToast("Save failed", "error"));
         }
 
         function saveRideSettings() {

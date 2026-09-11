@@ -1305,7 +1305,7 @@ html, body {
                     <span style="font-weight:800; color:#0f766e; font-size:1.1rem;"><span id="rb-km-display">2</span> km</span>
                 </div>
                 <input type="range" id="rb-km-slider" min="1" max="50" step="1" value="2" oninput="rideKmChanged(this.value)" style="width:100%; accent-color:#0f766e; height:6px; cursor:pointer;">
-                <div style="display:flex; justify-content:space-between; font-size:.66rem; color:var(--text-muted); margin-top:2px;"><span>1 km</span><span>25 km</span><span>50 km</span></div>
+                <div style="display:flex; justify-content:space-between; font-size:.66rem; color:var(--text-muted); margin-top:2px;"><span id="rb-km-min-lbl">1 km</span><span id="rb-km-mid-lbl">25 km</span><span id="rb-km-max-lbl">50 km</span></div>
                 <p style="font-size:.7rem; color:var(--text-muted); margin-top:6px;">Andaaza bataiye. Driver aapse confirm kar lega.</p>
             </div>
             <div style="border-radius:14px; padding:12px 14px; background:#f8fafc; border:1px dashed var(--border-color); font-size:.8rem;">
@@ -4701,6 +4701,7 @@ html, body {
     let rideSelectedDriver = null;
     let rideKm = 2;
     let rideDriverFilter = "";
+    let rideTypeCfg = {};
     const RIDE_ICON = { BIKE: '🏍️', CAR: '🚗', AUTO: '🛺', 'E-RICKSHAW': '🛺', TEMPO: '🚚', OTHER: '🚘' };
     const RIDE_LABEL = { BIKE: 'Bike', CAR: 'Car', AUTO: 'Auto', 'E-RICKSHAW': 'E-Rickshaw', TEMPO: 'Tempo', OTHER: 'Gaadi' };
 
@@ -4715,8 +4716,15 @@ html, body {
         fetch('/api/rides/drivers').then(r => r.json()).then(d => {
             rideDrivers = d.drivers || [];
             rideGlobalRate = Number(d.per_km_rate || 10);
+            rideTypeCfg = d.types || {};
             const f = document.getElementById("rides-fare-formula");
-            if (f) f.innerText = `₹${rideGlobalRate.toFixed(0)} per km × distance + driver fee`;
+            if (f) {
+                const parts = [];
+                if (rideTypeCfg.BIKE) parts.push(`Bike ₹${Number(rideTypeCfg.BIKE.per_km_rate).toFixed(0)}/km`);
+                if (rideTypeCfg.AUTO) parts.push(`Auto ₹${Number(rideTypeCfg.AUTO.per_km_rate).toFixed(0)}/km`);
+                if (rideTypeCfg.CAR) parts.push(`Car ₹${Number(rideTypeCfg.CAR.per_km_rate).toFixed(0)}/km (lambi doori ke liye)`);
+                f.innerText = (parts.length ? parts.join(' · ') : `₹${rideGlobalRate.toFixed(0)} per km`) + ' × distance + driver fee';
+            }
             if (!d.enabled) {
                 c.innerHTML = `<div style="text-align:center; padding:28px 12px; color:var(--text-secondary); font-size:.85rem;">😴 Sawari service abhi band hai. Thodi der baad try karein.</div>`;
                 return;
@@ -4760,6 +4768,7 @@ html, body {
                             <b style="color:var(--text-primary); font-size:.95rem;">₹${Number(d.effective_per_km_rate).toFixed(0)}</b>/km
                             <span style="margin:0 4px;">+</span>
                             <b style="color:var(--text-primary);">₹${Number(d.driver_fee || 0).toFixed(0)}</b> driver fee
+                            <div style="font-size:.68rem; color:var(--text-muted); margin-top:2px;">${d.min_km || 1}–${d.max_km || 50} km ke liye${d.vehicle_type === 'CAR' ? ' · lambi doori' : ''}</div>
                         </div>
                         <button onclick="openRideBookModal(${d.id})" class="btn" style="padding:9px 18px; font-size:.85rem; font-weight:800; background:#0f766e; color:#fff; border:none; border-radius:100px; cursor:pointer; margin:0;">Gaadi Book Karein</button>
                     </div>
@@ -4788,8 +4797,16 @@ html, body {
         document.getElementById("rb-driver-meta").innerText = `⭐ ${Number(d.experience_years).toFixed(d.experience_years % 1 ? 1 : 0)} saal experience`;
         document.getElementById("rb-pickup").value = "";
         document.getElementById("rb-drop").value = "";
-        document.getElementById("rb-km-slider").value = 2;
-        rideKmChanged(2);
+        const minKm = Number(d.min_km || 1), maxKm = Number(d.max_km || 50);
+        const slider = document.getElementById("rb-km-slider");
+        const step = maxKm - minKm > 100 ? 5 : 1;
+        slider.min = minKm; slider.max = maxKm; slider.step = step;
+        const startKm = Math.min(maxKm, Math.max(minKm, d.vehicle_type === 'CAR' ? Math.max(minKm, 10) : 2));
+        slider.value = startKm;
+        document.getElementById("rb-km-min-lbl").innerText = `${minKm} km`;
+        document.getElementById("rb-km-mid-lbl").innerText = `${Math.round((minKm + maxKm) / 2)} km`;
+        document.getElementById("rb-km-max-lbl").innerText = `${maxKm} km`;
+        rideKmChanged(startKm);
         const btn = document.getElementById("rb-confirm-btn");
         btn.disabled = false; btn.innerText = "✅ Gaadi Book Karein";
         document.getElementById("ride-book-modal").style.display = "flex";
