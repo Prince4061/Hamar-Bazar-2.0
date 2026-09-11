@@ -4720,10 +4720,11 @@ html, body {
             const f = document.getElementById("rides-fare-formula");
             if (f) {
                 const parts = [];
-                if (rideTypeCfg.BIKE) parts.push(`Bike ₹${Number(rideTypeCfg.BIKE.per_km_rate).toFixed(0)}/km`);
-                if (rideTypeCfg.AUTO) parts.push(`Auto ₹${Number(rideTypeCfg.AUTO.per_km_rate).toFixed(0)}/km`);
-                if (rideTypeCfg.CAR) parts.push(`Car ₹${Number(rideTypeCfg.CAR.per_km_rate).toFixed(0)}/km (lambi doori ke liye)`);
-                f.innerText = (parts.length ? parts.join(' · ') : `₹${rideGlobalRate.toFixed(0)} per km`) + ' × distance + driver fee';
+                const fmt = (lbl, t) => `${lbl} ₹${Number(t.per_km_rate).toFixed(0)}/km + ₹${Number(t.driver_fee || 0).toFixed(0)} fee`;
+                if (rideTypeCfg.BIKE) parts.push(fmt('Bike', rideTypeCfg.BIKE));
+                if (rideTypeCfg.AUTO) parts.push(fmt('Auto', rideTypeCfg.AUTO));
+                if (rideTypeCfg.CAR) parts.push(fmt('Car', rideTypeCfg.CAR) + ' (lambi doori)');
+                f.innerText = parts.length ? parts.join(' · ') : `₹${rideGlobalRate.toFixed(0)} per km × distance + driver fee`;
             }
             if (!d.enabled) {
                 c.innerHTML = `<div style="text-align:center; padding:28px 12px; color:var(--text-secondary); font-size:.85rem;">😴 Sawari service abhi band hai. Thodi der baad try karein.</div>`;
@@ -4767,7 +4768,7 @@ html, body {
                         <div style="font-size:.78rem; color:var(--text-secondary);">
                             <b style="color:var(--text-primary); font-size:.95rem;">₹${Number(d.effective_per_km_rate).toFixed(0)}</b>/km
                             <span style="margin:0 4px;">+</span>
-                            <b style="color:var(--text-primary);">₹${Number(d.driver_fee || 0).toFixed(0)}</b> driver fee
+                            <b style="color:var(--text-primary);">₹${Number(d.effective_driver_fee ?? d.driver_fee ?? 0).toFixed(0)}</b> driver fee
                             <div style="font-size:.68rem; color:var(--text-muted); margin-top:2px;">${d.min_km || 1}–${d.max_km || 50} km ke liye${d.vehicle_type === 'CAR' ? ' · lambi doori' : ''}</div>
                         </div>
                         <button onclick="openRideBookModal(${d.id})" class="btn" style="padding:9px 18px; font-size:.85rem; font-weight:800; background:#0f766e; color:#fff; border:none; border-radius:100px; cursor:pointer; margin:0;">Gaadi Book Karein</button>
@@ -4791,7 +4792,7 @@ html, body {
         emoji.style.display = d.vehicle_photo ? 'none' : 'block';
         emoji.innerText = RIDE_ICON[d.vehicle_type] || '🚘';
         document.getElementById("rb-vehicle-name").innerText = d.vehicle_name || veh;
-        document.getElementById("rb-vehicle-meta").innerText = `${veh}${d.vehicle_number ? ' · ' + d.vehicle_number : ''} · ₹${Number(d.effective_per_km_rate).toFixed(0)}/km + ₹${Number(d.driver_fee || 0).toFixed(0)} fee`;
+        document.getElementById("rb-vehicle-meta").innerText = `${veh}${d.vehicle_number ? ' · ' + d.vehicle_number : ''} · ₹${Number(d.effective_per_km_rate).toFixed(0)}/km + ₹${Number(d.effective_driver_fee ?? d.driver_fee ?? 0).toFixed(0)} fee`;
         document.getElementById("rb-driver-photo").src = d.driver_photo || '/static/images/default_category.png';
         document.getElementById("rb-driver-name").innerText = d.name;
         document.getElementById("rb-driver-meta").innerText = `⭐ ${Number(d.experience_years).toFixed(d.experience_years % 1 ? 1 : 0)} saal experience`;
@@ -4819,7 +4820,7 @@ html, body {
         document.getElementById("rb-km-display").innerText = rideKm;
         if (!rideSelectedDriver) return;
         const rate = Number(rideSelectedDriver.effective_per_km_rate);
-        const fee = Number(rideSelectedDriver.driver_fee || 0);
+        const fee = Number(rideSelectedDriver.effective_driver_fee ?? rideSelectedDriver.driver_fee ?? 0);
         const kmCost = rate * rideKm;
         document.getElementById("rb-km-cost").innerText = `₹${kmCost.toFixed(0)} (${rideKm} km × ₹${rate.toFixed(0)})`;
         document.getElementById("rb-fee-cost").innerText = `₹${fee.toFixed(0)}`;

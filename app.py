@@ -5776,14 +5776,14 @@ os.makedirs(RIDE_UPLOAD_FOLDER, exist_ok=True)
 RIDE_STATUSES = ('PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED')
 
 RIDE_VEHICLE_TYPES = ('BIKE', 'AUTO', 'E-RICKSHAW', 'CAR', 'TEMPO', 'OTHER')
-# Defaults per vehicle type: (per_km_rate, min_km, max_km). Car = higher rate, long-distance range.
+# Defaults per vehicle type: (per_km_rate, min_km, max_km, driver_fee). Car = higher rate + fee, long-distance range.
 RIDE_TYPE_DEFAULTS = {
-    'BIKE':       (10.0, 1, 30),
-    'AUTO':       (12.0, 1, 40),
-    'E-RICKSHAW': (8.0,  1, 15),
-    'CAR':        (18.0, 5, 300),
-    'TEMPO':      (20.0, 2, 150),
-    'OTHER':      (12.0, 1, 50),
+    'BIKE':       (10.0, 1, 30,  10.0),
+    'AUTO':       (12.0, 1, 40,  20.0),
+    'E-RICKSHAW': (8.0,  1, 15,  10.0),
+    'CAR':        (18.0, 5, 300, 100.0),
+    'TEMPO':      (20.0, 2, 150, 150.0),
+    'OTHER':      (12.0, 1, 50,  20.0),
 }
 
 def _ride_settings(cursor):
@@ -5796,19 +5796,30 @@ def _ride_settings(cursor):
             return float(default)
     global_rate = _f('ride_per_km_rate', 10.0)
     types = {}
-    for vt, (rate, mn, mx) in RIDE_TYPE_DEFAULTS.items():
+    for vt, (rate, mn, mx, fee) in RIDE_TYPE_DEFAULTS.items():
         k = vt.replace('-', '_')
         r = _f(f'ride_rate_{k}', rate if vt != 'BIKE' else global_rate)
         mn_v = int(_f(f'ride_minkm_{k}', mn))
         mx_v = int(_f(f'ride_maxkm_{k}', mx))
+        fee_v = _f(f'ride_fee_{k}', fee)
         if mn_v < 1: mn_v = 1
         if mx_v < mn_v: mx_v = mn_v
-        types[vt] = {'per_km_rate': r, 'min_km': mn_v, 'max_km': mx_v}
+        types[vt] = {'per_km_rate': r, 'min_km': mn_v, 'max_km': mx_v, 'driver_fee': fee_v}
     return {'per_km_rate': global_rate, 'enabled': (rows.get('ride_enabled', '1') == '1'), 'types': types}
 
 def _driver_type_cfg(driver_row, settings):
     vt = (driver_row.get('vehicle_type') if isinstance(driver_row, dict) else driver_row['vehicle_type']) or 'OTHER'
     return settings['types'].get(vt, settings['types']['OTHER'])
+
+def _driver_effective_fee(driver_row, settings):
+    """Driver-level fee (if > 0) > vehicle-type default fee."""
+    f = driver_row.get('driver_fee') if isinstance(driver_row, dict) else driver_row['driver_fee']
+    try:
+        if f not in (None, '') and float(f) > 0:
+            return float(f)
+    except (TypeError, ValueError):
+        pass
+    return float(_driver_type_cfg(driver_row, settings)['driver_fee'])
 
 def _driver_effective_rate(driver_row, settings):
     """Driver-level override > vehicle-type rate > global default."""
@@ -5929,6 +5940,7 @@ def get_ride_drivers():
         cfg = _driver_type_cfg(d, settings)
         d['min_km'] = cfg['min_km']
         d['max_km'] = cfg['max_km']
+        d['effective_driver_fee'] = _driver_effective_fee(d, settings)
         drivers.append(d)
     return jsonify({'drivers': drivers, 'per_km_rate': settings['per_km_rate'], 'enabled': settings['enabled'], 'types': settings['types']})
 
@@ -5965,7 +5977,7 @@ def book_ride():
     if distance_km < cfg['min_km'] or distance_km > cfg['max_km']:
         return jsonify({'error': f"Is gaadi ke liye distance {cfg['min_km']} se {cfg['max_km']} km ke beech honi chahiye."}), 400
     per_km = _driver_effective_rate(dict(driver), settings)
-    driver_fee = float(driver['driver_fee'] or 0.0)
+    driver_fee = _driver_effective_fee(dict(driver), settings)
     total = round(per_km * distance_km + driver_fee, 2)
     customer_id = session.get('role_id')
     now_str = ist_now_str()
@@ -6060,7 +6072,7 @@ def admin_update_ride_settings():
         if vt not in RIDE_VEHICLE_TYPES or not isinstance(cfg, dict):
             continue
         k = vt.replace('-', '_')
-        for field, skey in (('per_km_rate', f'ride_rate_{k}'), ('min_km', f'ride_minkm_{k}'), ('max_km', f'ride_maxkm_{k}')):
+        for field, skey in (('per_km_rate', f'ride_rate_{k}'), ('min_km', f'ride_minkm_{k}'), ('max_km', f'ride_maxkm_{k}'), ('driver_fee', f'ride_fee_{k}')):
             if field in cfg and cfg[field] not in (None, ''):
                 try:
                     v = float(cfg[field])
@@ -6137,6 +6149,7 @@ def admin_list_ride_drivers():
     for row in cursor.fetchall():
         d = dict(row)
         d['effective_per_km_rate'] = _driver_effective_rate(d, settings)
+        d['effective_driver_fee'] = _driver_effective_fee(d, settings)
         drivers.append(d)
     return jsonify({'drivers': drivers, 'settings': settings})
 

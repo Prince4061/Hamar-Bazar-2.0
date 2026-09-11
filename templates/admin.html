@@ -2880,10 +2880,10 @@
                             <h3 class="card-title-text" style="color:#0e7490;"><i data-lucide="car"></i> Gaadi Type ke hisaab se Rate & Distance Range</h3>
                             <button class="btn-custom btn-custom-primary" style="margin:0;" onclick="saveRideTypeRates()">Save Rates</button>
                         </div>
-                        <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">Car ka rate zyada aur lambi doori ke liye hota hai (jaise 5–300 km), Bike/Auto local chhoti doori ke liye. Customer ka km slider isi range me chalega.</p>
+                        <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">Har gaadi type ka apna per-km rate, driver fee aur km range. Car ka rate/fee zyada aur lambi doori ke liye (jaise 5–300 km), Bike/Auto local chhoti doori ke liye. Fare = Per KM × Distance + Driver Fee.</p>
                         <div class="table-responsive-wrapper">
                             <table class="premium-table">
-                                <thead><tr><th>Gaadi Type</th><th>Per KM Rate (₹)</th><th>Min KM</th><th>Max KM</th></tr></thead>
+                                <thead><tr><th>Gaadi Type</th><th>Per KM Rate (₹)</th><th>Driver Fee (₹)</th><th>Min KM</th><th>Max KM</th></tr></thead>
                                 <tbody id="ride-type-rates-rows"></tbody>
                             </table>
                         </div>
@@ -7361,7 +7361,7 @@
                             </td>
                             <td data-label="Number" style="font-family:monospace; font-weight:700;">${escAdmin(d.vehicle_number || '—')}</td>
                             <td data-label="Experience">${d.experience_years} saal</td>
-                            <td data-label="Driver Fee" style="font-weight:700;">₹${Number(d.driver_fee || 0).toFixed(0)}</td>
+                            <td data-label="Driver Fee" style="font-weight:700;">₹${Number(d.effective_driver_fee ?? d.driver_fee ?? 0).toFixed(0)}${Number(d.driver_fee) > 0 ? ' <span style="font-size:0.65rem; color:var(--primary-accent);">(custom)</span>' : ''}</td>
                             <td data-label="Per KM">₹${Number(d.effective_per_km_rate).toFixed(1)}${d.per_km_rate ? ' <span style="font-size:0.65rem; color:var(--primary-accent);">(custom)</span>' : ''}</td>
                             <td data-label="Rides">${d.completed_rides || 0} / ${d.total_bookings || 0}</td>
                             <td data-label="Status"><span class="status-badge ${d.is_available ? 'badge-delivered' : 'badge-failed'}">${d.is_available ? 'Available' : 'Off'}</span></td>
@@ -7394,6 +7394,7 @@
                 tr.innerHTML = `
                     <td style="font-weight:800;">${RIDE_TYPE_LABEL[vt]}</td>
                     <td><input type="number" class="form-input-custom rt-input" data-vt="${vt}" data-f="per_km_rate" step="0.5" min="0" value="${c.per_km_rate ?? ''}" style="width:110px;"></td>
+                    <td><input type="number" class="form-input-custom rt-input" data-vt="${vt}" data-f="driver_fee" step="1" min="0" value="${c.driver_fee ?? ''}" style="width:110px;"></td>
                     <td><input type="number" class="form-input-custom rt-input" data-vt="${vt}" data-f="min_km" step="1" min="1" value="${c.min_km ?? ''}" style="width:90px;"></td>
                     <td><input type="number" class="form-input-custom rt-input" data-vt="${vt}" data-f="max_km" step="1" min="1" value="${c.max_km ?? ''}" style="width:90px;"></td>`;
                 rows.appendChild(tr);
@@ -8289,7 +8290,7 @@
                 <div class="form-group-custom"><label class="form-label-custom" style="color:var(--primary-accent); font-weight:700;">Gaadi ka Naam / Model (customer ko yahi dikhega)</label><input type="text" id="rd-vehicle-name" class="form-input-custom" style="width:100%;" placeholder="e.g. Maruti Swift Dzire, Bajaj Auto, Honda Activa"></div>
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
                     <div class="form-group-custom"><label class="form-label-custom">Experience (saal)</label><input type="number" id="rd-experience" class="form-input-custom" style="width:100%;" step="0.5" min="0" value="1"></div>
-                    <div class="form-group-custom"><label class="form-label-custom">Driver Fee (₹)</label><input type="number" id="rd-fee" class="form-input-custom" style="width:100%;" step="1" min="0" value="0"></div>
+                    <div class="form-group-custom"><label class="form-label-custom">Driver Fee (₹, 0 = gaadi type default)</label><input type="number" id="rd-fee" class="form-input-custom" style="width:100%;" step="1" min="0" value="0"></div>
                     <div class="form-group-custom"><label class="form-label-custom">Per KM (₹, blank = default)</label><input type="number" id="rd-per-km" class="form-input-custom" style="width:100%;" step="0.5" min="0" placeholder="default"></div>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
