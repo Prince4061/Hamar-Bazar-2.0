@@ -271,6 +271,21 @@ except Exception as e:
     print("Startup timestamp synchronization warning:", e)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'jfif', 'heic', 'heif'}
+def parse_bool_flag(value, default=True):
+    """Robustly parse availability flags from JSON/form: accepts True/False, 1/0, "1"/"0", "true"/"false", "yes"/"no"."""
+    if value is None:
+        return 1 if default else 0
+    if isinstance(value, bool):
+        return 1 if value else 0
+    if isinstance(value, (int, float)):
+        return 1 if value else 0
+    v = str(value).strip().lower()
+    if v in ('1', 'true', 'yes', 'y', 'on', 'in_stock', 'instock', 'available'):
+        return 1
+    if v in ('0', 'false', 'no', 'n', 'off', 'out_of_stock', 'outofstock', 'unavailable', ''):
+        return 0
+    return 1 if default else 0
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -2369,7 +2384,7 @@ def toggle_product_availability():
         return jsonify({'error': 'Unauthorized. Please login as vendor.'}), 403
     data = request.json
     product_id = data.get('product_id')
-    is_available = bool(data.get('is_available'))
+    is_available = parse_bool_flag(data.get('is_available'), default=False)
     
     db = get_db()
     cursor = db.cursor()
@@ -2420,7 +2435,7 @@ def vendor_add_product():
     subcategory = data.get('subcategory', '')
     description = data.get('description', '')
     keywords = data.get('keywords', '')
-    is_available = 1 if data.get('is_available', True) else 0
+    is_available = parse_bool_flag(data.get('is_available'), default=True)
     
     if not name or price is None or str(price).strip() == '':
         return jsonify({'error': 'Product name and price are required.'}), 400
@@ -2480,7 +2495,7 @@ def vendor_modify_product(prod_id):
         subcategory = data.get('subcategory', '')
         description = data.get('description', '')
         keywords = data.get('keywords', '')
-        is_available = 1 if data.get('is_available', True) else 0
+        is_available = parse_bool_flag(data.get('is_available'), default=True)
         
         if not name or price is None or str(price).strip() == '':
             return jsonify({'error': 'Product name and price are required.'}), 400
@@ -4243,7 +4258,7 @@ def admin_modify_product(prod_id):
         price = data.get('price')
         mrp = data.get('mrp')
         cost_price = data.get('cost_price')
-        is_available = bool(data.get('is_available', True))
+        is_available = parse_bool_flag(data.get('is_available'), default=True)
         image_path = data.get('image_path')
         subcategory = data.get('subcategory', '')
         description = data.get('description', '')

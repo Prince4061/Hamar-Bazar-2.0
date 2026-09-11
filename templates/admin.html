@@ -5610,7 +5610,7 @@
             }
             
             if (id) {
-                const avail = document.getElementById("modal-product-available").value;
+                const avail = document.getElementById("modal-product-available").value === "1" ? 1 : 0;
                 fetch(`/api/admin/products/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
