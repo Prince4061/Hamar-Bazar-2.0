@@ -2137,7 +2137,10 @@ html, body {
 
     // A shop counts as "tech" if its category matches tech-type keywords.
     // New tech stores the admin adds will automatically appear in the Tech tab.
-    function isTechCategory(cat) {
+    // Admin-controlled: shop.storefront ('DAILY' | 'TECH') decides the tab.
+    // Keyword heuristic is only a fallback for rows without a storefront value.
+    function isTechCategory(cat, shop) {
+        if (shop && shop.storefront) return String(shop.storefront).toUpperCase() === 'TECH';
         const c = (cat || '').toUpperCase();
         return ['TECH', 'ELECTRON', 'ELECTRIC', 'ROBOT', 'GADGET', 'MOBILE', 'LAPTOP', 'COMPUTER']
             .some(k => c.includes(k));
@@ -2150,7 +2153,7 @@ html, body {
                 (s.category || '').toUpperCase() === 'TECH' ||
                 (s.shop_name || '').toUpperCase().includes('TECH'));
             if (t) return t.id;
-            const anyTech = (shopsCache || []).find(s => s.is_active && isTechCategory(s.category));
+            const anyTech = (shopsCache || []).find(s => s.is_active && isTechCategory(s.category, s));
             if (anyTech) return anyTech.id;
         } catch (e) {}
         return 6;
@@ -2158,6 +2161,7 @@ html, body {
 
     // Nice display label for a tech store category card
     function techCategoryLabel(shop) {
+        if (shop.display_label && shop.display_label.trim()) return shop.display_label.trim();
         const c = (shop.category || '').toUpperCase();
         if (c.includes('TECH') || c.includes('GADGET')) return 'Gadgets & Accessories 💻';
         if (c.includes('ROBOT') || c.includes('ELECTRIC') || c.includes('ELECTRON')) return 'Electronics & Robotics 🤖';
@@ -2173,7 +2177,7 @@ html, body {
             if (!grid) return;
             grid.innerHTML = "";
 
-            const techShops = (shopsCache || []).filter(s => s.is_active && isTechCategory(s.category));
+            const techShops = (shopsCache || []).filter(s => s.is_active && isTechCategory(s.category, s));
             if (!techShops.length) {
                 grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:24px;">Abhi koi tech category available nahi hai.</div>';
                 return;
@@ -2612,7 +2616,7 @@ html, body {
             shopsCache.forEach(s => {
                 if (!s.is_active) return;
                 if (s.category === 'PHARMACY') return; // Dawaiyan category card removed as it has a dedicated top switcher tab!
-                if (isTechCategory(s.category)) return; // Saare tech-type shops ab dedicated "Tech" tab me hain (Daily Needs grid me duplicate na ho)
+                if (isTechCategory(s.category, s)) return; // Saare tech-type shops ab dedicated "Tech" tab me hain (Daily Needs grid me duplicate na ho)
                 
                 const card = document.createElement("div");
                 const catLower = s.category.toLowerCase();
@@ -2621,7 +2625,9 @@ html, body {
                 
                 let label = s.category.charAt(0).toUpperCase() + s.category.slice(1).toLowerCase();
                 
-                if (s.category === 'KIRANA') {
+                if (s.display_label && s.display_label.trim()) {
+                    label = s.display_label.trim();
+                } else if (s.category === 'KIRANA') {
                     label = "Kirana 🍪";
                 } else if (s.category === 'CAKES') {
                     label = "Cakes 🎂";
@@ -2946,6 +2952,11 @@ html, body {
                         <i data-lucide="package" style="width: 24px; height: 24px;"></i>
                      </div>`
                 }
+                ${prod.shop_name ? `
+                    <div class="product-source-badge" title="Yeh product is shop se aayega" style="display:inline-flex; align-items:center; gap:4px; max-width:100%; margin-bottom:6px; padding:3px 8px; border-radius:999px; background:var(--primary-light, #ede9fe); color:var(--primary-accent, #6d28d9); font-size:0.68rem; font-weight:700; line-height:1.2; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">
+                        <i data-lucide="store" style="width:11px; height:11px; flex-shrink:0;"></i>
+                        <span style="overflow:hidden; text-overflow:ellipsis;">${escapeHtmlLb(prod.shop_display_label || prod.shop_name)}${prod.shop_category && (prod.shop_display_label || prod.shop_name).toUpperCase() !== prod.shop_category.toUpperCase() ? ' · ' + escapeHtmlLb(prod.shop_category) : ''}</span>
+                    </div>` : ''}
                 <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${prod.name}</h5>
                 <div class="product-pricing-row" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
                     <span class="product-price" style="font-weight: 800; font-size: 0.95rem; color: ${isMed ? '#e11d48' : 'var(--text-primary)'};">₹${prod.price.toFixed(2)}</span>

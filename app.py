@@ -1454,7 +1454,7 @@ def search_products():
     
     # Get paginated data
     select_sql = f"""
-        SELECT products.*, shops.shop_name 
+        SELECT products.*, shops.shop_name, shops.category AS shop_category, shops.display_label AS shop_display_label, shops.image_path AS shop_image
         FROM products 
         JOIN shops ON products.shop_id = shops.id 
         WHERE {where_str} 
@@ -3529,7 +3529,7 @@ def get_admin_analytics():
     
     # 3. Shop-wise sales & ratings (Vendor Reputation Score, INT-010, ADMIN-001)
     cursor.execute('''
-        SELECT s.id as shop_id, s.shop_name, s.category, s.commission_pct, s.is_active, s.password, s.image_path, s.is_customizable, s.display_order, s.extra_delivery_fee,
+        SELECT s.id as shop_id, s.shop_name, s.category, s.commission_pct, s.is_active, s.password, s.image_path, s.is_customizable, s.display_order, s.extra_delivery_fee, s.storefront, s.display_label,
                COUNT(o.id) as total_orders,
                SUM(CASE WHEN o.status = 'DELIVERED' THEN o.total_amount ELSE 0 END) as sales,
                SUM(CASE WHEN o.status = 'DELIVERED' THEN 1 ELSE 0 END) as success_orders,
@@ -3832,6 +3832,10 @@ def admin_update_shop(shop_id):
     password = data.get('password', '').strip()
     is_customizable = int(data.get('is_customizable', 0))
     extra_delivery_fee = float(data.get('extra_delivery_fee', 0.0) or 0.0)
+    storefront = (data.get('storefront', 'DAILY') or 'DAILY').strip().upper()
+    if storefront not in ('DAILY', 'TECH'):
+        storefront = 'DAILY'
+    display_label = (data.get('display_label', '') or '').strip() or None
     
     if not shop_name or not category:
         return jsonify({'error': 'Shop Name and Category Code are required.'}), 400
@@ -3869,9 +3873,9 @@ def admin_update_shop(shop_id):
         hashed_shop_pass = generate_password_hash(password) if password else None
         cursor.execute('''
             UPDATE shops 
-            SET shop_name = ?, category = ?, commission_pct = ?, password = ?, image_path = ?, is_customizable = ?, extra_delivery_fee = ? 
+            SET shop_name = ?, category = ?, commission_pct = ?, password = ?, image_path = ?, is_customizable = ?, extra_delivery_fee = ?, storefront = ?, display_label = ?
             WHERE id = ?
-        ''', (shop_name, category, float(commission_pct), hashed_shop_pass, image_path, is_customizable, extra_delivery_fee, shop_id))
+        ''', (shop_name, category, float(commission_pct), hashed_shop_pass, image_path, is_customizable, extra_delivery_fee, storefront, display_label, shop_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Shop category credentials updated successfully.'})
     except Exception as e:
@@ -4079,6 +4083,10 @@ def admin_add_shop():
     password = request.form.get('password', '').strip()
     is_customizable = int(request.form.get('is_customizable', 0))
     extra_delivery_fee = float(request.form.get('extra_delivery_fee', 0.0) or 0.0)
+    storefront = (request.form.get('storefront', 'DAILY') or 'DAILY').strip().upper()
+    if storefront not in ('DAILY', 'TECH'):
+        storefront = 'DAILY'
+    display_label = (request.form.get('display_label', '') or '').strip() or None
     
     if not shop_name or not category:
         return jsonify({'error': 'Shop Name and Category Code are required.'}), 400
@@ -4113,9 +4121,9 @@ def admin_add_shop():
     try:
         hashed_shop_pass = generate_password_hash(password) if password else None
         cursor.execute('''
-            INSERT INTO shops (shop_name, category, commission_pct, password, image_path, is_active, is_customizable, extra_delivery_fee)
-            VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-        ''', (shop_name, category, float(commission_pct), hashed_shop_pass, image_path, is_customizable, extra_delivery_fee))
+            INSERT INTO shops (shop_name, category, commission_pct, password, image_path, is_active, is_customizable, extra_delivery_fee, storefront, display_label)
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
+        ''', (shop_name, category, float(commission_pct), hashed_shop_pass, image_path, is_customizable, extra_delivery_fee, storefront, display_label))
         db.commit()
         
         # Dynamic seeding of 3 starter products for the new shop

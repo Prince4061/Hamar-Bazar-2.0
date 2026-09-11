@@ -340,6 +340,25 @@ def init_db():
     cursor.execute("UPDATE shops SET extra_delivery_fee = 0.0 WHERE extra_delivery_fee IS NULL")
     cursor.execute("UPDATE shops SET extra_delivery_fee = 50.0 WHERE category = 'REAYANSH GOLD' OR shop_name LIKE '%REY%GOLD%'")
 
+    # Migrate shops table: storefront tab (DAILY / TECH) and custom display label for the customer app
+    try:
+        cursor.execute("ALTER TABLE shops ADD COLUMN storefront TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE shops ADD COLUMN display_label TEXT")
+    except sqlite3.OperationalError:
+        pass
+    # Backfill: existing tech-type categories go to the TECH tab, everything else to DAILY
+    cursor.execute("""
+        UPDATE shops SET storefront = 'TECH'
+        WHERE storefront IS NULL AND (
+            UPPER(category) LIKE '%TECH%' OR UPPER(category) LIKE '%ELECTRON%' OR UPPER(category) LIKE '%ELECTRIC%'
+            OR UPPER(category) LIKE '%ROBOT%' OR UPPER(category) LIKE '%GADGET%' OR UPPER(category) LIKE '%MOBILE%'
+            OR UPPER(category) LIKE '%LAPTOP%' OR UPPER(category) LIKE '%COMPUTER%')
+    """)
+    cursor.execute("UPDATE shops SET storefront = 'DAILY' WHERE storefront IS NULL OR storefront = ''")
+
     # Migrate orders table by adding delivery_fee column if missing
     try:
         cursor.execute("ALTER TABLE orders ADD COLUMN delivery_fee REAL DEFAULT 0.0")
@@ -455,10 +474,11 @@ def seed_db():
         ('Hamar Tech Hub (Gadgets & Accessories)', 'TECH', 8.0, _hashed_shop_pass, '/static/images/tech_category.png')
     ]
     for shop in shops_data:
+        storefront = 'TECH' if shop[1] in ('TECH', 'ELECTRONICS') else 'DAILY'
         cursor.execute('''
-            INSERT INTO shops (shop_name, category, commission_pct, password, image_path) VALUES (?, ?, ?, ?, ?)
+            INSERT INTO shops (shop_name, category, commission_pct, password, image_path, storefront) VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT (category) DO UPDATE SET shop_name = EXCLUDED.shop_name, password = EXCLUDED.password, image_path = EXCLUDED.image_path
-        ''', (shop[0], shop[1], shop[2], shop[3], shop[4]))
+        ''', (shop[0], shop[1], shop[2], shop[3], shop[4], storefront))
             
     conn.commit()
     
