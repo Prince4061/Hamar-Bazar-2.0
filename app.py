@@ -168,8 +168,9 @@ def _check_rate_limit(ip: str, endpoint: str) -> bool:
 
 @app.before_request
 def enforce_rate_limit():
-    """Enforce rate limiting on all API routes."""
-    if not request.path.startswith('/api/'):
+    """Enforce rate limiting on all API routes plus the auth form endpoints (brute-force protection)."""
+    is_auth_post = request.method == 'POST' and request.endpoint in ('login', 'staff_login', 'forgot_password')
+    if not request.path.startswith('/api/') and not is_auth_post:
         return
     ip = request.headers.get('X-Forwarded-For', request.remote_addr or '0.0.0.0').split(',')[0].strip()
     endpoint = request.endpoint or '_default_api'
@@ -3104,6 +3105,9 @@ def admin_force_accept_order(order_id):
     cursor = db.cursor()
     
     now_str = ist_now_str()
+    cursor.execute("SELECT id FROM orders WHERE id = ?", (order_id,))
+    if not cursor.fetchone():
+        return jsonify({'error': 'Order not found.'}), 404
     if new_shop_id:
         cursor.execute("SELECT id FROM shops WHERE id = ?", (new_shop_id,))
         if not cursor.fetchone():
