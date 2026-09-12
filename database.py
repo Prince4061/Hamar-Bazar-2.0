@@ -987,4 +987,6 @@ if __name__ == '__main__':
     seed_db()
     seed_historical_orders()
     seed_search_history()
-    sync_all_timestamps_to_now(force_sync=True)
+    # Only shift timestamps on a freshly seeded demo DB, never on real data
+    if os.environ.get('SYNC_DEMO_TIMESTAMPS', '0') == '1':
+        sync_all_timestamps_to_now(force_sync=True)

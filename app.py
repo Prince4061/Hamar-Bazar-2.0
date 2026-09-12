@@ -265,11 +265,15 @@ except Exception as e:
 run_migrations()
 # Security: auto-migrate any plain-text passwords to hashed format on startup
 migrate_plain_text_passwords()
-# Sync database historical timestamps to the current local time on startup
-try:
-    database.sync_all_timestamps_to_now()
-except Exception as e:
-    print("Startup timestamp synchronization warning:", e)
+# Demo-only: shift historical (seeded) timestamps to "now". NEVER run against real data.
+# Disabled by default; enable explicitly with SYNC_DEMO_TIMESTAMPS=1 for local demo databases.
+if os.environ.get('SYNC_DEMO_TIMESTAMPS', '0') == '1':
+    try:
+        database.sync_all_timestamps_to_now()
+    except Exception as e:
+        print("Startup timestamp synchronization warning:", e)
+else:
+    print("[INFO] Demo timestamp sync is OFF (real order dates are preserved).")
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'jfif', 'heic', 'heif'}
 def parse_bool_flag(value, default=True):
