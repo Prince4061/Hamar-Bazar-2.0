@@ -2658,7 +2658,7 @@ html, body {
         loadPrescriptionHistory();
         
         // Start background polling for product updates (every 5 seconds)
-        setInterval(pollProductsAndCart, 5000);
+        setInterval(() => { if (!document.hidden) pollProductsAndCart(); }, 8000);
 
         // Initialize back button history trap
         initBackButtonTrap();
@@ -3958,7 +3958,7 @@ html, body {
         };
         
         poll();
-        trackingInterval = setInterval(poll, 5000); // Poll tracking every 5 seconds for smooth mobile experience
+        trackingInterval = setInterval(() => { if (!document.hidden) poll(); }, 6000); // Poll tracking every 6s, paused when app is in background
     }
 
     function cancelActiveOrder() {

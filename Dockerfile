@@ -27,5 +27,8 @@ COPY . /app/
 # Expose port 5001
 EXPOSE 5001
 
-# Command to run the application using Gunicorn (4 workers + 2 threads per worker + 120s timeout)
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "4", "--threads", "2", "--timeout", "120", "app:app"]
+# Gunicorn: 3 workers x 4 threads, workers recycled every ~800 requests (memory safety), 60s request timeout, logs to stdout
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "3", "--threads", "4", \
+     "--timeout", "60", "--graceful-timeout", "30", "--keep-alive", "5", \
+     "--max-requests", "800", "--max-requests-jitter", "200", \
+     "--worker-tmp-dir", "/dev/shm", "--access-logfile", "-", "--error-logfile", "-", "app:app"]

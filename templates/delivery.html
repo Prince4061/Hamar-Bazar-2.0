@@ -295,7 +295,7 @@
         document.addEventListener('keydown', unlockAudio);
 
         loadDashboard();
-        pollInterval = setInterval(loadDashboard, 3000);
+        pollInterval = setInterval(() => { if (!document.hidden) loadDashboard(); }, 5000);
         initBackButtonTrap();
     });
 

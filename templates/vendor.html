@@ -2101,10 +2101,12 @@
             loadInventory();
             
             // Periodic orders & inventory polling (3 seconds for fast real-time alerts)
+            let _invTick = 0;
             pollInterval = setInterval(() => {
-                loadOrders();
-                loadInventory();
-            }, 3000);
+                if (document.hidden) return;          // no polling while app is in background
+                loadOrders();                          // orders every 5s (real-time alerts)
+                if (++_invTick % 6 === 0) loadInventory();  // full inventory only every 30s
+            }, 5000);
 
             // Pre-initialize alarm audio element for user activation
             try {

@@ -96,6 +96,18 @@ else:
 
 csrf = CSRFProtect(app)
 
+@app.errorhandler(Exception)
+def handle_unexpected_error(e):
+    """Log and return a clean JSON/HTML error instead of crashing the worker request."""
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        return e
+    import traceback
+    traceback.print_exc()
+    if request.path.startswith('/api/') or request.is_json:
+        return jsonify({'error': 'Server me kuch gadbad ho gayi. Thodi der baad try karein.'}), 500
+    return "<h3>Kuch gadbad ho gayi</h3><p>Page refresh karke dobara try karein.</p>", 500
+
 @app.errorhandler(CSRFError)
 def handle_csrf_error(e):
     if request.path.startswith('/api/') or request.is_json or request.headers.get('Accept') == 'application/json':
@@ -142,6 +154,8 @@ from collections import defaultdict as _defaultdict
 
 _rate_limit_store = _defaultdict(list)  # { (ip, endpoint): [timestamps] }
 _rate_limit_lock = _threading.Lock()
+_proxy_fail_cache = {}   # { url_hash: monotonic_expiry } — negative cache for dead image URLs
+_proxy_fail_lock = _threading.Lock()
 
 # Rules: (max_requests, window_seconds)
 _RATE_LIMIT_RULES = {
@@ -172,6 +186,11 @@ def _check_rate_limit(ip: str, endpoint: str) -> bool:
         if len(_rate_limit_store[key]) >= max_req:
             return False
         _rate_limit_store[key].append(now)
+        # Periodic prune: drop idle (ip, endpoint) buckets so the dict never grows forever
+        if len(_rate_limit_store) > 2000:
+            stale = [k for k, ts in _rate_limit_store.items() if not ts or ts[-1] < now - 300]
+            for k in stale:
+                _rate_limit_store.pop(k, None)
         return True
 
 @app.before_request
@@ -1551,47 +1570,70 @@ def sync_products():
 
 @app.route('/api/proxy-image')
 def proxy_image():
+    """
+    Fetch + cache external product images so the customer app never hot-links third-party hosts.
+    Stability rules (a slow/dead image host must never stall the server):
+      - 4s network timeout, 5 MB size cap
+      - failures are negative-cached for 30 min (placeholder served instantly, no re-fetch storm)
+      - successful fetches are cached on disk for 30 days
+    """
     url = request.args.get('url')
     if not url:
         return 'Missing url parameter', 400
     if not (url.startswith('http://') or url.startswith('https://')):
         return redirect(url)
-    
+
     import hashlib
     url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
-    
-    ext = 'jpg'
     url_lower = url.lower()
-    if '.png' in url_lower:
-        ext = 'png'
-    elif '.webp' in url_lower:
-        ext = 'webp'
-    elif '.gif' in url_lower:
-        ext = 'gif'
-        
+    ext = 'jpg'
+    if '.png' in url_lower: ext = 'png'
+    elif '.webp' in url_lower: ext = 'webp'
+    elif '.gif' in url_lower: ext = 'gif'
+
     cache_dir = os.path.join(app.root_path, 'static', 'uploads', 'proxy_cache')
     os.makedirs(cache_dir, exist_ok=True)
     cached_path = os.path.join(cache_dir, f"{url_hash}.{ext}")
-    
-    if os.path.exists(cached_path):
+    default_placeholder = os.path.join(app.root_path, 'static', 'images', 'grocery_basket.png')
+
+    if os.path.exists(cached_path) and os.path.getsize(cached_path) > 0:
         return send_file(cached_path, max_age=86400 * 30)
-        
+
+    # Negative cache: recently failed URL -> placeholder immediately
+    now = _time.monotonic()
+    with _proxy_fail_lock:
+        until = _proxy_fail_cache.get(url_hash)
+        if until and until > now:
+            return send_file(default_placeholder, max_age=1800)
+        if len(_proxy_fail_cache) > 5000:
+            for k in [k for k, v in _proxy_fail_cache.items() if v <= now]:
+                _proxy_fail_cache.pop(k, None)
+
     try:
         import urllib.request
         req = urllib.request.Request(
             url,
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                     'Accept': 'image/*,*/*;q=0.8'}
         )
-        with urllib.request.urlopen(req, timeout=10) as response:
-            img_data = response.read()
-            with open(cached_path, 'wb') as f:
-                f.write(img_data)
+        with urllib.request.urlopen(req, timeout=4) as response:
+            ctype = (response.headers.get('Content-Type') or '').lower()
+            if ctype and not ctype.startswith('image/'):
+                raise ValueError(f'not an image: {ctype}')
+            img_data = response.read(5 * 1024 * 1024 + 1)
+            if len(img_data) > 5 * 1024 * 1024 or len(img_data) == 0:
+                raise ValueError('image too large or empty')
+        tmp_path = cached_path + '.part'
+        with open(tmp_path, 'wb') as f:
+            f.write(img_data)
+        os.replace(tmp_path, cached_path)
         return send_file(cached_path, max_age=86400 * 30)
     except Exception as e:
-        print("Proxy fetch failed:", e)
-        default_placeholder = os.path.join(app.root_path, 'static', 'images', 'grocery_basket.png')
+        print("Proxy fetch failed:", url[:120], '->', e)
+        with _proxy_fail_lock:
+            _proxy_fail_cache[url_hash] = _time.monotonic() + 1800
         if os.path.exists(default_placeholder):
-            return send_file(default_placeholder, max_age=3600)
+            return send_file(default_placeholder, max_age=1800)
         return redirect(url)
 
 @app.route('/api/create-order', methods=['POST'])
