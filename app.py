@@ -105,8 +105,12 @@ def handle_csrf_error(e):
 @app.after_request
 def add_header(response):
     if request.path.startswith('/static/game/'):
-        # Game assets (models, draco decoder) are large: let the browser keep them for a week
-        response.headers['Cache-Control'] = 'public, max-age=604800'
+        if request.path.endswith('.html'):
+            # Always fetch the game page fresh (so header/script updates apply immediately)
+            response.headers['Cache-Control'] = 'no-cache, must-revalidate'
+        else:
+            # Game assets (models, draco decoder, three.js) are large: let the browser keep them for a week
+            response.headers['Cache-Control'] = 'public, max-age=604800'
     if request.path.startswith('/api/') or request.path in ['/admin', '/customer', '/vendor', '/delivery', '/login', '/staff-login', '/']:
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
@@ -120,11 +124,12 @@ def add_header(response):
     # Content Security Policy — allow necessary resources
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://checkout.razorpay.com https://unpkg.com; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://checkout.razorpay.com https://unpkg.com; "
+        "worker-src 'self' blob:; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
         "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
         "img-src * data: blob:; "
-        "connect-src 'self' https://checkout.razorpay.com; "
+        "connect-src 'self' blob: data: https://checkout.razorpay.com; "
         "frame-src 'self' https://api.razorpay.com; "
         "object-src 'none';"
     )
