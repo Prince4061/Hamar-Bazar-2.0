@@ -287,6 +287,21 @@ def init_db():
     )
     ''')
 
+    # 16. Game Scores — "Takhatpur Surfar" mini-game leaderboard (one row per play; best score is MAX per user)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS game_scores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL,
+        score INTEGER NOT NULL,
+        coins INTEGER DEFAULT 0,
+        distance_m INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
+        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    ''')
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_game_scores_customer ON game_scores(customer_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_game_scores_score ON game_scores(score DESC)")
+
     # Migrate products table by adding mrp column if missing
     try:
         cursor.execute("ALTER TABLE products ADD COLUMN mrp REAL")

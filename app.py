@@ -104,6 +104,9 @@ def handle_csrf_error(e):
 
 @app.after_request
 def add_header(response):
+    if request.path.startswith('/static/game/'):
+        # Game assets (models, draco decoder) are large: let the browser keep them for a week
+        response.headers['Cache-Control'] = 'public, max-age=604800'
     if request.path.startswith('/api/') or request.path in ['/admin', '/customer', '/vendor', '/delivery', '/login', '/staff-login', '/']:
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
@@ -5864,6 +5867,109 @@ def delete_service_review(review_id):
         return jsonify({'success': True, 'message': 'Service review deleted successfully.'})
     except Exception as e:
         return jsonify({'error': f'Failed to delete service review: {str(e)}'}), 500
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAKHATPUR SURFAR — in-app mini game (static/game) + Gamer Leaderboard
+# ═══════════════════════════════════════════════════════════════════════════════
+
+GAME_MAX_SCORE = 5_000_000  # sanity cap against tampered submissions
+
+@app.route('/api/game/score', methods=['POST'])
+def submit_game_score():
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Score save karne ke liye customer login zaroori hai.'}), 403
+    data = request.get_json(silent=True) or {}
+    try:
+        score = int(float(data.get('score', 0)))
+        coins = int(float(data.get('coins', 0) or 0))
+        dist = int(float(data.get('dist', 0) or 0))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid score.'}), 400
+    if score <= 0 or score > GAME_MAX_SCORE:
+        return jsonify({'error': 'Invalid score.'}), 400
+    coins = max(0, min(coins, 1_000_000)); dist = max(0, min(dist, 10_000_000))
+    customer_id = session.get('role_id')
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT COALESCE(MAX(score), 0) AS best FROM game_scores WHERE customer_id = ?", (customer_id,))
+    prev_best = cursor.fetchone()['best'] or 0
+    cursor.execute("INSERT INTO game_scores (customer_id, score, coins, distance_m, created_at) VALUES (?, ?, ?, ?, ?)",
+                   (customer_id, score, coins, dist, ist_now_str()))
+    db.commit()
+    is_best = score > prev_best
+    # rank after this score
+    cursor.execute("""
+        SELECT COUNT(*) + 1 AS rank FROM (
+            SELECT customer_id, MAX(score) AS best FROM game_scores GROUP BY customer_id
+        ) t WHERE t.best > ?
+    """, (max(score, prev_best),))
+    rank = cursor.fetchone()['rank']
+    return jsonify({'success': True, 'score': score, 'best': max(score, prev_best), 'is_new_best': is_best, 'rank': rank})
+
+@app.route('/api/game/leaderboard', methods=['GET'])
+def game_leaderboard():
+    """Top players by their highest score (daily / weekly / monthly / all), plus the caller's own best & rank."""
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Please login as a customer.'}), 403
+    range_key = (request.args.get('range') or 'all').strip().lower()
+    if range_key not in ('daily', 'weekly', 'monthly', 'all'):
+        range_key = 'all'
+    cutoff = _leaderboard_cutoff(range_key)
+    me_id = session.get('role_id')
+    db = get_db()
+    cursor = db.cursor()
+    where = "WHERE g.created_at >= ?" if cutoff else ""
+    params = (cutoff,) if cutoff else ()
+    cursor.execute(f"""
+        SELECT u.id AS user_id, u.name AS customer_name, u.profile_pic,
+               MAX(g.score) AS best_score, COUNT(g.id) AS plays, MAX(g.created_at) AS last_played
+        FROM game_scores g JOIN users u ON u.id = g.customer_id
+        {where}
+        GROUP BY u.id
+        ORDER BY best_score DESC, last_played ASC
+        LIMIT 50
+    """, params)
+    ranked = [dict(r) for r in cursor.fetchall()]
+    board, my_rank, my_row = [], None, None
+    for idx, row in enumerate(ranked):
+        rank = idx + 1
+        is_me = (row['user_id'] == me_id)
+        entry = {
+            'rank': rank,
+            'user_id': row['user_id'],
+            'display_name': (row['customer_name'] or f"Player #{row['user_id']}") if is_me else _mask_name(row['customer_name'], row['user_id']),
+            'profile_pic': row['profile_pic'],
+            'best_score': row['best_score'],
+            'plays': row['plays'],
+            'is_me': is_me,
+        }
+        if is_me:
+            my_rank, my_row = rank, entry
+        board.append(entry)
+    if my_row is None:
+        cursor.execute(f"SELECT COALESCE(MAX(score), 0) AS best, COUNT(id) AS plays FROM game_scores g WHERE customer_id = ? {('AND g.created_at >= ?') if cutoff else ''}",
+                       (me_id,) + params)
+        r = cursor.fetchone()
+        my_row = {'rank': None, 'best_score': r['best'] or 0, 'plays': r['plays'] or 0, 'is_me': True}
+    return jsonify({'success': True, 'range': range_key, 'leaderboard': board[:25], 'me': my_row})
+
+@app.route('/api/admin/game/leaderboard', methods=['GET'])
+def admin_game_leaderboard():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT u.id AS user_id, u.name, u.phone, MAX(g.score) AS best_score, COUNT(g.id) AS plays,
+               SUM(g.coins) AS total_coins, MAX(g.created_at) AS last_played
+        FROM game_scores g JOIN users u ON u.id = g.customer_id
+        GROUP BY u.id ORDER BY best_score DESC LIMIT 100
+    """)
+    rows = [dict(r) for r in cursor.fetchall()]
+    cursor.execute("SELECT COUNT(*) AS plays, COUNT(DISTINCT customer_id) AS players FROM game_scores")
+    tot = dict(cursor.fetchone())
+    return jsonify({'leaderboard': rows, 'total_plays': tot['plays'], 'total_players': tot['players']})
+
 
 # Programmatically exempt all API routes from CSRF protection to prevent unexpected CSRF validation errors
 try:

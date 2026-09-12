@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hamar-bazar-cache-v8';
+const CACHE_NAME = 'hamar-bazar-cache-v9';
 const ASSETS_TO_CACHE = [
   '/static/offline.html'
 ];
@@ -47,6 +47,7 @@ self.addEventListener('fetch', (event) => {
     event.request.method !== 'GET' ||
     requestUrl.origin !== self.location.origin ||
     requestUrl.pathname.startsWith('/api/') ||
+    requestUrl.pathname.startsWith('/static/game/') ||
     requestUrl.pathname.startsWith('/session/') ||
     requestUrl.pathname === '/admin' ||
     requestUrl.pathname === '/customer' ||

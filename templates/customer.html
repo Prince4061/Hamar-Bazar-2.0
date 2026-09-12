@@ -148,6 +148,16 @@ html, body {
 .lb-top-sub { margin:3px 0 0 0; font-size:0.76rem; opacity:0.92; font-weight:600; position:relative; z-index:1; }
 
 /* Segmented time tabs */
+.lb-mode { display:flex; gap:6px; background:rgba(255,255,255,0.18); border-radius:100px; padding:4px; margin:10px 0 2px; }
+.lb-mode-btn { flex:1; border:none; background:transparent; color:#fff; font-weight:800; font-size:0.82rem; padding:8px 10px; border-radius:100px; cursor:pointer; }
+.lb-mode-btn.active { background:#fff; color:#0f172a; box-shadow:0 3px 8px -2px rgba(0,0,0,0.25); }
+.lb-screen.gamer .lb-top { background:linear-gradient(135deg,#1e1b4b 0%,#4c1d95 55%,#7c3aed 100%); }
+.lb-screen.gamer .lb-tab.active { color:#6d28d9; }
+.lb-screen.gamer .lb-score, .lb-screen.gamer .lb-my-rankno { color:#6d28d9; }
+.lb-play-btn { width:100%; margin-top:12px; padding:13px; border:none; border-radius:14px; background:linear-gradient(135deg,#f59e0b,#ef4444); color:#fff; font-weight:900; font-size:1rem; cursor:pointer; box-shadow:0 8px 20px -6px rgba(239,68,68,.6); }
+#hb-game-overlay { display:none; position:fixed; inset:0; z-index:100000; background:#000; }
+#hb-game-overlay iframe { width:100%; height:100%; border:0; display:block; }
+#hb-game-loading { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; font-weight:800; gap:10px; background:#0f172a; }
 .lb-tabs {
     display:flex; gap:2px; margin:14px auto 4px; max-width:340px;
     background: rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.25);
@@ -931,7 +941,15 @@ html, body {
         <div id="screen-orders" class="app-screen">
             <!-- Screen A: Unified Orders History List -->
             <div id="orders-history-list-view" style="text-align: left;">
-                <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 16px; color: var(--text-primary);">Mere Orders</h3>
+                <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 12px; color: var(--text-primary);">Mere Orders</h3>
+                <div onclick="openGame()" style="cursor:pointer; margin-bottom:16px; border-radius:16px; padding:12px 14px; background:linear-gradient(135deg,#1e1b4b,#7c3aed); color:#fff; display:flex; align-items:center; gap:12px; box-shadow:0 10px 24px -10px rgba(124,58,237,.7);">
+                    <div style="width:44px; height:44px; border-radius:12px; background:rgba(255,255,255,.18); display:flex; align-items:center; justify-content:center; font-size:1.5rem;">🛵</div>
+                    <div style="flex:1;">
+                        <div style="font-weight:900; font-size:.95rem;">Order aane tak Takhatpur Surfar khelo!</div>
+                        <div style="font-size:.72rem; opacity:.9;">Gaddhe bachao, ₹ coins jeeto, Gamer leaderboard me top karo 🏆</div>
+                    </div>
+                    <span style="background:#f59e0b; color:#1e1b4b; font-weight:900; font-size:.75rem; padding:6px 12px; border-radius:100px;">PLAY</span>
+                </div>
                 
                 <div class="glass-card" style="padding: 16px;">
                     <div id="orders-history-list" style="display: flex; flex-direction: column; gap: 10px;">
@@ -946,7 +964,8 @@ html, body {
                     <button onclick="closeTrackingView()" style="background: var(--primary-light); color: var(--primary-accent); border: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease;">
                         <i data-lucide="arrow-left" style="width: 20px; height: 20px; stroke-width: 2.5;"></i>
                     </button>
-                    <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin: 0; font-family: 'Outfit', sans-serif;">Order Detail & Tracking</h3>
+                    <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin: 0; font-family: 'Outfit', sans-serif; flex:1;">Order Detail & Tracking</h3>
+                    <button onclick="openGame()" title="Game khelo" style="border:none; background:linear-gradient(135deg,#1e1b4b,#7c3aed); color:#fff; font-weight:800; font-size:.75rem; padding:8px 12px; border-radius:100px; cursor:pointer;">🎮 Play</button>
                 </div>
 
                 <div class="glass-card mb-md" style="border: 2px solid var(--primary-accent); padding: 16px;">
@@ -1020,10 +1039,15 @@ html, body {
             <!-- Gradient header -->
             <div class="lb-top">
                 <div class="lb-top-head">
-                    <i data-lucide="trees" style="width:20px;height:20px;"></i>
-                    <h3 class="lb-top-title">Mera Van Leaderboard</h3>
+                    <i data-lucide="trees" style="width:20px;height:20px;" id="lb-top-icon"></i>
+                    <h3 class="lb-top-title" id="lb-top-title">Mera Van Leaderboard</h3>
                 </div>
-                <p class="lb-top-sub">Har <b>11 order complete</b> = 1 ped 🌳 · Zyada order, zyada ped!</p>
+                <p class="lb-top-sub" id="lb-top-sub">Har <b>11 order complete</b> = 1 ped 🌳 · Zyada order, zyada ped!</p>
+
+                <div class="lb-mode">
+                    <button class="lb-mode-btn active" id="lb-mode-van" onclick="setLbMode('van')">🌳 Mera Van</button>
+                    <button class="lb-mode-btn" id="lb-mode-gamer" onclick="setLbMode('gamer')">🎮 Gamer</button>
+                </div>
 
                 <!-- Time-range tabs -->
                 <div class="lb-tabs">
@@ -1241,6 +1265,14 @@ html, body {
 <div id="expense-modal" style="display: none;"></div>
 
 <!-- Service Reviews Modal -->
+<div id="hb-game-overlay">
+    <div id="hb-game-loading">
+        <div style="font-size:2.4rem;">🛵</div>
+        <div>Takhatpur Surfar load ho raha hai...</div>
+        <div style="font-size:.75rem; opacity:.7; font-weight:600;">Pehli baar thoda time lagega, phir turant khulega</div>
+    </div>
+</div>
+
 <div id="service-reviews-modal" class="modal-popup-overlay" style="display: none;" onclick="closeServiceReviewsModal()">
     <div style="background: white; width: 100%; max-width: 440px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; border: 1px solid var(--border-color); animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);" onclick="event.stopPropagation()">
         
@@ -1934,21 +1966,168 @@ html, body {
         }
     }
 
-    // ===== Mera Van / Green Leaderboard =====
+    // ===== Mera Van / Green Leaderboard + Gamer Leaderboard =====
     let lbRange = 'all';
+    let lbMode = 'van';
+    let lbReqId = 0;  // discard stale responses when mode/range changes quickly
     function setLbRange(range) {
         lbRange = range;
         document.querySelectorAll('.lb-tab').forEach(t => t.classList.toggle('active', t.dataset.range === range));
         loadLeaderboard();
     }
+    function setLbMode(mode) {
+        lbMode = mode === 'gamer' ? 'gamer' : 'van';
+        document.getElementById('lb-mode-van').classList.toggle('active', lbMode === 'van');
+        document.getElementById('lb-mode-gamer').classList.toggle('active', lbMode === 'gamer');
+        const scr = document.getElementById('screen-leaderboard');
+        if (scr) scr.classList.toggle('gamer', lbMode === 'gamer');
+        const title = document.getElementById('lb-top-title'), sub = document.getElementById('lb-top-sub'), icon = document.getElementById('lb-top-icon');
+        if (lbMode === 'gamer') {
+            if (title) title.innerText = 'Gamer Leaderboard';
+            if (sub) sub.innerHTML = 'Takhatpur Surfar me <b>highest score</b> wala champion 🏆';
+            if (icon) icon.setAttribute('data-lucide', 'gamepad-2');
+        } else {
+            if (title) title.innerText = 'Mera Van Leaderboard';
+            if (sub) sub.innerHTML = 'Har <b>11 order complete</b> = 1 ped 🌳 · Zyada order, zyada ped!';
+            if (icon) icon.setAttribute('data-lucide', 'trees');
+        }
+        refreshIcons();
+        loadLeaderboard();
+    }
 
     function loadLeaderboard() {
+        if (lbMode === 'gamer') { loadGamerLeaderboard(); return; }
+        loadVanLeaderboard();
+    }
+
+    function loadGamerLeaderboard() {
         const listEl = document.getElementById("lb-list");
         const podiumEl = document.getElementById("lb-podium");
         const stripEl = document.getElementById("lb-my-strip");
+        const myReq = ++lbReqId;
+        fetch('/api/game/leaderboard?range=' + encodeURIComponent(lbRange))
+            .then(r => r.json())
+            .then(data => {
+                if (myReq !== lbReqId || lbMode !== 'gamer') return;
+                if (!data || !data.success) {
+                    if (listEl) listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:20px;">Leaderboard load nahi ho paya.</div>';
+                    return;
+                }
+                const me = data.me || {};
+                const rows = data.leaderboard || [];
+                const fmt = n => Number(n || 0).toLocaleString('en-IN');
+                if (podiumEl) {
+                    if (!rows.length) {
+                        podiumEl.innerHTML = '<div style="width:100%;text-align:center;color:rgba(255,255,255,0.9);font-size:0.85rem;padding:24px 0;">Abhi koi score nahi 🎮<br>Pehle khelo aur champion bano!</div>';
+                    } else {
+                        const byRank = {};
+                        rows.slice(0, 3).forEach(r => byRank[r.rank] = r);
+                        const order = [[2, byRank[2]], [1, byRank[1]], [3, byRank[3]]];
+                        podiumEl.innerHTML = order.map(([pos, r]) => {
+                            if (!r) return `<div class="lb-p3-col c${pos}"></div>`;
+                            return `
+                            <div class="lb-p3-col c${pos}">
+                                <div class="lb-p3-avawrap">
+                                    ${pos === 1 ? '<span class="lb-p3-crown">👑</span>' : ''}
+                                    ${lbAvatarHtml(r.profile_pic, r.display_name, 'lb-p3-ava')}
+                                    <span class="lb-p3-badge">${pos}</span>
+                                </div>
+                                <div class="lb-p3-name">${escapeHtmlLb(r.display_name)}${r.is_me ? ' (Aap)' : ''}</div>
+                                <div class="lb-p3-score">${fmt(r.best_score)} pts</div>
+                                <div class="lb-p3-pedestal">🎮 ${r.plays}</div>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+                if (stripEl) {
+                    const motiv = (me.best_score || 0) === 0
+                        ? 'Abhi tak khela nahi? Ek round khelo aur board par aao 🚀'
+                        : (me.rank === 1 ? 'Aap #1 ho! Taaj bachao 👑' : `Top par aane ke liye aur score chahiye. Dobara try karo!`);
+                    stripEl.innerHTML = `
+                        <div class="lb-my-rankno">${me.rank ? ('#' + me.rank) : '–'}</div>
+                        <div style="flex:1; min-width:0;">
+                            <p style="margin:0; font-size:0.9rem; font-weight:800; color:var(--text-primary);">Aap · Best ${fmt(me.best_score)} pts · ${me.plays || 0} games</p>
+                            <p style="margin:2px 0 0 0; font-size:0.76rem; color:var(--text-secondary);">${motiv}</p>
+                            <button class="lb-play-btn" onclick="openGame()">🛵 Takhatpur Surfar Khelo</button>
+                        </div>`;
+                }
+                const rest = rows.slice(3);
+                if (!rest.length) {
+                    listEl.innerHTML = rows.length
+                        ? '<div style="text-align:center;color:var(--text-muted);font-size:0.8rem;padding:16px;">Bas itne hi gamers is period me 🎮</div>'
+                        : '<div style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:24px;">Is period me abhi kisi ne nahi khela.</div>';
+                } else {
+                    listEl.innerHTML = rest.map(row => {
+                        const meTag = row.is_me ? ' <span style="font-size:0.64rem;background:#6d28d9;color:#fff;padding:1px 7px;border-radius:100px;font-weight:800;vertical-align:middle;">AAP</span>' : '';
+                        return `
+                        <div class="lb-list-row ${row.is_me ? 'is-me' : ''}">
+                            <div class="lb-rankchip">${row.rank}</div>
+                            ${lbAvatarHtml(row.profile_pic, row.display_name, 'lb-avatar')}
+                            <div style="flex:1; min-width:0;">
+                                <p style="margin:0; font-size:0.9rem; font-weight:800; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtmlLb(row.display_name)}${meTag}</p>
+                                <p style="margin:1px 0 0 0; font-size:0.72rem; color:var(--text-secondary);">${row.plays} games khele</p>
+                            </div>
+                            <div class="lb-score">${fmt(row.best_score)}<small>POINTS</small></div>
+                        </div>`;
+                    }).join('');
+                }
+                refreshIcons();
+            })
+            .catch(err => {
+                console.error('Gamer leaderboard load error:', err);
+                if (listEl) listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:20px;">Network error. Dobara try karein.</div>';
+            });
+    }
+
+    // ===== Takhatpur Surfar game overlay =====
+    let gameFrame = null;
+    function openGame() {
+        if (!customerId) { showAestheticToast("Game khelne ke liye login karein.", "error"); return; }
+        const ov = document.getElementById('hb-game-overlay');
+        const loading = document.getElementById('hb-game-loading');
+        ov.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+        if (!gameFrame) {
+            loading.style.display = 'flex';
+            gameFrame = document.createElement('iframe');
+            gameFrame.src = '/static/game/index.html?embedded=1';
+            gameFrame.setAttribute('allow', 'autoplay; fullscreen; microphone');
+            gameFrame.onload = () => { loading.style.display = 'none'; };
+            ov.appendChild(gameFrame);
+        }
+    }
+    function closeGame() {
+        const ov = document.getElementById('hb-game-overlay');
+        ov.style.display = 'none';
+        document.body.style.overflow = '';
+        // Drop the iframe so the game stops using CPU/battery in the background
+        if (gameFrame) { try { gameFrame.remove(); } catch (e) {} gameFrame = null; }
+    }
+    window.addEventListener('message', (ev) => {
+        if (ev.origin !== window.location.origin || !ev.data || typeof ev.data !== 'object') return;
+        if (ev.data.type === 'hb_game_close') { closeGame(); return; }
+        if (ev.data.type === 'hb_game_score') {
+            const score = Math.floor(Number(ev.data.score) || 0);
+            if (score <= 0) return;
+            fetch('/api/game/score', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ score: score, coins: ev.data.coins || 0, dist: ev.data.dist || 0 })
+            }).then(r => r.json()).then(d => {
+                if (d && d.success && d.is_new_best) showAestheticToast(`🏆 Naya best score ${score.toLocaleString('en-IN')}! Aap rank #${d.rank} par ho.`, "success", 5000);
+                if (lbMode === 'gamer') { try { loadGamerLeaderboard(); } catch (e) {} }
+            }).catch(() => {});
+        }
+    });
+
+    function loadVanLeaderboard() {
+        const listEl = document.getElementById("lb-list");
+        const podiumEl = document.getElementById("lb-podium");
+        const stripEl = document.getElementById("lb-my-strip");
+        const myReq = ++lbReqId;
         fetch('/api/leaderboard?range=' + encodeURIComponent(lbRange))
             .then(r => r.json())
             .then(data => {
+                if (myReq !== lbReqId || lbMode !== 'van') return;
                 if (!data || !data.success) {
                     if (listEl) listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:20px;">Leaderboard load nahi ho paya.</div>';
                     return;

@@ -3018,6 +3018,23 @@
             <!-- --------------------------------------------------- -->
             <div class="tab-panel" id="panel-plantation">
                 <div style="display: flex; flex-direction: column; gap: 20px; text-align: left;">
+
+                    <!-- Takhatpur Surfar — Gamer Leaderboard -->
+                    <div class="dashboard-card" style="border-left: 4px solid #7c3aed; background: linear-gradient(135deg, rgba(124,58,237,0.06) 0%, rgba(255,255,255,0) 100%);">
+                        <div class="card-header-row" style="margin-bottom: 12px;">
+                            <h3 class="card-title-text" style="color:#6d28d9;"><i data-lucide="gamepad-2"></i> Takhatpur Surfar — Gamer Leaderboard</h3>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <span class="status-badge badge-pending" id="game-kpi-summary">--</span>
+                                <button class="btn-custom btn-custom-secondary" onclick="loadGameLeaderboard()" style="padding: 6px 12px; font-size: 0.85rem; margin:0;"><i data-lucide="refresh-cw" style="width:14px; height:14px;"></i> Refresh</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive-wrapper" style="max-height: 360px; overflow-y:auto;">
+                            <table class="premium-table responsive-cards">
+                                <thead><tr><th>Rank</th><th>Player</th><th>Phone</th><th>Best Score</th><th>Games</th><th>Coins</th><th>Last Played</th></tr></thead>
+                                <tbody id="game-leaderboard-rows"><tr><td colspan="7" style="text-align:center; padding:16px; color:var(--text-muted);">Loading...</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
                     
                     <!-- Summary Cards Grid -->
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
@@ -7804,7 +7821,33 @@
         // --- Tree Plantation & Customer Order Tracker JS ---
         let plantationCustomersData = [];
 
+        function loadGameLeaderboard() {
+            const rows = document.getElementById("game-leaderboard-rows");
+            if (!rows) return;
+            fetch('/api/admin/game/leaderboard').then(r => r.json()).then(d => {
+                const list = d.leaderboard || [];
+                const kpi = document.getElementById("game-kpi-summary");
+                if (kpi) kpi.innerText = `${d.total_players || 0} players · ${d.total_plays || 0} games`;
+                if (!list.length) { rows.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:16px; color:var(--text-muted);">Abhi kisi ne game nahi khela.</td></tr>`; return; }
+                const medal = { 1: '🥇', 2: '🥈', 3: '🥉' };
+                rows.innerHTML = list.map((p, i) => `
+                    <tr>
+                        <td data-label="Rank" style="font-weight:800;">${medal[i + 1] || '#' + (i + 1)}</td>
+                        <td data-label="Player"><strong>${escAdmin(p.name)}</strong></td>
+                        <td data-label="Phone">${escAdmin(p.phone)}</td>
+                        <td data-label="Best Score" style="font-weight:800; color:#6d28d9;">${Number(p.best_score).toLocaleString('en-IN')}</td>
+                        <td data-label="Games">${p.plays}</td>
+                        <td data-label="Coins">₹${Number(p.total_coins || 0).toLocaleString('en-IN')}</td>
+                        <td data-label="Last Played" style="font-size:0.75rem;">${escAdmin(p.last_played || '')}</td>
+                    </tr>`).join('');
+            }).catch(() => { rows.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--ruby-danger);">Load nahi ho paya.</td></tr>`; });
+        }
+        function escAdmin(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+
         function loadPlantationTracker() {
+            try { loadGameLeaderboard(); } catch (e) { console.error(e); }
             fetch('/api/admin/plantation-tracker')
                 .then(res => res.json())
                 .then(data => {
