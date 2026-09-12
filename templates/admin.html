@@ -2411,6 +2411,39 @@
                     </div>
                 </div>
 
+                <!-- Takhatpur Surfar Game Settings (global for all players) -->
+                <div class="dashboard-card" style="margin-top: 20px; border-left: 4px solid #7c3aed;">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text" style="color:#6d28d9;"><i data-lucide="gamepad-2"></i> Takhatpur Surfar — Game Awaazein & Signboards</h3>
+                        <span class="status-badge badge-pending">Sab players par lagu</span>
+                    </div>
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin:6px 0 14px;">Yahan upload ki gayi awaaz har user ko sunai degi (game ke andar wala Admin Panel sirf us phone ke liye hota hai). mp3 files 4 MB se chhoti rakhein; background song 1-2 MB ka loop kaafi hai.</p>
+
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+                        <label style="font-size:0.82rem; font-weight:700;">Custom awaaz volume</label>
+                        <input type="range" id="game-sound-volume" min="0" max="100" value="90" style="flex:1; max-width:220px; accent-color:#7c3aed;" oninput="document.getElementById('game-sound-volume-val').innerText=this.value+'%'">
+                        <span id="game-sound-volume-val" style="font-weight:800; font-size:0.8rem; width:40px;">90%</span>
+                        <button class="btn-custom btn-custom-secondary" style="margin:0; padding:6px 12px; font-size:0.78rem;" onclick="saveGameVolume()">Save</button>
+                    </div>
+
+                    <div class="table-responsive-wrapper">
+                        <table class="premium-table responsive-cards">
+                            <thead><tr><th>Event</th><th>Abhi</th><th>Actions</th></tr></thead>
+                            <tbody id="game-sounds-rows"><tr><td colspan="3" style="text-align:center; padding:14px; color:var(--text-muted);">Loading...</td></tr></tbody>
+                        </table>
+                    </div>
+
+                    <div style="border-top:1px dashed var(--border-color); margin-top:18px; padding-top:14px;">
+                        <h4 style="font-size:0.9rem; font-weight:800; color:#6d28d9; margin-bottom:6px;">🏪 Dukaan ke naam & sadak ke banners (sab players ke liye)</h4>
+                        <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:8px;">Game kholo → Admin Panel → naam badlo → <b>Export JSON</b> → wo text yahan paste karke Save karo. Khaali chhod kar Save karne par game ke default naam wapas aa jayenge.</p>
+                        <textarea id="game-signs-json" rows="5" class="form-input-custom" style="width:100%; font-family:monospace; font-size:0.75rem;" placeholder='{"shops":[...], "banners":[...]}'></textarea>
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button class="btn-custom btn-custom-primary" style="margin:0;" onclick="saveGameSigns()">Save Signboards</button>
+                            <button class="btn-custom btn-custom-secondary" style="margin:0;" onclick="document.getElementById('game-signs-json').value=''; saveGameSigns();">Reset to Default</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- About Us Team Photo Settings -->
                 <div class="dashboard-card" style="margin-top: 20px;">
                     <div class="card-header-row">
@@ -6548,7 +6581,69 @@
             showAestheticToast("Downloading search report PDF...", "info");
         }
 
+        // ===== Takhatpur Surfar game settings (global) =====
+        const GAME_SOUND_LABELS = {
+            pothole: '🕳️ Gaddhe mein gire', crash: '💥 Takkar (gai / truck / auto)', gameover: '☠️ Game over',
+            start: '🏁 Shuru hone par', milestone: '🎉 Har 500 meter', jump: '⬆️ Jump', roll: '⬇️ Jhukna / roll',
+            coin: '₹ Sikka uthana', powerup: '⭐ Power-up', shield: '⛑️ Helmet ne bachaya', horn: '🚚 Truck / auto horn',
+            bark: '🐕 Kalu ki bhaunk', stare: '😠 "Dekh ke chal!"', music: '🎵 Background music (loop)'
+        };
+        function loadGameSettings() {
+            const rows = document.getElementById("game-sounds-rows");
+            if (!rows) return;
+            fetch('/api/admin/game/sounds').then(r => r.json()).then(d => {
+                const sounds = d.sounds || {};
+                rows.innerHTML = (d.events || Object.keys(GAME_SOUND_LABELS)).map(ev => {
+                    const cur = sounds[ev];
+                    return `<tr>
+                        <td data-label="Event" style="font-weight:700;">${GAME_SOUND_LABELS[ev] || ev}</td>
+                        <td data-label="Abhi">${cur ? `<audio controls preload="none" src="${cur.url}" style="height:30px; max-width:200px;"></audio><div style="font-size:0.68rem; color:var(--text-secondary);">${escAdmin(cur.name || '')} · ${Math.round((cur.size || 0) / 1024)} KB</div>` : '<span style="color:var(--text-muted); font-size:0.78rem;">Default (game ki apni awaaz)</span>'}</td>
+                        <td data-label="Actions">
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <label class="btn-custom btn-custom-primary" style="margin:0; padding:5px 10px; font-size:0.75rem; cursor:pointer;">${cur ? 'Badlo' : 'Upload'} <input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg" style="display:none;" onchange="uploadGameSound('${ev}', this)"></label>
+                                ${cur ? `<button class="btn-custom" style="margin:0; padding:5px 10px; font-size:0.75rem; background:var(--ruby-light); color:var(--ruby-danger); border:1px solid rgba(239,68,68,0.2); border-radius:var(--radius-sm); cursor:pointer;" onclick="deleteGameSound('${ev}')">Hatao</button>` : ''}
+                            </div>
+                        </td></tr>`;
+                }).join('');
+            }).catch(() => { rows.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--ruby-danger);">Load nahi ho paya.</td></tr>`; });
+            fetch('/api/game/config').then(r => r.json()).then(cfg => {
+                const v = Math.round((cfg.volume ?? 0.9) * 100);
+                const rng = document.getElementById("game-sound-volume"); if (rng) { rng.value = v; document.getElementById("game-sound-volume-val").innerText = v + '%'; }
+                const ta = document.getElementById("game-signs-json");
+                if (ta) ta.value = (cfg.signs && (cfg.signs.shops || cfg.signs.banners)) ? JSON.stringify(cfg.signs) : '';
+            }).catch(() => {});
+        }
+        function uploadGameSound(ev, input) {
+            if (!input.files || !input.files[0]) return;
+            const f = input.files[0];
+            if (f.size > 4 * 1024 * 1024) { showAestheticToast("File 4 MB se badi hai. Chhota mp3 banakar upload karein.", "error"); input.value = ''; return; }
+            const fd = new FormData(); fd.append('event', ev); fd.append('file', f);
+            showAestheticToast("Awaaz upload ho rahi hai...", "info");
+            fetch('/api/admin/game/sounds/upload', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+                showAestheticToast(d.message || d.error, d.success ? "success" : "error");
+                loadGameSettings();
+            }).catch(() => showAestheticToast("Upload fail ho gaya.", "error"));
+        }
+        function deleteGameSound(ev) {
+            if (!confirm("Yeh awaaz hata kar default par wapas jaayein?")) return;
+            fetch(`/api/admin/game/sounds/${ev}`, { method: 'DELETE' }).then(r => r.json()).then(d => {
+                showAestheticToast(d.message || d.error, d.success ? "success" : "error");
+                loadGameSettings();
+            });
+        }
+        function saveGameVolume() {
+            const v = Number(document.getElementById("game-sound-volume").value) / 100;
+            fetch('/api/admin/game/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ volume: v }) })
+                .then(r => r.json()).then(d => showAestheticToast(d.message || d.error, d.success ? "success" : "error"));
+        }
+        function saveGameSigns() {
+            const txt = document.getElementById("game-signs-json").value.trim();
+            fetch('/api/admin/game/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signs: txt }) })
+                .then(r => r.json()).then(d => showAestheticToast(d.message || d.error, d.success ? "success" : "error"));
+        }
+
         function loadAdminAboutTeamPhoto() {
+            try { loadGameSettings(); } catch (e) { console.error(e); }
             fetch('/api/system/settings')
                 .then(res => res.json())
                 .then(settings => {

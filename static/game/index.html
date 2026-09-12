@@ -441,6 +441,27 @@ const DEFAULT_BANNERS = [
 let SHOPS = DEFAULT_SHOPS.map(s => ({ ...s })), BANNERS = DEFAULT_BANNERS.map(b => ({ ...b }));
 function cleanShops(a) { return Array.isArray(a) ? a.filter(x => x && String(x.name || '').trim()).map(x => ({ name: String(x.name).slice(0, 40), sub: String(x.sub || '').slice(0, 40), bg: hex6(x.bg || '#c8321f'), fg: hex6(x.fg || '#ffffff') })) : []; }
 function cleanBanners(a) { return Array.isArray(a) ? a.filter(x => x && String(x.text || '').trim()).map(x => ({ text: String(x.text).slice(0, 48), sub: String(x.sub || '').slice(0, 48) })) : []; }
+function applyServerSigns(cfg) {
+  if (!cfg || !cfg.signs) return;
+  try { const s = cleanShops(cfg.signs.shops); if (s.length) SHOPS = s; } catch (e) { }
+  try { const b = cleanBanners(cfg.signs.banners); if (b.length) BANNERS = b; } catch (e) { }
+}
+async function loadServerSounds(cfg) {
+  if (!cfg) return;
+  if (typeof cfg.volume === 'number') { try { if (localStorage.getItem('ts_voicevol') === null) Sfx.customVol = clamp(cfg.volume, 0, 1); } catch (e) { Sfx.customVol = clamp(cfg.volume, 0, 1); } }
+  const sounds = cfg.sounds || {};
+  const ids = Object.keys(sounds).filter(id => sounds[id] && sounds[id].url);
+  // small effects first, background music last (so the game starts quickly)
+  ids.sort((a, b) => (a === 'music') - (b === 'music'));
+  for (const id of ids) {
+    if (Sfx.custom[id] && Sfx.custom[id].local) continue;   // device-level override wins
+    try {
+      const r = await fetch(sounds[id].url, { cache: 'force-cache' }); if (!r.ok) continue;
+      const blob = await r.blob();
+      Sfx.setCustom(id, { blob, name: sounds[id].name || 'Server', dur: 0, server: true });
+    } catch (e) { }
+  }
+}
 function loadCustomSigns() {
   try { const s = cleanShops(JSON.parse(localStorage.getItem('ts_shops') || 'null')); if (s.length) SHOPS = s; } catch (e) { }
   try { const b = cleanBanners(JSON.parse(localStorage.getItem('ts_banners') || 'null')); if (b.length) BANNERS = b; } catch (e) { }
@@ -490,7 +511,7 @@ const SoundDB = {
   async all() { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('sounds'), st = tx.objectStore('sounds'), ks = st.getAllKeys(), vs = st.getAll(); tx.oncomplete = () => { const o = {}; (ks.result || []).forEach((k, i) => o[k] = vs.result[i]); res(o); }; tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error); }); }
 };
 async function loadCustomSounds() {
-  try { const all = await SoundDB.all(); for (const id in all) if (all[id] && all[id].blob) Sfx.setCustom(id, { blob: all[id].blob, name: all[id].name || 'Custom', dur: all[id].dur || 0 }); } catch (e) { }
+  try { const all = await SoundDB.all(); for (const id in all) if (all[id] && all[id].blob) Sfx.setCustom(id, { blob: all[id].blob, name: all[id].name || 'Custom', dur: all[id].dur || 0, local: true }); } catch (e) { }
   try { const v = parseFloat(localStorage.getItem('ts_voicevol')); if (!isNaN(v)) Sfx.customVol = clamp(v, 0, 1); } catch (e) { }
 }
 async function saveCustomSound(id, blob, name) {
@@ -1794,12 +1815,15 @@ function showErr(msg) { $('loading').querySelector('.spinner').style.display = '
 function boot() {
   loadBest();
   if (!window.THREE) { showErr('⚠️ Three.js load nahi ho paya.<br>Internet connection check karke page reload karo.'); return; }
-  const go = () => {
-    try { loadCustomSigns(); loadCustomSounds(); buildTextures(); initWorld(); initEntities(); bindInput(); bindAdmin(); initCharacter(); resize(); fillScenery(); showMenu(); $('loading').classList.add('hidden'); last = performance.now(); requestAnimationFrame(loop); setTimeout(loadModels, 30); }
+  // Server-wide config from Hamar Bazar admin (sounds + signboards). Applied before textures are built.
+  const serverCfg = fetch('/api/game/config', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const go = (cfg) => {
+    try { loadCustomSigns(); applyServerSigns(cfg); loadCustomSounds(); loadServerSounds(cfg); buildTextures(); initWorld(); initEntities(); bindInput(); bindAdmin(); initCharacter(); resize(); fillScenery(); showMenu(); $('loading').classList.add('hidden'); last = performance.now(); requestAnimationFrame(loop); setTimeout(loadModels, 30); }
     catch (err) { console.error(err); showErr('Error: ' + err.message); }
   };
   const fonts = (document.fonts && document.fonts.load) ? Promise.all([document.fonts.load('800 24px "Baloo 2"', 'टकतपुर'), document.fonts.load('800 24px "Baloo 2"', 'HORN')]).catch(() => { }) : Promise.resolve();
-  Promise.race([fonts, new Promise(r => setTimeout(r, 3000))]).then(go, go);
+  const cfgOrTimeout = Promise.race([serverCfg, new Promise(r => setTimeout(() => r(null), 4000))]);
+  Promise.race([fonts, new Promise(r => setTimeout(r, 3000))]).then(() => cfgOrTimeout, () => cfgOrTimeout).then(go, () => go(null));
 }
 boot();
 </script>

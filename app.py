@@ -116,6 +116,8 @@ def handle_csrf_error(e):
 
 @app.after_request
 def add_header(response):
+    if request.path.startswith('/static/uploads/game_sounds/'):
+        response.headers['Cache-Control'] = 'public, max-age=604800'
     if request.path.startswith('/static/game/'):
         if request.path.endswith('.html'):
             # Always fetch the game page fresh (so header/script updates apply immediately)
@@ -5999,6 +6001,137 @@ def game_leaderboard():
         r = cursor.fetchone()
         my_row = {'rank': None, 'best_score': r['best'] or 0, 'plays': r['plays'] or 0, 'is_me': True}
     return jsonify({'success': True, 'range': range_key, 'leaderboard': board[:25], 'me': my_row})
+
+def _admin_only():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized. Please log in as Admin.'}), 403
+    return None
+
+# ---- Game config managed from Hamar Bazar admin (sounds + signboards) — applies to ALL players ----
+GAME_SOUND_EVENTS = ('pothole', 'crash', 'gameover', 'start', 'milestone', 'jump', 'roll', 'coin',
+                     'powerup', 'shield', 'horn', 'bark', 'stare', 'music')
+GAME_SOUND_EXTS = ('mp3', 'wav', 'm4a', 'ogg', 'aac', 'webm')
+GAME_SOUND_MAX = 4 * 1024 * 1024  # 4 MB per file
+GAME_SOUND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'game_sounds')
+os.makedirs(GAME_SOUND_DIR, exist_ok=True)
+
+def _game_setting_json(cursor, key, default):
+    import json as _json
+    cursor.execute("SELECT value FROM system_settings WHERE key = ?", (key,))
+    row = cursor.fetchone()
+    if not row or not row['value']:
+        return default
+    try:
+        return _json.loads(row['value'])
+    except Exception:
+        return default
+
+def _game_setting_save(db, key, value):
+    import json as _json
+    db.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", (key, _json.dumps(value, ensure_ascii=False)))
+    db.commit()
+
+@app.route('/api/game/config', methods=['GET'])
+def game_config():
+    """Public: sounds + signboards set by the admin. The game fetches this on start."""
+    db = get_db()
+    cursor = db.cursor()
+    sounds = _game_setting_json(cursor, 'game_sounds', {})
+    signs = _game_setting_json(cursor, 'game_signs', {})
+    cursor.execute("SELECT value FROM system_settings WHERE key = 'game_sound_volume'")
+    row = cursor.fetchone()
+    try:
+        vol = float(row['value']) if row else 0.9
+    except (TypeError, ValueError):
+        vol = 0.9
+    resp = jsonify({'sounds': sounds, 'signs': signs, 'volume': max(0.0, min(1.0, vol))})
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
+
+@app.route('/api/admin/game/sounds', methods=['GET'])
+def admin_game_sounds():
+    guard = _admin_only()
+    if guard: return guard
+    db = get_db()
+    cursor = db.cursor()
+    return jsonify({'sounds': _game_setting_json(cursor, 'game_sounds', {}), 'events': list(GAME_SOUND_EVENTS)})
+
+@app.route('/api/admin/game/sounds/upload', methods=['POST'])
+def admin_game_sound_upload():
+    guard = _admin_only()
+    if guard: return guard
+    event = (request.form.get('event') or '').strip().lower()
+    if event not in GAME_SOUND_EVENTS:
+        return jsonify({'error': 'Unknown sound event.'}), 400
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'error': 'Audio file chuniye.'}), 400
+    ext = f.filename.rsplit('.', 1)[-1].lower() if '.' in f.filename else ''
+    if ext not in GAME_SOUND_EXTS:
+        return jsonify({'error': f"Sirf {', '.join(GAME_SOUND_EXTS)} files allowed hain."}), 400
+    data = f.read()
+    if not data:
+        return jsonify({'error': 'File khaali hai.'}), 400
+    if len(data) > GAME_SOUND_MAX:
+        return jsonify({'error': 'File 4 MB se badi hai. Chhota mp3 banakar upload karein.'}), 400
+    fname = f"{event}_{int(ist_now().timestamp())}_{random.randint(100, 999)}.{ext}"
+    with open(os.path.join(GAME_SOUND_DIR, fname), 'wb') as out:
+        out.write(data)
+    db = get_db()
+    cursor = db.cursor()
+    sounds = _game_setting_json(cursor, 'game_sounds', {})
+    old = sounds.get(event)
+    if old and old.get('url', '').startswith('/static/uploads/game_sounds/'):
+        try: os.remove(os.path.join(app.root_path, old['url'].lstrip('/')))
+        except Exception: pass
+    sounds[event] = {'url': f"/static/uploads/game_sounds/{fname}", 'name': f.filename[:60], 'size': len(data)}
+    _game_setting_save(db, 'game_sounds', sounds)
+    return jsonify({'success': True, 'message': f"'{event}' ki awaaz sab players ke liye set ho gayi.", 'sounds': sounds})
+
+@app.route('/api/admin/game/sounds/<event>', methods=['DELETE', 'POST'])
+def admin_game_sound_delete(event):
+    guard = _admin_only()
+    if guard: return guard
+    event = (event or '').lower()
+    db = get_db()
+    cursor = db.cursor()
+    sounds = _game_setting_json(cursor, 'game_sounds', {})
+    old = sounds.pop(event, None)
+    if old and old.get('url', '').startswith('/static/uploads/game_sounds/'):
+        try: os.remove(os.path.join(app.root_path, old['url'].lstrip('/')))
+        except Exception: pass
+    _game_setting_save(db, 'game_sounds', sounds)
+    return jsonify({'success': True, 'message': 'Awaaz hata di, ab default sound bajega.', 'sounds': sounds})
+
+@app.route('/api/admin/game/settings', methods=['POST'])
+def admin_game_settings():
+    """Save signboards/banners JSON (exported from the game's own admin panel) and custom-sound volume."""
+    guard = _admin_only()
+    if guard: return guard
+    data = request.get_json(silent=True) or {}
+    db = get_db()
+    if 'signs' in data:
+        signs = data.get('signs')
+        if signs in (None, '', {}):
+            _game_setting_save(db, 'game_signs', {})
+        else:
+            if isinstance(signs, str):
+                import json as _json
+                try:
+                    signs = _json.loads(signs)
+                except Exception:
+                    return jsonify({'error': 'Signboards JSON sahi nahi hai.'}), 400
+            if not isinstance(signs, dict) or not (isinstance(signs.get('shops'), list) or isinstance(signs.get('banners'), list)):
+                return jsonify({'error': "JSON me 'shops' ya 'banners' list honi chahiye (game ke Admin Panel se Export karein)."}), 400
+            _game_setting_save(db, 'game_signs', {'shops': signs.get('shops') or [], 'banners': signs.get('banners') or []})
+    if 'volume' in data:
+        try:
+            vol = max(0.0, min(1.0, float(data['volume'])))
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Volume 0 se 1 ke beech hona chahiye.'}), 400
+        db.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('game_sound_volume', ?)", (str(vol),))
+        db.commit()
+    return jsonify({'success': True, 'message': 'Game settings save ho gayi (sab players par lagu).'})
 
 @app.route('/api/admin/game/leaderboard', methods=['GET'])
 def admin_game_leaderboard():
