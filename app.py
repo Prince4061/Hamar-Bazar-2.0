@@ -2518,33 +2518,133 @@ def vendor_modify_product(prod_id):
 
 # ─── BULK PRODUCT SPREADSHEET (EXCEL / CSV) IMPORT ENGINE ─────────────────────────
 
+def _norm_cat_key(text):
+    """Normalize a category / shop name for fuzzy matching: 'Mithai & Sweets ' -> 'MITHAI AND SWEETS'."""
+    t = str(text or '').strip().upper()
+    t = t.replace('&', ' AND ').replace('+', ' AND ')
+    t = re.sub(r'[^A-Z0-9]+', ' ', t)
+    return re.sub(r'\s+', ' ', t).strip()
+
+def resolve_bulk_shop(shop_val, all_shops):
+    """
+    Resolve a spreadsheet 'Shop Category' cell to a shop id.
+    Accepts: numeric id (7, '7', '7.0'), exact category code, exact shop name,
+    case/punctuation-insensitive match ('mithai and sweets' == 'MITHAI & SWEETS'),
+    or a unique partial match ('mithai' -> MITHAI & SWEETS).
+    Returns (shop_id or None, reason).
+    """
+    raw = str(shop_val or '').strip()
+    if not raw or raw.lower() in ('nan', 'none', 'null'):
+        return None, 'empty'
+    ids = {int(s['id']) for s in all_shops}
+    if re.fullmatch(r'\d+(\.0+)?', raw):
+        n = int(float(raw))
+        if n in ids:
+            return n, 'id'
+    key = _norm_cat_key(raw)
+    if not key:
+        return None, 'empty'
+    for sh in all_shops:
+        if key == _norm_cat_key(sh['category']) or key == _norm_cat_key(sh['shop_name']):
+            return int(sh['id']), 'exact'
+    cands = []
+    for sh in all_shops:
+        ck, nk = _norm_cat_key(sh['category']), _norm_cat_key(sh['shop_name'])
+        if key in ck or key in nk or (len(key) >= 4 and (ck in key or nk in key)):
+            cands.append(int(sh['id']))
+    cands = list(dict.fromkeys(cands))
+    if len(cands) == 1:
+        return cands[0], 'partial'
+    if len(cands) > 1:
+        return None, 'ambiguous'
+    return None, 'notfound'
+
+def clean_bulk_image_url(raw):
+    """
+    Clean an image URL cell from a spreadsheet. Returns (url or '', warning or None).
+    Handles quotes/whitespace, =HYPERLINK()/=IMAGE() formulas, missing scheme,
+    Google Drive / Dropbox share links, spaces in URL. Rejects non-http / non-static values.
+    """
+    if raw is None:
+        return '', None
+    u = str(raw).strip().strip('"').strip("'").strip()
+    if not u or u.lower() in ('nan', 'none', 'null', '-', 'na', 'n/a'):
+        return '', None
+    m = re.search(r'(?i)=\s*(?:HYPERLINK|IMAGE)\s*\(\s*["\']([^"\']+)["\']', u)
+    if m:
+        u = m.group(1).strip()
+    parts = [x for x in re.split(r'[\s,;\n]+', u) if x]
+    if len(parts) > 1 and all(re.match(r'(?i)^(https?://|www\.)', x) for x in parts[:2]):
+        u = parts[0]
+    else:
+        u = ' '.join(parts)
+    if u.startswith('/static/'):
+        return u, None
+    if re.match(r'(?i)^www\.', u):
+        u = 'https://' + u
+    if re.match(r'(?i)^(https?):/(?!/)', u):
+        u = re.sub(r'(?i)^(https?):/', r'\1://', u)
+    if not re.match(r'(?i)^https?://', u):
+        if re.match(r'^[a-z0-9.-]+\.[a-z]{2,}/', u, re.I):
+            u = 'https://' + u
+        else:
+            return '', f"Image URL '{str(raw)[:60]}' is not a valid http(s) link; default image used."
+    gd = re.search(r'drive\.google\.com/(?:file/d/|open\?id=|uc\?id=)([A-Za-z0-9_-]{10,})', u)
+    if gd:
+        u = f"https://drive.google.com/uc?export=view&id={gd.group(1)}"
+    if 'dropbox.com' in u:
+        u = re.sub(r'[?&]dl=0', '', u)
+        u = u + ('&' if '?' in u else '?') + 'raw=1'
+    u = u.replace(' ', '%20')
+    if len(u) > 2000:
+        return '', "Image URL too long (>2000 chars); default image used."
+    return u, None
+
+def _bulk_num(raw):
+    """Parse '₹1,299.50' / '55' / 55.0 -> float or None."""
+    if raw is None:
+        return None
+    txt = str(raw).strip().replace(',', '')
+    if not txt or txt.lower() == 'nan':
+        return None
+    m = re.search(r'-?\d+(?:\.\d+)?', txt)
+    return float(m.group(0)) if m else None
+
 def process_bulk_products(file_obj, default_shop_id=None, is_admin=False):
     """
     Parses an uploaded Excel (.xlsx, .xls) or CSV (.csv) file and inserts or updates products.
-    Returns a dict with success status, counts, and error details.
+    Returns a dict with success status, counts, and error details. One bad row never aborts the batch.
     """
     filename = getattr(file_obj, 'filename', '') or ''
     lower_fn = filename.lower()
-    
+
     if not (lower_fn.endswith('.xlsx') or lower_fn.endswith('.xls') or lower_fn.endswith('.csv')):
         return {'success': False, 'error': 'Invalid file format. Please upload an Excel (.xlsx, .xls) or CSV (.csv) file.'}
+    if pd is None:
+        return {'success': False, 'error': 'Spreadsheet support (pandas/openpyxl) is not installed on the server.'}
 
     try:
         if lower_fn.endswith('.csv'):
             try:
-                df = pd.read_csv(file_obj.stream)
+                df = pd.read_csv(file_obj.stream, dtype=str, keep_default_na=False)
             except Exception:
                 file_obj.stream.seek(0)
-                df = pd.read_csv(file_obj.stream, encoding='latin-1')
+                df = pd.read_csv(file_obj.stream, dtype=str, keep_default_na=False, encoding='latin-1')
         else:
-            df = pd.read_excel(file_obj.stream)
+            try:
+                df = pd.read_excel(file_obj.stream, dtype=str, keep_default_na=False)
+            except ImportError as ie:
+                return {'success': False, 'error': f'Excel engine missing ({ie}). Please save the file as .xlsx or .csv and try again.'}
     except Exception as e:
         return {'success': False, 'error': f'Failed to read spreadsheet file: {str(e)}'}
 
+    # Drop junk: unnamed columns and fully-empty rows (common in hand-edited Excel files)
+    df = df.loc[:, [c for c in df.columns if not str(c).lower().startswith('unnamed')]]
+    df = df.replace(r'^\s*$', '', regex=True)
+    df = df[~(df == '').all(axis=1)]
     if df.empty:
         return {'success': False, 'error': 'The uploaded file is empty.'}
 
-    # Normalize column names: lower, strip, remove spaces/dashes
     normalized_cols = {}
     for col in df.columns:
         clean = re.sub(r'[^a-z0-9_]', '_', str(col).strip().lower())
@@ -2552,7 +2652,6 @@ def process_bulk_products(file_obj, default_shop_id=None, is_admin=False):
         normalized_cols[col] = clean
     df.rename(columns=normalized_cols, inplace=True)
 
-    # Column mappings
     def find_col(possible_names):
         for name in possible_names:
             if name in df.columns:
@@ -2565,159 +2664,136 @@ def process_bulk_products(file_obj, default_shop_id=None, is_admin=False):
     col_cost_price = find_col(['cost_price', 'purchase_price', 'buying_price', 'cost', 'buy_rate'])
     col_subcategory = find_col(['subcategory', 'sub_category', 'subcat', 'category_name', 'type', 'group'])
     col_description = find_col(['description', 'desc', 'details', 'detail', 'info'])
-    col_image_path = find_col(['image_path', 'image_url', 'image', 'photo', 'img_url', 'img', 'picture'])
+    col_image_path = find_col(['image_path', 'image_url', 'image', 'photo', 'img_url', 'img', 'picture', 'image_link', 'photo_url'])
     col_keywords = find_col(['keywords', 'keyword', 'tags', 'tag', 'search_tags', 'search_keywords'])
     col_available = find_col(['is_available', 'available', 'in_stock', 'stock_status', 'status', 'stock'])
-    col_shop = find_col(['shop_id', 'shop_category', 'category', 'shop_name', 'shop', 'store'])
+    col_shop = find_col(['shop_id', 'shop_category', 'shop_name', 'shop', 'store', 'category'])
+    # Vendor sheets: a plain 'category' column can't change the shop, so treat it as subcategory
+    if not is_admin and not col_subcategory and col_shop == 'category':
+        col_subcategory = 'category'
 
     if not col_name or not col_price:
         return {
-            'success': False, 
+            'success': False,
             'error': f"Required columns missing. Your file must have 'Product Name' and 'Price' columns. Found columns: {', '.join(df.columns)}"
         }
 
     db = get_db()
     cursor = db.cursor()
-
-    # Pre-fetch shops for shop matching
     cursor.execute("SELECT id, shop_name, category FROM shops")
-    all_shops = cursor.fetchall()
-    shop_cat_map = {str(s['category']).strip().upper(): s['id'] for s in all_shops}
-    shop_name_map = {str(s['shop_name']).strip().lower(): s['id'] for s in all_shops}
-    shop_id_set = {s['id'] for s in all_shops}
+    all_shops = [dict(r) for r in cursor.fetchall()]
+    shop_id_set = {int(s['id']) for s in all_shops}
+    valid_cats_hint = ', '.join(sorted(str(s['category']) for s in all_shops))[:300]
 
-    inserted_count = 0
-    updated_count = 0
-    skipped_count = 0
+    inserted_count = updated_count = skipped_count = image_warnings = 0
     row_errors = []
 
+    def _blank(v):
+        return v is None or (isinstance(v, float) and pd.isna(v)) or str(v).strip() == '' or str(v).strip().lower() == 'nan'
+
+    def _cell(row, col):
+        return None if not col or _blank(row.get(col)) else str(row.get(col)).strip()
+
     for index, row in df.iterrows():
-        row_num = index + 2  # 1-indexed header is row 1
-        raw_name = row.get(col_name)
-        if pd.isna(raw_name) or not str(raw_name).strip():
+        row_num = index + 2
+        name = _cell(row, col_name)
+        if not name:
             skipped_count += 1
             continue
-        
-        name = str(raw_name).strip()
-
-        # Price validation
-        raw_price = row.get(col_price)
-        if pd.isna(raw_price) or str(raw_price).strip() == '':
-            row_errors.append(f"Row {row_num} ('{name}'): Missing price.")
-            skipped_count += 1
-            continue
-
         try:
-            price_clean = re.sub(r'[^\d.]', '', str(raw_price))
-            price_val = float(price_clean)
-            if price_val < 0:
-                raise ValueError()
-        except Exception:
-            row_errors.append(f"Row {row_num} ('{name}'): Invalid price '{raw_price}'.")
-            skipped_count += 1
-            continue
-
-        # MRP
-        mrp_val = price_val
-        if col_mrp and not pd.isna(row.get(col_mrp)):
-            try:
-                mrp_clean = re.sub(r'[^\d.]', '', str(row.get(col_mrp)))
-                if mrp_clean:
-                    mrp_val = float(mrp_clean)
-            except Exception:
+            # Price
+            price_val = _bulk_num(row.get(col_price))
+            if price_val is None or price_val < 0:
+                row_errors.append(f"Row {row_num} ('{name}'): Invalid or missing price '{row.get(col_price)}'.")
+                skipped_count += 1
+                continue
+            mrp_val = _bulk_num(row.get(col_mrp)) if col_mrp else None
+            if mrp_val is None or mrp_val < price_val:
                 mrp_val = price_val
-
-        # Cost Price
-        cost_price_val = 0.0
-        if col_cost_price and not pd.isna(row.get(col_cost_price)):
-            try:
-                cp_clean = re.sub(r'[^\d.]', '', str(row.get(col_cost_price)))
-                if cp_clean:
-                    cost_price_val = float(cp_clean)
-            except Exception:
+            cost_price_val = _bulk_num(row.get(col_cost_price)) if col_cost_price else None
+            if cost_price_val is None or cost_price_val < 0:
                 cost_price_val = 0.0
 
-        # Subcategory
-        subcategory = ''
-        if col_subcategory and not pd.isna(row.get(col_subcategory)):
-            subcategory = str(row.get(col_subcategory)).strip()
+            subcategory = _cell(row, col_subcategory) or ''
+            description = _cell(row, col_description) or ''
+            keywords = _cell(row, col_keywords) or ''
 
-        # Description
-        description = ''
-        if col_description and not pd.isna(row.get(col_description)):
-            description = str(row.get(col_description)).strip()
+            # Image URL (cleaned; a bad link falls back to the default image instead of breaking the row)
+            image_path = ''
+            raw_img = _cell(row, col_image_path)
+            if raw_img:
+                image_path, img_warn = clean_bulk_image_url(raw_img)
+                if img_warn:
+                    image_warnings += 1
+                    if image_warnings <= 5:
+                        row_errors.append(f"Row {row_num} ('{name}'): {img_warn}")
 
-        # Keywords
-        keywords = ''
-        if col_keywords and not pd.isna(row.get(col_keywords)):
-            keywords = str(row.get(col_keywords)).strip()
+            # Availability
+            is_available = 1
+            avail_raw = _cell(row, col_available)
+            if avail_raw is not None:
+                is_available = parse_bool_flag(avail_raw.lower().replace(' ', '_'), default=True)
 
-        # Image Path
-        image_path = ''
-        if col_image_path and not pd.isna(row.get(col_image_path)):
-            image_path = str(row.get(col_image_path)).strip()
+            # Shop (admin: from sheet column, fallback to selected shop; vendor: own shop)
+            target_shop_id = default_shop_id
+            shop_cell = _cell(row, col_shop) if is_admin else None
+            if shop_cell:
+                resolved, reason = resolve_bulk_shop(shop_cell, all_shops)
+                if resolved:
+                    target_shop_id = resolved
+                elif reason == 'ambiguous':
+                    row_errors.append(f"Row {row_num} ('{name}'): Shop category '{shop_cell}' matches more than one shop. Use the exact code. Valid: {valid_cats_hint}")
+                    skipped_count += 1
+                    continue
+                elif not default_shop_id:
+                    row_errors.append(f"Row {row_num} ('{name}'): Shop category '{shop_cell}' not found. Valid: {valid_cats_hint}")
+                    skipped_count += 1
+                    continue
+            if not target_shop_id or int(target_shop_id) not in shop_id_set:
+                row_errors.append(f"Row {row_num} ('{name}'): No shop category given and no shop selected in the upload form.")
+                skipped_count += 1
+                continue
+            target_shop_id = int(target_shop_id)
 
-        # Available
-        is_available = 1
-        if col_available and not pd.isna(row.get(col_available)):
-            avail_str = str(row.get(col_available)).strip().lower()
-            if avail_str in ['0', 'false', 'no', 'out of stock', 'inactive', 'off']:
-                is_available = 0
-
-        # Determine Target Shop ID
-        target_shop_id = default_shop_id
-        if is_admin and col_shop and not pd.isna(row.get(col_shop)):
-            shop_val = str(row.get(col_shop)).strip()
-            try:
-                s_int = int(shop_val)
-                if s_int in shop_id_set:
-                    target_shop_id = s_int
-            except ValueError:
-                if shop_val.upper() in shop_cat_map:
-                    target_shop_id = shop_cat_map[shop_val.upper()]
-                elif shop_val.lower() in shop_name_map:
-                    target_shop_id = shop_name_map[shop_val.lower()]
-
-        if not target_shop_id or target_shop_id not in shop_id_set:
-            row_errors.append(f"Row {row_num} ('{name}'): Could not determine valid shop category.")
+            cursor.execute("SELECT id, image_path FROM products WHERE shop_id = ? AND LOWER(TRIM(name)) = ?", (target_shop_id, name.lower()))
+            existing = cursor.fetchone()
+            if existing:
+                final_img = image_path if image_path else existing['image_path']
+                cursor.execute("""
+                    UPDATE products
+                    SET price = ?, mrp = ?, cost_price = ?,
+                        subcategory = CASE WHEN ? != '' THEN ? ELSE subcategory END,
+                        description = CASE WHEN ? != '' THEN ? ELSE description END,
+                        keywords = CASE WHEN ? != '' THEN ? ELSE keywords END,
+                        image_path = ?,
+                        is_available = ?
+                    WHERE id = ?
+                """, (price_val, mrp_val, cost_price_val, subcategory, subcategory, description, description, keywords, keywords, final_img, is_available, existing['id']))
+                updated_count += 1
+            else:
+                final_img = image_path if image_path else '/static/images/grocery_basket.png'
+                cursor.execute("""
+                    INSERT INTO products (shop_id, name, price, mrp, cost_price, subcategory, description, keywords, image_path, is_available)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (target_shop_id, name, price_val, mrp_val, cost_price_val, subcategory, description, keywords, final_img, is_available))
+                inserted_count += 1
+        except Exception as row_err:
+            row_errors.append(f"Row {row_num} ('{name}'): {str(row_err)[:120]}")
             skipped_count += 1
-            continue
-
-        # Check existing product with exact name in that shop
-        cursor.execute("SELECT id, image_path FROM products WHERE shop_id = ? AND LOWER(TRIM(name)) = ?", (target_shop_id, name.lower()))
-        existing = cursor.fetchone()
-        
-        if existing:
-            final_img = image_path if image_path else existing['image_path']
-            cursor.execute("""
-                UPDATE products 
-                SET price = ?, mrp = ?, cost_price = ?, 
-                    subcategory = CASE WHEN ? != '' THEN ? ELSE subcategory END,
-                    description = CASE WHEN ? != '' THEN ? ELSE description END,
-                    keywords = CASE WHEN ? != '' THEN ? ELSE keywords END,
-                    image_path = ?,
-                    is_available = ?
-                WHERE id = ?
-            """, (price_val, mrp_val, cost_price_val, subcategory, subcategory, description, description, keywords, keywords, final_img, is_available, existing['id']))
-            updated_count += 1
-        else:
-            final_img = image_path if image_path else '/static/images/grocery_basket.png'
-            cursor.execute("""
-                INSERT INTO products (shop_id, name, price, mrp, cost_price, subcategory, description, keywords, image_path, is_available)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (target_shop_id, name, price_val, mrp_val, cost_price_val, subcategory, description, keywords, final_img, is_available))
-            inserted_count += 1
 
     db.commit()
 
+    msg = f"Bulk upload done: {inserted_count} new products added, {updated_count} updated"
+    msg += f", {skipped_count} rows skipped (see warnings)." if skipped_count else "."
     return {
         'success': True,
         'inserted_count': inserted_count,
         'updated_count': updated_count,
         'skipped_count': skipped_count,
         'total_processed': inserted_count + updated_count,
-        'errors': row_errors[:15],
-        'message': f"Bulk upload successful: {inserted_count} new products added, {updated_count} existing products updated."
+        'errors': row_errors[:25],
+        'error_count': len(row_errors),
+        'message': msg
     }
 
 @app.route('/api/vendor/products/template', methods=['GET'])
