@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b0a14">
-<title>Takhatpur Surfar · टकतपुर सर्फर</title>
+<title>Takhatpur Surfar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
@@ -172,29 +172,21 @@ details.abackup summary{cursor:pointer;font-weight:700;opacity:.85}
     <div id="powers"></div>
     <div id="hint"></div>
     <div id="ready"></div>
-    <div id="brand"><b>टकतपुर</b> SURFAR</div>
+    <div id="brand"><b>Takhatpur</b> SURFAR</div>
     <div id="mobileHint" class="hidden">← swipe → &nbsp;·&nbsp; ↑ कूदो &nbsp;·&nbsp; ↓ झुको</div>
   </div>
 
   <div id="menu" class="overlay hidden">
     <div class="panel">
       <div class="title-wrap">
-        <div class="title-hi">टकतपुर</div>
+        <div class="title-hi">Takhatpur</div>
         <div class="title-en">SURFAR</div>
       </div>
       <p class="tagline">गड्ढों से भरी असली भारतीय सड़क पर दौड़!</p>
-      <p class="sub">Ola par ya paidal — gai, auto, truck, banner aur bade-bade gaddhon se bacho, ₹ sikke jama karo.<br>Peeche Kalu kutta bhaag raha hai — pakde mat jaana!</p>
-      <div class="controls">
-        <div class="key-row"><kbd>←</kbd><kbd>→</kbd><span>Lane badlo</span></div>
-        <div class="key-row"><kbd>↑</kbd><kbd>Space</kbd><span>Kudo (jump)</span></div>
-        <div class="key-row"><kbd>↓</kbd><kbd>S</kbd><span>Jhuko (roll)</span></div>
-        <div class="key-row"><kbd>P</kbd><kbd>M</kbd><span>Pause / Mute</span></div>
-        <div class="key-row" style="grid-column:1/-1"><span>📱 Mobile: swipe ← → ↑ ↓ &nbsp;·&nbsp; tap = jump</span></div>
-      </div>
-      <div class="charsel"><button class="chr on" data-c="ola">🛵 Ola Rider</button><button class="chr" data-c="runner">🏃 Runner</button></div>
+      <p class="sub">Ola par — gai, auto, truck, banner aur bade-bade gaddhon se bacho, ₹ sikke jama karo.<br>Peeche Kalu kutta bhaag raha hai — pakde mat jaana!</p>
       <button id="btnStart" class="btn big">▶ दौड़ो!</button>
       <div class="best">🏆 Best: <span id="bestMenu">0</span> &nbsp;·&nbsp; ₹ <span id="bestCoins">0</span></div>
-      <button id="btnAdmin" class="mini">⚙️ Admin Panel — dukaan ke naam badlo</button>
+      <button id="btnAdmin" class="mini">⚙️ Admin Panel</button>
       <div class="credit">NAGAR PALIKA TAKHATPUR · GADDHA MUKT SADAK ABHIYAN (COMING SOON)</div>
     </div>
     <div class="marquee">🕳️🐄🛺🚚🚧🐃🛒☕🧲⛑️</div>
@@ -557,7 +549,15 @@ function renderSounds() {
 }
 
 let adminOpen = false, adminTab = 'shops';
-function openAdmin() { adminOpen = true; adminTab = 'shops'; $('menu').classList.add('hidden'); $('admin').classList.remove('hidden'); $('adminStatus').textContent = ''; renderAdmin(); }
+const ADMIN_ID = 'admin';            // <- Admin Panel login id
+const ADMIN_PASS = 'Takhatpur@2026';  // <- Admin Panel password (change here)
+function openAdmin() {
+  const id = prompt('Admin ID:'); if (id === null) return;
+  const pw = prompt('Password:'); if (pw === null) return;
+  if (String(id).trim() !== ADMIN_ID || String(pw) !== ADMIN_PASS) { alert('Galat ID ya password!'); return; }
+  openAdminPanel();
+}
+function openAdminPanel() { adminOpen = true; adminTab = 'shops'; $('menu').classList.add('hidden'); $('admin').classList.remove('hidden'); $('adminStatus').textContent = ''; renderAdmin(); }
 function closeAdmin() { stopRecording(); if (Sfx.music.on && G.state === 'menu') Sfx.music.stop(); adminOpen = false; $('admin').classList.add('hidden'); $('menu').classList.remove('hidden'); }
 function adminMsg(t) { $('adminStatus').textContent = t; }
 function renderAdmin() {
@@ -1537,7 +1537,7 @@ function buildVehiclePlayer(gltf) {
   };
   return o;
 }
-const MODELS = { ola: { url: 'ola.glb', build: buildVehiclePlayer, obj: null, label: '🛵 Ola Rider' }, runner: { url: 'runner.glb', build: buildRiggedPlayer, obj: null, label: '🏃 Runner' } };
+const MODELS = { ola: { url: 'ola.glb', build: buildVehiclePlayer, obj: null, label: '🛵 Ola Rider' } };
 function selectCharacter(id, save = true) {
   if (!MODELS[id]) id = 'ola'; G.character = id;
   if (save) { try { localStorage.setItem('ts_char', id); } catch (e) { } }
@@ -1545,7 +1545,7 @@ function selectCharacter(id, save = true) {
   const m = MODELS[id]; if (m.obj && P.obj !== m.obj) { swapPlayer(m.obj); resetPlayer(); }
 }
 function initCharacter() {
-  let id = 'ola'; try { id = localStorage.getItem('ts_char') || 'ola'; } catch (e) { }
+  let id = 'ola';
   document.querySelectorAll('.chr').forEach(b => b.onclick = () => { Sfx.init(); Sfx.tick(); selectCharacter(b.dataset.c); });
   selectCharacter(id, false);
 }
