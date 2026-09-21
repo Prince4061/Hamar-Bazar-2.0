@@ -229,7 +229,6 @@
                 if (!pwaPrompt) return;
                 const guideLink = document.getElementById('pwa-guide-link');
                 const chromeBtn = document.getElementById('pwa-open-chrome-btn');
-                if (guideLink) guideLink.style.display = 'inline-flex';
                 if (chromeBtn) {
                     if (isInApp && /Android/i.test(navigator.userAgent)) {
                         chromeBtn.href = 'intent://' + location.host + '/install#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(location.origin + '/install') + ';end';
@@ -530,7 +529,6 @@
             <div class="pwa-install-actions">
                 <a id="pwa-open-chrome-btn" href="#" class="pwa-install-btn btn-pri" style="display:none; text-decoration:none; align-items:center; justify-content:center; background:linear-gradient(135deg,#0ea5e9,#2563eb);">🌐 Chrome me kholein</a>
                 <button id="pwa-install-btn" class="pwa-install-btn btn-pri">📲 Abhi Install Karein</button>
-                <a id="pwa-guide-link" href="/install" class="pwa-install-btn btn-sec" style="display:none; text-decoration:none; align-items:center; justify-content:center;">📖 Photo ke saath guide</a>
                 <button id="pwa-later-btn" class="pwa-install-btn btn-sec">Baad me</button>
             </div>
         </div>

@@ -56,65 +56,10 @@
   </div>
 
   <div class="ins-cta">
-    <div id="ins-installed" class="ins-done" style="display:none;">✅ App pehle se install hai! Home screen par "Hamar Bazaar" icon dhundhein.</div>
-    <button id="ins-one-tap" class="ins-btn" style="display:none;" onclick="insInstall()">📲 Ek Tap Me Install Karein</button>
-    <a id="ins-open-chrome" class="ins-btn secondary" style="display:none;" href="#">🌐 Chrome Me Kholein (phir install)</a>
-  </div>
-
-  <div id="ins-inapp" class="ins-warn" style="display:none;">
-    <h4>⚠️ Aap WhatsApp / Facebook ke andar wale browser me hain</h4>
-    <p>Yahan se app install <b>nahi</b> ho sakta. Upar wale neele button se Chrome me kholein. Agar button kaam na kare: upar-right <b>⋮</b> (3 dots) dabao → <b>"Open in Chrome"</b> / <b>"Browser me kholein"</b> chunein.</p>
-    <button class="ins-btn ghost" onclick="insCopyLink()">🔗 Link Copy Karein (Chrome me paste karein)</button>
-  </div>
-
-  <div class="ins-section" id="ins-guide">
-    <h3>📖 Install kaise karein?</h3>
-    <p class="sub">Apna phone chunein aur steps follow karein</p>
-    <div class="ins-tabs">
-      <button class="ins-tab active" data-t="android" onclick="insTab('android')">🤖 Android</button>
-      <button class="ins-tab" data-t="ios" onclick="insTab('ios')">🍎 iPhone</button>
-    </div>
-
-    <div class="ins-pane active" id="ins-pane-android">
-      <div class="ins-steps">
-        <div class="ins-step"><div class="ins-num">1</div><div class="ico">🌐</div><div class="txt">Yeh page <b>Chrome</b> browser me kholein<small>WhatsApp ke andar se nahi, Chrome app me</small></div></div>
-        <div class="ins-step"><div class="ins-num">2</div><div class="ico">⋮</div><div class="txt">Upar-right kone me <b>3 dots (⋮)</b> dabayein</div></div>
-        <div class="ins-step"><div class="ins-num">3</div><div class="ico">📲</div><div class="txt"><b>"Install app"</b> ya <b>"Add to Home screen"</b> par tap karein<small>Hindi me: "ऐप इंस्टॉल करें" / "होम स्क्रीन पर जोड़ें"</small></div></div>
-        <div class="ins-step"><div class="ins-num">4</div><div class="ico">✅</div><div class="txt"><b>Install</b> dabayein — ho gaya!<small>Home screen par Hamar Bazaar ka icon aa jayega</small></div></div>
-      </div>
-      <div class="ins-phone"><div class="scr">
-        <div class="bar"><span>🔒 hamarai.in</span><span class="dots">⋮</span></div>
-        <div class="menu"><div>New tab</div><div>Bookmarks</div><div class="hi">📲 Install app</div><div>Share…</div></div>
-      </div></div>
-    </div>
-
-    <div class="ins-pane" id="ins-pane-ios">
-      <div class="ins-steps">
-        <div class="ins-step"><div class="ins-num">1</div><div class="ico">🧭</div><div class="txt">Yeh page <b>Safari</b> browser me kholein<small>iPhone par sirf Safari se install hota hai</small></div></div>
-        <div class="ins-step"><div class="ins-num">2</div><div class="ico">⬆️</div><div class="txt">Neeche beech me <b>Share</b> button (box se upar teer) dabayein</div></div>
-        <div class="ins-step"><div class="ins-num">3</div><div class="ico">➕</div><div class="txt">Neeche scroll karke <b>"Add to Home Screen"</b> chunein</div></div>
-        <div class="ins-step"><div class="ins-num">4</div><div class="ico">✅</div><div class="txt">Upar-right <b>"Add"</b> dabayein — ho gaya!</div></div>
-      </div>
-      <div class="ins-phone"><div class="scr">
-        <div class="bar"><span>hamarai.in</span><span class="dots">⬆️</span></div>
-        <div class="menu"><div>Copy</div><div>Add Bookmark</div><div class="hi">➕ Add to Home Screen</div><div>Print</div></div>
-      </div></div>
-    </div>
-  </div>
-
-  <div class="ins-section">
-    <h3>💡 Install karne ke fayde</h3>
-    <div class="ins-steps">
-      <div class="ins-step"><div class="ico">🚀</div><div class="txt">Ek tap me app khulta hai<small>Har baar link dhundhne ki zaroorat nahi</small></div></div>
-      <div class="ins-step"><div class="ico">📵</div><div class="txt">Kam data, tez loading<small>Poori screen, browser ki patti nahi</small></div></div>
-      <div class="ins-step"><div class="ico">🎮</div><div class="txt">Order ke saath Takhatpur Surfar game<small>Aur Mera Van leaderboard me ped lagao</small></div></div>
-    </div>
-  </div>
-
-  <div class="ins-share">
-    Kisi ko bhejna ho? Yeh link share karein:<br>
-    <a href="#" onclick="insCopyLink(); return false;" id="ins-link-text"></a>
-    <div style="margin-top:14px;"><a href="/login" class="ins-btn ghost" style="display:inline-flex; width:auto; padding:10px 22px;">← Bazaar par wapas jaayein</a></div>
+    <div id="ins-installed" class="ins-done" style="display:none;">✅ App install ho gaya! Home screen par "Hamar Bazaar" icon dhundhein.</div>
+    <button id="ins-one-tap" class="ins-btn" onclick="insInstall()">📲 App Install Karein</button>
+    <p id="ins-note" style="text-align:center; font-size:.78rem; color:#64748b; margin:12px 0 0;"></p>
+    <div style="margin-top:18px; text-align:center;"><a href="/login" class="ins-btn ghost" style="display:inline-flex; width:auto; padding:10px 22px;">← Bazaar par wapas</a></div>
   </div>
 </div>
 
@@ -123,54 +68,20 @@
   const ua = navigator.userAgent || '';
   const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
   const isAndroid = /Android/i.test(ua);
-  const isInApp = /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|Twitter|Snapchat|MicroMessenger|; wv\)|\bwv\b/i.test(ua) || (isAndroid && /Version\/[\d.]+.*Chrome/.test(ua) && !/SamsungBrowser/i.test(ua));
+  const isInApp = /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|Twitter|Snapchat|MicroMessenger|; wv\)|\bwv\b/i.test(ua);
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-  const pageUrl = location.origin + '/install';
-  const linkEl = document.getElementById('ins-link-text'); if (linkEl) linkEl.textContent = pageUrl.replace(/^https?:\/\//, '');
-
-  window.insTab = function (t) {
-    document.querySelectorAll('.ins-tab').forEach(b => b.classList.toggle('active', b.dataset.t === t));
-    document.querySelectorAll('.ins-pane').forEach(p => p.classList.toggle('active', p.id === 'ins-pane-' + t));
-  };
-  if (isIOS) insTab('ios');
-
-  window.insCopyLink = function () {
-    const done = () => { try { showAestheticToast('Link copy ho gaya! Ab Chrome kholke paste karein.', 'success'); } catch (e) { alert('Link copy ho gaya: ' + pageUrl); } };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(pageUrl).then(done).catch(() => prompt('Yeh link copy karein:', pageUrl));
-    else prompt('Yeh link copy karein:', pageUrl);
-  };
-
-  if (standalone) { document.getElementById('ins-installed').style.display = 'block'; document.getElementById('ins-guide').style.display = 'none'; return; }
-
-  // Inside WhatsApp / Facebook / Instagram webview: offer "open in Chrome" via Android intent
-  if (isInApp && isAndroid) {
-    const a = document.getElementById('ins-open-chrome');
-    a.href = 'intent://' + location.host + '/install#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(pageUrl) + ';end';
-    a.style.display = 'flex';
-    document.getElementById('ins-inapp').style.display = 'block';
-  }
-
-  // One-tap install when the browser supports it (Chrome / Edge / Samsung on Android)
+  const btn = document.getElementById('ins-one-tap'), note = document.getElementById('ins-note');
+  if (standalone) { document.getElementById('ins-installed').style.display = 'block'; btn.style.display = 'none'; return; }
   let deferred = null;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault(); deferred = e;
-    document.getElementById('ins-one-tap').style.display = 'flex';
-    document.getElementById('ins-open-chrome').style.display = 'none';
-    document.getElementById('ins-inapp').style.display = 'none';
-  });
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; note.textContent = ''; });
+  const chromeIntent = () => 'intent://' + location.host + '/install#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(location.origin + '/install') + ';end';
   window.insInstall = async function () {
-    if (!deferred) return;
-    deferred.prompt();
-    const { outcome } = await deferred.userChoice;
-    deferred = null;
-    if (outcome === 'accepted') { document.getElementById('ins-one-tap').style.display = 'none'; }
+    if (deferred) { deferred.prompt(); const { outcome } = await deferred.userChoice; deferred = null; if (outcome !== 'accepted') note.textContent = 'Install cancel ho gaya. Dobara button dabayein.'; return; }
+    if (isAndroid && isInApp) { note.textContent = 'Chrome khul raha hai... wahan phir yahi button dabayein.'; location.href = chromeIntent(); return; }
+    if (isIOS) { note.innerHTML = 'iPhone par: neeche <b>Share ⬆️</b> dabayein → <b>Add to Home Screen</b>.'; return; }
+    note.innerHTML = 'Browser menu <b>⋮</b> → <b>Install app</b> dabayein.';
   };
-  window.addEventListener('appinstalled', () => {
-    localStorage.setItem('pwa-installed', 'true');
-    document.getElementById('ins-one-tap').style.display = 'none';
-    document.getElementById('ins-installed').style.display = 'block';
-    document.getElementById('ins-installed').textContent = '🎉 Install ho gaya! Home screen par "Hamar Bazaar" icon dhundhein.';
-  });
+  window.addEventListener('appinstalled', () => { localStorage.setItem('pwa-installed', 'true'); btn.style.display = 'none'; document.getElementById('ins-installed').style.display = 'block'; });
 })();
 </script>
 {% endblock %}
