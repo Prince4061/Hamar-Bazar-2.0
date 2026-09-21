@@ -125,7 +125,7 @@ def add_header(response):
         else:
             # Game assets (models, draco decoder, three.js) are large: let the browser keep them for a week
             response.headers['Cache-Control'] = 'public, max-age=604800'
-    if request.path.startswith('/api/') or request.path in ['/admin', '/customer', '/vendor', '/delivery', '/login', '/staff-login', '/']:
+    if request.path.startswith('/api/') or request.path in ['/admin', '/customer', '/vendor', '/delivery', '/login', '/staff-login', '/', '/install']:
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
@@ -933,6 +933,11 @@ def serve_manifest():
 # -------------------------------------------------------------
 # Views Pages
 # -------------------------------------------------------------
+@app.route('/install')
+def install_page():
+    """Public, shareable 'how to install the app' page (Hindi, graphical)."""
+    return render_template('install.html')
+
 @app.route('/')
 def home():
     # If no role selected, redirect to login page

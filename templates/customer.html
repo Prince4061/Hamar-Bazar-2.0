@@ -1179,6 +1179,13 @@ html, body {
                 </div>
             </div>
 
+            <!-- Install app (hidden when already running as installed app) -->
+            <div class="acc-row" id="acc-install-row" style="border-color: rgba(245,158,11,0.35); background: #fffbeb; margin-bottom:10px;">
+                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">📲 App phone me install karein</span>
+                <a href="/install" style="margin: 0; padding: 8px 16px; background: linear-gradient(135deg,#f59e0b,#ef4444); color: white; font-size: 0.8rem; border-radius: 100px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-weight:800;">Install Guide</a>
+            </div>
+            <script>try { if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) document.getElementById('acc-install-row').style.display = 'none'; } catch (e) {}</script>
+
             <!-- Logout -->
             <div class="acc-row" style="border-color: rgba(239, 68, 68, 0.2); background: #fffcfc; margin-bottom:16px;">
                 <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">Is device se logout</span>

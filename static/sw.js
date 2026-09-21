@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hamar-bazar-cache-v9';
+const CACHE_NAME = 'hamar-bazar-cache-v10';
 const ASSETS_TO_CACHE = [
   '/static/offline.html'
 ];
@@ -55,6 +55,7 @@ self.addEventListener('fetch', (event) => {
     requestUrl.pathname === '/delivery' ||
     requestUrl.pathname === '/' ||
     requestUrl.pathname === '/login' ||
+    requestUrl.pathname === '/install' ||
     requestUrl.pathname === '/staff-login'
   ) {
     event.respondWith(fetch(event.request));

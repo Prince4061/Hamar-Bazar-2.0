@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .ins-wrap { max-width: 480px; margin: 0 auto; padding: 0 0 40px; font-family: 'Outfit', 'Segoe UI', sans-serif; }
+  .ins-hero { position: relative; overflow: hidden; border-radius: 0 0 32px 32px; padding: 28px 20px 30px; text-align: center; color: #fff;
+    background: radial-gradient(120% 90% at 10% 0%, #22c55e 0%, #0f766e 45%, #5e17eb 100%); box-shadow: 0 18px 40px -18px rgba(94,23,235,.6); }
+  .ins-hero::before, .ins-hero::after { content: ""; position: absolute; border-radius: 50%; background: rgba(255,255,255,.12); }
+  .ins-hero::before { width: 220px; height: 220px; right: -70px; top: -90px; }
+  .ins-hero::after { width: 140px; height: 140px; left: -50px; bottom: -60px; }
+  .ins-logo { width: 96px; height: 96px; border-radius: 26px; object-fit: cover; background: #fff; box-shadow: 0 14px 30px -10px rgba(0,0,0,.5); border: 3px solid rgba(255,255,255,.7); position: relative; animation: insFloat 3s ease-in-out infinite; }
+  @keyframes insFloat { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+  .ins-hero h1 { margin: 14px 0 4px; font-size: 1.6rem; font-weight: 900; letter-spacing: -.3px; position: relative; }
+  .ins-hero p { margin: 0; font-size: .9rem; opacity: .95; position: relative; }
+  .ins-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 6px 14px; border-radius: 100px; background: rgba(255,255,255,.18); font-size: .75rem; font-weight: 800; position: relative; }
+  .ins-cta { margin: -22px 16px 0; position: relative; z-index: 2; }
+  .ins-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 16px; border: none; border-radius: 18px; font-size: 1.1rem; font-weight: 900; cursor: pointer; color: #fff; text-decoration: none;
+    background: linear-gradient(135deg, #f59e0b, #ef4444); box-shadow: 0 14px 30px -10px rgba(239,68,68,.7); animation: insPulse 2s infinite; }
+  @keyframes insPulse { 0%,100% { transform: scale(1) } 50% { transform: scale(1.03) } }
+  .ins-btn.secondary { background: linear-gradient(135deg, #0ea5e9, #2563eb); box-shadow: 0 14px 30px -10px rgba(37,99,235,.7); animation: none; }
+  .ins-btn.ghost { background: #fff; color: #0f172a; border: 2px solid #e2e8f0; box-shadow: none; animation: none; font-size: .95rem; padding: 13px; }
+  .ins-section { margin: 22px 16px 0; }
+  .ins-section h3 { font-size: 1.05rem; font-weight: 900; color: #0f172a; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+  .ins-section .sub { font-size: .8rem; color: #64748b; margin: 0 0 12px; }
+  .ins-steps { display: flex; flex-direction: column; gap: 10px; }
+  .ins-step { display: flex; gap: 12px; align-items: center; background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 12px 14px; box-shadow: 0 6px 18px -12px rgba(15,23,42,.3); }
+  .ins-num { width: 38px; height: 38px; flex-shrink: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #fff; font-size: 1rem; background: linear-gradient(135deg, #5e17eb, #9333ea); }
+  .ins-step .ico { width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+  .ins-step .txt { flex: 1; font-size: .9rem; font-weight: 700; color: #0f172a; line-height: 1.35; }
+  .ins-step .txt small { display: block; font-weight: 500; color: #64748b; font-size: .74rem; margin-top: 2px; }
+  .ins-warn { margin: 22px 16px 0; padding: 14px; border-radius: 18px; background: linear-gradient(135deg, #fff7ed, #fef3c7); border: 1px solid #fcd34d; }
+  .ins-warn h4 { margin: 0 0 6px; font-size: .95rem; font-weight: 900; color: #92400e; display: flex; align-items: center; gap: 6px; }
+  .ins-warn p { margin: 0 0 10px; font-size: .82rem; color: #78350f; line-height: 1.4; }
+  .ins-tabs { display: flex; gap: 6px; background: #f1f5f9; padding: 4px; border-radius: 100px; margin: 0 16px 14px; }
+  .ins-tab { flex: 1; border: none; background: transparent; padding: 9px 6px; border-radius: 100px; font-weight: 800; font-size: .8rem; color: #475569; cursor: pointer; }
+  .ins-tab.active { background: #fff; color: #5e17eb; box-shadow: 0 3px 8px -3px rgba(0,0,0,.25); }
+  .ins-pane { display: none; } .ins-pane.active { display: block; }
+  .ins-phone { margin: 14px auto 0; width: 200px; border-radius: 26px; background: #0f172a; padding: 10px 8px; box-shadow: 0 18px 30px -14px rgba(0,0,0,.6); }
+  .ins-phone .scr { background: #fff; border-radius: 18px; padding: 10px; font-size: .62rem; color: #334155; }
+  .ins-phone .bar { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; background: #f1f5f9; border-radius: 8px; margin-bottom: 8px; font-weight: 700; }
+  .ins-phone .dots { font-size: 1rem; font-weight: 900; color: #5e17eb; animation: insBlink 1.2s infinite; }
+  @keyframes insBlink { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+  .ins-phone .menu { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+  .ins-phone .menu div { padding: 5px 8px; border-bottom: 1px solid #f1f5f9; }
+  .ins-phone .menu .hi { background: #ede9fe; color: #5e17eb; font-weight: 900; }
+  .ins-share { margin: 26px 16px 0; text-align: center; font-size: .78rem; color: #64748b; }
+  .ins-share a { color: #5e17eb; font-weight: 800; }
+  .ins-done { margin: 0 16px; padding: 16px; border-radius: 18px; background: #dcfce7; border: 1px solid #86efac; color: #14532d; font-weight: 800; text-align: center; }
+</style>
+
+<div class="ins-wrap">
+  <div class="ins-hero">
+    <img class="ins-logo" src="{{ system_settings.app_logo }}" alt="Hamar Bazaar">
+    <h1>Hamar Bazaar App</h1>
+    <p>Apne phone me install karein — bilkul free, Play Store ki zaroorat nahi</p>
+    <div class="ins-badge">⚡ 1 minute · 📶 Kam data · 🔒 Safe</div>
+  </div>
+
+  <div class="ins-cta">
+    <div id="ins-installed" class="ins-done" style="display:none;">✅ App pehle se install hai! Home screen par "Hamar Bazaar" icon dhundhein.</div>
+    <button id="ins-one-tap" class="ins-btn" style="display:none;" onclick="insInstall()">📲 Ek Tap Me Install Karein</button>
+    <a id="ins-open-chrome" class="ins-btn secondary" style="display:none;" href="#">🌐 Chrome Me Kholein (phir install)</a>
+  </div>
+
+  <div id="ins-inapp" class="ins-warn" style="display:none;">
+    <h4>⚠️ Aap WhatsApp / Facebook ke andar wale browser me hain</h4>
+    <p>Yahan se app install <b>nahi</b> ho sakta. Upar wale neele button se Chrome me kholein. Agar button kaam na kare: upar-right <b>⋮</b> (3 dots) dabao → <b>"Open in Chrome"</b> / <b>"Browser me kholein"</b> chunein.</p>
+    <button class="ins-btn ghost" onclick="insCopyLink()">🔗 Link Copy Karein (Chrome me paste karein)</button>
+  </div>
+
+  <div class="ins-section" id="ins-guide">
+    <h3>📖 Install kaise karein?</h3>
+    <p class="sub">Apna phone chunein aur steps follow karein</p>
+    <div class="ins-tabs">
+      <button class="ins-tab active" data-t="android" onclick="insTab('android')">🤖 Android</button>
+      <button class="ins-tab" data-t="ios" onclick="insTab('ios')">🍎 iPhone</button>
+    </div>
+
+    <div class="ins-pane active" id="ins-pane-android">
+      <div class="ins-steps">
+        <div class="ins-step"><div class="ins-num">1</div><div class="ico">🌐</div><div class="txt">Yeh page <b>Chrome</b> browser me kholein<small>WhatsApp ke andar se nahi, Chrome app me</small></div></div>
+        <div class="ins-step"><div class="ins-num">2</div><div class="ico">⋮</div><div class="txt">Upar-right kone me <b>3 dots (⋮)</b> dabayein</div></div>
+        <div class="ins-step"><div class="ins-num">3</div><div class="ico">📲</div><div class="txt"><b>"Install app"</b> ya <b>"Add to Home screen"</b> par tap karein<small>Hindi me: "ऐप इंस्टॉल करें" / "होम स्क्रीन पर जोड़ें"</small></div></div>
+        <div class="ins-step"><div class="ins-num">4</div><div class="ico">✅</div><div class="txt"><b>Install</b> dabayein — ho gaya!<small>Home screen par Hamar Bazaar ka icon aa jayega</small></div></div>
+      </div>
+      <div class="ins-phone"><div class="scr">
+        <div class="bar"><span>🔒 hamarai.in</span><span class="dots">⋮</span></div>
+        <div class="menu"><div>New tab</div><div>Bookmarks</div><div class="hi">📲 Install app</div><div>Share…</div></div>
+      </div></div>
+    </div>
+
+    <div class="ins-pane" id="ins-pane-ios">
+      <div class="ins-steps">
+        <div class="ins-step"><div class="ins-num">1</div><div class="ico">🧭</div><div class="txt">Yeh page <b>Safari</b> browser me kholein<small>iPhone par sirf Safari se install hota hai</small></div></div>
+        <div class="ins-step"><div class="ins-num">2</div><div class="ico">⬆️</div><div class="txt">Neeche beech me <b>Share</b> button (box se upar teer) dabayein</div></div>
+        <div class="ins-step"><div class="ins-num">3</div><div class="ico">➕</div><div class="txt">Neeche scroll karke <b>"Add to Home Screen"</b> chunein</div></div>
+        <div class="ins-step"><div class="ins-num">4</div><div class="ico">✅</div><div class="txt">Upar-right <b>"Add"</b> dabayein — ho gaya!</div></div>
+      </div>
+      <div class="ins-phone"><div class="scr">
+        <div class="bar"><span>hamarai.in</span><span class="dots">⬆️</span></div>
+        <div class="menu"><div>Copy</div><div>Add Bookmark</div><div class="hi">➕ Add to Home Screen</div><div>Print</div></div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="ins-section">
+    <h3>💡 Install karne ke fayde</h3>
+    <div class="ins-steps">
+      <div class="ins-step"><div class="ico">🚀</div><div class="txt">Ek tap me app khulta hai<small>Har baar link dhundhne ki zaroorat nahi</small></div></div>
+      <div class="ins-step"><div class="ico">📵</div><div class="txt">Kam data, tez loading<small>Poori screen, browser ki patti nahi</small></div></div>
+      <div class="ins-step"><div class="ico">🎮</div><div class="txt">Order ke saath Takhatpur Surfar game<small>Aur Mera Van leaderboard me ped lagao</small></div></div>
+    </div>
+  </div>
+
+  <div class="ins-share">
+    Kisi ko bhejna ho? Yeh link share karein:<br>
+    <a href="#" onclick="insCopyLink(); return false;" id="ins-link-text"></a>
+    <div style="margin-top:14px;"><a href="/login" class="ins-btn ghost" style="display:inline-flex; width:auto; padding:10px 22px;">← Bazaar par wapas jaayein</a></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  const isAndroid = /Android/i.test(ua);
+  const isInApp = /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|Twitter|Snapchat|MicroMessenger|; wv\)|\bwv\b/i.test(ua) || (isAndroid && /Version\/[\d.]+.*Chrome/.test(ua) && !/SamsungBrowser/i.test(ua));
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const pageUrl = location.origin + '/install';
+  const linkEl = document.getElementById('ins-link-text'); if (linkEl) linkEl.textContent = pageUrl.replace(/^https?:\/\//, '');
+
+  window.insTab = function (t) {
+    document.querySelectorAll('.ins-tab').forEach(b => b.classList.toggle('active', b.dataset.t === t));
+    document.querySelectorAll('.ins-pane').forEach(p => p.classList.toggle('active', p.id === 'ins-pane-' + t));
+  };
+  if (isIOS) insTab('ios');
+
+  window.insCopyLink = function () {
+    const done = () => { try { showAestheticToast('Link copy ho gaya! Ab Chrome kholke paste karein.', 'success'); } catch (e) { alert('Link copy ho gaya: ' + pageUrl); } };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(pageUrl).then(done).catch(() => prompt('Yeh link copy karein:', pageUrl));
+    else prompt('Yeh link copy karein:', pageUrl);
+  };
+
+  if (standalone) { document.getElementById('ins-installed').style.display = 'block'; document.getElementById('ins-guide').style.display = 'none'; return; }
+
+  // Inside WhatsApp / Facebook / Instagram webview: offer "open in Chrome" via Android intent
+  if (isInApp && isAndroid) {
+    const a = document.getElementById('ins-open-chrome');
+    a.href = 'intent://' + location.host + '/install#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(pageUrl) + ';end';
+    a.style.display = 'flex';
+    document.getElementById('ins-inapp').style.display = 'block';
+  }
+
+  // One-tap install when the browser supports it (Chrome / Edge / Samsung on Android)
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault(); deferred = e;
+    document.getElementById('ins-one-tap').style.display = 'flex';
+    document.getElementById('ins-open-chrome').style.display = 'none';
+    document.getElementById('ins-inapp').style.display = 'none';
+  });
+  window.insInstall = async function () {
+    if (!deferred) return;
+    deferred.prompt();
+    const { outcome } = await deferred.userChoice;
+    deferred = null;
+    if (outcome === 'accepted') { document.getElementById('ins-one-tap').style.display = 'none'; }
+  };
+  window.addEventListener('appinstalled', () => {
+    localStorage.setItem('pwa-installed', 'true');
+    document.getElementById('ins-one-tap').style.display = 'none';
+    document.getElementById('ins-installed').style.display = 'block';
+    document.getElementById('ins-installed').textContent = '🎉 Install ho gaya! Home screen par "Hamar Bazaar" icon dhundhein.';
+  });
+})();
+</script>
+{% endblock %}
