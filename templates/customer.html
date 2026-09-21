@@ -3905,8 +3905,16 @@ html, body {
                     } else if (status === "PENDING") {
                         statusBadge.classList.add("badge-status-pending");
                         document.getElementById("step-pending").classList.add("active");
-                        if (stepPendingTitle) stepPendingTitle.innerText = "Order Placed";
-                        if (stepPendingTime) stepPendingTime.innerText = "Waiting for shop acceptance";
+                        // Naya order jab tak Hamar Bazar admin approve nahi karta (admin_approved = 0)
+                        const awaitingAdminConfirm = (Number(data.admin_approved) === 0);
+                        if (awaitingAdminConfirm) {
+                            statusBadge.innerText = "CONFIRMING";
+                            if (stepPendingTitle) stepPendingTitle.innerText = "Order mil gaya — confirm ho raha hai";
+                            if (stepPendingTime) stepPendingTime.innerText = "Hamar Bazar team aapka order verify kar rahi hai";
+                        } else {
+                            if (stepPendingTitle) stepPendingTitle.innerText = "Order Placed";
+                            if (stepPendingTime) stepPendingTime.innerText = "Waiting for shop acceptance";
+                        }
                     } else if (status === "ACCEPTED") {
                         statusBadge.classList.add("badge-status-ready");
                         document.getElementById("step-pending").classList.add("completed");
@@ -4534,6 +4542,7 @@ html, body {
 
                 orders.forEach(o => {
                     const tone = toneOf(o.status);
+                    const awaitingAdminConfirm = (o.status === 'PENDING' && Number(o.admin_approved) === 0);
                     const card = document.createElement("div");
                     card.className = `ord-card st-${tone}`;
                     card.onclick = () => openTrackingView(o.id);
@@ -4552,7 +4561,7 @@ html, body {
                     card.innerHTML = `
                         <div class="ord-head">
                             <div class="ord-id"><span class="ord-icon"><i data-lucide="${iconOf(o.status)}"></i></span> #${o.id}</div>
-                            <span class="ord-status ${tone}">${labelOf(o.status)}</span>
+                            <span class="ord-status ${tone}">${awaitingAdminConfirm ? 'CONFIRMING' : labelOf(o.status)}</span>
                         </div>
                         <p class="ord-items">${escapeHtmlLb(itemsTxt)}</p>
                         <div class="ord-meta">

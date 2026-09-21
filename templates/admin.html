@@ -696,6 +696,30 @@
         .badge-delivered { background-color: var(--emerald-light); color: var(--emerald-green); }
         .badge-failed { background-color: var(--ruby-light); color: var(--ruby-danger); }
         .badge-priority { background-color: var(--ruby-light); color: var(--ruby-danger); border: 1px solid rgba(239, 68, 68, 0.2); animation: urgentGlow 1.5s infinite alternate; }
+        /* Order admin-approval workflow */
+        .badge-awaiting-admin { background-color: #fef3c7 !important; color: #b45309 !important; border: 1px solid #fde68a; animation: urgentGlow 1.5s infinite alternate; }
+        .badge-price-pending { background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; white-space: nowrap; }
+        .btn-approve-green { background: var(--emerald-green); color: #ffffff; border-color: var(--emerald-green); }
+        .btn-approve-green:hover { background: #007a4d; color: #ffffff; transform: translateY(-1px); }
+        .btn-approve-green:disabled { opacity: 0.6; cursor: wait; transform: none; }
+        .approval-orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-top: 12px; }
+        .approval-order-card { min-width: 0; overflow-wrap: anywhere; word-break: break-word; background: #ffffff; border: 1px solid #fde68a; border-left: 4px solid var(--amber-warning); border-radius: var(--radius-lg); padding: 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--shadow-sm); }
+        .approval-order-card.urgent { border-left-color: var(--ruby-danger); }
+        .approval-order-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .approval-order-id { font-weight: 800; font-size: 0.95rem; color: var(--text-primary); }
+        .approval-order-time { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; }
+        .approval-order-meta { overflow-wrap: anywhere; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.45; }
+        .approval-order-meta strong { color: var(--text-primary); }
+        .approval-order-items { overflow-wrap: anywhere; font-size: 0.8rem; background: #f8fafc; border: 1px dashed var(--border-color); border-radius: var(--radius-md); padding: 8px 10px; color: var(--text-primary); font-weight: 600; line-height: 1.4; }
+        .approval-order-money { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.82rem; font-weight: 700; }
+        .approval-order-money .pays { color: var(--primary-accent); }
+        .approval-order-money .vendor { color: #0284c7; }
+        .approval-order-actions { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+        .approval-order-actions .btn-custom { flex: 1; padding: 10px 12px; font-size: 0.82rem; min-height: 44px; margin: 0; }
+        .nav-count-badge { display: none; background: var(--ruby-danger); color: #fff; font-size: 0.68rem; font-weight: 800; min-width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 9px; padding: 0 5px; margin-left: 4px; }
+        @media (max-width: 480px) {
+            .approval-orders-grid { grid-template-columns: 1fr; }
+        }
 
         @keyframes urgentGlow {
             from { box-shadow: 0 0 2px var(--ruby-danger); }
@@ -1429,6 +1453,8 @@
             color: var(--primary-accent);
             background: var(--primary-light);
         }
+        .mobile-nav-item { position: relative; }
+        .mobile-nav-item .nav-count-badge { position: absolute; top: 2px; right: 12%; margin: 0; }
 
         .mobile-sidebar-close-btn {
             display: none;
@@ -1665,7 +1691,7 @@
                     </li>
                     <li>
                         <a class="menu-item-link" onclick="switchTab('orders')">
-                            <i data-lucide="shopping-cart"></i> Orders Feed
+                            <i data-lucide="shopping-cart"></i> Orders Feed <span id="order-approval-badge" class="nav-count-badge order-approval-badge" title="Naye orders — admin approval pending"></span>
                         </a>
                     </li>
                     <li>
@@ -1843,6 +1869,16 @@
                             <span class="trend-subtext">vs yesterday</span>
                         </div>
                     </div>
+                    <div class="kpi-card" id="kpi-approval-pending-card" style="cursor: pointer;" onclick="switchTab('orders')" title="Naye orders jo admin approval ka wait kar rahe hain">
+                        <div class="kpi-header">
+                            <span class="kpi-title">Approval Pending</span>
+                            <div class="kpi-icon-wrapper orange"><i data-lucide="bell-ring"></i></div>
+                        </div>
+                        <div class="kpi-value" id="kpi-approval-pending">--</div>
+                        <div class="kpi-footer-row">
+                            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">Naye orders — vendor ko bhejna baaki</span>
+                        </div>
+                    </div>
                     <div class="kpi-card">
                         <div class="kpi-header">
                             <span class="kpi-title">Gross Revenue</span>
@@ -1983,11 +2019,26 @@
             <!-- TAB 2: ORDERS INTELLIGENCE -->
             <!-- --------------------------------------------------- -->
             <div class="tab-panel" id="panel-orders">
+                <!-- Naye Orders — Admin Approval Pending -->
+                <div class="dashboard-card" id="order-approval-card" style="margin-bottom: 20px; border: 1px solid #fde68a; background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text" style="color: #b45309;"><i data-lucide="bell-ring"></i> Naye Orders — Approval Pending <span class="status-badge badge-ready" id="order-approval-count-pill" style="margin-left: 6px;">0</span></h3>
+                        <button class="btn-custom btn-custom-secondary" style="margin: 0;" onclick="loadPendingApprovalOrders(true)"><i data-lucide="refresh-cw"></i> Refresh</button>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; margin-bottom: 0;">
+                        Approve karne par order vendor panel me dikhega aur vendor ka alarm bajega. Reject karne par order FAILED ho jayega. (Auto-refresh har 10 sec)
+                    </p>
+                    <div id="order-approval-list" class="approval-orders-grid">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+
                 <div class="filters-row">
                     <div class="filters-group">
                         <input type="text" class="form-input-custom" placeholder="Search by ID or customer..." id="order-search-input" onkeyup="filterOrdersTable()">
                         <select class="form-select-custom" id="order-status-filter" onchange="filterOrdersTable()">
                             <option value="ALL">All Statuses</option>
+                            <option value="AWAITING_ADMIN">Awaiting Admin Approval</option>
                             <option value="PENDING">Pending</option>
                             <option value="ACCEPTED">Accepted</option>
                             <option value="READY_FOR_PICKUP">Ready for Pickup</option>
@@ -2100,6 +2151,7 @@
                             <option value="ALL">All Stocks</option>
                             <option value="1">In Stock</option>
                             <option value="0">Out of Stock</option>
+                            <option value="PRICE_PENDING">Pricing pending (admin price set nahi)</option>
                         </select>
                     </div>
                     <div class="card-header-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -2365,6 +2417,25 @@
                                 </div>
                             </div>
                             
+                            <!-- Naya Order — Admin Approval Flow -->
+                            <div style="border-top: 1px dashed var(--border-color-light); margin: 20px 0; padding-top: 15px;">
+                                <h4 style="margin-bottom: 12px; color: var(--primary-accent); display: flex; align-items: center; gap: 6px; font-size: 0.9rem; font-weight: 700;">
+                                    <i data-lucide="shield-check" style="width:16px; height:16px;"></i> Naya Order — Admin Approval Flow
+                                </h4>
+                                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px;">
+                                    <div style="flex: 1; min-width: 280px;">
+                                        <label for="order-admin-approval-toggle" style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px;">
+                                            Order Admin Approval
+                                        </label>
+                                        <select id="order-admin-approval-toggle" class="form-input-staff" style="width: 100%; font-weight: 600;">
+                                            <option value="1">ON — Naya order pehle admin approve karega, phir vendor ko dikhega (alarm bajega)</option>
+                                            <option value="0">OFF — Order seedha vendor ko jaata hai</option>
+                                        </select>
+                                        <span style="font-size: 0.75rem; color: var(--text-muted);">ON hone par naye orders "Orders Feed" tab ke "Naye Orders — Approval Pending" card me aayenge; approve karte hi vendor ko dikhenge.</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- SMTP settings inputs -->
                             <div style="border-top: 1px dashed var(--border-color-light); margin: 20px 0; padding-top: 15px;">
                                 <h4 style="margin-bottom: 12px; color: var(--primary-accent); display: flex; align-items: center; gap: 6px; font-size: 0.9rem; font-weight: 700;">
@@ -2471,6 +2542,39 @@
                                 </label>
                                 <button class="btn-custom btn-custom-danger" onclick="deleteAboutTeamPhoto()" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;">
                                     Delete Photo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vendor Order Alarm Sound (mp3) -->
+                <div class="dashboard-card" style="margin-top: 20px;" id="vendor-alarm-card">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text"><i data-lucide="bell-ring"></i> Vendor Order Alarm (mp3)</h3>
+                        <span class="status-badge badge-accepted" style="font-weight: 700;" id="vendor-alarm-status-pill">Default alarm</span>
+                    </div>
+                    <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-top: 12px;">
+                        <!-- Current alarm preview -->
+                        <div style="flex: 1; min-width: 240px;">
+                            <audio id="vendor-alarm-preview" controls preload="none" style="width: 100%; display: none;"></audio>
+                            <div id="vendor-alarm-default-label" style="font-size: 0.85rem; color: var(--text-muted); background: #f8fafc; border: 1px dashed var(--border-color); border-radius: var(--radius-md); padding: 12px; text-align: center;">
+                                <i data-lucide="volume-2" style="width: 18px; height: 18px; display: inline-block; vertical-align: -4px; margin-right: 4px;"></i> Default alarm (built-in siren) use ho raha hai
+                            </div>
+                            <div id="vendor-alarm-file-name" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; word-break: break-all;"></div>
+                        </div>
+                        <!-- Upload / Remove controls -->
+                        <div style="flex: 1; min-width: 220px;">
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">
+                                Yeh awaaz har vendor ke panel me naya order aane par bajegi. (mp3 / wav / m4a / ogg / aac — max 4 MB)
+                            </p>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <input type="file" id="vendor-alarm-upload-file" style="display: none;" accept="audio/*,.mp3,.wav,.m4a,.ogg,.aac" onchange="uploadVendorAlarm(this)">
+                                <label for="vendor-alarm-upload-file" class="btn-custom btn-custom-primary" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 16px; margin:0;">
+                                    <i data-lucide="upload" style="width: 14px; height: 14px;"></i> <span id="vendor-alarm-upload-label">Upload Alarm</span>
+                                </label>
+                                <button class="btn-custom btn-custom-danger" id="vendor-alarm-remove-btn" onclick="deleteVendorAlarm()" style="display: none; align-items: center; gap: 6px; padding: 8px 16px; margin:0;">
+                                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Remove (Default alarm)
                                 </button>
                             </div>
                         </div>
@@ -3192,7 +3296,13 @@
                 <button class="drawer-close" onclick="closeAdminOrderModal()"><i data-lucide="x"></i></button>
             </div>
             <div class="modal-popup-body" style="display: flex; flex-direction: column; gap: 16px; max-height: 70vh; overflow-y: auto;">
-                
+
+                <!-- Admin approval (only for new unapproved PENDING orders) -->
+                <div id="admin-modal-approval-block" style="display: none; background: var(--emerald-light); border: 1px solid rgba(0, 156, 98, 0.25); border-radius: var(--radius-md); padding: 12px;">
+                    <p style="font-size: 0.82rem; color: var(--emerald-green); font-weight: 700; margin: 0 0 8px 0;">Yeh naya order abhi admin approval me hai — vendor ko abhi nahi dikh raha.</p>
+                    <button class="btn-custom btn-approve-green" id="admin-modal-approve-btn" style="width: 100%; min-height: 44px;" onclick="approveOrderFromModal()">✅ Approve — Vendor ko bhejo</button>
+                </div>
+
                 <!-- Customer Details -->
                 <div style="background: var(--surface-bg-alt); padding: 12px; border-radius: var(--radius-md);">
                     <h4 style="margin-bottom: 8px; color: var(--primary-accent); display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 700;">
@@ -3310,17 +3420,17 @@
                 </div>
                 
                 <div class="form-group-custom">
-                    <label class="form-label-custom">Price (INR)</label>
+                    <label class="form-label-custom" style="color: var(--primary-accent); font-weight: 700;">App Selling Price ₹ (admin decides — customer ko yahi dikhega)</label>
                     <input type="number" id="modal-product-price" class="form-input-custom" style="width: 100%;" placeholder="e.g. 120" step="0.01">
                 </div>
                 
                 <div class="form-group-custom">
-                    <label class="form-label-custom">MRP (INR) - (Leave empty or same as Price for no discount)</label>
+                    <label class="form-label-custom">Market Price (MRP) ₹</label>
                     <input type="number" id="modal-product-mrp" class="form-input-custom" style="width: 100%;" placeholder="e.g. 150" step="0.01">
                 </div>
 
                 <div class="form-group-custom">
-                    <label class="form-label-custom" style="color: #0284c7; font-weight: 700;">Vendor Cost Price (INR) - (Humko Kitna Padega)</label>
+                    <label class="form-label-custom" style="color: #0284c7; font-weight: 700;">Hamar Bazar Price ₹ (vendor ko dena hai)</label>
                     <input type="number" id="modal-product-cost-price" class="form-input-custom" style="width: 100%; background: #f0f9ff;" placeholder="e.g. 80" step="0.01">
                 </div>
 
@@ -3744,6 +3854,9 @@
         document.addEventListener("DOMContentLoaded", () => {
             loadAllAnalytics(false);
             updateProductRequestsBadge();
+            // Live "approval pending" count (sidebar badge, mobile nav badge, dashboard KPI) — all tabs
+            try { pollOrderApprovalCount(); } catch (e) { console.error(e); }
+            setInterval(() => { try { pollOrderApprovalCount(); } catch (e) {} }, 20000);
 
             // Auto-refresh stats every 15 seconds
             setInterval(() => {
@@ -3785,6 +3898,7 @@
         // Tab Switching SPA logic
         function switchTab(tabId) {
             activeTab = tabId;
+            if (tabId !== 'orders') { try { stopOrderApprovalPolling(); } catch (e) {} }
             
             // Update Active sidebar link
             document.querySelectorAll('.menu-item-link').forEach(el => {
@@ -3832,6 +3946,7 @@
             if (tabId === 'orders') {
                 title = "Order Intelligence Control Feed";
                 subtitle = "Audit real-time transactional pathways and handshakes.";
+                try { loadPendingApprovalOrders(false); startOrderApprovalPolling(); } catch (e) { console.error(e); }
             } else if (tabId === 'vendors') {
                 title = "Partner Shops & Vendors scorecards";
                 subtitle = "Manage contract terms, commission percentages, and toggles.";
@@ -4216,6 +4331,7 @@
                     setTxt("kpi-riders", overview.total_riders || 0);
                     setTxt("kpi-riders-online", `${overview.online_riders || 0} online`);
                     setTxt("kpi-customers", overview.total_customers || 0);
+                    setTxt("kpi-approval-pending", pendingApprovalCount);
                     
                     // Render Growths
                     const og = overview.orders_growth || 0;
@@ -4711,13 +4827,16 @@
               }
               
               orders.forEach(o => {
+                  const awaitingAdmin = (o.status === 'PENDING' && Number(o.admin_approved) === 0);
                   let badgeClass = "badge-pending";
                   if (o.status === 'ACCEPTED') badgeClass = "badge-accepted";
                   else if (o.status === 'READY_FOR_PICKUP') badgeClass = "badge-ready";
                   else if (o.status === 'OUT_FOR_DELIVERY') badgeClass = "badge-transit";
                   else if (o.status === 'DELIVERED') badgeClass = "badge-delivered";
                   else if (o.status === 'FAILED') badgeClass = "badge-failed";
-                  
+                  if (awaitingAdmin) badgeClass = "badge-pending badge-awaiting-admin";
+                  const statusLabel = awaitingAdmin ? 'AWAITING ADMIN' : o.status.replace(/_/g, ' ');
+
                   const tr = document.createElement("tr");
                   tr.innerHTML = `
                       <td data-label="Order ID" style="font-weight:700;">#ORD${o.id}</td>
@@ -4726,7 +4845,7 @@
                       <td data-label="Shop">${o.shop_name}</td>
                       <td data-label="Amount" style="font-weight:700; color:var(--primary-accent);">₹${o.total_amount.toFixed(2)}</td>
                       <td data-label="Priority"><span class="status-badge ${o.priority_type === 'URGENT' ? 'badge-priority' : 'badge-pending'}">${o.priority_type}</span></td>
-                      <td data-label="Status"><span class="status-badge ${badgeClass}">${o.status.replace(/_/g, ' ')}</span></td>
+                      <td data-label="Status"><span class="status-badge ${badgeClass}" title="${awaitingAdmin ? 'Vendor ko abhi nahi dikh raha — admin approval baaki' : ''}">${statusLabel}</span></td>
                       <td data-label="Handshake OTPs" style="font-family:monospace; font-weight:700; font-size:0.8rem; color:var(--text-secondary);">
                           P: ${o.pickup_otp || '--'} | D: ${o.delivery_otp || '--'}
                       </td>
@@ -4734,9 +4853,14 @@
                           ${o.failure_reason ? `<span style="color:var(--ruby-danger); font-weight:600;"><i data-lucide="x-circle" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:3px;"></i>${o.failure_reason}</span>` : `<span style="color:var(--emerald-green); font-weight:600;"><i data-lucide="check-circle" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:3px;"></i>Handover stable</span>`}
                       </td>
                       <td data-label="Actions">
-                          <button class="btn-custom btn-custom-primary" style="padding: 6px 12px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px; width: 100%; justify-content: center;" onclick="openAdminOrderManager(${o.id})">
-                              <i data-lucide="settings" style="width:12px; height:12px;"></i> Manage Order
-                          </button>
+                          <div style="display: flex; flex-direction: column; gap: 6px;">
+                              ${awaitingAdmin ? `<button class="btn-custom btn-approve-green" style="padding: 6px 12px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px; width: 100%; justify-content: center; margin: 0;" onclick="approvePendingOrder(${o.id}, this)" title="Vendor ko bhejo">
+                                  <i data-lucide="check-circle" style="width:12px; height:12px;"></i> Approve
+                              </button>` : ``}
+                              <button class="btn-custom btn-custom-primary" style="padding: 6px 12px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px; width: 100%; justify-content: center; margin: 0;" onclick="openAdminOrderManager(${o.id})">
+                                  <i data-lucide="settings" style="width:12px; height:12px;"></i> Manage Order
+                              </button>
+                          </div>
                       </td>
                   `;
                   container.appendChild(tr);
@@ -4758,7 +4882,12 @@
                                       o.customer_name.toLowerCase().includes(searchVal) ||
                                       o.shop_name.toLowerCase().includes(searchVal);
                                       
-                const matchesStatus = statusVal === 'ALL' || o.status === statusVal;
+                const isAwaitingAdmin = (o.status === 'PENDING' && Number(o.admin_approved) === 0);
+                let matchesStatus;
+                if (statusVal === 'ALL') matchesStatus = true;
+                else if (statusVal === 'AWAITING_ADMIN') matchesStatus = isAwaitingAdmin;
+                else if (statusVal === 'PENDING') matchesStatus = (o.status === 'PENDING' && !isAwaitingAdmin);
+                else matchesStatus = o.status === statusVal;
                 const matchesPriority = priorityVal === 'ALL' || o.priority_type === priorityVal;
                 
                 return matchesSearch && matchesStatus && matchesPriority;
@@ -5202,15 +5331,21 @@
                 div.className = "product-item-card";
                 
                 const hasImg = p.image_path ? true : false;
-                
+                const pricePending = Number(p.admin_priced) === 0;
+                const vendorCostVal = parseFloat(p.cost_price) || 0;
+                const mrpDisplayVal = parseFloat(p.mrp) || parseFloat(p.price) || 0;
+
                 div.innerHTML = `
                     <div class="product-image-container">
                         ${hasImg ? `<img src="${getProductImageUrl(p.image_path)}" alt="${p.name}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">` : `<i data-lucide="package" style="width:36px; height:36px; color:var(--text-muted);"></i>`}
                     </div>
                     <div class="product-title-row">
-                        <span class="product-name-txt">${p.name}</span>
-                        <span class="product-avail-badge ${p.is_available ? 'badge-delivered' : 'badge-failed'}">
-                            ${p.is_available ? 'In Stock' : 'Out of Stock'}
+                        <span class="product-name-txt">${escAdmin(p.name)}</span>
+                        <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                            <span class="product-avail-badge ${p.is_available ? 'badge-delivered' : 'badge-failed'}">
+                                ${p.is_available ? 'In Stock' : 'Out of Stock'}
+                            </span>
+                            ${pricePending ? `<span class="product-avail-badge badge-price-pending" title="Vendor ne product add/edit kiya — app selling price admin set karega">Price pending</span>` : ``}
                         </span>
                     </div>
                     
@@ -5244,6 +5379,10 @@
                             <button class="btn-custom btn-custom-danger" style="padding:6px 8px;" onclick="deleteProductCatalog(${p.id})"><i data-lucide="trash" style="width:12px;"></i></button>
                         </div>
                     </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap; font-size:0.72rem; color:var(--text-secondary); font-weight:600;">
+                        <span title="Hamar Bazar Price (vendor ko dena hai) · Market Price">Vendor ₹${vendorCostVal.toFixed(2)} · MRP ₹${mrpDisplayVal.toFixed(2)}</span>
+                        <button class="btn-custom ${pricePending ? '' : 'btn-custom-secondary'}" style="padding:3px 10px; font-size:0.72rem; margin:0; ${pricePending ? 'background:var(--amber-warning); color:#fff; border-color:var(--amber-warning);' : ''}" onclick="promptSetProductPrice(${p.id})" title="App selling price set karein (admin)">₹ Set price</button>
+                    </div>
                 `;
                 container.appendChild(div);
             });
@@ -5257,7 +5396,8 @@
             
             const filtered = productsCache.filter(p => {
                 const matchesSearch = p.name.toLowerCase().includes(query);
-                const matchesStock = stockVal === 'ALL' || p.is_available.toString() === stockVal;
+                const matchesStock = stockVal === 'ALL'
+                    || (stockVal === 'PRICE_PENDING' ? Number(p.admin_priced) === 0 : p.is_available.toString() === stockVal);
                 return matchesSearch && matchesStock;
             });
             
@@ -5306,6 +5446,9 @@
             }
             const p = productsCache.find(item => item.id === prodId);
             if (!p) return;
+            if (Number(p.admin_priced) === 0) {
+                if (!confirm('Is product ka App Selling Price abhi pending hai. Is edit se ₹' + Number(p.price || 0).toFixed(0) + ' selling price lock ho jayega. Pehle "Set price" se selling price set karna chahte hain? (Cancel = pehle price set karein)')) { promptSetProductPrice(prodId); return; }
+            }
             
             fetch(`/api/admin/products/${prodId}`, {
                 method: 'PUT',
@@ -5337,6 +5480,9 @@
             }
             const p = productsCache.find(item => item.id === prodId);
             if (!p) return;
+            if (Number(p.admin_priced) === 0) {
+                if (!confirm('Is product ka App Selling Price abhi pending hai. Is edit se ₹' + Number(p.price || 0).toFixed(0) + ' selling price lock ho jayega. Pehle "Set price" se selling price set karna chahte hain? (Cancel = pehle price set karein)')) { promptSetProductPrice(prodId); return; }
+            }
             
             fetch(`/api/admin/products/${prodId}`, {
                 method: 'PUT',
@@ -6702,6 +6848,16 @@
                         document.getElementById("delivery-notice-message").value = settings.delivery_notice_message || '';
                     }
 
+                    // Order admin approval toggle (default ON)
+                    const approvalToggle = document.getElementById("order-admin-approval-toggle");
+                    if (approvalToggle) {
+                        const rawApproval = settings.order_admin_approval;
+                        approvalToggle.value = (rawApproval === undefined || rawApproval === null || String(rawApproval).trim() === '') ? "1" : (String(rawApproval).trim() === '0' ? "0" : "1");
+                    }
+
+                    // Vendor alarm sound preview
+                    try { renderVendorAlarmSetting(settings.vendor_alarm_sound || ''); } catch (e) { console.error(e); }
+
                     // Populate SMTP email settings
                     document.getElementById("smtp-email").value = settings.smtp_email || '';
                     document.getElementById("smtp-password").value = settings.smtp_password || '';
@@ -6749,7 +6905,8 @@
             const adminEmail = document.getElementById("admin-notification-email").value.trim();
             const deliveryAvailable = document.getElementById("delivery-available-status") ? document.getElementById("delivery-available-status").value : "1";
             const deliveryNotice = document.getElementById("delivery-notice-message") ? document.getElementById("delivery-notice-message").value.trim() : "";
-            
+            const orderAdminApproval = document.getElementById("order-admin-approval-toggle") ? document.getElementById("order-admin-approval-toggle").value : "1";
+
             fetch('/api/admin/settings/update', {
                 method: 'POST',
                 headers: {
@@ -6762,7 +6919,8 @@
                     smtp_password: smtpPassword,
                     admin_notification_email: adminEmail,
                     delivery_available: deliveryAvailable,
-                    delivery_notice_message: deliveryNotice
+                    delivery_notice_message: deliveryNotice,
+                    order_admin_approval: orderAdminApproval
                 })
             })
             .then(res => res.json())
@@ -7002,7 +7160,10 @@
             document.getElementById("admin-modal-order-status").innerText = "Loading...";
             document.getElementById("admin-modal-order-amount").innerText = "Loading...";
             document.getElementById("admin-modal-items-list").innerHTML = "<div style='color:var(--text-muted);'>Fetching order item payloads...</div>";
-            
+            const approvalBlock = document.getElementById("admin-modal-approval-block");
+            if (approvalBlock) approvalBlock.style.display = "none";
+            const _ab = document.getElementById('admin-modal-approve-btn'); if (_ab) { _ab.disabled = false; _ab.innerHTML = '✅ Approve — Vendor ko bhejo'; }
+
             // Populate shop select options
             const shopSelect = document.getElementById("admin-modal-shop-select");
             shopSelect.innerHTML = "";
@@ -7042,7 +7203,13 @@
                     const statusBadge = document.getElementById("admin-modal-order-status");
                     statusBadge.innerText = data.status.replace(/_/g, ' ');
                     statusBadge.className = 'status-badge';
-                    
+                    const isAwaitingAdminApproval = (data.status === 'PENDING' && Number(data.admin_approved) === 0);
+                    if (isAwaitingAdminApproval) {
+                        statusBadge.innerText = 'AWAITING ADMIN';
+                        statusBadge.classList.add('badge-awaiting-admin');
+                    }
+                    if (approvalBlock) approvalBlock.style.display = isAwaitingAdminApproval ? "block" : "none";
+
                     let badgeClass = "badge-pending";
                     if (data.status === 'ACCEPTED') badgeClass = "badge-accepted";
                     else if (data.status === 'READY_FOR_PICKUP') badgeClass = "badge-ready";
@@ -7941,6 +8108,347 @@
             return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         }
 
+        // =====================================================================
+        // ORDER ADMIN APPROVAL WORKFLOW (naye orders pehle admin approve karega)
+        // =====================================================================
+        let pendingApprovalCache = [];
+        let pendingApprovalCount = 0;
+        let orderApprovalInterval = null;
+        const orderApprovalBusy = {};
+
+        function updateOrderApprovalBadge(count) {
+            pendingApprovalCount = Number(count) || 0;
+            document.querySelectorAll('.order-approval-badge').forEach(badge => {
+                if (pendingApprovalCount > 0) {
+                    badge.textContent = pendingApprovalCount > 99 ? '99+' : String(pendingApprovalCount);
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            });
+            const kpi = document.getElementById('kpi-approval-pending');
+            if (kpi) kpi.innerText = String(pendingApprovalCount);
+            const pill = document.getElementById('order-approval-count-pill');
+            if (pill) {
+                pill.innerText = String(pendingApprovalCount);
+                pill.className = 'status-badge ' + (pendingApprovalCount > 0 ? 'badge-priority' : 'badge-delivered');
+            }
+        }
+
+        function fetchPendingApprovalOrders() {
+            return fetch('/api/admin/orders/pending-approval', { cache: 'no-store' })
+                .then(res => {
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    return res.json();
+                })
+                .then(data => {
+                    const orders = (data && Array.isArray(data.orders)) ? data.orders : [];
+                    const count = (data && data.count !== undefined && data.count !== null) ? Number(data.count) : orders.length;
+                    pendingApprovalCache = orders;
+                    updateOrderApprovalBadge(count);
+                    return orders;
+                });
+        }
+
+        // Global light poll (every 20 s, all tabs): sidebar badge + mobile nav badge + dashboard KPI
+        function pollOrderApprovalCount() {
+            fetchPendingApprovalOrders()
+                .then(orders => { if (activeTab === 'orders') renderPendingApprovalOrders(orders); })
+                .catch(() => {});
+        }
+
+        function loadPendingApprovalOrders(manualTrigger = false) {
+            const list = document.getElementById('order-approval-list');
+            if (list && list.children.length === 0) {
+                list.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:16px; color:var(--text-muted); font-size:0.85rem;">Naye orders load ho rahe hain...</div>`;
+            }
+            fetchPendingApprovalOrders()
+                .then(orders => {
+                    renderPendingApprovalOrders(orders);
+                    if (manualTrigger) showAestheticToast('Approval list refresh ho gayi.', 'success');
+                })
+                .catch(err => {
+                    console.error('Pending approval load error:', err);
+                    if (list) list.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:16px; color:var(--ruby-danger); font-size:0.85rem;">Approval list load nahi ho payi. Dobara try karein.</div>`;
+                });
+        }
+
+        function startOrderApprovalPolling() {
+            stopOrderApprovalPolling();
+            orderApprovalInterval = setInterval(() => {
+                if (activeTab === 'orders') loadPendingApprovalOrders(false);
+                else stopOrderApprovalPolling();
+            }, 10000);
+        }
+
+        function stopOrderApprovalPolling() {
+            if (orderApprovalInterval) {
+                clearInterval(orderApprovalInterval);
+                orderApprovalInterval = null;
+            }
+        }
+
+        function renderPendingApprovalOrders(orders) {
+            const list = document.getElementById('order-approval-list');
+            if (!list) return;
+            list.innerHTML = '';
+            if (!orders || orders.length === 0) {
+                list.innerHTML = `<div class="empty-state-card" style="grid-column:1/-1; padding: 18px;"><i data-lucide="check-circle-2" class="empty-state-icon" style="color: var(--emerald-green);"></i><p>Koi naya order approval ke liye nahi hai.</p></div>`;
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+            orders.forEach(o => {
+                const isUrgent = o.priority_type === 'URGENT';
+                const total = parseFloat(o.total_amount) || 0;
+                const vendorTotal = parseFloat(o.vendor_total) || 0;
+                const delFee = parseFloat(o.delivery_fee) || 0;
+                const itemsCount = Number(o.items_count) || 0;
+                const itemsTxt = String(o.items_summary || '').replace(/\s*,\s*/g, ' · ');
+                const payMode = String(o.payment_mode || 'COD').toUpperCase();
+
+                const card = document.createElement('div');
+                card.className = 'approval-order-card' + (isUrgent ? ' urgent' : '');
+                card.id = `approval-order-${o.id}`;
+                card.innerHTML = `
+                    <div class="approval-order-head">
+                        <span class="approval-order-id">#ORD${o.id}</span>
+                        <span style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                            <span class="status-badge ${isUrgent ? 'badge-priority' : 'badge-pending'}">${escAdmin(o.priority_type || 'NORMAL')}</span>
+                            <span class="status-badge badge-accepted" title="Payment mode">${escAdmin(payMode)}</span>
+                        </span>
+                    </div>
+                    <div class="approval-order-time"><i data-lucide="clock" style="width:11px; height:11px; display:inline-block; vertical-align:-1px;"></i> ${formatDateTimeDisplay(o.created_at)}</div>
+                    <div class="approval-order-meta">
+                        <div><strong>Customer:</strong> ${escAdmin(o.customer_name || 'N/A')}${o.customer_phone ? ` · <a href="tel:${escAdmin(o.customer_phone)}" style="color: var(--primary-accent); font-weight: 700; text-decoration: none;">${escAdmin(o.customer_phone)}</a>` : ''}</div>
+                        <div><strong>Address:</strong> ${escAdmin(o.customer_address || 'N/A')}</div>
+                        <div><strong>Shop:</strong> ${escAdmin(o.shop_name || ('Shop #' + (o.shop_id || '')))}</div>
+                    </div>
+                    <div class="approval-order-items"><i data-lucide="shopping-bag" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i>${itemsCount ? `${itemsCount} item${itemsCount > 1 ? 's' : ''}: ` : ''}${escAdmin(itemsTxt || 'N/A')}</div>
+                    <div class="approval-order-money">
+                        <span class="pays">Customer pays ₹${total.toFixed(2)}${delFee > 0 ? ` <small style="font-weight:600; color:var(--text-muted);">(delivery ₹${delFee.toFixed(0)} incl.)</small>` : ''}</span>
+                        <span class="vendor">Vendor ko ₹${vendorTotal.toFixed(2)}</span>
+                    </div>
+                    <div class="approval-order-actions">
+                        <button class="btn-custom btn-approve-green" onclick="approvePendingOrder(${o.id}, this)">✅ Approve — Vendor ko bhejo</button>
+                        <button class="btn-custom btn-custom-danger" onclick="rejectPendingOrder(${o.id}, this)">❌ Reject</button>
+                    </div>
+                    <div style="text-align:right;">
+                        <a href="javascript:void(0)" onclick="openAdminOrderManager(${o.id})" style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-decoration:underline;">Full details / Manage</a>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function approvePendingOrder(orderId, btn) {
+            orderId = Number(orderId);
+            if (!orderId || orderApprovalBusy[orderId]) return;
+            orderApprovalBusy[orderId] = true;
+            let oldHtml = null;
+            if (btn) { oldHtml = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'Bhej rahe hain...'; }
+            const restoreBtn = () => { if (btn) { btn.disabled = false; if (oldHtml !== null) btn.innerHTML = oldHtml; } };
+
+            fetch(`/api/admin/orders/${orderId}/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(({ ok, data }) => {
+                if (ok && data && !data.error) {
+                    restoreBtn();
+                    showAestheticToast(data.message || 'Order vendor ko bhej diya gaya.', 'success');
+                    const card = document.getElementById(`approval-order-${orderId}`);
+                    if (card) card.remove();
+                    const cached = (ordersCache || []).find(x => Number(x.id) === orderId);
+                    if (cached) cached.admin_approved = 1;
+                    if (activeAdminOrderId === orderId) closeAdminOrderModal();
+                    loadPendingApprovalOrders(false);
+                    loadAllAnalytics(false);
+                } else {
+                    showAestheticToast((data && data.error) || 'Order approve nahi ho paya.', 'error');
+                    restoreBtn();
+                }
+            })
+            .catch(err => {
+                console.error('Approve order error:', err);
+                showAestheticToast('Network error: order approve nahi ho paya.', 'error');
+                restoreBtn();
+            })
+            .finally(() => { delete orderApprovalBusy[orderId]; });
+        }
+
+        function rejectPendingOrder(orderId, btn) {
+            orderId = Number(orderId);
+            if (!orderId || orderApprovalBusy[orderId]) return;
+            const reasonRaw = prompt(`Order #ORD${orderId} reject karne ka reason likhein (customer ko dikhega):`, 'Admin ne order reject kiya');
+            if (reasonRaw === null) return;
+            const reason = String(reasonRaw).trim();
+            orderApprovalBusy[orderId] = true;
+            let oldHtml = null;
+            if (btn) { oldHtml = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'Reject ho raha hai...'; }
+            const restoreBtn = () => { if (btn) { btn.disabled = false; if (oldHtml !== null) btn.innerHTML = oldHtml; } };
+
+            fetch(`/api/admin/orders/${orderId}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: reason })
+            })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(({ ok, data }) => {
+                if (ok && data && !data.error) {
+                    showAestheticToast(data.message || `Order #ORD${orderId} reject kar diya gaya.`, 'success');
+                    const card = document.getElementById(`approval-order-${orderId}`);
+                    if (card) card.remove();
+                    if (activeAdminOrderId === orderId) closeAdminOrderModal();
+                    loadPendingApprovalOrders(false);
+                    loadAllAnalytics(false);
+                } else {
+                    showAestheticToast((data && data.error) || 'Order reject nahi ho paya.', 'error');
+                    restoreBtn();
+                }
+            })
+            .catch(err => {
+                console.error('Reject order error:', err);
+                showAestheticToast('Network error: order reject nahi ho paya.', 'error');
+                restoreBtn();
+            })
+            .finally(() => { delete orderApprovalBusy[orderId]; });
+        }
+
+        function approveOrderFromModal() {
+            if (!activeAdminOrderId) return;
+            approvePendingOrder(activeAdminOrderId, document.getElementById('admin-modal-approve-btn'));
+        }
+
+        // =====================================================================
+        // VENDOR ORDER ALARM SOUND (mp3) — System tab
+        // =====================================================================
+        const VENDOR_ALARM_MAX_BYTES = 4 * 1024 * 1024;
+        const VENDOR_ALARM_EXTS = ['mp3', 'wav', 'm4a', 'ogg', 'aac'];
+
+        function renderVendorAlarmSetting(path) {
+            const audio = document.getElementById('vendor-alarm-preview');
+            const defLabel = document.getElementById('vendor-alarm-default-label');
+            const removeBtn = document.getElementById('vendor-alarm-remove-btn');
+            const pill = document.getElementById('vendor-alarm-status-pill');
+            const nameEl = document.getElementById('vendor-alarm-file-name');
+            const upLabel = document.getElementById('vendor-alarm-upload-label');
+            if (!audio || !defLabel) return;
+            const p = String(path || '').trim();
+            if (p) {
+                if (audio.getAttribute('src') !== p) { audio.src = p; try { audio.load(); } catch (e) {} }
+                audio.style.display = 'block';
+                defLabel.style.display = 'none';
+                if (removeBtn) removeBtn.style.display = 'inline-flex';
+                if (pill) { pill.innerText = 'Custom alarm active'; pill.className = 'status-badge badge-delivered'; }
+                if (nameEl) nameEl.innerText = p;
+                if (upLabel) upLabel.innerText = 'Replace Alarm';
+            } else {
+                try { audio.pause(); } catch (e) {}
+                audio.removeAttribute('src');
+                audio.style.display = 'none';
+                defLabel.style.display = 'block';
+                if (removeBtn) removeBtn.style.display = 'none';
+                if (pill) { pill.innerText = 'Default alarm'; pill.className = 'status-badge badge-accepted'; }
+                if (nameEl) nameEl.innerText = '';
+                if (upLabel) upLabel.innerText = 'Upload Alarm';
+            }
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function uploadVendorAlarm(input) {
+            const file = input && input.files ? input.files[0] : null;
+            if (!file) return;
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            if (!VENDOR_ALARM_EXTS.includes(ext)) {
+                showAestheticToast('Sirf mp3 / wav / m4a / ogg / aac file allowed hai.', 'error');
+                input.value = '';
+                return;
+            }
+            if (file.size > VENDOR_ALARM_MAX_BYTES) {
+                showAestheticToast(`File ${(file.size / (1024 * 1024)).toFixed(1)} MB hai — max 4 MB allowed.`, 'error');
+                input.value = '';
+                return;
+            }
+            const formData = new FormData();
+            formData.append('file', file);
+            showAestheticToast('Alarm upload ho raha hai...', 'info');
+            fetch('/api/admin/settings/upload-vendor-alarm', { method: 'POST', body: formData })
+                .then(res => res.json().then(data => ({ ok: res.ok, data })))
+                .then(({ ok, data }) => {
+                    if (ok && data && data.success) {
+                        showAestheticToast('Vendor alarm upload ho gaya! Ab har vendor panel me yahi bajega.', 'success');
+                        renderVendorAlarmSetting(data.file_path || '');
+                    } else {
+                        showAestheticToast((data && data.error) || 'Alarm upload nahi ho paya.', 'error');
+                    }
+                })
+                .catch(err => {
+                    console.error('Vendor alarm upload error:', err);
+                    showAestheticToast('Network error: alarm upload nahi ho paya.', 'error');
+                })
+                .finally(() => { input.value = ''; });
+        }
+
+        function deleteVendorAlarm() {
+            if (!confirm('Custom alarm hata dein? Vendors ko phir default alarm sunai dega.')) return;
+            fetch('/api/admin/settings/vendor-alarm', { method: 'DELETE' })
+                .then(res => res.json().then(data => ({ ok: res.ok, data })))
+                .then(({ ok, data }) => {
+                    if (ok && data && !data.error) {
+                        showAestheticToast('Custom alarm hata diya gaya. Default alarm active.', 'success');
+                        renderVendorAlarmSetting('');
+                    } else {
+                        showAestheticToast((data && data.error) || 'Alarm remove nahi ho paya.', 'error');
+                    }
+                })
+                .catch(err => {
+                    console.error('Vendor alarm delete error:', err);
+                    showAestheticToast('Network error: alarm remove nahi ho paya.', 'error');
+                });
+        }
+
+        // =====================================================================
+        // ADMIN PRICING — set app selling price (admin_priced = 1)
+        // =====================================================================
+        function promptSetProductPrice(prodId) {
+            prodId = Number(prodId);
+            const p = (productsCache || []).find(item => Number(item.id) === prodId);
+            if (!p) return;
+            const currentPrice = (parseFloat(p.price) || 0).toFixed(2);
+            const mrpVal = (parseFloat(p.mrp) || parseFloat(p.price) || 0).toFixed(2);
+            const costVal = (parseFloat(p.cost_price) || 0).toFixed(2);
+            const raw = prompt(`"${p.name}" ka App Selling Price (₹) set karein.\nMRP ₹${mrpVal} · Hamar Bazar Price (vendor) ₹${costVal}\nCustomer ko yahi price dikhega:`, currentPrice);
+            if (raw === null) return;
+            const val = parseFloat(String(raw).replace(/[^0-9.]/g, ''));
+            if (isNaN(val) || val < 0) {
+                showAestheticToast('Sahi price likhein (0 ya usse zyada).', 'error');
+                return;
+            }
+            if (val < parseFloat(costVal) && !confirm(`Selling price ₹${val.toFixed(2)} vendor price ₹${costVal} se kam hai (loss). Phir bhi set karein?`)) return;
+            fetch(`/api/admin/products/${prodId}/price`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ price: val })
+            })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(({ ok, data }) => {
+                if (ok && data && !data.error) {
+                    const newPrice = parseFloat(data.price !== undefined && data.price !== null ? data.price : val);
+                    showAestheticToast(`"${p.name}" ka selling price ₹${newPrice.toFixed(2)} set ho gaya.`, 'success');
+                    loadProductCatalog();
+                } else {
+                    showAestheticToast((data && data.error) || 'Price set nahi ho paya.', 'error');
+                }
+            })
+            .catch(err => {
+                console.error('Set price error:', err);
+                showAestheticToast('Network error: price set nahi ho paya.', 'error');
+            });
+        }
+
         function loadPlantationTracker() {
             try { loadGameLeaderboard(); } catch (e) { console.error(e); }
             fetch('/api/admin/plantation-tracker')
@@ -8091,6 +8599,7 @@
         <div class="mobile-nav-item" id="mob-nav-orders" onclick="switchTab('orders')">
             <i data-lucide="shopping-cart"></i>
             <span>Orders</span>
+            <span id="order-approval-badge-mobile" class="nav-count-badge order-approval-badge"></span>
         </div>
         <div class="mobile-nav-item" id="mob-nav-vendors" onclick="switchTab('vendors')">
             <i data-lucide="store"></i>

@@ -1557,6 +1557,334 @@
                 border-radius: 16px !important;
             }
         }
+
+        /* ==========================================================================
+           Vendor payout / quick-action helpers (desktop: quick-action column hidden)
+           ========================================================================== */
+        .order-action-col { display: none; }
+        .order-quick-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            min-height: 44px;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .order-quick-btn i { width: 18px; height: 18px; }
+        .order-quick-btn.accept { background: var(--primary); color: #ffffff; box-shadow: 0 4px 12px var(--primary-glow); }
+        .order-quick-btn.ready { background: #7c3aed; color: #ffffff; }
+        .order-quick-btn.view { background: var(--bg-main); color: var(--text-secondary); border: 1px solid var(--border-hover); }
+        .order-quick-btn:active { transform: scale(0.98); }
+        .payout-cell { color: #059669; }
+
+        /* ==========================================================================
+           PHONE LAYOUT (<= 768px): no horizontal overflow, tables become cards,
+           full-width detail card, full-screen product modal, fixed bottom nav.
+           Desktop rules above are untouched.
+           ========================================================================== */
+        @media (max-width: 768px) {
+            html, body {
+                overflow-x: hidden !important;
+                max-width: 100vw;
+            }
+            body { padding-bottom: 0; }
+            .main-panel {
+                padding: 12px 12px 100px 12px !important;   /* bottom space for fixed nav */
+                gap: 16px !important;
+                overflow-x: hidden;
+            }
+            .main-panel > *, #dashboard-tab-view, #inventory-tab-view { min-width: 0; max-width: 100%; }
+            #inventory-tab-view { margin-top: 0 !important; gap: 16px !important; }
+            img, table { max-width: 100%; }
+
+            /* Header: title on top, Test Alarm + Logout on one wrapping row underneath */
+            .main-header {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px !important;
+                padding: 14px 14px !important;
+                margin-bottom: 0 !important;
+            }
+            .welcome-title { font-size: 1.2rem !important; }
+            .welcome-subtitle { font-size: 0.8rem !important; line-height: 1.35; }
+            .header-actions {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                width: 100% !important;
+                justify-content: stretch !important;
+            }
+            .header-actions > button,
+            .header-actions > a {
+                flex: 1 1 140px;
+                min-height: 44px;
+                display: inline-flex !important;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                white-space: nowrap;
+            }
+            .header-actions #test-sound-btn { font-size: 13px !important; }
+
+            /* Stats: 2 columns, compact */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 10px !important;
+            }
+            .stats-card {
+                padding: 12px !important;
+                gap: 10px !important;
+                flex-direction: column;
+                align-items: flex-start;
+                border-radius: 14px;
+            }
+            .stats-card:hover { transform: none; }
+            .stats-icon-box { width: 36px !important; height: 36px !important; border-radius: 10px; }
+            .stats-icon-box i { width: 18px; height: 18px; }
+            .stats-info { gap: 0; min-width: 0; }
+            .stats-label { font-size: 0.72rem !important; }
+            .stats-value { font-size: 1.1rem !important; }
+            .stats-sub { font-size: 0.66rem; }
+
+            /* Orders + detail: single column, detail card full width right under the list */
+            .dashboard-grid {
+                grid-template-columns: 1fr !important;
+                gap: 16px !important;
+            }
+            .orders-section { min-width: 0; }
+            .orders-section .card-header {
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-bottom: 12px !important;
+            }
+            .orders-section .card-header .card-title { font-size: 1rem !important; }
+            .orders-section .card-header button { min-height: 40px; }
+            #detail-card {
+                width: 100%;
+                min-width: 0;
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                padding: 14px 12px;
+                box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+                scroll-margin-top: 72px;   /* clear the sticky mobile header */
+            }
+            #detail-card .detail-items-scroll { max-height: none !important; }
+            #detail-card .detail-items-table th,
+            #detail-card .detail-items-table td { font-size: 0.8rem !important; }
+            #detail-card .btn-green-action { min-height: 48px; }
+
+            /* Orders table -> tap-friendly cards */
+            .orders-section .table-responsive { overflow-x: visible; }
+            .orders-table {
+                min-width: 0 !important;
+                width: 100% !important;
+                display: block;
+            }
+            .orders-table thead { display: none; }
+            .orders-table tbody {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .orders-table tr {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 4px 8px;
+                padding: 12px !important;
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                background: #ffffff;
+                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+            }
+            .orders-table tr:hover { background-color: #ffffff; }
+            .orders-table tr.selected-row {
+                background-color: var(--primary-light);
+                border-color: var(--primary);
+                box-shadow: 0 0 0 2px var(--primary-glow);
+            }
+            .orders-table td {
+                display: block;
+                padding: 0 !important;
+                border: none !important;
+                white-space: normal !important;
+                min-width: 0;
+            }
+            .orders-table td.order-id { order: 1; flex: 1 1 45%; font-size: 0.95rem; }
+            .orders-table td.time-cell { order: 2; flex: 1 1 45%; text-align: right; }
+            .orders-table td.customer-cell { order: 3; flex: 1 1 100%; max-width: none; overflow: visible; font-size: 0.9rem; }
+            .orders-table td.customer-cell::before { content: '👤 '; }
+            .orders-table td.items-cell { order: 4; flex: 1 1 100%; display: flex; }
+            .orders-table td.items-cell .items-list { max-width: none; white-space: normal; overflow: visible; line-height: 1.35; }
+            .orders-table td.payout-cell { order: 5; flex: 1 1 50%; font-size: 1.05rem; color: #059669 !important; margin-top: 4px; }
+            .orders-table td.payout-cell::before {
+                content: 'Aapko milega ';
+                display: block;
+                font-size: 0.68rem;
+                color: #64748b;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+            }
+            .orders-table td.status-cell { order: 6; flex: 1 1 40%; text-align: right; margin-top: 4px; }
+            .orders-table td.order-action-col { order: 7; flex: 1 1 100%; display: block; margin-top: 8px; }
+            #empty-orders-placeholder { padding: 28px 12px !important; }
+
+            /* Inventory: readable stacked rows (name wraps, compact price columns, toggle visible) */
+            .inventory-section { padding: 14px 12px !important; }
+            .inventory-section .card-header { margin-bottom: 12px !important; }
+            .inventory-section .card-header .card-title { font-size: 1rem !important; }
+            .inventory-section .card-header > div { width: 100%; }
+            .inventory-section .card-header > div > button,
+            .inventory-section .card-header > div > a {
+                flex: 1 1 45%;
+                justify-content: center;
+                min-height: 44px;
+            }
+            .inventory-section .table-responsive { overflow-x: visible; }
+            .inventory-table {
+                min-width: 0 !important;
+                width: 100% !important;
+                display: block;
+            }
+            .inventory-table thead { display: none; }
+            .inventory-table tbody {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .inventory-table tr {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 6px 8px;
+                padding: 12px !important;
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                background: #ffffff;
+            }
+            .inventory-table td {
+                display: block;
+                padding: 0 !important;
+                border: none !important;
+                font-size: 13px !important;
+                min-width: 0;
+            }
+            .inventory-table td.inv-product { flex: 1 1 100%; }
+            .inventory-table td.inv-product .product-cell { gap: 10px; }
+            .inventory-table td.inv-product .product-name {
+                white-space: normal;
+                word-break: break-word;
+                line-height: 1.3;
+                display: block;
+            }
+            .inventory-table td.inv-mrp,
+            .inventory-table td.inv-cost { flex: 1 1 30%; }
+            .inventory-table td.inv-mrp::before,
+            .inventory-table td.inv-cost::before {
+                content: attr(data-label);
+                display: block;
+                font-size: 0.64rem;
+                color: #64748b;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+                margin-bottom: 2px;
+            }
+            .inventory-table td.inv-stock { flex: 1 1 28%; text-align: right; }
+            .inventory-table td.inv-actions { flex: 1 1 100%; margin-top: 4px; }
+            .inv-actions-wrap { width: 100%; gap: 8px !important; }
+            .inv-actions-wrap .switch { flex-shrink: 0; }
+            .inv-actions-wrap button {
+                flex: 1;
+                min-height: 44px;
+                justify-content: center;
+                font-size: 13px !important;
+            }
+
+            /* New order alert + bulk upload modals fit the phone */
+            .overlay-modal { padding: 12px; }
+            #new-order-modal .modal-content { padding: 20px 16px; max-height: 92vh; overflow-y: auto; }
+            #new-order-modal .modal-actions button { min-height: 48px; }
+            #vendor-bulk-upload-modal .modal-content {
+                width: 96% !important;
+                max-height: 92vh;
+                overflow-y: auto;
+                padding: 16px 14px !important;
+            }
+
+            /* Product modal: full-screen, scrollable, sticky Save row */
+            #vendor-product-modal {
+                padding: 0 !important;
+                align-items: stretch !important;
+            }
+            #vendor-product-modal .modal-content {
+                width: 100% !important;
+                max-width: 100% !important;
+                height: 100%;
+                max-height: 100% !important;
+                border-radius: 0 !important;
+                padding: 16px 14px 0 14px !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                display: flex;
+                flex-direction: column;
+                animation: none;
+            }
+            #vendor-product-modal .modal-header {
+                position: sticky;
+                top: 0;
+                background: #ffffff;
+                z-index: 2;
+            }
+            #vendor-product-modal .modal-body { flex: 1; padding-bottom: 8px !important; }
+            #vendor-product-modal .v-prod-price-grid { grid-template-columns: 1fr 1fr !important; }
+            #vendor-product-modal input:not([type="checkbox"]):not([type="file"]),
+            #vendor-product-modal textarea { font-size: 16px !important; }   /* prevents iOS focus zoom */
+            #vendor-product-modal .v-prod-modal-actions {
+                position: sticky;
+                bottom: 0;
+                background: #ffffff;
+                margin: auto 0 0 0 !important;
+                padding: 12px 0 max(12px, env(safe-area-inset-bottom)) !important;
+                z-index: 3;
+                box-shadow: 0 -6px 16px rgba(15, 23, 42, 0.06);
+            }
+            #vendor-product-modal .v-prod-modal-actions button {
+                flex: 1;
+                min-height: 46px;
+            }
+
+            /* Bottom nav stays fixed; FAB sits above it and only on the inventory tab */
+            .mobile-bottom-nav {
+                height: 64px;
+                padding-bottom: env(safe-area-inset-bottom);
+                box-sizing: content-box;
+            }
+            .mobile-fab-add { bottom: calc(80px + env(safe-area-inset-bottom)) !important; }
+            body[data-tab="dashboard"] .mobile-fab-add,
+            body[data-tab="prescriptions"] .mobile-fab-add { display: none !important; }
+
+            .footer { margin-top: 16px !important; padding-top: 12px !important; font-size: 12px !important; }
+        }
+
+        @media (max-width: 380px) {
+            .stats-grid { grid-template-columns: 1fr !important; }
+            .stats-card { flex-direction: row; align-items: center; }
+            .orders-table td.order-id,
+            .orders-table td.time-cell { flex-basis: 100%; text-align: left; }
+            .inventory-section .card-header > div > button,
+            .inventory-section .card-header > div > a { flex-basis: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -1640,7 +1968,7 @@
                 <button type="button" class="btn btn-secondary" onclick="toggleTestSound(event)" id="test-sound-btn" style="padding: 8px 14px; font-size: 13px; border-radius: 8px;">
                     <i data-lucide="volume-2"></i> <span>Test Alarm Sound</span>
                 </button>
-                <a href="/session/logout" style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 14px;">
+                <a href="/session/logout" class="header-logout-link" style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 14px;">
                     <i data-lucide="log-out" style="width: 16px; height: 16px;"></i> Logout
                 </a>
             </div>
@@ -1677,9 +2005,9 @@
                         <i data-lucide="indian-rupee"></i>
                     </div>
                     <div class="stats-info">
-                        <span class="stats-label">Today's Revenue</span>
+                        <span class="stats-label">Aapki Kamai (Delivered)</span>
                         <span class="stats-value" id="stats-revenue">₹0</span>
-                        <span class="stats-sub">Delivered Orders</span>
+                        <span class="stats-sub">Delivered orders ka aapka hissa</span>
                     </div>
                 </div>
             </div>
@@ -1705,9 +2033,10 @@
                                     <th>Order ID</th>
                                     <th>Customer</th>
                                     <th>Items</th>
-                                    <th>Amount</th>
+                                    <th>Aapko milega</th>
                                     <th>Status</th>
                                     <th>Placed Time</th>
+                                    <th class="order-action-col">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="orders-table-body">
@@ -1767,9 +2096,10 @@
                         <thead>
                             <tr>
                                 <th>Product</th>
-                                <th>Price</th>
-                                <th>Status</th>
-                                <th>Action</th>
+                                <th>Market Price (MRP)</th>
+                                <th>Hamar Bazar Price</th>
+                                <th>Stock</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="inventory-table-body">
@@ -1873,19 +2203,19 @@
                     <input type="text" id="v-prod-name" class="search-input" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; font-size: 14px;" placeholder="e.g. Amul Fresh Butter 100g">
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                <div class="v-prod-price-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: 600; color: #475569;">Selling Price (₹) <span style="color: #ef4444;">*</span></label>
-                        <input type="number" step="0.01" id="v-prod-price" class="search-input" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 10px; font-size: 13px;" placeholder="56.00">
+                        <label for="v-prod-mrp" style="font-size: 12px; font-weight: 600; color: #475569;">Market Price (MRP) ₹ <span style="color: #ef4444;">*</span></label>
+                        <input type="number" step="0.01" min="0" inputmode="decimal" id="v-prod-mrp" class="search-input" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 10px; font-size: 13px;" placeholder="60.00">
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: 600; color: #475569;">MRP (₹)</label>
-                        <input type="number" step="0.01" id="v-prod-mrp" class="search-input" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 10px; font-size: 13px;" placeholder="60.00">
+                        <label for="v-prod-cost" style="font-size: 12px; font-weight: 700; color: #0284c7;" title="Hamar Bazar ko aap kis price par doge">Hamar Bazar Price ₹ <span style="color: #ef4444;">*</span> <span style="font-weight: 500; color: #64748b;">(hamko kitna padega)</span></label>
+                        <input type="number" step="0.01" min="0" inputmode="decimal" id="v-prod-cost" class="search-input" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 10px; font-size: 13px; background: #f0f9ff;" placeholder="40.00">
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: 700; color: #0284c7;" title="Humko Kitna Padega / Vendor Purchase Price">Cost Price (₹)</label>
-                        <input type="number" step="0.01" id="v-prod-cost-price" class="search-input" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 10px; font-size: 13px; background: #f0f9ff;" placeholder="40.00">
-                    </div>
+                </div>
+                <div id="v-prod-price-help" style="font-size: 12px; color: #64748b; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 8px 10px; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="info" style="width: 14px; height: 14px; color: #0284c7; flex-shrink: 0;"></i>
+                    <span>App me selling price Hamar Bazar admin set karega.</span>
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 6px;">
@@ -1918,7 +2248,7 @@
                     <label for="v-prod-available" style="font-size: 14px; font-weight: 600; color: #334155; cursor: pointer;">Product Available for Order</label>
                 </div>
 
-                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+                <div class="modal-actions v-prod-modal-actions" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
                     <button type="button" class="btn-modal-mute" onclick="closeVendorProductModal()" style="padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 14px;">Cancel</button>
                     <button type="button" class="btn-modal-accept" id="v-prod-save-btn" onclick="saveVendorProduct()" style="padding: 10px 22px; border-radius: 8px; font-weight: 600; font-size: 14px; background: #10b981;">Save Product</button>
                 </div>
@@ -1951,8 +2281,9 @@
                     </div>
                     <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
                         <li>Supported formats: <strong>.xlsx, .xls, .csv</strong></li>
-                        <li>Required columns: <strong>Product Name</strong> & <strong>Price</strong></li>
-                        <li>Optional columns: <strong>MRP, Cost Price, Subcategory, Description, Image URL, Keywords, Available</strong></li>
+                        <li>Required columns: <strong>Product Name, Market Price (MRP), Hamar Bazar Price</strong></li>
+                        <li>Optional columns: <strong>Subcategory, Description, Image URL, Keywords, Available</strong></li>
+                        <li>App me selling price <strong>Hamar Bazar admin</strong> set karega (sheet me Price column ki zaroorat nahi).</li>
                         <li>Existing products with matching name will be <strong>updated</strong> automatically.</li>
                     </ul>
                     <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
@@ -2005,6 +2336,75 @@
         let alarmAudio = null;
         let testSoundActive = false;
         let testSoundTimeout = null;
+
+        // Alarm sound source: admin-uploaded file (system_settings.vendor_alarm_sound) or the default clip
+        const DEFAULT_ALARM_URL = "https://res.cloudinary.com/dres0aek3/video/upload/20260528_123713_lvqapz.mp3";
+        let alarmSoundUrl = DEFAULT_ALARM_URL;
+        let alarmAudioSrc = null;      // src currently loaded into alarmAudio
+        let audioUnlocked = false;     // set once a user gesture has unlocked media playback
+        let knownPickupOtps = {};      // order_id -> pickup_otp returned by the accept endpoint (fallback for detail view)
+
+        function isCrossOriginUrl(url) {
+            try {
+                const u = new URL(url, window.location.href);
+                return u.origin !== window.location.origin;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // Create (once) the looping alarm element and make sure it points at the configured source.
+        function ensureAlarmAudio() {
+            try {
+                if (!alarmAudio) {
+                    alarmAudio = new Audio();
+                    alarmAudio.loop = true;
+                    alarmAudio.preload = "auto";
+                }
+                if (alarmAudioSrc !== alarmSoundUrl) {
+                    if (isCrossOriginUrl(alarmSoundUrl)) {
+                        alarmAudio.crossOrigin = "anonymous";
+                    } else {
+                        alarmAudio.removeAttribute("crossorigin"); // same-origin upload: no CORS attr needed
+                    }
+                    alarmAudio.src = alarmSoundUrl;
+                    alarmAudioSrc = alarmSoundUrl;
+                    alarmAudio.load();
+                }
+            } catch (e) {
+                console.error("Failed to initialise alarm audio:", e);
+            }
+            return alarmAudio;
+        }
+
+        function applyAlarmSoundUrl(url) {
+            const next = (url && String(url).trim()) ? String(url).trim() : DEFAULT_ALARM_URL;
+            if (next === alarmSoundUrl) return;
+            alarmSoundUrl = next;
+            // Swap immediately when idle; if an alarm/test is playing the swap happens on the next start.
+            if (!alarmActive && !testSoundActive) ensureAlarmAudio();
+        }
+
+        function loadAlarmSoundSetting() {
+            fetch('/api/system/settings', { cache: 'no-store' })
+                .then(res => res.ok ? res.json() : null)
+                .then(settings => {
+                    if (!settings || typeof settings !== 'object') return;
+                    const custom = settings.vendor_alarm_sound ? String(settings.vendor_alarm_sound).trim() : '';
+                    applyAlarmSoundUrl(custom || DEFAULT_ALARM_URL);
+                })
+                .catch(err => console.warn("Alarm sound setting load failed, using default clip:", err));
+        }
+
+        // Small helpers for vendor-facing amounts / safe HTML
+        function vendorAmount(v) {
+            const n = Number(v);
+            return (isFinite(n) ? Math.round(n) : 0).toLocaleString('en-IN');
+        }
+        function escHtml(str) {
+            return String(str === undefined || str === null ? '' : str)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
 
         // Custom global refreshIcons definition to update Lucide icons without base.html
         function refreshIcons() {
@@ -2108,14 +2508,11 @@
                 if (++_invTick % 6 === 0) loadInventory();  // full inventory only every 30s
             }, 5000);
 
-            // Pre-initialize alarm audio element for user activation
-            try {
-                alarmAudio = new Audio("https://res.cloudinary.com/dres0aek3/video/upload/20260528_123713_lvqapz.mp3");
-                alarmAudio.loop = true;
-                alarmAudio.crossOrigin = "anonymous";
-            } catch (e) {
-                console.error("Failed to pre-initialize alarm audio:", e);
-            }
+            // Pre-initialize alarm audio element (default clip), then switch to the admin-configured sound
+            ensureAlarmAudio();
+            loadAlarmSoundSetting();
+            setInterval(loadAlarmSoundSetting, 5 * 60 * 1000); // pick up admin sound changes without a reload
+            document.body.setAttribute('data-tab', 'dashboard');
 
             // Autoplay Browser Policy handler
             const unlockAudio = () => {
@@ -2127,23 +2524,28 @@
                         console.log("Web AudioContext enabled");
                     });
                 }
-                // Pre-play and pause to unlock media autoplay restrictions
+                // Pre-play and pause to unlock media autoplay restrictions and preload the alarm file.
+                // Listeners are removed only after a successful unlock so a blocked attempt can retry on the next tap.
+                ensureAlarmAudio();
                 if (alarmAudio) {
                     alarmAudio.play().then(() => {
                         console.log("alarmAudio unlocked successfully");
+                        audioUnlocked = true;
                         if (!alarmActive && !testSoundActive) {
                             alarmAudio.pause();
                             alarmAudio.currentTime = 0;
                         }
+                        document.removeEventListener('click', unlockAudio);
+                        document.removeEventListener('keydown', unlockAudio);
+                        document.removeEventListener('touchend', unlockAudio);
                     }).catch(e => {
-                        console.warn("Failed to unlock alarmAudio:", e);
+                        console.warn("Failed to unlock alarmAudio (will retry on next gesture):", e);
                     });
                 }
-                document.removeEventListener('click', unlockAudio);
-                document.removeEventListener('keydown', unlockAudio);
             };
             document.addEventListener('click', unlockAudio);
             document.addEventListener('keydown', unlockAudio);
+            document.addEventListener('touchend', unlockAudio, { passive: true });
             
             refreshIcons();
             initBackButtonTrap();
@@ -2152,6 +2554,7 @@
         // Tab Switching Actions
         function switchTab(tabId) {
             activeTab = tabId;
+            if (document.body) document.body.setAttribute('data-tab', tabId);
 
             // Hide sidebar overlay if mobile
             const sidebar = document.getElementById('sidebar-menu');
@@ -2278,21 +2681,18 @@
             alarmActive = true;
             
             try {
-                if (!alarmAudio) {
-                    alarmAudio = new Audio("https://res.cloudinary.com/dres0aek3/video/upload/20260528_123713_lvqapz.mp3");
-                    alarmAudio.loop = true;
-                    alarmAudio.crossOrigin = "anonymous";
-                }
+                ensureAlarmAudio();
+                if (!alarmAudio) throw new Error("alarm audio element unavailable");
                 alarmAudio.playbackRate = isUrgent ? 1.4 : 1.0; // Urgent speed alert (INT-002)
-                
+
                 alarmAudio.play().then(() => {
-                    console.log("Cloudinary alarm audio started playing");
+                    console.log("Alarm audio started playing:", alarmSoundUrl);
                 }).catch(e => {
-                    console.warn("Cloudinary alert audio blocked, executing synth fallbacks:", e);
+                    console.warn("Alarm audio blocked, executing synth fallbacks:", e);
                     startBeepFallbackAlarm(isUrgent);
                 });
             } catch (err) {
-                console.warn("Cloudinary alert initialization failed, executing synth fallbacks:", err);
+                console.warn("Alarm initialization failed, executing synth fallbacks:", err);
                 startBeepFallbackAlarm(isUrgent);
             }
         }
@@ -2336,7 +2736,7 @@
             if (testSoundActive) return;
             testSoundActive = true;
             
-            const btn = document.getElementById('btn-test-sound');
+            const btn = document.getElementById('test-sound-btn') || document.getElementById('btn-test-sound');
             if (btn) {
                 btn.classList.add('testing');
                 btn.innerHTML = `<i data-lucide="volume-x"></i><span>Stop Test Sound</span>`;
@@ -2352,11 +2752,8 @@
             }
 
             try {
-                if (!alarmAudio) {
-                    alarmAudio = new Audio("https://res.cloudinary.com/dres0aek3/video/upload/20260528_123713_lvqapz.mp3");
-                    alarmAudio.loop = true;
-                    alarmAudio.crossOrigin = "anonymous";
-                }
+                ensureAlarmAudio(); // same source as the real new-order alarm
+                if (!alarmAudio) throw new Error("alarm audio element unavailable");
                 alarmAudio.playbackRate = 1.0;
                 
                 alarmAudio.play().then(() => {
@@ -2385,7 +2782,7 @@
                 testSoundTimeout = null;
             }
             
-            const btn = document.getElementById('btn-test-sound');
+            const btn = document.getElementById('test-sound-btn') || document.getElementById('btn-test-sound');
             if (btn) {
                 btn.classList.remove('testing');
                 btn.innerHTML = `<i data-lucide="volume-2"></i><span>Test Alarm Sound</span>`;
@@ -2458,15 +2855,20 @@
             
             const phoneEl = document.getElementById("modal-customer-phone");
             if (phoneEl) phoneEl.innerText = order.customer_phone || '';
-            
+
+            // Immediate summary from the list payload (vendor payout only - never app price / delivery / grand total)
+            const summaryElNow = document.getElementById("modal-items-summary");
+            if (summaryElNow) summaryElNow.innerText = `Order #${order.id}: ${order.items_summary || 'Items load ho rahe hain...'} — Aapko milega ₹${vendorAmount(order.vendor_total)}`;
+
             // Get item list details
             fetch(`/api/orders/${order.id}`)
                 .then(res => res.json())
                 .then(details => {
                     if (details && Array.isArray(details.items)) {
                         const itemsSummary = details.items.map(item => `${item.quantity}x ${item.product_name}`).join(", ");
+                        const payout = (details.vendor_total !== undefined && details.vendor_total !== null) ? details.vendor_total : order.vendor_total;
                         const summaryEl = document.getElementById("modal-items-summary");
-                        if (summaryEl) summaryEl.innerText = `Order #${order.id}: ${itemsSummary} (Total: ₹${(order.total_amount || 0).toFixed(0)})`;
+                        if (summaryEl) summaryEl.innerText = `Order #${order.id}: ${itemsSummary} — Aapko milega ₹${vendorAmount(payout)}`;
                     }
                 })
                 .catch(err => console.error("Error loading order items for alert modal:", err));
@@ -2523,11 +2925,23 @@
         // Actions endpoints
         function acceptIncomingOrder(orderId) {
             fetch(`/api/orders/${orderId}/accept`, { method: "POST" })
-                .then(res => res.json())
-                .then(data => {
-                    if (selectedOrderId === orderId) {
-                        loadSelectedOrderDetails(orderId);
+                .then(res => res.json().catch(() => ({})).then(data => ({ ok: res.ok, data: data || {} })))
+                .then(({ ok, data }) => {
+                    if (!ok || data.error) {
+                        alert(data.error || "Order accept nahi ho paya. Dobara try karein.");
+                        loadOrders();
+                        return;
                     }
+                    if (data.pickup_otp) knownPickupOtps[orderId] = data.pickup_otp;
+                    // Vendor has acknowledged this order: stop the alarm and do not re-alert for it
+                    muteOrder(orderId);
+                    if (currentAlertingOrderId === orderId) {
+                        dismissNewOrderAlert();
+                    } else {
+                        stopLoudAlarm();
+                    }
+                    // Open this order's detail (product list + Pickup OTP + Mark Ready button)
+                    selectOrderRow(orderId);
                     loadOrders();
                 })
                 .catch(err => console.error("Error accepting order:", err));
@@ -2540,10 +2954,9 @@
                     if (data.error) {
                         alert(data.error);
                     } else {
+                        if (data.pickup_otp) knownPickupOtps[orderId] = data.pickup_otp;
                         startOTPCountdown(orderId);
-                        if (selectedOrderId === orderId) {
-                            loadSelectedOrderDetails(orderId);
-                        }
+                        selectOrderRow(orderId);
                         loadOrders();
                     }
                 })
@@ -2598,10 +3011,10 @@
                 }
             }
             
-            // 3. Today's Revenue (Delivered sum)
+            // 3. Aapki Kamai: vendor payout (vendor_total) of DELIVERED orders - never the app selling total
             const revenueSum = ordersList
                 .filter(o => o.status === 'DELIVERED')
-                .reduce((sum, o) => sum + (o.total_amount || 0), 0);
+                .reduce((sum, o) => sum + (Number(o.vendor_total) || 0), 0);
             
             const revenueEl = document.getElementById("stats-revenue");
             if (revenueEl) revenueEl.innerText = `₹${Math.round(revenueSum).toLocaleString()}`;
@@ -2681,20 +3094,31 @@
                 const statusClass = o.status ? o.status.toLowerCase() : 'pending';
                 
                 const itemsCountStr = `${o.items_count || 1} Item${(o.items_count || 1) > 1 ? 's' : ''}`;
-                const itemsSummaryStr = o.items_summary || 'Order Items';
+                const itemsSummaryStr = escHtml(o.items_summary || 'Order Items');
+
+                // Quick action (rendered only on phones via CSS .order-action-col)
+                let quickAction = '';
+                if (o.status === 'PENDING') {
+                    quickAction = `<button type="button" class="order-quick-btn accept" onclick="event.stopPropagation(); acceptIncomingOrder(${o.id})"><i data-lucide="check"></i> Order accept karein</button>`;
+                } else if (o.status === 'ACCEPTED') {
+                    quickAction = `<button type="button" class="order-quick-btn ready" onclick="event.stopPropagation(); markOrderReady(${o.id})"><i data-lucide="package"></i> Packed &amp; Ready</button>`;
+                } else {
+                    quickAction = `<button type="button" class="order-quick-btn view" onclick="event.stopPropagation(); selectOrderRow(${o.id})"><i data-lucide="eye"></i> Details dekhein</button>`;
+                }
 
                 tr.innerHTML = `
-                    <td class="order-id">#ORD-${o.id}</td>
-                    <td class="customer-cell">${o.customer_name || 'Customer'}</td>
-                    <td class="items-cell">
+                    <td class="order-id" data-label="Order">#ORD-${o.id}</td>
+                    <td class="customer-cell" data-label="Customer">${escHtml(o.customer_name || 'Customer')}</td>
+                    <td class="items-cell" data-label="Items">
                         <span class="items-count">${itemsCountStr}</span>
-                        <span class="items-list">${itemsSummaryStr}</span>
+                        <span class="items-list" title="${itemsSummaryStr}">${itemsSummaryStr}</span>
                     </td>
-                    <td class="amount-cell">₹${(o.total_amount || 0).toFixed(0)}</td>
-                    <td>
+                    <td class="amount-cell payout-cell" data-label="Aapko milega" title="Aapko milega">₹${vendorAmount(o.vendor_total)}</td>
+                    <td class="status-cell" data-label="Status">
                         <span class="status-badge ${statusClass}">${displayStatus}</span>
                     </td>
-                    <td class="time-cell">${priorityLabel}${timeStr}</td>
+                    <td class="time-cell" data-label="Placed">${priorityLabel}${timeStr}</td>
+                    <td class="order-action-col action-cell">${quickAction}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -2712,6 +3136,12 @@
             
             selectedOrderId = orderId;
             loadSelectedOrderDetails(orderId);
+
+            // Phones: the detail card sits below the list - bring it into view
+            if (window.innerWidth <= 768) {
+                const panel = document.getElementById("detail-card");
+                if (panel) setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+            }
         }
 
         // Load detail actions / OTP card & full billing breakdown on the right side panel
@@ -2733,17 +3163,17 @@
                     if (order.status === 'ACCEPTED') statusLabel = 'Preparing';
                     if (order.status === 'READY_FOR_PICKUP') statusLabel = 'Ready for Pickup';
                     
-                    // Build Itemized Bill Rows
+                    // Build item rows with the vendor's own price (vendor_price) - app selling price is never shown here
                     let itemsTableRows = '';
-                    let subtotalCalculated = 0;
-                    
+                    let vendorSubtotal = 0;
+
                     if (Array.isArray(order.items) && order.items.length > 0) {
                         order.items.forEach(item => {
-                            const unitPrice = item.price || 0;
+                            const unitPrice = Number(item.vendor_price) || 0;
                             const qty = item.quantity || 1;
                             const itemTotal = unitPrice * qty;
-                            subtotalCalculated += itemTotal;
-                            
+                            vendorSubtotal += itemTotal;
+
                             let customNotes = '';
                             if (item.custom_text) {
                                 customNotes += `<div style="font-size:0.75rem; color:#0284c7; margin-top:2px;">✒️ Msg: "<strong>${item.custom_text}</strong>"</div>`;
@@ -2771,36 +3201,46 @@
                         itemsTableRows = `<tr><td colspan="4" style="text-align:center; padding:12px; color:#94a3b8;">No items listed</td></tr>`;
                     }
 
-                    const deliveryFee = order.delivery_fee || 0;
-                    const grandTotal = order.total_amount || (subtotalCalculated + deliveryFee);
+                    // Vendor payout total (backend vendor_total; fallback = sum of vendor_price x qty)
+                    const vendorTotal = (order.vendor_total !== undefined && order.vendor_total !== null)
+                        ? (Number(order.vendor_total) || 0)
+                        : vendorSubtotal;
 
-                    // Action Button section HTML based on order status
+                    // 4-digit Pickup OTP block (shown right after ACCEPT and while READY_FOR_PICKUP)
+                    const pickupOtp = order.pickup_otp || knownPickupOtps[order.id] || '';
+                    const buildOtpBlock = (subtitle) => {
+                        const digits = String(pickupOtp || '----').split('');
+                        const box = (d) => `<div style="width:40px; height:44px; background:#ffffff; border:1px solid #10b981; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.35rem; color:#059669;">${d || '-'}</div>`;
+                        return `
+                            <div class="pickup-otp-block" style="margin-top:16px; padding:12px; background:#f8fafc; border:2px dashed #10b981; border-radius:12px; text-align:center;">
+                                <div style="font-size:0.8rem; font-weight:700; color:#059669; margin-bottom:4px;">🔑 Pickup OTP — Rider ko yeh OTP batayein</div>
+                                <div style="display:flex; justify-content:center; gap:8px; margin:8px 0;">
+                                    ${box(digits[0])}${box(digits[1])}${box(digits[2])}${box(digits[3])}
+                                </div>
+                                <div style="font-size:0.75rem; color:#64748b;">${subtitle}</div>
+                            </div>
+                        `;
+                    };
+
+                    // Action section HTML based on order status
                     let actionButtonHTML = '';
                     if (order.status === 'PENDING') {
                         actionButtonHTML = `
                             <button class="btn-green-action" onclick="acceptIncomingOrder(${order.id})" style="width:100%; margin-top:16px;">
-                                <i data-lucide="check"></i> Accept Order Request
+                                <i data-lucide="check"></i> Order accept karein
                             </button>
                         `;
                     } else if (order.status === 'ACCEPTED') {
                         actionButtonHTML = `
-                            <button class="btn-green-action" onclick="markOrderReady(${order.id})" style="width:100%; margin-top:16px;">
+                            ${buildOtpBlock('Rider pickup par aayega tab yeh OTP batayein. Pehle items pack karein.')}
+                            <button class="btn-green-action" onclick="markOrderReady(${order.id})" style="width:100%; margin-top:12px;">
                                 <i data-lucide="package"></i> Mark as Packed & Ready
                             </button>
                         `;
                     } else if (order.status === 'READY_FOR_PICKUP') {
-                        const digits = (order.pickup_otp || '----').split('');
                         actionButtonHTML = `
-                            <div style="margin-top:16px; padding:12px; background:#f8fafc; border:2px dashed #10b981; border-radius:12px; text-align:center;">
-                                <div style="font-size:0.8rem; font-weight:700; color:#059669; margin-bottom:4px;">🔑 Vendor Handover Pickup OTP</div>
-                                <div style="display:flex; justify-content:center; gap:8px; margin:8px 0;">
-                                    <div style="width:32px; height:36px; background:#ffffff; border:1px solid #10b981; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.2rem; color:#059669;">${digits[0]||'-'}</div>
-                                    <div style="width:32px; height:36px; background:#ffffff; border:1px solid #10b981; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.2rem; color:#059669;">${digits[1]||'-'}</div>
-                                    <div style="width:32px; height:36px; background:#ffffff; border:1px solid #10b981; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.2rem; color:#059669;">${digits[2]||'-'}</div>
-                                    <div style="width:32px; height:36px; background:#ffffff; border:1px solid #10b981; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.2rem; color:#059669;">${digits[3]||'-'}</div>
-                                </div>
-                                <div style="font-size:0.75rem; color:#64748b;">Share OTP with delivery partner on pickup</div>
-                            </div>
+                            ${buildOtpBlock('Order packed hai — rider aakar yeh OTP dega/verify karega.')}
+                            <div id="otp-timer-text-${order.id}" style="font-size:0.72rem; color:#94a3b8; text-align:center; margin-top:6px;"></div>
                         `;
                     } else if (order.status === 'OUT_FOR_DELIVERY') {
                         actionButtonHTML = `
@@ -2820,7 +3260,7 @@
                         <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:1px solid #e2e8f0; margin-bottom:16px;">
                             <h3 class="card-title" style="font-size:1.1rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px;">
                                 <i data-lucide="receipt" style="color:#10b981; width:20px; height:20px;"></i>
-                                Bill Invoice #ORD-${order.id}
+                                Order #ORD-${order.id}
                             </h3>
                             <span class="status-badge ${(order.status || 'pending').toLowerCase()}">${statusLabel}</span>
                         </div>
@@ -2836,15 +3276,15 @@
                         <!-- Itemized Billing Invoice Table -->
                         <div style="border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; background:#ffffff;">
                             <div style="background:#f1f5f9; padding:8px 12px; font-weight:700; font-size:0.8rem; color:#475569; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:6px;">
-                                <i data-lucide="shopping-cart" style="width:14px; height:14px;"></i> Items & Price Breakdown
+                                <i data-lucide="shopping-cart" style="width:14px; height:14px;"></i> Products & Aapka Price
                             </div>
-                            <div style="padding:0 8px; max-height:220px; overflow-y:auto;">
-                                <table style="width:100%; border-collapse:collapse; text-align:left;">
+                            <div class="detail-items-scroll" style="padding:0 8px; max-height:220px; overflow-y:auto;">
+                                <table class="detail-items-table" style="width:100%; border-collapse:collapse; text-align:left;">
                                     <thead>
                                         <tr style="font-size:0.75rem; color:#94a3b8; border-bottom:1px solid #f1f5f9;">
-                                            <th style="padding:6px 4px;">Item</th>
+                                            <th style="padding:6px 4px;">Product</th>
                                             <th style="padding:6px 4px; text-align:center;">Qty</th>
-                                            <th style="padding:6px 4px; text-align:right;">Price</th>
+                                            <th style="padding:6px 4px; text-align:right;">Aapka Price</th>
                                             <th style="padding:6px 4px; text-align:right;">Total</th>
                                         </tr>
                                     </thead>
@@ -2853,28 +3293,21 @@
                                     </tbody>
                                 </table>
                             </div>
-                            
-                            <!-- Bill Calculation Summary Footer -->
-                            <div style="background:#f8fafc; border-top:1px solid #e2e8f0; padding:12px; font-size:0.82rem; display:flex; flex-direction:column; gap:6px;">
-                                <div style="display:flex; justify-content:space-between; color:#64748b;">
-                                    <span>Items Subtotal:</span>
-                                    <span>₹${subtotalCalculated.toFixed(0)}</span>
+
+                            <!-- Vendor payout footer (no app price / delivery fee / grand total for vendors) -->
+                            <div style="background:#ecfdf5; border-top:1px solid #a7f3d0; padding:12px; font-size:0.82rem; display:flex; flex-direction:column; gap:4px;">
+                                <div style="display:flex; justify-content:space-between; font-weight:800; font-size:1.05rem; color:#0f172a;">
+                                    <span>Aapko milega (Total):</span>
+                                    <span style="color:#059669;">₹${vendorTotal.toFixed(0)}</span>
                                 </div>
-                                <div style="display:flex; justify-content:space-between; color:#64748b;">
-                                    <span>Delivery Charge:</span>
-                                    <span>₹${deliveryFee.toFixed(0)}</span>
-                                </div>
-                                <div style="display:flex; justify-content:space-between; font-weight:800; font-size:1.05rem; color:#0f172a; padding-top:6px; border-top:1px dashed #cbd5e1;">
-                                    <span>Total Bill Amount:</span>
-                                    <span style="color:#10b981;">₹${grandTotal.toFixed(0)}</span>
-                                </div>
+                                <div style="font-size:0.72rem; color:#64748b;">Delivery aur app charges Hamar Bazar handle karega.</div>
                             </div>
                         </div>
 
                         ${actionButtonHTML}
 
                         <button type="button" onclick="window.print()" class="btn btn-secondary" style="width:100%; margin-top:10px; padding:8px; font-size:0.82rem; display:flex; align-items:center; justify-content:center; gap:6px;">
-                            <i data-lucide="printer" style="width:14px; height:14px;"></i> Print Invoice Bill
+                            <i data-lucide="printer" style="width:14px; height:14px;"></i> Print Order Slip
                         </button>
                     `;
                     
@@ -2911,28 +3344,31 @@
                 tr.id = `inventory-row-${prod.id}`;
                 
                 const thumb = getProductThumbnail(prod.name || '');
-                const priceVal = typeof prod.price === 'number' ? prod.price : 0;
-                const costPriceVal = typeof prod.cost_price === 'number' ? prod.cost_price : 0;
-                
+                // Vendor panel shows only Market Price (MRP) and Hamar Bazar Price (cost_price) - never the app selling price
+                const mrpNum = Number(prod.mrp);
+                const mrpVal = (prod.mrp !== undefined && prod.mrp !== null && prod.mrp !== '' && isFinite(mrpNum)) ? mrpNum : null;
+                const costNum = Number(prod.cost_price);
+                const costPriceVal = isFinite(costNum) ? costNum : 0;
+
                 tr.innerHTML = `
-                    <td>
+                    <td class="inv-product" data-label="Product">
                         <div class="product-cell">
                             <div class="product-image" style="background-color: ${thumb.color};">${thumb.emoji}</div>
-                            <div>
-                                <span class="product-name" style="font-weight: 600; color: #1e293b;">${prod.name || ''}</span>
-                                ${prod.subcategory ? `<div style="font-size: 11px; color: #64748b;">${prod.subcategory}</div>` : ''}
+                            <div style="min-width: 0;">
+                                <span class="product-name" style="font-weight: 600; color: #1e293b;">${escHtml(prod.name || '')}</span>
+                                ${prod.subcategory ? `<div style="font-size: 11px; color: #64748b;">${escHtml(prod.subcategory)}</div>` : ''}
                             </div>
                         </div>
                     </td>
-                    <td class="amount-cell" style="font-weight: 700; color: #059669;">₹${priceVal.toFixed(2)}</td>
-                    <td class="amount-cell" style="font-weight: 700; color: #0284c7; background: #f0f9ff; border-radius: 6px;">₹${costPriceVal.toFixed(2)}</td>
-                    <td>
+                    <td class="amount-cell inv-mrp" data-label="Market Price (MRP)" style="font-weight: 700; color: #334155;">${mrpVal !== null ? '₹' + mrpVal.toFixed(2) : '<span style="color:#94a3b8;">—</span>'}</td>
+                    <td class="amount-cell inv-cost" data-label="Hamar Bazar Price" style="font-weight: 700; color: #0284c7;"><span style="background: #f0f9ff; border-radius: 6px; padding: 2px 6px; display: inline-block;">₹${costPriceVal.toFixed(2)}</span></td>
+                    <td class="inv-stock" data-label="Stock">
                         <span class="stock-badge ${prod.is_available ? 'in-stock' : 'out-of-stock'}" id="inventory-status-badge-${prod.id}">
                             ${prod.is_available ? 'In Stock' : 'Out of Stock'}
                         </span>
                     </td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
+                    <td class="inv-actions">
+                        <div class="inv-actions-wrap" style="display: flex; align-items: center; gap: 10px;">
                             <label class="switch" title="Toggle Stock Availability">
                                 <input type="checkbox" ${prod.is_available ? 'checked' : ''} onchange="toggleStock(${prod.id}, this.checked)">
                                 <span class="slider"></span>
@@ -2956,9 +3392,8 @@
             try {
                 const elId = document.getElementById("v-prod-id"); if (elId) elId.value = "";
                 const elName = document.getElementById("v-prod-name"); if (elName) elName.value = "";
-                const elPrice = document.getElementById("v-prod-price"); if (elPrice) elPrice.value = "";
                 const elMrp = document.getElementById("v-prod-mrp"); if (elMrp) elMrp.value = "";
-                const elCostPrice = document.getElementById("v-prod-cost-price"); if (elCostPrice) elCostPrice.value = "";
+                const elCostPrice = document.getElementById("v-prod-cost"); if (elCostPrice) elCostPrice.value = "";
                 const elSub = document.getElementById("v-prod-subcategory"); if (elSub) elSub.value = "";
                 const elKw = document.getElementById("v-prod-keywords"); if (elKw) elKw.value = "";
                 const elDesc = document.getElementById("v-prod-description"); if (elDesc) elDesc.value = "";
@@ -2994,9 +3429,8 @@
 
                 const elId = document.getElementById("v-prod-id"); if (elId) elId.value = prod.id;
                 const elName = document.getElementById("v-prod-name"); if (elName) elName.value = prod.name || "";
-                const elPrice = document.getElementById("v-prod-price"); if (elPrice) elPrice.value = prod.price !== undefined ? prod.price : "";
                 const elMrp = document.getElementById("v-prod-mrp"); if (elMrp) elMrp.value = prod.mrp !== undefined && prod.mrp !== null ? prod.mrp : "";
-                const elCostPrice = document.getElementById("v-prod-cost-price"); if (elCostPrice) elCostPrice.value = prod.cost_price !== undefined && prod.cost_price !== null ? prod.cost_price : "";
+                const elCostPrice = document.getElementById("v-prod-cost"); if (elCostPrice) elCostPrice.value = prod.cost_price !== undefined && prod.cost_price !== null ? prod.cost_price : "";
                 const elSub = document.getElementById("v-prod-subcategory"); if (elSub) elSub.value = prod.subcategory || "";
                 const elKw = document.getElementById("v-prod-keywords"); if (elKw) elKw.value = prod.keywords || "";
                 const elDesc = document.getElementById("v-prod-description"); if (elDesc) elDesc.value = prod.description || "";
@@ -3037,9 +3471,8 @@
         window.saveVendorProduct = async function() {
             const prodId = document.getElementById("v-prod-id").value;
             const name = document.getElementById("v-prod-name").value.trim();
-            const price = document.getElementById("v-prod-price").value;
-            const mrp = document.getElementById("v-prod-mrp").value;
-            const costPrice = document.getElementById("v-prod-cost-price").value;
+            const mrp = document.getElementById("v-prod-mrp").value.trim();
+            const costPrice = document.getElementById("v-prod-cost").value.trim();
             const subcategory = document.getElementById("v-prod-subcategory").value.trim();
             const keywords = document.getElementById("v-prod-keywords") ? document.getElementById("v-prod-keywords").value.trim() : "";
             const description = document.getElementById("v-prod-description").value.trim();
@@ -3050,9 +3483,16 @@
                 alert("Please enter a product name.");
                 return;
             }
-            if (!price || isNaN(price) || parseFloat(price) <= 0) {
-                alert("Please enter a valid product price.");
+            if (mrp === "" || isNaN(mrp) || parseFloat(mrp) <= 0) {
+                alert("Market Price (MRP) zaroori hai (0 se zyada).");
                 return;
+            }
+            if (costPrice === "" || isNaN(costPrice) || parseFloat(costPrice) < 0) {
+                alert("Hamar Bazar Price zaroori hai (hamko kitna padega).");
+                return;
+            }
+            if (parseFloat(costPrice) > parseFloat(mrp)) {
+                if (!confirm("Hamar Bazar Price MRP se zyada hai. Kya aap sure hain ki yahi save karna hai?")) return;
             }
 
             const saveBtn = document.getElementById("v-prod-save-btn");
@@ -3084,11 +3524,11 @@
                     }
                 }
 
+                // No selling price from the vendor: admin sets it in the app (backend uses price = mrp until then)
                 const payload = {
                     name: name,
-                    price: parseFloat(price),
-                    mrp: mrp ? parseFloat(mrp) : parseFloat(price),
-                    cost_price: costPrice ? parseFloat(costPrice) : 0,
+                    mrp: parseFloat(mrp),
+                    cost_price: parseFloat(costPrice),
                     subcategory: subcategory,
                     description: description,
                     keywords: keywords,

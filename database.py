@@ -434,6 +434,43 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
+    # Migration: admin approval gate for new orders.
+    # Existing rows keep admin_approved = 1 so old orders stay visible to vendors.
+    try:
+        cursor.execute("ALTER TABLE orders ADD COLUMN admin_approved INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE orders ADD COLUMN admin_approved_at TIMESTAMP NULL")
+    except sqlite3.OperationalError:
+        pass
+
+    # Migration: snapshot of the vendor (Hamar Bazar cost) price on each order item
+    try:
+        cursor.execute("ALTER TABLE order_items ADD COLUMN vendor_price REAL NULL")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute('''
+            UPDATE order_items
+            SET vendor_price = (SELECT COALESCE(p.cost_price, 0) FROM products p WHERE p.id = order_items.product_id)
+            WHERE vendor_price IS NULL
+        ''')
+    except Exception as e:
+        print(f"Vendor price backfill warning: {e}")
+
+    # Migration: products.admin_priced (1 = app selling price set/approved by admin).
+    # Only when the column is created for the first time: existing catalog prices were set by admin.
+    try:
+        cursor.execute("ALTER TABLE products ADD COLUMN admin_priced INTEGER DEFAULT 0")
+        cursor.execute("UPDATE products SET admin_priced = 1")
+    except sqlite3.OperationalError:
+        pass
+
+    # Default settings for order approval flow and vendor alarm sound
+    cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('order_admin_approval', '1')")
+    cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('vendor_alarm_sound', '')")
+
     conn.commit()
     conn.close()
     print("SQLite database tables created successfully!")

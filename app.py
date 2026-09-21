@@ -118,6 +118,9 @@ def handle_csrf_error(e):
 def add_header(response):
     if request.path.startswith('/static/uploads/game_sounds/'):
         response.headers['Cache-Control'] = 'public, max-age=604800'
+    if request.path.startswith('/static/uploads/system/vendor_alarm_'):
+        # Vendor new-order alarm mp3: filename carries a timestamp, safe to cache for a week
+        response.headers['Cache-Control'] = 'public, max-age=604800'
     if request.path.startswith('/static/game/'):
         if request.path.endswith('.html'):
             # Always fetch the game page fresh (so header/script updates apply immediately)
@@ -173,6 +176,8 @@ _RATE_LIMIT_RULES = {
     # Upload endpoints — prevent abuse
     'upload_prescription':       (5,  60),
     'upload_profile_pic':        (5,  60),
+    # Image proxy — a single page load can request 40+ images at once
+    'proxy_image':               (400, 60),
     # General API fallback
     '_default_api':              (60, 60),   # 60 requests/minute per IP
 }
@@ -288,6 +293,10 @@ try:
         database.seed_db()
         database.seed_historical_orders()
         database.seed_search_history()
+        try:
+            _c = database.get_db_connection(); _c.execute("UPDATE products SET admin_priced = 1"); _c.commit(); _c.close()
+        except Exception as _e:
+            print("admin_priced seed flag warning:", _e)
 except Exception as e:
     print("Database connection check or seeding failed:", e)
 
@@ -305,6 +314,35 @@ else:
     print("[INFO] Demo timestamp sync is OFF (real order dates are preserved).")
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'jfif', 'heic', 'heif'}
+
+# Vendor payout for an order = SUM(vendor_price snapshot (else product cost_price) * qty).
+# VENDOR_TOTAL_SUBQUERY is a correlated sub-select for queries aliasing orders as "o";
+# VENDOR_TOTAL_SQL is the standalone form taking the order id as its single parameter.
+VENDOR_TOTAL_SUBQUERY = (
+    "(SELECT COALESCE(SUM(COALESCE(oi.vendor_price, p.cost_price, 0) * oi.quantity), 0) "
+    "FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = o.id)"
+)
+VENDOR_TOTAL_SQL = (
+    "SELECT COALESCE(SUM(COALESCE(oi.vendor_price, p.cost_price, 0) * oi.quantity), 0) "
+    "FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?"
+)
+
+# Vendor new-order alarm sound (uploaded by admin, played in every vendor panel)
+VENDOR_ALARM_EXTS = {'mp3', 'wav', 'm4a', 'ogg', 'aac'}
+VENDOR_ALARM_MAX_BYTES = 4 * 1024 * 1024
+
+def _remove_system_upload(db_path):
+    """Delete a previously uploaded file only if it lives under static/uploads/system/ (never touches anything else)."""
+    try:
+        if not db_path or not str(db_path).startswith('/static/uploads/system/'):
+            return
+        system_dir = os.path.realpath(os.path.join(app.root_path, 'static', 'uploads', 'system'))
+        target = os.path.realpath(os.path.join(app.root_path, str(db_path).lstrip('/')))
+        if target.startswith(system_dir + os.sep) and os.path.isfile(target):
+            os.remove(target)
+    except Exception as e:
+        print(f"[WARN] Could not remove old system upload {db_path}: {e}")
+
 def parse_bool_flag(value, default=True):
     """Robustly parse availability flags from JSON/form: accepts True/False, 1/0, "1"/"0", "true"/"false", "yes"/"no"."""
     if value is None:
@@ -1689,7 +1727,7 @@ def place_order():
 
         # Retrieve details for all products
         placeholders = ','.join('?' for _ in product_ids)
-        cursor.execute(f"SELECT id, name, price, is_available, shop_id FROM products WHERE id IN ({placeholders})", product_ids)
+        cursor.execute(f"SELECT id, name, price, cost_price, is_available, shop_id FROM products WHERE id IN ({placeholders})", product_ids)
         products = [dict(row) for row in cursor.fetchall()]
         
         # Verify all products exist
@@ -1733,12 +1771,18 @@ def place_order():
         payment_screenshot = None
         status = 'PENDING'
 
+        # Admin approval gate: when ON, a new order is hidden from the vendor until admin approves it
+        cursor.execute("SELECT value FROM system_settings WHERE key = 'order_admin_approval'")
+        approval_row = cursor.fetchone()
+        approval_setting = str(approval_row['value']).strip() if approval_row and approval_row['value'] is not None else '1'
+        admin_approval_required = approval_setting == '1'
+        admin_approved = 0 if admin_approval_required else 1
 
         # Create a single order (consolidated)
         total_amount = 0.0
         products_details = []
         first_shop_id = None
-        
+
         for p in products:
             p_id = p['id']
             if first_shop_id is None:
@@ -1747,11 +1791,16 @@ def place_order():
             qty = details['quantity']
             item_total = p['price'] * qty
             total_amount += item_total
+            try:
+                vendor_price = float(p['cost_price']) if p.get('cost_price') is not None else 0.0
+            except (TypeError, ValueError):
+                vendor_price = 0.0
             products_details.append({
                 'product_id': p_id,
                 'name': p['name'],
                 'quantity': qty,
                 'price': p['price'],
+                'vendor_price': vendor_price,
                 'item_total': item_total,
                 'custom_text': details['custom_text'],
                 'custom_instructions': details['custom_instructions'],
@@ -1779,18 +1828,18 @@ def place_order():
         # Insert Order Master record (Single order)
         now_str = ist_now_str()
         cursor.execute('''
-            INSERT INTO orders (customer_id, shop_id, total_amount, gst_amount, delivery_fee, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (customer_id, first_shop_id, grand_total, gst_amount, delivery_fee, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot, now_str))
-        
+            INSERT INTO orders (customer_id, shop_id, total_amount, gst_amount, delivery_fee, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot, created_at, admin_approved)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (customer_id, first_shop_id, grand_total, gst_amount, delivery_fee, priority_type, status, pickup_otp, delivery_otp, payment_mode, payment_screenshot, now_str, admin_approved))
+
         order_id = cursor.lastrowid
-        
-        # Insert Order Items
+
+        # Insert Order Items (vendor_price = snapshot of the product cost price the vendor gets paid)
         for pd in products_details:
             cursor.execute('''
-                INSERT INTO order_items (order_id, product_id, quantity, price, custom_text, custom_instructions, custom_image_path)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (order_id, pd['product_id'], pd['quantity'], pd['price'], pd['custom_text'], pd['custom_instructions'], pd['custom_image_path']))
+                INSERT INTO order_items (order_id, product_id, quantity, price, vendor_price, custom_text, custom_instructions, custom_image_path)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (order_id, pd['product_id'], pd['quantity'], pd['price'], pd['vendor_price'], pd['custom_text'], pd['custom_instructions'], pd['custom_image_path']))
 
         db.commit()
         
@@ -1816,16 +1865,18 @@ def place_order():
             'payment_mode': payment_mode,
             'pickup_otp': pickup_otp,
             'delivery_otp': delivery_otp,
+            'admin_approval_required': admin_approval_required,
             'items': products_details
         })
         check_and_flag_suspicious_user(customer_id, db)
-        
+
         return jsonify({
             'message': 'Order placed successfully!' if status == 'PENDING' else 'Payment verification pending!',
             'order_id': order_id,
             'pickup_otp': pickup_otp,
             'delivery_otp': delivery_otp,
-            'status': status
+            'status': status,
+            'needs_admin_approval': admin_approval_required
         })
     except Exception as e:
         import traceback
@@ -1866,16 +1917,26 @@ def get_order_details(order_id):
     if not is_authorized:
         return jsonify({'error': 'Forbidden: You do not have permission to view this order.'}), 403
         
-    # Get Items
+    # Get Items (vendor_price = what the vendor gets per unit; mrp for display)
     cursor.execute('''
-        SELECT oi.*, p.name as product_name
+        SELECT oi.*, p.name as product_name, p.mrp as mrp,
+               COALESCE(oi.vendor_price, p.cost_price, 0) AS vendor_price
         FROM order_items oi
         JOIN products p ON oi.product_id = p.id
         WHERE oi.order_id = ?
     ''', (order_id,))
     items = [dict(row) for row in cursor.fetchall()]
-    
+
     order_dict = dict(order)
+    order_dict['admin_approved'] = 1 if order_dict.get('admin_approved') is None else int(order_dict.get('admin_approved') or 0)
+    if role in ('vendor', 'admin'):
+        cursor.execute(VENDOR_TOTAL_SQL, (order_id,))
+        vt_row = cursor.fetchone()
+        order_dict['vendor_total'] = round(float(vt_row[0] or 0), 2) if vt_row else 0.0
+    else:
+        # Customers / riders must never see the vendor cost price or the margin
+        for it in items:
+            it.pop('vendor_price', None)
     order_dict['items'] = items
     
     # Mask Rider phone number for security as specified in INT-008
@@ -1958,6 +2019,7 @@ def get_customer_orders(customer_id):
     cursor = db.cursor()
     cursor.execute('''
         SELECT o.id, o.created_at, o.total_amount, o.delivery_fee, o.status, o.priority_type,
+               COALESCE(o.admin_approved, 1) AS admin_approved,
                s.shop_name, o.delivery_otp, o.pickup_otp,
                GROUP_CONCAT(p.name || ' x' || oi.quantity, ', ') as items_summary
         FROM orders o
@@ -2355,16 +2417,18 @@ def get_vendor_orders(shop_id):
         return jsonify({'error': 'Unauthorized.'}), 403
     db = get_db()
     cursor = db.cursor()
-    cursor.execute('''
+    # Vendors only ever see admin-approved orders (unapproved ones wait in the admin queue)
+    cursor.execute(f'''
         SELECT o.*, u.name as customer_name, u.address as customer_address, u.phone as customer_phone,
                (SELECT COALESCE(SUM(quantity), 0) FROM order_items WHERE order_id = o.id) as items_count,
-               (SELECT GROUP_CONCAT(quantity || 'x ' || p.name, ', ') 
-                FROM order_items oi JOIN products p ON oi.product_id = p.id 
-                WHERE oi.order_id = o.id) as items_summary
+               (SELECT GROUP_CONCAT(quantity || 'x ' || p.name, ', ')
+                FROM order_items oi JOIN products p ON oi.product_id = p.id
+                WHERE oi.order_id = o.id) as items_summary,
+               {VENDOR_TOTAL_SUBQUERY} as vendor_total
         FROM orders o
         JOIN users u ON o.customer_id = u.id
-        WHERE o.shop_id = ?
-        ORDER BY 
+        WHERE o.shop_id = ? AND COALESCE(o.admin_approved, 1) = 1
+        ORDER BY
             CASE WHEN o.priority_type = 'URGENT' AND o.status IN ('PENDING', 'ACCEPTED') THEN 1 ELSE 2 END,
             o.id DESC
     ''', (shop_id,))
@@ -2377,19 +2441,21 @@ def accept_order(order_id):
         return jsonify({'error': 'Unauthorized. Please login as vendor.'}), 403
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT status, shop_id FROM orders WHERE id = ?", (order_id,))
+    cursor.execute("SELECT status, shop_id, pickup_otp, COALESCE(admin_approved, 1) AS admin_approved FROM orders WHERE id = ?", (order_id,))
     order = cursor.fetchone()
     if not order:
         return jsonify({'error': 'Order not found.'}), 404
     if order['shop_id'] != session.get('role_id'):
         return jsonify({'error': 'Unauthorized for this shop.'}), 403
+    if int(order['admin_approved'] or 0) != 1:
+        return jsonify({'error': 'Yeh order abhi admin approval me hai.'}), 403
     if order['status'] != 'PENDING':
         return jsonify({'error': 'Order already processed.'}), 400
-        
+
     now_str = ist_now_str()
     cursor.execute('''
-        UPDATE orders 
-        SET status = 'ACCEPTED', accepted_at = ? 
+        UPDATE orders
+        SET status = 'ACCEPTED', accepted_at = ?
         WHERE id = ?
     ''', (now_str, order_id))
     db.commit()
@@ -2399,7 +2465,7 @@ def accept_order(order_id):
         'shop_id': session.get('role_id'),
         'timestamp': ist_now_iso()
     })
-    return jsonify({'message': 'Order accepted successfully.'})
+    return jsonify({'message': 'Order accepted successfully.', 'pickup_otp': order['pickup_otp'], 'order_id': order_id})
 
 @app.route('/api/orders/<int:order_id>/ready', methods=['POST'])
 def ready_order(order_id):
@@ -2407,12 +2473,14 @@ def ready_order(order_id):
         return jsonify({'error': 'Unauthorized. Please login as vendor.'}), 403
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT status, pickup_otp, shop_id FROM orders WHERE id = ?", (order_id,))
+    cursor.execute("SELECT status, pickup_otp, shop_id, COALESCE(admin_approved, 1) AS admin_approved FROM orders WHERE id = ?", (order_id,))
     order = cursor.fetchone()
     if not order:
         return jsonify({'error': 'Order not found.'}), 404
     if order['shop_id'] != session.get('role_id'):
         return jsonify({'error': 'Unauthorized for this shop.'}), 403
+    if int(order['admin_approved'] or 0) != 1:
+        return jsonify({'error': 'Yeh order abhi admin approval me hai.'}), 403
     if order['status'] not in ['ACCEPTED', 'PENDING', 'AWAITING_PAYMENT_APPROVAL']:
         return jsonify({'error': 'Order status must be active (ACCEPTED or PENDING).'}), 400
         
@@ -2485,7 +2553,8 @@ def vendor_add_product():
         return jsonify({'error': 'Vendor shop session invalid.'}), 400
     data = request.json or {}
     name = data.get('name')
-    price = data.get('price')
+    # Vendors give Market Price (MRP) + Hamar Bazar Price (cost). The app selling price is set by admin,
+    # so any incoming 'price' is ignored and the product starts at price = mrp with admin_priced = 0.
     mrp = data.get('mrp')
     cost_price = data.get('cost_price')
     image_path = data.get('image_path')
@@ -2493,23 +2562,31 @@ def vendor_add_product():
     description = data.get('description', '')
     keywords = data.get('keywords', '')
     is_available = parse_bool_flag(data.get('is_available'), default=True)
-    
-    if not name or price is None or str(price).strip() == '':
-        return jsonify({'error': 'Product name and price are required.'}), 400
-        
+
+    if not name or not str(name).strip():
+        return jsonify({'error': 'Product name zaroori hai.'}), 400
+    if mrp is None or str(mrp).strip() == '':
+        return jsonify({'error': 'Market Price (MRP) zaroori hai.'}), 400
+    if cost_price is None or str(cost_price).strip() == '':
+        return jsonify({'error': 'Hamar Bazar Price zaroori hai.'}), 400
+
     try:
-        price_val = float(price)
-        mrp_val = float(mrp) if mrp is not None and str(mrp).strip() != '' else price_val
-        cost_price_val = float(cost_price) if cost_price is not None and str(cost_price).strip() != '' else 0.0
-    except ValueError:
-        return jsonify({'error': 'Invalid price, MRP, or cost price value.'}), 400
-    
+        mrp_val = float(mrp)
+        cost_price_val = float(cost_price)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid MRP or Hamar Bazar Price value.'}), 400
+    if mrp_val <= 0:
+        return jsonify({'error': 'Market Price (MRP) 0 se zyada honi chahiye.'}), 400
+    if cost_price_val < 0:
+        return jsonify({'error': 'Hamar Bazar Price negative nahi ho sakti.'}), 400
+    price_val = mrp_val  # placeholder selling price until admin sets it
+
     db = get_db()
     cursor = db.cursor()
     cursor.execute("""
-        INSERT INTO products (shop_id, name, price, mrp, cost_price, image_path, subcategory, description, keywords, is_available)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (shop_id, name, price_val, mrp_val, cost_price_val, image_path, subcategory, description, keywords, is_available))
+        INSERT INTO products (shop_id, name, price, mrp, cost_price, image_path, subcategory, description, keywords, is_available, admin_priced)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    """, (shop_id, str(name).strip(), price_val, mrp_val, cost_price_val, image_path, subcategory, description, keywords, is_available))
     db.commit()
     return jsonify({'success': True, 'message': 'Product added successfully.', 'id': cursor.lastrowid})
 
@@ -2522,13 +2599,13 @@ def vendor_modify_product(prod_id):
     db = get_db()
     cursor = db.cursor()
     
-    cursor.execute("SELECT shop_id FROM products WHERE id = ?", (prod_id,))
+    cursor.execute("SELECT shop_id, price, mrp, cost_price, COALESCE(admin_priced, 0) AS admin_priced FROM products WHERE id = ?", (prod_id,))
     prod = cursor.fetchone()
     if not prod:
         return jsonify({'error': 'Product not found.'}), 404
     if prod['shop_id'] != shop_id:
         return jsonify({'error': 'Unauthorized access to this product.'}), 403
-        
+
     if request.method == 'DELETE':
         try:
             # Clean up dependent references to satisfy foreign key constraints
@@ -2541,11 +2618,11 @@ def vendor_modify_product(prod_id):
         except Exception as e:
             db.rollback()
             return jsonify({'error': f'Failed to delete product: {str(e)}'}), 500
-        
+
     elif request.method == 'PUT':
         data = request.json or {}
         name = data.get('name')
-        price = data.get('price')
+        # Incoming 'price' is ignored: the app selling price is controlled by admin.
         mrp = data.get('mrp')
         cost_price = data.get('cost_price')
         image_path = data.get('image_path')
@@ -2553,24 +2630,36 @@ def vendor_modify_product(prod_id):
         description = data.get('description', '')
         keywords = data.get('keywords', '')
         is_available = parse_bool_flag(data.get('is_available'), default=True)
-        
-        if not name or price is None or str(price).strip() == '':
-            return jsonify({'error': 'Product name and price are required.'}), 400
-            
+
+        if not name or not str(name).strip():
+            return jsonify({'error': 'Product name zaroori hai.'}), 400
+
         try:
-            price_val = float(price)
-            mrp_val = float(mrp) if mrp is not None and str(mrp).strip() != '' else price_val
-            cost_price_val = float(cost_price) if cost_price is not None and str(cost_price).strip() != '' else 0.0
-        except ValueError:
-            return jsonify({'error': 'Invalid price, MRP, or cost price value.'}), 400
-        
+            if mrp is not None and str(mrp).strip() != '':
+                mrp_val = float(mrp)
+            else:
+                mrp_val = float(prod['mrp']) if prod['mrp'] is not None else float(prod['price'] or 0)
+            if cost_price is not None and str(cost_price).strip() != '':
+                cost_price_val = float(cost_price)
+            else:
+                cost_price_val = float(prod['cost_price'] or 0)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid MRP or Hamar Bazar Price value.'}), 400
+        if mrp_val <= 0:
+            return jsonify({'error': 'Market Price (MRP) 0 se zyada honi chahiye.'}), 400
+        if cost_price_val < 0:
+            return jsonify({'error': 'Hamar Bazar Price negative nahi ho sakti.'}), 400
+
+        # Admin-set selling price is locked; otherwise the placeholder price follows the MRP.
+        price_val = float(prod['price']) if int(prod['admin_priced'] or 0) == 1 else mrp_val
+
         cursor.execute("""
-            UPDATE products 
+            UPDATE products
             SET name = ?, price = ?, mrp = ?, cost_price = ?, image_path = ?, subcategory = ?, description = ?, keywords = ?, is_available = ?
             WHERE id = ? AND shop_id = ?
-        """, (name, price_val, mrp_val, cost_price_val, image_path, subcategory, description, keywords, is_available, prod_id, shop_id))
+        """, (str(name).strip(), price_val, mrp_val, cost_price_val, image_path, subcategory, description, keywords, is_available, prod_id, shop_id))
         db.commit()
-        return jsonify({'success': True, 'message': 'Product updated successfully.'})
+        return jsonify({'success': True, 'message': 'Product updated successfully.', 'price': price_val, 'admin_priced': int(prod['admin_priced'] or 0)})
 
 # ─── BULK PRODUCT SPREADSHEET (EXCEL / CSV) IMPORT ENGINE ─────────────────────────
 
@@ -2716,8 +2805,9 @@ def process_bulk_products(file_obj, default_shop_id=None, is_admin=False):
 
     col_name = find_col(['product_name', 'name', 'item_name', 'title', 'product', 'item'])
     col_price = find_col(['price', 'selling_price', 'rate', 'unit_price', 'amount', 'our_price'])
-    col_mrp = find_col(['mrp', 'maximum_retail_price', 'market_price', 'original_price'])
-    col_cost_price = find_col(['cost_price', 'purchase_price', 'buying_price', 'cost', 'buy_rate'])
+    col_mrp = find_col(['mrp', 'maximum_retail_price', 'market_price', 'original_price', 'market_price_mrp', 'mrp_market_price'])
+    col_cost_price = find_col(['cost_price', 'purchase_price', 'buying_price', 'cost', 'buy_rate',
+                               'hamar_bazar_price', 'hamar_bazar_price_hamko_kitna_padega', 'our_cost', 'vendor_price'])
     col_subcategory = find_col(['subcategory', 'sub_category', 'subcat', 'category_name', 'type', 'group'])
     col_description = find_col(['description', 'desc', 'details', 'detail', 'info'])
     col_image_path = find_col(['image_path', 'image_url', 'image', 'photo', 'img_url', 'img', 'picture', 'image_link', 'photo_url'])
@@ -2728,7 +2818,18 @@ def process_bulk_products(file_obj, default_shop_id=None, is_admin=False):
     if not is_admin and not col_subcategory and col_shop == 'category':
         col_subcategory = 'category'
 
-    if not col_name or not col_price:
+    if not is_admin:
+        # Vendor sheets: vendors only supply Market Price (MRP) + Hamar Bazar Price (cost).
+        # A plain 'Price' column (old template) is treated as MRP; the app selling price is never taken from a vendor sheet.
+        if not col_mrp and col_price:
+            col_mrp = col_price
+        col_price = None
+        if not col_name or not col_mrp:
+            return {
+                'success': False,
+                'error': f"Required columns missing. Your file must have 'Product Name' and 'Market Price (MRP)' columns. Found columns: {', '.join(df.columns)}"
+            }
+    elif not col_name or not col_price:
         return {
             'success': False,
             'error': f"Required columns missing. Your file must have 'Product Name' and 'Price' columns. Found columns: {', '.join(df.columns)}"
@@ -2757,15 +2858,24 @@ def process_bulk_products(file_obj, default_shop_id=None, is_admin=False):
             skipped_count += 1
             continue
         try:
-            # Price
-            price_val = _bulk_num(row.get(col_price))
-            if price_val is None or price_val < 0:
-                row_errors.append(f"Row {row_num} ('{name}'): Invalid or missing price '{row.get(col_price)}'.")
-                skipped_count += 1
-                continue
-            mrp_val = _bulk_num(row.get(col_mrp)) if col_mrp else None
-            if mrp_val is None or mrp_val < price_val:
-                mrp_val = price_val
+            if is_admin:
+                # Admin sheet: 'Price' is the app selling price (admin decides), MRP optional
+                price_val = _bulk_num(row.get(col_price))
+                if price_val is None or price_val < 0:
+                    row_errors.append(f"Row {row_num} ('{name}'): Invalid or missing price '{row.get(col_price)}'.")
+                    skipped_count += 1
+                    continue
+                mrp_val = _bulk_num(row.get(col_mrp)) if col_mrp else None
+                if mrp_val is None or mrp_val < price_val:
+                    mrp_val = price_val
+            else:
+                # Vendor sheet: MRP required; selling price placeholder = MRP (admin sets the real one later)
+                mrp_val = _bulk_num(row.get(col_mrp))
+                if mrp_val is None or mrp_val <= 0:
+                    row_errors.append(f"Row {row_num} ('{name}'): Invalid or missing Market Price (MRP) '{row.get(col_mrp)}'.")
+                    skipped_count += 1
+                    continue
+                price_val = mrp_val
             cost_price_val = _bulk_num(row.get(col_cost_price)) if col_cost_price else None
             if cost_price_val is None or cost_price_val < 0:
                 cost_price_val = 0.0
@@ -2811,27 +2921,35 @@ def process_bulk_products(file_obj, default_shop_id=None, is_admin=False):
                 continue
             target_shop_id = int(target_shop_id)
 
-            cursor.execute("SELECT id, image_path FROM products WHERE shop_id = ? AND LOWER(TRIM(name)) = ?", (target_shop_id, name.lower()))
+            cursor.execute("SELECT id, image_path, price, COALESCE(admin_priced, 0) AS admin_priced FROM products WHERE shop_id = ? AND LOWER(TRIM(name)) = ?", (target_shop_id, name.lower()))
             existing = cursor.fetchone()
             if existing:
                 final_img = image_path if image_path else existing['image_path']
+                if is_admin:
+                    # Admin sheet carries the selling price: apply it and mark the product as admin-priced
+                    new_price = price_val
+                    new_admin_priced = 1
+                else:
+                    # Vendor sheet must never change an admin-set selling price
+                    new_admin_priced = int(existing['admin_priced'] or 0)
+                    new_price = float(existing['price']) if new_admin_priced == 1 else mrp_val
                 cursor.execute("""
                     UPDATE products
-                    SET price = ?, mrp = ?, cost_price = ?,
+                    SET price = ?, mrp = ?, cost_price = ?, admin_priced = ?,
                         subcategory = CASE WHEN ? != '' THEN ? ELSE subcategory END,
                         description = CASE WHEN ? != '' THEN ? ELSE description END,
                         keywords = CASE WHEN ? != '' THEN ? ELSE keywords END,
                         image_path = ?,
                         is_available = ?
                     WHERE id = ?
-                """, (price_val, mrp_val, cost_price_val, subcategory, subcategory, description, description, keywords, keywords, final_img, is_available, existing['id']))
+                """, (new_price, mrp_val, cost_price_val, new_admin_priced, subcategory, subcategory, description, description, keywords, keywords, final_img, is_available, existing['id']))
                 updated_count += 1
             else:
                 final_img = image_path if image_path else '/static/images/grocery_basket.png'
                 cursor.execute("""
-                    INSERT INTO products (shop_id, name, price, mrp, cost_price, subcategory, description, keywords, image_path, is_available)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (target_shop_id, name, price_val, mrp_val, cost_price_val, subcategory, description, keywords, final_img, is_available))
+                    INSERT INTO products (shop_id, name, price, mrp, cost_price, subcategory, description, keywords, image_path, is_available, admin_priced)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (target_shop_id, name, price_val, mrp_val, cost_price_val, subcategory, description, keywords, final_img, is_available, 1 if is_admin else 0))
                 inserted_count += 1
         except Exception as row_err:
             row_errors.append(f"Row {row_num} ('{name}'): {str(row_err)[:120]}")
@@ -2858,12 +2976,12 @@ def download_vendor_product_template():
         return jsonify({'error': 'Unauthorized. Please log in as Vendor.'}), 403
     
     file_format = request.args.get('format', 'excel').lower()
+    # Vendor template: no app selling 'Price' column (admin sets it); vendors give MRP + Hamar Bazar Price
     sample_data = [
         {
             'Product Name': 'Amul Butter 100g',
-            'Price': 55.00,
-            'MRP': 58.00,
-            'Cost Price': 48.00,
+            'Market Price (MRP)': 58.00,
+            'Hamar Bazar Price': 48.00,
             'Subcategory': 'Dairy',
             'Description': 'Pure dairy fresh butter',
             'Image URL': 'https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?auto=format&fit=crop&w=300&q=80',
@@ -2872,9 +2990,8 @@ def download_vendor_product_template():
         },
         {
             'Product Name': 'Britannia Brown Bread 400g',
-            'Price': 45.00,
-            'MRP': 50.00,
-            'Cost Price': 38.00,
+            'Market Price (MRP)': 50.00,
+            'Hamar Bazar Price': 38.00,
             'Subcategory': 'Bakery',
             'Description': 'Healthy whole wheat brown bread',
             'Image URL': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=300&q=80',
@@ -2883,9 +3000,8 @@ def download_vendor_product_template():
         },
         {
             'Product Name': 'Lays Classic Salted 52g',
-            'Price': 20.00,
-            'MRP': 20.00,
-            'Cost Price': 16.00,
+            'Market Price (MRP)': 20.00,
+            'Hamar Bazar Price': 16.00,
             'Subcategory': 'Snacks',
             'Description': 'Crispy potato chips salted flavor',
             'Image URL': 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=300&q=80',
@@ -2894,7 +3010,7 @@ def download_vendor_product_template():
         }
     ]
     df = pd.DataFrame(sample_data)
-    
+
     if file_format == 'csv':
         buf = io.BytesIO()
         df.to_csv(buf, index=False, encoding='utf-8')
@@ -3194,9 +3310,9 @@ def approve_order_payment(order_id):
     now_str = ist_now_str()
     cursor.execute('''
         UPDATE orders 
-        SET status = 'PENDING', created_at = ? 
+        SET status = 'PENDING', created_at = ?, admin_approved = 1, admin_approved_at = COALESCE(admin_approved_at, ?)
         WHERE id = ?
-    ''', (now_str, order_id))
+    ''', (now_str, now_str, order_id))
     db.commit()
     return jsonify({'success': True, 'message': 'Payment approved. Order is now placed and visible to vendor.'})
 
@@ -3244,10 +3360,10 @@ def admin_force_accept_order(order_id):
         cursor.execute("SELECT id FROM shops WHERE id = ?", (new_shop_id,))
         if not cursor.fetchone():
             return jsonify({'error': 'Selected shop does not exist.'}), 400
-        cursor.execute("UPDATE orders SET shop_id = ?, status = 'ACCEPTED', accepted_at = ? WHERE id = ?", (new_shop_id, now_str, order_id))
+        cursor.execute("UPDATE orders SET shop_id = ?, status = 'ACCEPTED', accepted_at = ?, admin_approved = 1, admin_approved_at = COALESCE(admin_approved_at, ?) WHERE id = ?", (new_shop_id, now_str, now_str, order_id))
     else:
-        cursor.execute("UPDATE orders SET status = 'ACCEPTED', accepted_at = ? WHERE id = ?", (now_str, order_id))
-        
+        cursor.execute("UPDATE orders SET status = 'ACCEPTED', accepted_at = ?, admin_approved = 1, admin_approved_at = COALESCE(admin_approved_at, ?) WHERE id = ?", (now_str, now_str, order_id))
+
     db.commit()
     return jsonify({'success': True, 'message': 'Order accepted successfully by Admin.'})
 
@@ -3335,11 +3451,11 @@ def admin_change_order_status(order_id):
     
     db.execute("BEGIN TRANSACTION")
     try:
-        # Update status
-        cursor.execute("UPDATE orders SET status = ? WHERE id = ?", (new_status, order_id))
-        
-        # Also set timestamps depending on status changes
+        # Update status (an admin status change also counts as admin approval so the vendor can see the order)
         now_str = ist_now_str()
+        cursor.execute("UPDATE orders SET status = ?, admin_approved = 1, admin_approved_at = COALESCE(admin_approved_at, ?) WHERE id = ?", (new_status, now_str, order_id))
+
+        # Also set timestamps depending on status changes
         if new_status == 'ACCEPTED' and not order['accepted_at']:
             cursor.execute("UPDATE orders SET accepted_at = ? WHERE id = ?", (now_str, order_id))
         elif new_status == 'READY_FOR_PICKUP' and not order['ready_at']:
@@ -3374,6 +3490,83 @@ def admin_change_order_status(order_id):
     except Exception as e:
         db.execute("ROLLBACK")
         return jsonify({'error': f'Failed to update order status: {str(e)}'}), 500
+
+@app.route('/api/admin/orders/pending-approval', methods=['GET'])
+def admin_pending_approval_orders():
+    """New orders waiting for admin approval before they are shown to the vendor."""
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(f'''
+        SELECT o.id, o.created_at, o.total_amount, COALESCE(o.delivery_fee, 0) AS delivery_fee, o.priority_type, o.payment_mode,
+               o.shop_id, s.shop_name,
+               u.name AS customer_name, u.phone AS customer_phone, u.address AS customer_address,
+               (SELECT COALESCE(SUM(quantity), 0) FROM order_items WHERE order_id = o.id) AS items_count,
+               (SELECT GROUP_CONCAT(quantity || 'x ' || p.name, ', ')
+                FROM order_items oi JOIN products p ON oi.product_id = p.id
+                WHERE oi.order_id = o.id) AS items_summary,
+               {VENDOR_TOTAL_SUBQUERY} AS vendor_total
+        FROM orders o
+        JOIN shops s ON o.shop_id = s.id
+        JOIN users u ON o.customer_id = u.id
+        WHERE COALESCE(o.admin_approved, 1) = 0 AND o.status = 'PENDING'
+        ORDER BY o.id DESC
+    ''')
+    orders = [dict(row) for row in cursor.fetchall()]
+    for o in orders:
+        o['vendor_total'] = round(float(o.get('vendor_total') or 0), 2)
+    return jsonify({'orders': orders, 'count': len(orders)})
+
+@app.route('/api/admin/orders/<int:order_id>/approve', methods=['POST'])
+def admin_approve_order(order_id):
+    """Admin releases a new order to the vendor (status stays PENDING so the vendor accepts it)."""
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, shop_id, status FROM orders WHERE id = ?", (order_id,))
+    order = cursor.fetchone()
+    if not order:
+        return jsonify({'error': 'Order not found.'}), 404
+    now_str = ist_now_str()
+    cursor.execute("UPDATE orders SET admin_approved = 1, admin_approved_at = ? WHERE id = ?", (now_str, order_id))
+    db.commit()
+    trigger_webhook_async('order_approved', {
+        'order_id': order_id,
+        'shop_id': order['shop_id'],
+        'timestamp': ist_now_iso()
+    })
+    return jsonify({'success': True, 'message': 'Order vendor ko bhej diya gaya.', 'order_id': order_id, 'status': order['status']})
+
+@app.route('/api/admin/orders/<int:order_id>/reject', methods=['POST'])
+def admin_reject_order(order_id):
+    """Admin rejects a new order: it is marked FAILED with the given reason (admin_approved is left as is)."""
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    data = request.get_json(silent=True) or {}
+    reason = str(data.get('reason') or '').strip() or 'Admin ne order reject kiya'
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, status, delivery_boy_id FROM orders WHERE id = ?", (order_id,))
+    order = cursor.fetchone()
+    if not order:
+        return jsonify({'error': 'Order not found.'}), 404
+    old_status = order['status']
+    cursor.execute("UPDATE orders SET status = 'FAILED', failure_reason = ? WHERE id = ?", (reason[:300], order_id))
+    # Keep rider counters consistent if the order was already active with a rider
+    if order['delivery_boy_id'] and old_status in ('ACCEPTED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY'):
+        cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (order['delivery_boy_id'],))
+    db.commit()
+    trigger_webhook_async('status_changed', {
+        'order_id': order_id,
+        'old_status': old_status,
+        'new_status': 'FAILED',
+        'failure_reason': reason,
+        'changed_by': 'admin',
+        'timestamp': ist_now_iso()
+    })
+    return jsonify({'success': True, 'message': 'Order reject kar diya gaya.', 'order_id': order_id, 'failure_reason': reason})
 
 @app.route('/api/admin/orders/<int:order_id>/delete', methods=['POST'])
 def admin_delete_order(order_id):
@@ -3727,7 +3920,7 @@ def get_admin_analytics():
     orders_base_sql = '''
         SELECT o.id, o.created_at, o.total_amount, o.status, o.priority_type,
                s.shop_name, u.name as customer_name, o.failure_reason,
-               o.pickup_otp, o.delivery_otp
+               o.pickup_otp, o.delivery_otp, COALESCE(o.admin_approved, 1) AS admin_approved
         FROM orders o
         JOIN shops s ON o.shop_id = s.id
         JOIN users u ON o.customer_id = u.id
@@ -4357,15 +4550,22 @@ def admin_add_product():
     description = data.get('description', '')
     keywords = data.get('keywords', '')
     
-    if not shop_id or not name or price is None:
+    if not shop_id or not name or price is None or str(price).strip() == '':
         return jsonify({'error': 'Parameters shop_id, name, and price are required.'}), 400
-        
-    mrp_val = float(mrp) if mrp is not None and str(mrp).strip() != '' else float(price)
-    cost_price_val = float(cost_price) if cost_price is not None and str(cost_price).strip() != '' else 0.0
-    
+
+    try:
+        price_val = float(price)
+        mrp_val = float(mrp) if mrp is not None and str(mrp).strip() != '' else price_val
+        cost_price_val = float(cost_price) if cost_price is not None and str(cost_price).strip() != '' else 0.0
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid price, MRP, or cost price value.'}), 400
+    if price_val < 0:
+        return jsonify({'error': 'Price negative nahi ho sakti.'}), 400
+
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("INSERT INTO products (shop_id, name, price, mrp, cost_price, image_path, subcategory, description, keywords) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (shop_id, name, float(price), mrp_val, cost_price_val, image_path, subcategory, description, keywords))
+    # Admin-created products carry an admin-decided selling price
+    cursor.execute("INSERT INTO products (shop_id, name, price, mrp, cost_price, image_path, subcategory, description, keywords, admin_priced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)", (shop_id, name, price_val, mrp_val, cost_price_val, image_path, subcategory, description, keywords))
     db.commit()
     return jsonify({'success': True, 'message': 'Product added successfully.', 'id': cursor.lastrowid})
 
@@ -4400,12 +4600,46 @@ def admin_modify_product(prod_id):
         description = data.get('description', '')
         keywords = data.get('keywords', '')
         
-        mrp_val = float(mrp) if mrp is not None and str(mrp).strip() != '' else float(price)
-        cost_price_val = float(cost_price) if cost_price is not None and str(cost_price).strip() != '' else 0.0
-        
-        cursor.execute("UPDATE products SET name = ?, price = ?, mrp = ?, cost_price = ?, is_available = ?, image_path = ?, subcategory = ?, description = ?, keywords = ? WHERE id = ?", (name, float(price), mrp_val, cost_price_val, is_available, image_path, subcategory, description, keywords, prod_id))
+        if not name or price is None or str(price).strip() == '':
+            return jsonify({'error': 'Product name and price are required.'}), 400
+        try:
+            price_val = float(price)
+            mrp_val = float(mrp) if mrp is not None and str(mrp).strip() != '' else price_val
+            cost_price_val = float(cost_price) if cost_price is not None and str(cost_price).strip() != '' else 0.0
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid price, MRP, or cost price value.'}), 400
+        if price_val < 0:
+            return jsonify({'error': 'Price negative nahi ho sakti.'}), 400
+
+        # Admin edit always sets the selling price and locks it (admin_priced = 1)
+        cursor.execute("UPDATE products SET name = ?, price = ?, mrp = ?, cost_price = ?, is_available = ?, image_path = ?, subcategory = ?, description = ?, keywords = ?, admin_priced = 1 WHERE id = ?", (name, price_val, mrp_val, cost_price_val, is_available, image_path, subcategory, description, keywords, prod_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Product updated successfully.'})
+
+@app.route('/api/admin/products/<int:prod_id>/price', methods=['POST'])
+def admin_set_product_price(prod_id):
+    """Admin sets the app selling price for a product (e.g. one added by a vendor) and marks it admin-priced."""
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized. Please log in as Admin.'}), 403
+    data = request.get_json(silent=True) or {}
+    price = data.get('price')
+    if price is None or str(price).strip() == '':
+        return jsonify({'error': 'Selling price zaroori hai.'}), 400
+    try:
+        price_val = float(price)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid price value.'}), 400
+    if price_val < 0:
+        return jsonify({'error': 'Price negative nahi ho sakti.'}), 400
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, name FROM products WHERE id = ?", (prod_id,))
+    prod = cursor.fetchone()
+    if not prod:
+        return jsonify({'error': 'Product not found.'}), 404
+    cursor.execute("UPDATE products SET price = ?, admin_priced = 1 WHERE id = ?", (price_val, prod_id))
+    db.commit()
+    return jsonify({'success': True, 'message': f"'{prod['name']}' ka selling price ₹{price_val:g} set ho gaya.", 'id': prod_id, 'price': price_val, 'admin_priced': 1})
 
 @app.route('/api/admin/products/template', methods=['GET'])
 def download_admin_product_template():
@@ -4535,6 +4769,10 @@ def get_system_settings():
         settings['smtp_password'] = ''
     if 'admin_notification_email' not in settings:
         settings['admin_notification_email'] = ''
+    if 'order_admin_approval' not in settings:
+        settings['order_admin_approval'] = '1'
+    if 'vendor_alarm_sound' not in settings or settings.get('vendor_alarm_sound') is None:
+        settings['vendor_alarm_sound'] = ''
     # Security: mask SMTP password from non-admin users
     if session.get('role') != 'admin':
         if settings.get('smtp_password'):
@@ -4551,7 +4789,10 @@ def update_system_settings():
     cursor = db.cursor()
     try:
         for key, val in data.items():
-            if key in ['delivery_fee_flat', 'delivery_fee_threshold', 'smtp_email', 'smtp_password', 'admin_notification_email', 'delivery_available', 'delivery_notice_message']:
+            if key in ['delivery_fee_flat', 'delivery_fee_threshold', 'smtp_email', 'smtp_password', 'admin_notification_email', 'delivery_available', 'delivery_notice_message', 'order_admin_approval']:
+                if key == 'order_admin_approval':
+                    # Normalise to '1' / '0' (accepts true/false, on/off, yes/no as well)
+                    val = '1' if parse_bool_flag(val, default=True) else '0'
                 cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", (key, str(val)))
         db.commit()
         return jsonify({'success': True, 'message': 'System settings updated successfully.'})
@@ -4858,6 +5099,56 @@ def delete_team_photo():
     cursor.execute("DELETE FROM system_settings WHERE key = 'about_team_image'")
     db.commit()
     return jsonify({'success': True, 'message': 'Team photo deleted successfully.'})
+
+@app.route('/api/admin/settings/upload-vendor-alarm', methods=['POST'])
+def upload_vendor_alarm():
+    """Admin uploads the new-order alarm sound played in every vendor panel (mp3/wav/m4a/ogg/aac, max 4 MB)."""
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized. Please log in as Admin.'}), 403
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'error': 'Audio file chuniye.'}), 400
+    ext = f.filename.rsplit('.', 1)[-1].lower() if '.' in f.filename else ''
+    if ext not in VENDOR_ALARM_EXTS:
+        return jsonify({'error': f"Sirf {', '.join(sorted(VENDOR_ALARM_EXTS))} files allowed hain."}), 400
+    data = f.read()
+    if not data:
+        return jsonify({'error': 'File khaali hai.'}), 400
+    if len(data) > VENDOR_ALARM_MAX_BYTES:
+        return jsonify({'error': 'File 4 MB se badi hai. Chhota mp3 banakar upload karein.'}), 400
+
+    filename = f"vendor_alarm_{int(ist_now().timestamp())}.{ext}"
+    upload_path = os.path.join(app.root_path, 'static', 'uploads', 'system')
+    os.makedirs(upload_path, exist_ok=True)
+    with open(os.path.join(upload_path, filename), 'wb') as out:
+        out.write(data)
+    db_path = f"/static/uploads/system/{filename}"
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT value FROM system_settings WHERE key = 'vendor_alarm_sound'")
+    old_row = cursor.fetchone()
+    old_path = old_row['value'] if old_row else None
+    if old_path and old_path != db_path:
+        _remove_system_upload(old_path)
+    cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('vendor_alarm_sound', ?)", (db_path,))
+    db.commit()
+    return jsonify({'success': True, 'file_path': db_path, 'size': len(data), 'message': 'Vendor alarm sound set ho gaya. Har vendor panel me yahi bajega.'})
+
+@app.route('/api/admin/settings/vendor-alarm', methods=['DELETE'])
+def delete_vendor_alarm():
+    """Admin removes the custom vendor alarm; vendor panels fall back to the default alarm."""
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT value FROM system_settings WHERE key = 'vendor_alarm_sound'")
+    old_row = cursor.fetchone()
+    if old_row and old_row['value']:
+        _remove_system_upload(old_row['value'])
+    cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('vendor_alarm_sound', '')")
+    db.commit()
+    return jsonify({'success': True, 'message': 'Custom alarm hata diya, ab default alarm bajega.'})
 
 @app.route('/api/admin/settings/upload-qr-code', methods=['POST'])
 def upload_qr_code():
