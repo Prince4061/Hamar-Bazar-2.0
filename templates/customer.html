@@ -1182,11 +1182,11 @@ html, body {
             <!-- Install app (hidden when already running as installed app) -->
             <div class="acc-row" id="acc-install-row" style="border-color: rgba(245,158,11,0.35); background: #fffbeb; margin-bottom:10px;">
                 <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">📲 App phone me install karein</span>
-                <a href="/install" class="hb-install-link" onclick="hbInstallClick(event)" style="margin: 0; padding: 8px 16px; background: linear-gradient(135deg,#f59e0b,#ef4444); color: white; font-size: 0.8rem; border-radius: 100px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-weight:800;">📲 Install</a>
+                <a href="#" class="hb-install-link" onclick="hbInstallClick(event)" style="margin: 0; padding: 8px 16px; background: linear-gradient(135deg,#f59e0b,#ef4444); color: white; font-size: 0.8rem; border-radius: 100px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-weight:800;">📲 Install</a>
             </div>
             <script>
 (function(){ let d=null; window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); d=e; });
-  window.hbInstallClick = async function(ev){ if(d){ ev.preventDefault(); d.prompt(); const r=await d.userChoice; d=null; if(r.outcome==='accepted') ev.target.closest('a').style.display='none'; } };
+  window.hbInstallClick = async function(ev){ ev.preventDefault(); if(d){ d.prompt(); const r=await d.userChoice; d=null; if(r.outcome==='accepted') ev.target.closest('a').style.display='none'; } else { const ua=navigator.userAgent; if(/iPhone|iPad|iPod/.test(ua)) alert('iPhone par: neeche Share ⬆️ dabayein → Add to Home Screen'); else alert('Browser menu ⋮ → "Install app" dabayein'); } };
   try { if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) document.querySelectorAll('.hb-install-link').forEach(x=>x.style.display='none'); } catch(e){} })();
 </script>
 

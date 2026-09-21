@@ -104,6 +104,15 @@
                 <p class="card-subtitle-main" id="login-card-subtitle">Login to continue</p>
                 <p class="auto-signup-note" id="login-card-note" style="display:none;"></p>
 
+                <a href="#" id="login-install-link" class="hb-install-link" onclick="hbInstallClick(event)" style="display:flex; align-items:center; justify-content:center; gap:8px; margin:0 0 14px; padding:12px; border-radius:14px; text-decoration:none; font-weight:900; font-size:.92rem; color:#fff; background:linear-gradient(135deg,#f59e0b,#ef4444); box-shadow:0 10px 24px -10px rgba(239,68,68,.7);">
+                    📲 App Install Karein <span style="font-weight:600; font-size:.75rem; opacity:.9;">(free, 1 minute)</span>
+                </a>
+                <script>
+(function(){ let d=null; window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); d=e; });
+  window.hbInstallClick = async function(ev){ ev.preventDefault(); if(d){ d.prompt(); const r=await d.userChoice; d=null; if(r.outcome==='accepted') ev.target.closest('a').style.display='none'; } else { const ua=navigator.userAgent; if(/Android/i.test(ua) && /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|; wv\)|wv/i.test(ua)) location.href='intent://'+location.host+'/login#Intent;scheme=https;package=com.android.chrome;end'; else if(/iPhone|iPad|iPod/.test(ua)) alert('iPhone par: neeche Share ⬆️ dabayein → Add to Home Screen'); else alert('Browser menu ⋮ → "Install app" dabayein'); } };
+  try { if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) document.querySelectorAll('.hb-install-link').forEach(x=>x.style.display='none'); } catch(e){} })();
+</script>
+
                 <!-- Input Form -->
                 <form id="customer-login-form" hx-post="/login" hx-target="#login-error-msg" hx-swap="outerHTML">
                     <input type="hidden" name="action" id="customer-login-action" value="login">
@@ -161,14 +170,7 @@
                     <a href="#" onclick="alert('Terms and Conditions simulated.')">Terms & Conditions</a> and <a href="#" onclick="alert('Privacy Policy simulated.')">Privacy Policy</a>
                 </div>
 
-                <a href="/install" id="login-install-link" class="hb-install-link" onclick="hbInstallClick(event)" style="display:flex; align-items:center; justify-content:center; gap:8px; margin:14px 0 4px; padding:12px; border-radius:14px; text-decoration:none; font-weight:900; font-size:.92rem; color:#fff; background:linear-gradient(135deg,#f59e0b,#ef4444); box-shadow:0 10px 24px -10px rgba(239,68,68,.7);">
-                    📲 App Install Karein <span style="font-weight:600; font-size:.75rem; opacity:.9;">(free, 1 minute)</span>
-                </a>
-                <script>
-(function(){ let d=null; window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); d=e; });
-  window.hbInstallClick = async function(ev){ if(d){ ev.preventDefault(); d.prompt(); const r=await d.userChoice; d=null; if(r.outcome==='accepted') ev.target.closest('a').style.display='none'; } };
-  try { if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) document.querySelectorAll('.hb-install-link').forEach(x=>x.style.display='none'); } catch(e){} })();
-</script>
+
 
                 <!-- Mobile Only Staff Login Link -->
                 <div class="mobile-staff-login-link-container">

@@ -231,7 +231,7 @@
                 const chromeBtn = document.getElementById('pwa-open-chrome-btn');
                 if (chromeBtn) {
                     if (isInApp && /Android/i.test(navigator.userAgent)) {
-                        chromeBtn.href = 'intent://' + location.host + '/install#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(location.origin + '/install') + ';end';
+                        chromeBtn.href = 'intent://' + location.host + '/login#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(location.origin + '/login') + ';end';
                         chromeBtn.style.display = 'flex';
                     } else chromeBtn.style.display = 'none';
                 }

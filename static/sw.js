@@ -55,7 +55,6 @@ self.addEventListener('fetch', (event) => {
     requestUrl.pathname === '/delivery' ||
     requestUrl.pathname === '/' ||
     requestUrl.pathname === '/login' ||
-    requestUrl.pathname === '/install' ||
     requestUrl.pathname === '/staff-login'
   ) {
     event.respondWith(fetch(event.request));
