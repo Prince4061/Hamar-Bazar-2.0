@@ -12,10 +12,10 @@
     <meta name="apple-mobile-web-app-title" content="Hamar Bazaar">
     <link rel="apple-touch-icon" href="{{ system_settings.app_logo }}">
     <!-- Stylesheet -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v={{ asset_v }}">
     <!-- Lucide Icons -->
-    <script src="{{ url_for('static', filename='js/lucide.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/htmx.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/lucide.min.js') }}?v={{ asset_v }}"></script>
+    <script src="{{ url_for('static', filename='js/htmx.min.js') }}?v={{ asset_v }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             document.body.addEventListener('htmx:configRequest', (event) => {
@@ -173,6 +173,17 @@
 
         // Register Service Worker for PWA & Setup Custom Install Prompts
         let deferredPrompt = null;
+        // Capture the install event as early as possible (it can fire before DOMContentLoaded handlers attach)
+        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
+        window.__hbInstalledApp = false;
+        (async () => {
+            try {
+                if ('getInstalledRelatedApps' in navigator) {
+                    const apps = await navigator.getInstalledRelatedApps();
+                    if (apps && apps.length) { window.__hbInstalledApp = true; localStorage.setItem('pwa-installed', 'true'); }
+                }
+            } catch (e) {}
+        })();
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

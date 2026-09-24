@@ -3856,10 +3856,11 @@
             updateProductRequestsBadge();
             // Live "approval pending" count (sidebar badge, mobile nav badge, dashboard KPI) — all tabs
             try { pollOrderApprovalCount(); } catch (e) { console.error(e); }
-            setInterval(() => { try { pollOrderApprovalCount(); } catch (e) {} }, 20000);
+            setInterval(() => { if (!document.hidden) { try { pollOrderApprovalCount(); } catch (e) {} } }, 20000);
 
-            // Auto-refresh stats every 15 seconds
+            // Auto-refresh stats every 15 seconds (paused while the tab is in the background)
             setInterval(() => {
+                if (document.hidden) return;
                 loadAllAnalytics(false);
                 updateProductRequestsBadge();
                 if (activeTab === 'payments') {
@@ -3871,12 +3872,12 @@
                 }
             }, 15000);
 
-            // Auto-refresh searches every 5 seconds if searches tab is active
+            // Auto-refresh searches every 20 seconds if searches tab is active (heavy query)
             setInterval(() => {
-                if (activeTab === 'searches') {
+                if (activeTab === 'searches' && !document.hidden) {
                     loadSearchAnalytics(true);
                 }
-            }, 5000);
+            }, 20000);
             
             // Listeners for closing menus safely
             window.addEventListener('click', () => {
@@ -4310,6 +4311,13 @@
                     analyticsData = data;
                     ordersCache = data.recent_orders || [];
                     const overview = data.overview || {};
+                    // Skip the expensive DOM/chart re-render when nothing changed since the last poll
+                    try {
+                        const sig = JSON.stringify(overview) + '|' + JSON.stringify(data.timing_analytics || {}) + '|' + (data.recent_orders || []).map(o => o.id + ':' + o.status + ':' + (o.admin_approved ?? 1) + ':' + (o.delivery_boy_id || '')).join(',')
+                            + '|' + (data.stock_warnings || []).length + '|' + (data.riders_status || []).map(r => r.id + ':' + r.availability_status + ':' + r.active_orders).join(',');
+                        if (!manualTrigger && sig === window.__lastAnalyticsSig) return;
+                        window.__lastAnalyticsSig = sig;
+                    } catch (e) {}
                     
                     // Helper to safely set inner text
                     const setTxt = (id, txt) => {
@@ -8188,9 +8196,12 @@
             }
         }
 
-        function renderPendingApprovalOrders(orders) {
+        function renderPendingApprovalOrders(orders, force = false) {
             const list = document.getElementById('order-approval-list');
             if (!list) return;
+            const sig = (orders || []).map(o => o.id + ':' + o.status).join(',');
+            if (!force && list.children.length && sig === list.dataset.sig) return;
+            list.dataset.sig = sig;
             list.innerHTML = '';
             if (!orders || orders.length === 0) {
                 list.innerHTML = `<div class="empty-state-card" style="grid-column:1/-1; padding: 18px;"><i data-lucide="check-circle-2" class="empty-state-icon" style="color: var(--emerald-green);"></i><p>Koi naya order approval ke liye nahi hai.</p></div>`;

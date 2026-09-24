@@ -94,6 +94,22 @@ else:
             print(f"WARNING: Could not save secret key to file: {e}. Sessions will reset on restart.")
     app.secret_key = _loaded_key
 
+# Static assets: cache for 7 days (URLs are version-stamped via asset_v so deploys bust the cache)
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 7 * 24 * 3600
+def _compute_asset_version():
+    try:
+        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+        latest = 0
+        for sub in ('css', 'js'):
+            d = os.path.join(base, sub)
+            if os.path.isdir(d):
+                for fn in os.listdir(d):
+                    latest = max(latest, int(os.path.getmtime(os.path.join(d, fn))))
+        return str(latest)
+    except Exception:
+        return '1'
+ASSET_VERSION = _compute_asset_version()
+
 csrf = CSRFProtect(app)
 
 @app.errorhandler(Exception)
@@ -141,7 +157,7 @@ def add_header(response):
     # Content Security Policy — allow necessary resources
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://checkout.razorpay.com https://unpkg.com; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://checkout.razorpay.com https://unpkg.com https://static.cloudflareinsights.com; "
         "worker-src 'self' blob:; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
         "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
@@ -443,7 +459,7 @@ def inject_global_settings():
         settings = {}
     if 'app_logo' not in settings or not settings['app_logo']:
         settings['app_logo'] = '/static/images/app_logo.jpg'
-    return {'system_settings': settings}
+    return {'system_settings': settings, 'asset_v': ASSET_VERSION}
 
 def check_and_flag_suspicious_user(user_id, db):
     cursor = db.cursor()
@@ -933,6 +949,13 @@ def serve_manifest():
             logo_url_192 = settings['app_logo_192']
         if 'app_logo_512' in settings and settings['app_logo_512']:
             logo_url_512 = settings['app_logo_512']
+    except Exception:
+        pass
+
+    manifest_data['scope'] = '/'
+    manifest_data['prefer_related_applications'] = False
+    try:
+        manifest_data['related_applications'] = [{'platform': 'webapp', 'url': request.url_root.rstrip('/') + '/manifest.json'}]
     except Exception:
         pass
 

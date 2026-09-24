@@ -109,8 +109,9 @@
                 </a>
                 <script>
 (function(){ let d=null; window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); d=e; });
-  window.hbInstallClick = async function(ev){ ev.preventDefault(); if(d){ d.prompt(); const r=await d.userChoice; d=null; if(r.outcome==='accepted') ev.target.closest('a').style.display='none'; } else { const ua=navigator.userAgent; if(/Android/i.test(ua) && /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|; wv\)|\bwv\b/i.test(ua)) location.href='intent://'+location.host+'/login#Intent;scheme=https;package=com.android.chrome;end'; else if(/iPhone|iPad|iPod/.test(ua)) alert('iPhone par: neeche Share ⬆️ dabayein → Add to Home Screen'); else alert('Browser menu ⋮ → "Install app" dabayein'); } };
-  try { if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) document.querySelectorAll('.hb-install-link').forEach(x=>x.style.display='none'); } catch(e){} })();
+  window.hbInstallClick = async function(ev){ ev.preventDefault(); if (window.__hbInstalledApp) { alert('Hamar Bazaar app pehle se install hai. Home screen par icon dhundhein aur wahan se kholein.'); return; } if(d){ d.prompt(); const r=await d.userChoice; d=null; if(r.outcome==='accepted') ev.target.closest('a').style.display='none'; } else { const ua=navigator.userAgent; if(/Android/i.test(ua) && /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|; wv\)|\bwv\b/i.test(ua)) location.href='intent://'+location.host+'/login#Intent;scheme=https;package=com.android.chrome;end'; else if(/iPhone|iPad|iPod/.test(ua)) alert('iPhone par: neeche Share ⬆️ dabayein → Add to Home Screen'); else alert('Browser menu ⋮ → "Install app" dabayein'); } };
+  try { if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) document.querySelectorAll('.hb-install-link').forEach(x=>x.style.display='none'); } catch(e){}
+  setTimeout(()=>{ if (window.__hbInstalledApp) { const a=document.getElementById('login-install-link'); if(a){ a.innerHTML='✅ App install hai — Home screen se kholein'; a.style.background='linear-gradient(135deg,#10b981,#059669)'; } } }, 1500); })();
 </script>
 
                 <!-- Input Form -->
