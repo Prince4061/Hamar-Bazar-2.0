@@ -2548,6 +2548,25 @@
                     </div>
                 </div>
 
+                <!-- Play Store (Android app / TWA) -->
+                <div class="dashboard-card" style="margin-top: 20px; border-left: 4px solid #22c55e;" id="playstore-card">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text" style="color:#15803d;"><i data-lucide="smartphone"></i> Play Store App (Android / TWA)</h3>
+                        <span class="status-badge" id="assetlinks-status">--</span>
+                    </div>
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin:6px 0 12px;">PWABuilder / Bubblewrap se banaye app ka <b>Package name</b> aur <b>SHA-256 fingerprint</b> yahan daalo. Isse <code>/.well-known/assetlinks.json</code> ban jaata hai aur app browser bar ke bina full-screen khulta hai. Fingerprint PWABuilder ke zip me (<code>signing-key-info.txt</code>) aur Play Console &rarr; App integrity &rarr; App signing me milta hai (Play Console wala <b>zaroor</b> add karo).</p>
+                    <div style="display:grid; grid-template-columns: 1fr 2fr; gap:12px;">
+                        <div class="form-group-custom" style="margin:0;"><label class="form-label-custom">Package name</label><input type="text" id="android-package-name" class="form-input-custom" style="width:100%; font-family:monospace;" placeholder="in.hamarai.shop.twa"></div>
+                        <div class="form-group-custom" style="margin:0;"><label class="form-label-custom">SHA-256 fingerprints (ek line me ek; upload key + Play signing key dono)</label><textarea id="android-sha256" class="form-input-custom" rows="3" style="width:100%; font-family:monospace; font-size:0.75rem;" placeholder="AB:CD:EF:...:12"></textarea></div>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
+                        <button class="btn-custom btn-custom-primary" style="margin:0;" onclick="savePlayStoreSettings()">Save</button>
+                        <a href="/.well-known/assetlinks.json" target="_blank" class="btn-custom btn-custom-secondary" style="margin:0; text-decoration:none;">assetlinks.json dekho</a>
+                        <a href="/privacy" target="_blank" style="font-size:0.78rem; color:var(--primary-accent); font-weight:700;">Privacy Policy</a>
+                        <a href="/terms" target="_blank" style="font-size:0.78rem; color:var(--primary-accent); font-weight:700;">Terms</a>
+                    </div>
+                </div>
+
                 <!-- Voice Agent (Jarvis) API Token -->
                 <div class="dashboard-card" style="margin-top: 20px; border-left: 4px solid #0ea5e9;" id="agent-token-card">
                     <div class="card-header-row">
@@ -6817,6 +6836,24 @@
                 .then(r => r.json()).then(d => showAestheticToast(d.message || d.error, d.success ? "success" : "error"));
         }
 
+        // ===== Play Store / assetlinks =====
+        function loadPlayStoreSettings(settings) {
+            const p = document.getElementById('android-package-name'), f = document.getElementById('android-sha256');
+            if (p) p.value = settings.android_package_name || '';
+            if (f) f.value = (settings.android_sha256_fingerprints || '').split(/[\s,;]+/).filter(Boolean).join('\n');
+            const st = document.getElementById('assetlinks-status');
+            if (st) { const ok = !!(settings.android_package_name && settings.android_sha256_fingerprints); st.innerText = ok ? 'assetlinks READY' : 'NOT SET'; st.className = 'status-badge ' + (ok ? 'badge-delivered' : 'badge-failed'); }
+        }
+        function savePlayStoreSettings() {
+            const pkg = document.getElementById('android-package-name').value.trim();
+            const fps = document.getElementById('android-sha256').value.split(/[\s,;]+/).map(x => x.trim().toUpperCase()).filter(Boolean);
+            const bad = fps.find(x => !/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x));
+            if (bad) { showAestheticToast('Fingerprint format galat hai: ' + bad.slice(0, 20) + '... (AA:BB:...:ZZ, 32 pairs)', 'error'); return; }
+            if (pkg && !/^[a-zA-Z_][\w]*(\.[a-zA-Z_][\w]*)+$/.test(pkg)) { showAestheticToast('Package name format galat hai (e.g. in.hamarai.shop.twa)', 'error'); return; }
+            fetch('/api/admin/settings/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ android_package_name: pkg, android_sha256_fingerprints: fps.join('\n') }) })
+                .then(r => r.json()).then(d => { showAestheticToast(d.success ? 'Play Store settings save ho gayi. assetlinks.json live hai.' : (d.error || 'Save failed'), d.success ? 'success' : 'error'); loadAdminAboutTeamPhoto(); });
+        }
+
         // ===== Voice agent token =====
         function loadAgentToken() {
             fetch('/api/admin/agent-token').then(r => r.json()).then(d => {
@@ -6906,6 +6943,7 @@
                     if (document.getElementById("delivery-notice-message")) {
                         document.getElementById("delivery-notice-message").value = settings.delivery_notice_message || '';
                     }
+                    try { loadPlayStoreSettings(settings); } catch (e) { console.error(e); }
 
                     // Order admin approval toggle (default ON)
                     const approvalToggle = document.getElementById("order-admin-approval-toggle");

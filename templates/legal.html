@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .legal-wrap { max-width: 720px; margin: 0 auto; padding: 24px 18px 60px; font-family: 'Outfit', 'Segoe UI', sans-serif; color: #0f172a; }
+  .legal-head { border-radius: 20px; padding: 22px 20px; color: #fff; background: linear-gradient(135deg, #0f766e, #5e17eb); margin-bottom: 20px; }
+  .legal-head h1 { margin: 0 0 4px; font-size: 1.5rem; font-weight: 900; }
+  .legal-head p { margin: 0; font-size: .85rem; opacity: .95; }
+  .legal-wrap h2 { font-size: 1.05rem; font-weight: 900; margin: 22px 0 6px; color: #5e17eb; }
+  .legal-wrap p, .legal-wrap li { font-size: .9rem; line-height: 1.6; color: #334155; }
+  .legal-wrap ul { padding-left: 20px; }
+  .legal-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .legal-tabs a { flex: 1; text-align: center; padding: 10px; border-radius: 100px; text-decoration: none; font-weight: 800; font-size: .85rem; border: 1.5px solid #e2e8f0; color: #475569; background: #fff; }
+  .legal-tabs a.active { background: #5e17eb; color: #fff; border-color: #5e17eb; }
+  .legal-back { display: inline-block; margin-top: 24px; color: #5e17eb; font-weight: 800; text-decoration: none; }
+</style>
+<div class="legal-wrap">
+  <div class="legal-head">
+    <h1>{% if page == 'privacy' %}Privacy Policy{% else %}Terms &amp; Conditions{% endif %}</h1>
+    <p>Hamar Bazaar · Hyperlocal delivery, Takhatpur · Last updated: 26 September 2026</p>
+  </div>
+  <div class="legal-tabs">
+    <a href="/privacy" class="{% if page == 'privacy' %}active{% endif %}">Privacy Policy</a>
+    <a href="/terms" class="{% if page == 'terms' %}active{% endif %}">Terms &amp; Conditions</a>
+  </div>
+
+  {% if page == 'privacy' %}
+  <p>Hamar Bazaar ("hum", "app") ek hyperlocal grocery aur general marketplace hai. Yeh policy batati hai ki hum aapka kaunsa data lete hain, kyun lete hain, aur kaise surakshit rakhte hain. App use karne ka matlab hai aap is policy se sehmat hain.</p>
+
+  <h2>1. Hum kaunsa data collect karte hain</h2>
+  <ul>
+    <li><b>Account data:</b> naam, mobile number, password (encrypted/hashed form me), delivery address, optional profile photo, security question aur answer (password reset ke liye).</li>
+    <li><b>Order data:</b> aapke orders, items, amount, payment mode (Cash on Delivery), delivery status, OTP verification records.</li>
+    <li><b>Uploads:</b> pharmacy orders ke liye prescription ki photo, customized products ke liye aapki di gayi photo/text, payment screenshot (agar online payment chuni ho).</li>
+    <li><b>Usage data:</b> app me kiye gaye searches, product reviews, game (Takhatpur Surfar) ke scores, device ka basic technical data (browser type, IP address) security aur fraud prevention ke liye.</li>
+  </ul>
+  <p>Hum aapka <b>GPS location</b> track nahi karte, contacts nahi padhte, aur camera/microphone bina aapke upload ke use nahi karte.</p>
+
+  <h2>2. Data ka use</h2>
+  <ul>
+    <li>Order process karna, vendor aur delivery rider tak pahunchana, aur delivery ke liye aapka naam, phone aur address rider/vendor ko dikhana.</li>
+    <li>Order status aur alerts dena (app ke andar; admin ko email/Telegram notification).</li>
+    <li>Fraud, fake accounts aur misuse rokna.</li>
+    <li>App improve karna (search trends, popular products).</li>
+  </ul>
+
+  <h2>3. Data sharing</h2>
+  <p>Aapka data sirf order poora karne ke liye sambandhit <b>vendor (dukaan)</b> aur <b>delivery rider</b> ko dikhaya jaata hai. Hum aapka personal data kisi third party ko bechte nahi hain aur advertising ke liye share nahi karte. Hosting/infrastructure providers (jaise Cloudflare) data ko sirf service chalane ke liye process karte hain.</p>
+
+  <h2>4. Data security</h2>
+  <p>Passwords hashed rakhe jaate hain, sab traffic HTTPS par hota hai, aur admin access password-protected hai. Phir bhi internet par 100% security ki guarantee koi nahi de sakta; kripya apna password kisi se share na karein.</p>
+
+  <h2>5. Data retention aur deletion</h2>
+  <p>Order records legal/accounting kaaran se rakhe jaate hain. Aap apna account aur data delete karwane ke liye neeche diye contact par likhein; hum 7 kaam ke dino me profile data hata denge (order history anonymised ho sakti hai).</p>
+
+  <h2>6. Bachche</h2>
+  <p>App 13 saal se kam umar ke bachchon ke liye nahi hai. Order dene ke liye aap 18+ hone chahiye ya kisi vayask ki dekh-rekh me hone chahiye.</p>
+
+  <h2>7. Permissions (Android app)</h2>
+  <p>Play Store app sirf internet access use karta hai. Photo upload aapke chunne par hi hota hai. Notifications ke liye permission tab maangi jaati hai jab aap allow karein.</p>
+
+  <h2>8. Contact</h2>
+  <p>Kisi bhi sawaal, data delete request ya shikayat ke liye: <b>Hamar Bazaar, Takhatpur</b> · Email: <b>{{ system_settings.admin_notification_email or 'support@hamarai.in' }}</b></p>
+  <p>Yeh policy samay-samay par update ho sakti hai; nayi date upar dikhegi.</p>
+
+  {% else %}
+  <p>Hamar Bazaar app use karne se pehle yeh sharten dhyan se padhein. App use karne ka matlab hai aap in shartein se sehmat hain.</p>
+
+  <h2>1. Service</h2>
+  <p>Hamar Bazaar local dukaano (vendors) aur customers ke beech ek platform hai. Products vendor ke hain; Hamar Bazaar order lekar vendor tak pahunchata hai aur delivery rider se aap tak deliver karwata hai. Product ki quality/expiry ki pehli zimmedari vendor ki hai; koi dikkat ho to turant hume batayein.</p>
+
+  <h2>2. Account</h2>
+  <ul>
+    <li>Sahi naam, mobile number aur address dena zaroori hai. Galat/fake jaankari par account block ho sakta hai.</li>
+    <li>Apna password gupt rakhein; aapke account se hue orders ki zimmedari aapki hai.</li>
+  </ul>
+
+  <h2>3. Orders, price aur payment</h2>
+  <ul>
+    <li>Order ke waqt dikhaya gaya price final hai; delivery charge alag dikhaya jaata hai. Cash on Delivery par payment rider ko karein aur delivery OTP tabhi batayein jab saman mil jaye.</li>
+    <li>Order admin approval ke baad vendor ko jaata hai; stock na hone par order cancel ho sakta hai, aapko app me suchna milegi.</li>
+    <li>Pharmacy items ke liye valid prescription zaroori hai; bina prescription order reject ho sakta hai.</li>
+  </ul>
+
+  <h2>4. Cancellation aur refund</h2>
+  <p>Vendor ke accept karne se pehle aap order cancel kar sakte hain. Accept ke baad cancellation ke liye hume call karein. Galat ya kharab saman milne par delivery ke 24 ghante ke andar batayein; jaanch ke baad replacement ya refund (COD me cash/UPI) diya jayega.</p>
+
+  <h2>5. Sahi istemal</h2>
+  <p>Fake orders, baar-baar cancel, riders/vendors se durvyavhar, ya app ke system ko todne ki koshish par account permanently block kiya ja sakta hai.</p>
+
+  <h2>6. Game aur rewards</h2>
+  <p>Takhatpur Surfar game aur "Mera Van" leaderboard sirf manoranjan/appreciation ke liye hain. Rewards (jaise ped lagana) Hamar Bazaar ke vivek par hain aur cash me badle nahi ja sakte.</p>
+
+  <h2>7. Liability</h2>
+  <p>Hamar Bazaar delivery me deri, mausam, ya vendor ki taraf se hui kami ke liye seemit zimmedari leta hai; kisi bhi claim ki adhiktam raashi us order ke amount tak seemit hai.</p>
+
+  <h2>8. Badlav aur contact</h2>
+  <p>Yeh sharten kabhi bhi update ho sakti hain. Sawaal ke liye: <b>Hamar Bazaar, Takhatpur</b> · Email: <b>{{ system_settings.admin_notification_email or 'support@hamarai.in' }}</b></p>
+  {% endif %}
+
+  <a href="/login" class="legal-back">&larr; Hamar Bazaar par wapas</a>
+</div>
+{% endblock %}

@@ -4815,7 +4815,7 @@ def update_system_settings():
     cursor = db.cursor()
     try:
         for key, val in data.items():
-            if key in ['delivery_fee_flat', 'delivery_fee_threshold', 'smtp_email', 'smtp_password', 'admin_notification_email', 'delivery_available', 'delivery_notice_message', 'order_admin_approval']:
+            if key in ['delivery_fee_flat', 'delivery_fee_threshold', 'smtp_email', 'smtp_password', 'admin_notification_email', 'delivery_available', 'delivery_notice_message', 'order_admin_approval', 'android_package_name', 'android_sha256_fingerprints']:
                 if key == 'order_admin_approval':
                     # Normalise to '1' / '0' (accepts true/false, on/off, yes/no as well)
                     val = '1' if parse_bool_flag(val, default=True) else '0'
@@ -6440,6 +6440,38 @@ def agent_search():
     if customers: speak += ' Customer: ' + ', '.join(c['name'] for c in customers) + '.'
     if products: speak += ' Product: ' + ', '.join(f"{p['name']} {int(p['price'])} rupaye" for p in products[:4]) + '.'
     return jsonify({'customers': customers, 'products': products, 'speak': speak})
+
+# ---- Play Store (Trusted Web Activity) support ----
+@app.route('/.well-known/assetlinks.json')
+def assetlinks():
+    """Digital Asset Links: proves the Android app (TWA) and this site belong to the same owner,
+    so the Play Store app opens full-screen without the browser URL bar.
+    Package name + SHA-256 fingerprints are set in the admin panel (System tab)."""
+    import json as _json
+    db = get_db(); cursor = db.cursor()
+    cursor.execute("SELECT key, value FROM system_settings WHERE key IN ('android_package_name','android_sha256_fingerprints')")
+    st = {r['key']: (r['value'] or '') for r in cursor.fetchall()}
+    pkg = st.get('android_package_name', '').strip()
+    fps = [f.strip().upper() for f in re.split(r'[\s,;]+', st.get('android_sha256_fingerprints', '')) if f.strip()]
+    if not pkg or not fps:
+        resp = Response(_json.dumps([]), mimetype='application/json')
+    else:
+        data = [{
+            'relation': ['delegate_permission/common.handle_all_urls'],
+            'target': {'namespace': 'android_app', 'package_name': pkg, 'sha256_cert_fingerprints': fps}
+        }]
+        resp = Response(_json.dumps(data, indent=2), mimetype='application/json')
+    resp.headers['Cache-Control'] = 'public, max-age=3600'
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
+
+@app.route('/privacy')
+def privacy_page():
+    return render_template('legal.html', page='privacy')
+
+@app.route('/terms')
+def terms_page():
+    return render_template('legal.html', page='terms')
 
 # ---- admin: token management ----
 @app.route('/api/admin/agent-token', methods=['GET'])
