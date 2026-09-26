@@ -194,6 +194,8 @@ _RATE_LIMIT_RULES = {
     'upload_profile_pic':        (5,  60),
     # Image proxy — a single page load can request 40+ images at once
     'proxy_image':               (400, 60),
+    'agent_recent_orders':       (120, 60),
+    'agent_summary':             (120, 60),
     # General API fallback
     '_default_api':              (60, 60),   # 60 requests/minute per IP
 }
@@ -4800,6 +4802,7 @@ def get_system_settings():
     if session.get('role') != 'admin':
         if settings.get('smtp_password'):
             settings['smtp_password'] = '***HIDDEN***'
+        settings.pop('agent_api_token', None)
     return jsonify(settings)
 
 @app.route('/api/admin/settings/update', methods=['POST'])
@@ -6230,6 +6233,241 @@ def delete_service_review(review_id):
         return jsonify({'success': True, 'message': 'Service review deleted successfully.'})
     except Exception as e:
         return jsonify({'error': f'Failed to delete service review: {str(e)}'}), 500
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VOICE AGENT (Jarvis) API — token managed from the admin panel (System tab)
+# ═══════════════════════════════════════════════════════════════════════════════
+import hmac as _hmac
+
+def _agent_token_from_db(cursor):
+    cursor.execute("SELECT value FROM system_settings WHERE key = 'agent_api_token'")
+    row = cursor.fetchone()
+    return (row['value'] or '').strip() if row else ''
+
+def _agent_auth():
+    """Returns None if the request carries a valid X-Agent-Token (or admin session); else an error response."""
+    if session.get('role') == 'admin':
+        return None
+    supplied = (request.headers.get('X-Agent-Token') or '').strip()
+    if not supplied and request.headers.get('Authorization', '').startswith('Bearer '):
+        supplied = request.headers['Authorization'][7:].strip()
+    db = get_db()
+    expected = _agent_token_from_db(db.cursor())
+    if not expected:
+        return jsonify({'error': 'Agent API disabled: admin panel me token set karein.'}), 403
+    if not supplied or not _hmac.compare_digest(supplied, expected):
+        return jsonify({'error': 'Invalid agent token.'}), 401
+    return None
+
+def _ago_hinglish(ts):
+    try:
+        dt = datetime.strptime(str(ts).split('.')[0], '%Y-%m-%d %H:%M:%S')
+        mins = int((ist_now().replace(tzinfo=None) - dt).total_seconds() // 60)
+        if mins < 1: return 'abhi'
+        if mins < 60: return f'{mins} minute pehle'
+        hrs = mins // 60
+        if hrs < 24: return f'{hrs} ghante pehle'
+        return f'{hrs // 24} din pehle'
+    except Exception:
+        return ''
+
+_STATUS_HI = {'PENDING': 'pending', 'ACCEPTED': 'vendor ne accept kiya', 'READY_FOR_PICKUP': 'pickup ke liye ready',
+              'OUT_FOR_DELIVERY': 'delivery par nikla', 'DELIVERED': 'deliver ho gaya', 'FAILED': 'cancel/failed',
+              'AWAITING_PAYMENT_APPROVAL': 'payment approval me'}
+
+def _order_row_to_agent(o):
+    status = o.get('status') or ''
+    if status == 'PENDING' and int(o.get('admin_approved') if o.get('admin_approved') is not None else 1) == 0:
+        status_hi = 'admin approval me'
+    else:
+        status_hi = _STATUS_HI.get(status, status.lower())
+    return {
+        'order_id': o['id'], 'status': status, 'status_hinglish': status_hi,
+        'admin_approved': int(o.get('admin_approved') if o.get('admin_approved') is not None else 1),
+        'customer_name': o.get('customer_name'), 'customer_phone': o.get('customer_phone'),
+        'customer_address': o.get('customer_address'), 'shop_name': o.get('shop_name'),
+        'items': o.get('items_summary') or '', 'items_count': o.get('items_count') or 0,
+        'total_amount': round(float(o.get('total_amount') or 0), 2), 'delivery_fee': round(float(o.get('delivery_fee') or 0), 2),
+        'priority': o.get('priority_type'), 'payment_mode': o.get('payment_mode'),
+        'created_at': o.get('created_at'), 'ago': _ago_hinglish(o.get('created_at')),
+        'rider_name': o.get('rider_name'),
+        'speak': f"Order {o['id']}: {o.get('customer_name') or 'customer'} ne {o.get('shop_name') or 'shop'} se {o.get('items_summary') or ''}, "
+                 f"{int(round(float(o.get('total_amount') or 0)))} rupaye ka, {_ago_hinglish(o.get('created_at'))}, status {status_hi}."
+    }
+
+_AGENT_ORDER_SQL = """
+    SELECT o.*, u.name AS customer_name, u.phone AS customer_phone, u.address AS customer_address,
+           s.shop_name, dp.name AS rider_name,
+           (SELECT COALESCE(SUM(quantity), 0) FROM order_items WHERE order_id = o.id) AS items_count,
+           (SELECT GROUP_CONCAT(oi.quantity || ' ' || p.name, ', ') FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = o.id) AS items_summary
+    FROM orders o
+    JOIN users u ON u.id = o.customer_id
+    JOIN shops s ON s.id = o.shop_id
+    LEFT JOIN delivery_partners dp ON dp.id = o.delivery_boy_id
+"""
+
+@app.route('/api/agent/ping', methods=['GET'])
+def agent_ping():
+    err = _agent_auth()
+    if err: return err
+    return jsonify({'ok': True, 'app': 'Hamar Bazar', 'time': ist_now_str()})
+
+@app.route('/api/agent/orders/recent', methods=['GET'])
+def agent_recent_orders():
+    err = _agent_auth()
+    if err: return err
+    limit = max(1, min(request.args.get('limit', default=5, type=int) or 5, 25))
+    status = (request.args.get('status') or '').strip().upper()
+    minutes = request.args.get('minutes', type=int)
+    where, params = [], []
+    if status == 'AWAITING_ADMIN':
+        where.append("o.status = 'PENDING' AND COALESCE(o.admin_approved,1) = 0")
+    elif status == 'ACTIVE':
+        where.append("o.status IN ('PENDING','ACCEPTED','READY_FOR_PICKUP','OUT_FOR_DELIVERY')")
+    elif status:
+        where.append("o.status = ?"); params.append(status)
+    if minutes:
+        cutoff = (ist_now() - timedelta(minutes=minutes)).strftime('%Y-%m-%d %H:%M:%S')
+        where.append("o.created_at >= ?"); params.append(cutoff)
+    sql = _AGENT_ORDER_SQL + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY o.id DESC LIMIT ?"
+    params.append(limit)
+    db = get_db(); cursor = db.cursor()
+    cursor.execute(sql, params)
+    orders = [_order_row_to_agent(dict(r)) for r in cursor.fetchall()]
+    if not orders:
+        speak = 'Is filter me koi order nahi mila.'
+    else:
+        speak = f"{len(orders)} order mile. " + ' '.join(o['speak'] for o in orders)
+    return jsonify({'count': len(orders), 'orders': orders, 'speak': speak})
+
+@app.route('/api/agent/orders/<int:order_id>', methods=['GET'])
+def agent_order_detail(order_id):
+    err = _agent_auth()
+    if err: return err
+    db = get_db(); cursor = db.cursor()
+    cursor.execute(_AGENT_ORDER_SQL + " WHERE o.id = ?", (order_id,))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({'error': 'Order nahi mila.', 'speak': f'Order {order_id} nahi mila.'}), 404
+    o = _order_row_to_agent(dict(row))
+    cursor.execute("""SELECT p.name, oi.quantity, oi.price, oi.custom_text, oi.custom_instructions
+                      FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?""", (order_id,))
+    o['line_items'] = [dict(r) for r in cursor.fetchall()]
+    o['pickup_otp'] = row['pickup_otp']; o['delivery_otp'] = row['delivery_otp']
+    o['speak'] += f" Address: {o['customer_address'] or 'nahi hai'}. Phone {o['customer_phone']}."
+    if o['rider_name']: o['speak'] += f" Rider {o['rider_name']}."
+    return jsonify(o)
+
+@app.route('/api/agent/summary', methods=['GET'])
+def agent_summary():
+    err = _agent_auth()
+    if err: return err
+    rng = (request.args.get('range') or 'today').lower()
+    now = ist_now()
+    if rng == 'week': cutoff = (now - timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+    elif rng == 'month': cutoff = (now - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+    else: cutoff = now.strftime('%Y-%m-%d 00:00:00'); rng = 'today'
+    db = get_db(); cursor = db.cursor()
+    cursor.execute("""SELECT COUNT(*) AS total,
+                             SUM(CASE WHEN status='DELIVERED' THEN 1 ELSE 0 END) AS delivered,
+                             SUM(CASE WHEN status='DELIVERED' THEN total_amount ELSE 0 END) AS revenue,
+                             SUM(CASE WHEN status='FAILED' THEN 1 ELSE 0 END) AS failed
+                      FROM orders WHERE created_at >= ?""", (cutoff,))
+    r = dict(cursor.fetchone())
+    cursor.execute("""SELECT
+        SUM(CASE WHEN status='PENDING' AND COALESCE(admin_approved,1)=0 THEN 1 ELSE 0 END) AS awaiting_admin,
+        SUM(CASE WHEN status='PENDING' AND COALESCE(admin_approved,1)=1 THEN 1 ELSE 0 END) AS pending_vendor,
+        SUM(CASE WHEN status='ACCEPTED' THEN 1 ELSE 0 END) AS preparing,
+        SUM(CASE WHEN status='READY_FOR_PICKUP' THEN 1 ELSE 0 END) AS ready,
+        SUM(CASE WHEN status='OUT_FOR_DELIVERY' THEN 1 ELSE 0 END) AS out_for_delivery FROM orders""")
+    live = dict(cursor.fetchone())
+    cursor.execute("SELECT COUNT(*) AS c FROM delivery_partners WHERE availability_status='online'")
+    riders_online = cursor.fetchone()['c']
+    label = {'today': 'Aaj', 'week': 'Is hafte', 'month': 'Is mahine'}[rng]
+    speak = (f"{label} {r['total'] or 0} order aaye, {r['delivered'] or 0} deliver hue, revenue {int(r['revenue'] or 0)} rupaye. "
+             f"Abhi {live['awaiting_admin'] or 0} order admin approval me, {live['pending_vendor'] or 0} vendor ke paas pending, "
+             f"{live['preparing'] or 0} ban rahe, {live['ready'] or 0} pickup ready, {live['out_for_delivery'] or 0} delivery par. {riders_online} rider online.")
+    return jsonify({'range': rng, 'orders': r['total'] or 0, 'delivered': r['delivered'] or 0, 'revenue': round(float(r['revenue'] or 0), 2),
+                    'failed': r['failed'] or 0, 'live': {k: int(v or 0) for k, v in live.items()}, 'riders_online': riders_online, 'speak': speak})
+
+@app.route('/api/agent/orders/<int:order_id>/approve', methods=['POST'])
+def agent_approve_order(order_id):
+    err = _agent_auth()
+    if err: return err
+    db = get_db(); cursor = db.cursor()
+    cursor.execute("SELECT status, admin_approved, shop_id FROM orders WHERE id = ?", (order_id,))
+    o = cursor.fetchone()
+    if not o: return jsonify({'error': 'Order nahi mila.', 'speak': f'Order {order_id} nahi mila.'}), 404
+    if int(o['admin_approved'] if o['admin_approved'] is not None else 1) == 1:
+        return jsonify({'success': True, 'speak': f'Order {order_id} pehle se approved hai.'})
+    now = ist_now_str()
+    cursor.execute("UPDATE orders SET admin_approved = 1, admin_approved_at = ? WHERE id = ?", (now, order_id))
+    db.commit()
+    trigger_webhook_async('order_approved', {'order_id': order_id, 'shop_id': o['shop_id'], 'by': 'voice_agent', 'timestamp': ist_now_iso()})
+    return jsonify({'success': True, 'speak': f'Order {order_id} approve karke vendor ko bhej diya.'})
+
+@app.route('/api/agent/orders/<int:order_id>/reject', methods=['POST'])
+def agent_reject_order(order_id):
+    err = _agent_auth()
+    if err: return err
+    data = request.get_json(silent=True) or {}
+    reason = (data.get('reason') or 'Voice agent se reject kiya').strip()[:200]
+    db = get_db(); cursor = db.cursor()
+    cursor.execute("SELECT status FROM orders WHERE id = ?", (order_id,))
+    o = cursor.fetchone()
+    if not o: return jsonify({'error': 'Order nahi mila.', 'speak': f'Order {order_id} nahi mila.'}), 404
+    if o['status'] in ('DELIVERED', 'FAILED'):
+        return jsonify({'error': 'Order already closed.', 'speak': f'Order {order_id} pehle se {_STATUS_HI.get(o["status"], o["status"])} hai.'}), 400
+    cursor.execute("UPDATE orders SET status = 'FAILED', failure_reason = ? WHERE id = ?", (reason, order_id))
+    db.commit()
+    trigger_webhook_async('status_changed', {'order_id': order_id, 'new_status': 'FAILED', 'by': 'voice_agent', 'timestamp': ist_now_iso()})
+    return jsonify({'success': True, 'speak': f'Order {order_id} reject kar diya.'})
+
+@app.route('/api/agent/search', methods=['GET'])
+def agent_search():
+    err = _agent_auth()
+    if err: return err
+    q = (request.args.get('q') or '').strip()
+    if len(q) < 2: return jsonify({'error': 'Query chhoti hai.'}), 400
+    like = f'%{q}%'
+    db = get_db(); cursor = db.cursor()
+    cursor.execute("SELECT id, name, phone, address FROM users WHERE name LIKE ? OR phone LIKE ? LIMIT 5", (like, like))
+    customers = [dict(r) for r in cursor.fetchall()]
+    cursor.execute("""SELECT p.id, p.name, p.price, p.is_available, s.shop_name FROM products p JOIN shops s ON s.id=p.shop_id
+                      WHERE p.name LIKE ? LIMIT 8""", (like,))
+    products = [dict(r) for r in cursor.fetchall()]
+    speak = f"{len(customers)} customer aur {len(products)} product mile."
+    if customers: speak += ' Customer: ' + ', '.join(c['name'] for c in customers) + '.'
+    if products: speak += ' Product: ' + ', '.join(f"{p['name']} {int(p['price'])} rupaye" for p in products[:4]) + '.'
+    return jsonify({'customers': customers, 'products': products, 'speak': speak})
+
+# ---- admin: token management ----
+@app.route('/api/admin/agent-token', methods=['GET'])
+def admin_get_agent_token():
+    guard = _admin_only()
+    if guard: return guard
+    tok = _agent_token_from_db(get_db().cursor())
+    return jsonify({'token': tok, 'enabled': bool(tok), 'base_url': request.url_root.rstrip('/')})
+
+@app.route('/api/admin/agent-token/regenerate', methods=['POST'])
+def admin_regenerate_agent_token():
+    guard = _admin_only()
+    if guard: return guard
+    import secrets as _sec
+    tok = 'hb_' + _sec.token_urlsafe(32)
+    db = get_db()
+    db.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('agent_api_token', ?)", (tok,))
+    db.commit()
+    return jsonify({'success': True, 'token': tok, 'message': 'Naya token ban gaya. Purana token ab kaam nahi karega.'})
+
+@app.route('/api/admin/agent-token', methods=['DELETE'])
+def admin_disable_agent_token():
+    guard = _admin_only()
+    if guard: return guard
+    db = get_db()
+    db.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('agent_api_token', '')")
+    db.commit()
+    return jsonify({'success': True, 'message': 'Agent API band kar diya.'})
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TAKHATPUR SURFAR — in-app mini game (static/game) + Gamer Leaderboard

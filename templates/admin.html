@@ -2548,6 +2548,27 @@
                     </div>
                 </div>
 
+                <!-- Voice Agent (Jarvis) API Token -->
+                <div class="dashboard-card" style="margin-top: 20px; border-left: 4px solid #0ea5e9;" id="agent-token-card">
+                    <div class="card-header-row">
+                        <h3 class="card-title-text" style="color:#0369a1;"><i data-lucide="mic"></i> Voice Agent (Jarvis) API Token</h3>
+                        <span class="status-badge" id="agent-token-status">--</span>
+                    </div>
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin:6px 0 12px;">Jarvis (ya koi bhi bot) is token se orders padh sakta hai, approve/reject kar sakta hai aur summary le sakta hai. Token kisi ko mat bhejein. Header: <code>X-Agent-Token</code></p>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <input type="text" id="agent-token-input" class="form-input-custom" readonly style="flex:1; min-width:260px; font-family:monospace; font-size:0.8rem;" placeholder="Token abhi set nahi hai">
+                        <button class="btn-custom btn-custom-secondary" style="margin:0;" onclick="copyAgentToken()"><i data-lucide="copy" style="width:14px;height:14px;"></i> Copy</button>
+                        <button class="btn-custom btn-custom-primary" style="margin:0;" onclick="regenerateAgentToken()"><i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Naya Token</button>
+                        <button class="btn-custom" style="margin:0; background:var(--ruby-light); color:var(--ruby-danger); border:1px solid rgba(239,68,68,0.2); border-radius:var(--radius-sm); font-weight:700; cursor:pointer; padding:8px 12px;" onclick="disableAgentToken()">Band karo</button>
+                    </div>
+                    <div id="agent-token-help" style="margin-top:12px; font-size:0.75rem; color:var(--text-secondary); background:#f8fafc; border:1px dashed var(--border-color); border-radius:10px; padding:10px 12px; line-height:1.6;">
+                        <b>Jarvis ke .env me daalein:</b><br>
+                        <code>HAMAR_BAZAR_URL=<span id="agent-base-url">https://shop.hamarai.in</span></code><br>
+                        <code>HAMAR_BAZAR_AGENT_TOKEN=&lt;upar wala token&gt;</code><br>
+                        Endpoints: <code>/api/agent/ping</code>, <code>/api/agent/orders/recent?limit=5&amp;status=ACTIVE|AWAITING_ADMIN|PENDING&amp;minutes=60</code>, <code>/api/agent/orders/&lt;id&gt;</code>, <code>/api/agent/summary?range=today|week|month</code>, <code>POST /api/agent/orders/&lt;id&gt;/approve</code>, <code>POST /api/agent/orders/&lt;id&gt;/reject</code>, <code>/api/agent/search?q=</code>. Har response me <code>speak</code> field bolne-layak Hinglish text hai.
+                    </div>
+                </div>
+
                 <!-- Vendor Order Alarm Sound (mp3) -->
                 <div class="dashboard-card" style="margin-top: 20px;" id="vendor-alarm-card">
                     <div class="card-header-row">
@@ -6796,7 +6817,37 @@
                 .then(r => r.json()).then(d => showAestheticToast(d.message || d.error, d.success ? "success" : "error"));
         }
 
+        // ===== Voice agent token =====
+        function loadAgentToken() {
+            fetch('/api/admin/agent-token').then(r => r.json()).then(d => {
+                const inp = document.getElementById('agent-token-input'); if (!inp) return;
+                inp.value = d.token || '';
+                const st = document.getElementById('agent-token-status');
+                if (st) { st.innerText = d.enabled ? 'ON' : 'OFF'; st.className = 'status-badge ' + (d.enabled ? 'badge-delivered' : 'badge-failed'); }
+                const bu = document.getElementById('agent-base-url'); if (bu && d.base_url) bu.innerText = d.base_url;
+            }).catch(() => {});
+        }
+        function copyAgentToken() {
+            const v = document.getElementById('agent-token-input').value;
+            if (!v) { showAestheticToast('Pehle "Naya Token" banayein.', 'error'); return; }
+            (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => showAestheticToast('Token copy ho gaya.', 'success')).catch(() => prompt('Token copy karein:', v));
+        }
+        function regenerateAgentToken() {
+            const inp = document.getElementById('agent-token-input');
+            if (inp && inp.value && !confirm('Naya token banane se purana token band ho jayega. Jarvis me naya token daalna padega. Continue?')) return;
+            fetch('/api/admin/agent-token/regenerate', { method: 'POST' }).then(r => r.json()).then(d => {
+                showAestheticToast(d.message || d.error, d.success ? 'success' : 'error'); loadAgentToken();
+            });
+        }
+        function disableAgentToken() {
+            if (!confirm('Agent API band karein? Jarvis orders nahi padh payega.')) return;
+            fetch('/api/admin/agent-token', { method: 'DELETE' }).then(r => r.json()).then(d => {
+                showAestheticToast(d.message || d.error, d.success ? 'success' : 'error'); loadAgentToken();
+            });
+        }
+
         function loadAdminAboutTeamPhoto() {
+            try { loadAgentToken(); } catch (e) { console.error(e); }
             try { loadGameSettings(); } catch (e) { console.error(e); }
             fetch('/api/system/settings')
                 .then(res => res.json())
