@@ -914,6 +914,31 @@ def serve_service_worker():
     response.headers['Expires'] = '0'
     return response
 
+def _maskable_icon_path(logo_url, size):
+    """Build (and cache) a maskable PNG: logo scaled into the 80% safe zone on a white square."""
+    import hashlib
+    from PIL import Image
+    if not logo_url or not logo_url.startswith('/static/'):
+        return None
+    src_path = os.path.join(app.root_path, logo_url.lstrip('/').replace('/', os.sep))
+    if not os.path.exists(src_path):
+        return None
+    key = hashlib.md5(f"{logo_url}|{int(os.path.getmtime(src_path))}|{size}".encode()).hexdigest()[:12]
+    out_dir = os.path.join(app.root_path, 'static', 'uploads', 'system')
+    os.makedirs(out_dir, exist_ok=True)
+    out_name = f"maskable_{size}_{key}.png"
+    out_path = os.path.join(out_dir, out_name)
+    if not os.path.exists(out_path):
+        im = Image.open(src_path).convert('RGBA')
+        canvas = Image.new('RGBA', (size, size), (255, 255, 255, 255))
+        inner = int(size * 0.72)
+        im.thumbnail((inner, inner), Image.LANCZOS)
+        # composite logo over white (drops transparency) centred
+        off = ((size - im.width) // 2, (size - im.height) // 2)
+        canvas.alpha_composite(im, off)
+        canvas.convert('RGB').save(out_path, 'PNG', optimize=True)
+    return f"/static/uploads/system/{out_name}"
+
 @app.route('/manifest.json')
 def serve_manifest():
     import json
@@ -980,6 +1005,27 @@ def serve_manifest():
                     icon['type'] = 'image/webp'
                 elif logo_url.lower().endswith('.gif'):
                     icon['type'] = 'image/gif'
+
+    # Maskable icons: Android (Play Store / TWA / home screen) crops icons into circles/squircles.
+    # A logo with transparent corners renders with a black background there, so we generate a
+    # padded version on a solid white square (logo inside the 80% safe zone).
+    try:
+        _src_icon = logo_url_512 or logo_url
+        if not os.path.exists(os.path.join(app.root_path, (_src_icon or '').lstrip('/').replace('/', os.sep))):
+            _src_icon = '/static/images/app_logo_512.png'
+        maskable_192 = _maskable_icon_path(_src_icon, 192)
+        maskable_512 = _maskable_icon_path(_src_icon, 512)
+        icons = [i for i in manifest_data.get('icons', []) if i.get('purpose') != 'maskable']
+        for i in icons:
+            i['purpose'] = 'any'
+        if maskable_192 and maskable_512:
+            icons.append({'src': maskable_192, 'sizes': '192x192', 'type': 'image/png', 'purpose': 'maskable'})
+            icons.append({'src': maskable_512, 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'})
+        manifest_data['icons'] = icons
+    except Exception as _e:
+        print('maskable icon warning:', _e)
+    manifest_data['display_override'] = ['standalone', 'minimal-ui']
+    manifest_data.setdefault('background_color', '#ffffff')
 
     # Update all shortcuts icons using PNG format and matching 192x192 dimensions
     if 'shortcuts' in manifest_data:
