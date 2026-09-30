@@ -274,7 +274,7 @@ const IS_MOBILE = IS_TOUCH && Math.min(screen.width, screen.height) < 820;
 
 const LANE_W = 2.4, LANES = 3, ROAD_W = LANE_W * LANES, ROAD_HALF = ROAD_W / 2;
 const laneX = i => (i - 1) * LANE_W;
-const BASE_SPEED = 13, MAX_SPEED = 31, SPEED_RAMP = 0.115;
+const BASE_SPEED = 15, MAX_SPEED = 42, SPEED_RAMP = 0.24;   // faster start, higher cap, speed climbs ~2x quicker
 const JUMP_V = 8.2, GRAVITY = 25, ROLL_TIME = 0.75;
 const SPAWN_Z = -150, DESPAWN_Z = 16;
 
@@ -1428,7 +1428,7 @@ function pickPattern(maxTier) {
   for (const p of list) { r -= p.w; if (r <= 0) return p; } return list[0];
 }
 function fillObstacles(v) {
-  const diff = clamp(G.elapsed / 125, 0, 1), maxTier = Math.min(3, Math.floor(diff * 3.6)), gap = lerp(1.25, .78, diff);
+  const diff = clamp(G.elapsed / 70, 0, 1), maxTier = Math.min(3, Math.floor(diff * 3.6)), gap = lerp(1.1, .6, diff);   // harder patterns sooner, tighter gaps
   while (PAT.cursor > SPAWN_Z) {
     const p = pickPattern(maxTier), dur = p.fn(PAT.cursor, v), span = dur * v + gap * v;
     PAT.sincePower += span;
@@ -1709,7 +1709,7 @@ function showMenu() {
 }
 function startGame() {
   Sfx.init(); Sfx.resume(); clearTrack(); resetPlayer();
-  Object.assign(G, { state: 'ready', speed: 0, dist: 0, score: 0, coins: 0, mult: 1, elapsed: 0, shield: false, readyT: 0, deathType: '', msCount: 0 });
+  Object.assign(G, { state: 'ready', speed: 0, dist: 0, score: 0, coins: 0, mult: 1, elapsed: 0, shield: false, readyT: 0, deathType: '', msCount: 0, surgeShown: 0 });
   G.powers.chai = G.powers.magnet = 0; renderPowers(); readyStep = -1;
   $('menu').classList.add('hidden'); $('gameover').classList.add('hidden'); $('pause').classList.add('hidden'); $('hud').classList.remove('hidden');
   if (IS_TOUCH) $('mobileHint').classList.remove('hidden');
@@ -1720,9 +1720,9 @@ function popReady(txt) {
   setTimeout(() => { r.style.transition = 'all .6s ease-out'; r.style.opacity = 0; r.style.transform = 'translate(-50%,-50%) scale(.6)'; }, 80);
 }
 function readyTick(dt) {
-  G.readyT += dt; const step = Math.floor(G.readyT / .7);
+  G.readyT += dt; const step = Math.floor(G.readyT / .45);
   if (step !== readyStep) { readyStep = step; const txt = ['3', '2', '1', 'भागो!'][step]; if (txt) { popReady(txt); step < 3 ? Sfx.tick() : Sfx.go(); } }
-  if (G.readyT >= 2.75) { G.state = 'playing'; G.speed = BASE_SPEED; Sfx.music.start(); setTimeout(() => $('mobileHint').classList.add('hidden'), 4000); }
+  if (G.readyT >= 1.8) { G.state = 'playing'; G.speed = BASE_SPEED; Sfx.music.start(); setTimeout(() => $('mobileHint').classList.add('hidden'), 4000); }
 }
 function dyingTick() { if (P.dyingT > 1.5) gameOver(); }
 function gameOver() {
@@ -1787,7 +1787,10 @@ function bindInput() {
 function update(dt) {
   const st = G.state; let v = 0;
   if (st === 'menu') v = 5;
-  else if (st === 'playing') { G.elapsed += dt; G.speed = Math.min(MAX_SPEED, BASE_SPEED + G.elapsed * SPEED_RAMP); v = G.speed; }
+  else if (st === 'playing') {
+    G.elapsed += dt; G.speed = Math.min(MAX_SPEED, BASE_SPEED + G.elapsed * SPEED_RAMP); v = G.speed;
+    const surge = Math.floor(G.dist / 400); if (surge > (G.surgeShown || 0) && G.speed < MAX_SPEED) { G.surgeShown = surge; showHint('⚡ Speed up!'); Sfx.milestone(); }
+  }
   else if (st === 'dying') { G.speed = Math.max(0, G.speed - 45 * dt); v = G.speed; }
   const dz = v * dt;
   if (P.obj && P.obj.vehicle && st === 'playing') Sfx.engineSet(v); else Sfx.engineSet(0);
