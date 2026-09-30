@@ -274,7 +274,7 @@ const IS_MOBILE = IS_TOUCH && Math.min(screen.width, screen.height) < 820;
 
 const LANE_W = 2.4, LANES = 3, ROAD_W = LANE_W * LANES, ROAD_HALF = ROAD_W / 2;
 const laneX = i => (i - 1) * LANE_W;
-const BASE_SPEED = 19, MAX_SPEED = 48, SPEED_RAMP = 0.3;   // faster start, higher cap, speed climbs ~2x quicker
+const BASE_SPEED = 19, MAX_SPEED = 95, SPEED_RAMP = 0.42, SPEED_ACCEL = 0.0035;   // no practical cap: keeps climbing (linear + accelerating)   // faster start, higher cap, speed climbs ~2x quicker
 const JUMP_V = 8.2, GRAVITY = 25, ROLL_TIME = 0.75;
 const SPAWN_Z = -150, DESPAWN_Z = 16;
 
@@ -1788,8 +1788,8 @@ function update(dt) {
   const st = G.state; let v = 0;
   if (st === 'menu') v = 5;
   else if (st === 'playing') {
-    G.elapsed += dt; G.speed = Math.min(MAX_SPEED, BASE_SPEED + G.elapsed * SPEED_RAMP); v = G.speed;
-    const surge = Math.floor(G.dist / 400); if (surge > (G.surgeShown || 0) && G.speed < MAX_SPEED) { G.surgeShown = surge; showHint('⚡ Speed up!'); Sfx.milestone(); }
+    G.elapsed += dt; G.speed = Math.min(MAX_SPEED, BASE_SPEED + G.elapsed * SPEED_RAMP + G.elapsed * G.elapsed * SPEED_ACCEL); v = G.speed;
+    const surge = Math.floor(G.dist / 400); if (surge > (G.surgeShown || 0)) { G.surgeShown = surge; showHint('⚡ Speed up!'); Sfx.milestone(); }
   }
   else if (st === 'dying') { G.speed = Math.max(0, G.speed - 45 * dt); v = G.speed; }
   const dz = v * dt;
