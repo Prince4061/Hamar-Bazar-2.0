@@ -6519,6 +6519,132 @@ def privacy_page():
 def terms_page():
     return render_template('legal.html', page='terms')
 
+@app.route('/api/agent/orders/<int:order_id>/status', methods=['POST'])
+def agent_set_order_status(order_id):
+    """Voice agent: change an order's status (accept / ready / out for delivery / delivered / failed / pending).
+    Same rules as the admin panel's change-status (timestamps, rider counters, auto admin-approval)."""
+    err = _agent_auth()
+    if err: return err
+    data = request.get_json(silent=True) or {}
+    new_status = (data.get('status') or '').strip().upper().replace(' ', '_')
+    aliases = {'ACCEPT': 'ACCEPTED', 'READY': 'READY_FOR_PICKUP', 'PICKUP': 'READY_FOR_PICKUP', 'OUT': 'OUT_FOR_DELIVERY',
+               'DISPATCHED': 'OUT_FOR_DELIVERY', 'DELIVER': 'DELIVERED', 'COMPLETE': 'DELIVERED', 'COMPLETED': 'DELIVERED',
+               'CANCEL': 'FAILED', 'CANCELLED': 'FAILED', 'REJECT': 'FAILED', 'FAIL': 'FAILED'}
+    new_status = aliases.get(new_status, new_status)
+    valid = ['PENDING', 'ACCEPTED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED', 'FAILED']
+    if new_status not in valid:
+        return jsonify({'error': f'Invalid status: {new_status}', 'speak': 'Yeh status samajh nahi aaya. Accept, ready, out for delivery, delivered ya failed bolo.'}), 400
+    reason = (data.get('reason') or '').strip()[:200]
+    db = get_db(); cursor = db.cursor()
+    cursor.execute("SELECT * FROM orders WHERE id = ?", (order_id,))
+    order = cursor.fetchone()
+    if not order:
+        return jsonify({'error': 'Order not found.', 'speak': f'Order {order_id} nahi mila.'}), 404
+    old_status = order['status']; rider_id = order['delivery_boy_id']
+    if old_status == new_status:
+        return jsonify({'success': True, 'speak': f'Order {order_id} pehle se {_STATUS_HI.get(new_status, new_status)} hai.'})
+    now_str = ist_now_str()
+    try:
+        cursor.execute("UPDATE orders SET status = ?, admin_approved = 1, admin_approved_at = COALESCE(admin_approved_at, ?) WHERE id = ?", (new_status, now_str, order_id))
+        if new_status == 'ACCEPTED' and not order['accepted_at']:
+            cursor.execute("UPDATE orders SET accepted_at = ? WHERE id = ?", (now_str, order_id))
+        elif new_status == 'READY_FOR_PICKUP' and not order['ready_at']:
+            cursor.execute("UPDATE orders SET ready_at = ? WHERE id = ?", (now_str, order_id))
+        elif new_status == 'OUT_FOR_DELIVERY' and not order['assigned_at']:
+            cursor.execute("UPDATE orders SET assigned_at = ? WHERE id = ?", (now_str, order_id))
+        elif new_status == 'DELIVERED' and not order['delivered_at']:
+            cursor.execute("UPDATE orders SET delivered_at = ? WHERE id = ?", (now_str, order_id))
+        if new_status == 'FAILED':
+            cursor.execute("UPDATE orders SET failure_reason = ? WHERE id = ?", (reason or 'Voice agent se failed mark kiya', order_id))
+        if rider_id:
+            active = ['ACCEPTED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY']
+            if old_status in active and new_status not in active:
+                cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (rider_id,))
+            elif old_status not in active and new_status in active:
+                cursor.execute("UPDATE delivery_partners SET active_orders = active_orders + 1 WHERE id = ?", (rider_id,))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e), 'speak': 'Status badalte waqt error aa gaya.'}), 500
+    trigger_webhook_async('status_changed', {'order_id': order_id, 'old_status': old_status, 'new_status': new_status, 'changed_by': 'voice_agent', 'timestamp': ist_now_iso()})
+    return jsonify({'success': True, 'old_status': old_status, 'new_status': new_status,
+                    'speak': f'Order {order_id} ab {_STATUS_HI.get(new_status, new_status)} hai.'})
+
+@app.route('/api/agent/search-insights', methods=['GET'])
+def agent_search_insights():
+    """Voice agent: what customers are searching for (top keywords, trends vs previous period, unmet demand)."""
+    err = _agent_auth()
+    if err: return err
+    rng = (request.args.get('range') or 'today').lower()
+    now = ist_now()
+    days = {'today': 1, 'week': 7, 'month': 30}.get(rng, 1); rng = rng if rng in ('today', 'week', 'month') else 'today'
+    if rng == 'today':
+        cur_from = now.strftime('%Y-%m-%d 00:00:00'); prev_from = (now - timedelta(days=1)).strftime('%Y-%m-%d 00:00:00'); prev_to = cur_from
+    else:
+        cur_from = (now - timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S'); prev_from = (now - timedelta(days=2 * days)).strftime('%Y-%m-%d %H:%M:%S'); prev_to = cur_from
+    db = get_db(); cursor = db.cursor()
+    cursor.execute("SELECT COUNT(*) AS n, COUNT(DISTINCT customer_id) AS c FROM search_history WHERE searched_at >= ?", (cur_from,))
+    tot = dict(cursor.fetchone())
+    cursor.execute("SELECT COUNT(*) AS n FROM search_history WHERE searched_at >= ? AND searched_at < ?", (prev_from, prev_to))
+    prev_n = cursor.fetchone()['n'] or 0
+    cursor.execute("""SELECT LOWER(TRIM(keyword)) AS kw, COUNT(*) AS n, COUNT(DISTINCT customer_id) AS users
+                      FROM search_history WHERE searched_at >= ? AND TRIM(keyword) != '' GROUP BY kw ORDER BY n DESC LIMIT 12""", (cur_from,))
+    top = [dict(r) for r in cursor.fetchall()]
+    cursor.execute("""SELECT LOWER(TRIM(keyword)) AS kw, COUNT(*) AS n FROM search_history
+                      WHERE searched_at >= ? AND searched_at < ? GROUP BY kw""", (prev_from, prev_to))
+    prev = {r['kw']: r['n'] for r in cursor.fetchall()}
+    rising = sorted([{'kw': t['kw'], 'now': t['n'], 'before': prev.get(t['kw'], 0)} for t in top if t['n'] > prev.get(t['kw'], 0)],
+                    key=lambda x: x['now'] - x['before'], reverse=True)[:5]
+    # keywords that match no available product = unmet demand
+    unmet = []
+    for t in top:
+        cursor.execute("SELECT COUNT(*) FROM products WHERE is_available = 1 AND (LOWER(name) LIKE ? OR LOWER(COALESCE(keywords,'')) LIKE ?)", (f"%{t['kw']}%", f"%{t['kw']}%"))
+        if (cursor.fetchone()[0] or 0) == 0:
+            unmet.append(t['kw'])
+    cursor.execute("SELECT product_name, COUNT(*) AS n FROM product_requests WHERE created_at >= ? GROUP BY LOWER(product_name) ORDER BY n DESC LIMIT 5", (cur_from,))
+    requests_ = [dict(r) for r in cursor.fetchall()]
+    cursor.execute("SELECT STRFTIME('%H', searched_at) AS h, COUNT(*) AS n FROM search_history WHERE searched_at >= ? GROUP BY h ORDER BY n DESC LIMIT 1", (cur_from,))
+    peak = cursor.fetchone()
+    label = {'today': 'Aaj', 'week': 'Is hafte', 'month': 'Is mahine'}[rng]
+    trend = ''
+    if prev_n:
+        pct = round((tot['n'] - prev_n) * 100 / prev_n)
+        trend = f" Pichle period se {abs(pct)} pratishat {'zyada' if pct >= 0 else 'kam'}."
+    speak = f"{label} {tot['n'] or 0} searches hui, {tot['c'] or 0} alag customers ne.{trend}"
+    if top: speak += " Sabse zyada khoje gaye: " + ', '.join(f"{t['kw']} {t['n']} baar" for t in top[:5]) + "."
+    if rising: speak += " Trending: " + ', '.join(r['kw'] for r in rising[:3]) + "."
+    if unmet: speak += " Yeh cheezein log dhundh rahe hain par app me nahi hain: " + ', '.join(unmet[:4]) + ". Inhe add karne se sale badh sakti hai."
+    if requests_: speak += " Product requests: " + ', '.join(f"{r['product_name']}" for r in requests_[:3]) + "."
+    if peak: speak += f" Sabse zyada search {int(peak['h'])} baje ke aas paas hoti hai."
+    return jsonify({'range': rng, 'total_searches': tot['n'] or 0, 'unique_customers': tot['c'] or 0, 'previous_period_searches': prev_n,
+                    'top_keywords': top, 'rising': rising, 'unmet_demand': unmet, 'product_requests': requests_,
+                    'peak_hour': int(peak['h']) if peak else None, 'speak': speak})
+
+@app.route('/api/agent/customers/lookup', methods=['GET'])
+def agent_customer_lookup():
+    """Voice agent: who is a customer (by name/phone) and their recent orders."""
+    err = _agent_auth()
+    if err: return err
+    q = (request.args.get('q') or '').strip()
+    if len(q) < 2: return jsonify({'error': 'Query chhoti hai.', 'speak': 'Naam ya number thoda bada bolo.'}), 400
+    like = f'%{q}%'
+    db = get_db(); cursor = db.cursor()
+    cursor.execute("""SELECT u.id, u.name, u.phone, u.address, u.is_blocked,
+                             (SELECT COUNT(*) FROM orders o WHERE o.customer_id = u.id) AS total_orders,
+                             (SELECT COUNT(*) FROM orders o WHERE o.customer_id = u.id AND o.status='DELIVERED') AS delivered
+                      FROM users u WHERE u.name LIKE ? OR u.phone LIKE ? ORDER BY total_orders DESC LIMIT 5""", (like, like))
+    customers = [dict(r) for r in cursor.fetchall()]
+    if not customers:
+        return jsonify({'customers': [], 'speak': f'{q} naam ya number ka koi customer nahi mila.'})
+    c0 = customers[0]
+    cursor.execute(_AGENT_ORDER_SQL + " WHERE o.customer_id = ? ORDER BY o.id DESC LIMIT 3", (c0['id'],))
+    recent = [_order_row_to_agent(dict(r)) for r in cursor.fetchall()]
+    speak = f"{c0['name']}, address {c0['address'] or 'nahi hai'}, ab tak {c0['total_orders']} order, {c0['delivered']} deliver hue."
+    if c0['is_blocked']: speak += " Yeh account blocked hai."
+    if recent: speak += " Last order: " + recent[0]['speak']
+    if len(customers) > 1: speak += f" Aur {len(customers) - 1} milte-julte customer bhi hain."
+    return jsonify({'customers': customers, 'recent_orders': recent, 'speak': speak})
+
 # ---- admin: token management ----
 @app.route('/api/admin/agent-token', methods=['GET'])
 def admin_get_agent_token():
