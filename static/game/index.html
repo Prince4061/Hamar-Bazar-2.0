@@ -274,7 +274,7 @@ const IS_MOBILE = IS_TOUCH && Math.min(screen.width, screen.height) < 820;
 
 const LANE_W = 2.4, LANES = 3, ROAD_W = LANE_W * LANES, ROAD_HALF = ROAD_W / 2;
 const laneX = i => (i - 1) * LANE_W;
-const BASE_SPEED = 15, MAX_SPEED = 42, SPEED_RAMP = 0.24;   // faster start, higher cap, speed climbs ~2x quicker
+const BASE_SPEED = 19, MAX_SPEED = 48, SPEED_RAMP = 0.3;   // faster start, higher cap, speed climbs ~2x quicker
 const JUMP_V = 8.2, GRAVITY = 25, ROLL_TIME = 0.75;
 const SPAWN_Z = -150, DESPAWN_Z = 16;
 
@@ -1428,7 +1428,7 @@ function pickPattern(maxTier) {
   for (const p of list) { r -= p.w; if (r <= 0) return p; } return list[0];
 }
 function fillObstacles(v) {
-  const diff = clamp(G.elapsed / 70, 0, 1), maxTier = Math.min(3, Math.floor(diff * 3.6)), gap = lerp(1.1, .6, diff);   // harder patterns sooner, tighter gaps
+  const diff = clamp(0.25 + G.elapsed / 60, 0, 1), maxTier = Math.min(3, Math.floor(diff * 3.6)), gap = lerp(1.0, .55, diff);   // starts at 25% difficulty, peaks by ~45s   // harder patterns sooner, tighter gaps
   while (PAT.cursor > SPAWN_Z) {
     const p = pickPattern(maxTier), dur = p.fn(PAT.cursor, v), span = dur * v + gap * v;
     PAT.sincePower += span;
