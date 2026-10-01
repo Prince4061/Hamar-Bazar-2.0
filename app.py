@@ -178,6 +178,7 @@ def add_header(response):
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
         "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
         "img-src * data: blob:; "
+        "media-src 'self' blob: data: https://res.cloudinary.com; "
         "connect-src 'self' blob: data: https://checkout.razorpay.com; "
         "frame-src 'self' https://api.razorpay.com; "
         "object-src 'none';"
@@ -1127,6 +1128,21 @@ def _maskable_icon_path(logo_url, size):
         canvas.alpha_composite(im, off)
         canvas.convert('RGB').save(out_path, 'PNG', optimize=True)
     return f"/static/uploads/system/{out_name}"
+
+@app.route('/favicon.ico')
+def favicon():
+    """Browsers request /favicon.ico automatically; serve the app logo instead of a 404."""
+    try:
+        db = get_db(); cursor = db.cursor()
+        cursor.execute("SELECT value FROM system_settings WHERE key = 'app_logo_192'")
+        row = cursor.fetchone()
+        rel = (row['value'] if row and row['value'] else '') or '/static/images/app_logo_192.png'
+        path = os.path.join(app.root_path, rel.lstrip('/').replace('/', os.sep)) if rel.startswith('/static/') else ''
+        if not path or not os.path.isfile(path):
+            path = os.path.join(app.root_path, 'static', 'images', 'app_logo_192.png')
+        return send_file(path, mimetype='image/png', max_age=86400)
+    except Exception:
+        return send_file(os.path.join(app.root_path, 'static', 'images', 'app_logo_192.png'), mimetype='image/png', max_age=86400)
 
 @app.route('/manifest.json')
 def serve_manifest():
