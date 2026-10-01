@@ -3176,19 +3176,19 @@
 
                             let customNotes = '';
                             if (item.custom_text) {
-                                customNotes += `<div style="font-size:0.75rem; color:#0284c7; margin-top:2px;">✒️ Msg: "<strong>${item.custom_text}</strong>"</div>`;
+                                customNotes += `<div style="font-size:0.75rem; color:#0284c7; margin-top:2px;">✒️ Msg: "<strong>${escHtml(item.custom_text)}</strong>"</div>`;
                             }
                             if (item.custom_instructions) {
-                                customNotes += `<div style="font-size:0.75rem; color:#d97706; margin-top:2px;">📝 Note: <em>${item.custom_instructions}</em></div>`;
+                                customNotes += `<div style="font-size:0.75rem; color:#d97706; margin-top:2px;">📝 Note: <em>${escHtml(item.custom_instructions)}</em></div>`;
                             }
                             if (item.custom_image_path) {
-                                customNotes += `<div style="font-size:0.75rem; color:#16a34a; margin-top:2px;">🖼️ <a href="${item.custom_image_path}" target="_blank" style="color:#16a34a; text-decoration:underline;">View Design Image</a></div>`;
+                                customNotes += `<div style="font-size:0.75rem; color:#16a34a; margin-top:2px;">🖼️ <a href="${escHtml(item.custom_image_path)}" target="_blank" style="color:#16a34a; text-decoration:underline;">View Design Image</a></div>`;
                             }
 
                             itemsTableRows += `
                                 <tr style="border-bottom: 1px dashed #e2e8f0;">
                                     <td style="padding: 8px 4px; font-weight:600; color:#1e293b; font-size:0.85rem;">
-                                        ${item.product_name || 'Product'}
+                                        ${escHtml(item.product_name || 'Product')}
                                         ${customNotes}
                                     </td>
                                     <td style="padding: 8px 4px; text-align:center; font-weight:700; color:#475569; font-size:0.85rem;">x${qty}</td>
@@ -3245,7 +3245,7 @@
                     } else if (order.status === 'OUT_FOR_DELIVERY') {
                         actionButtonHTML = `
                             <div style="margin-top:16px; padding:12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; text-align:center; color:#166534; font-weight:700; font-size:0.85rem;">
-                                🛵 En Route to Customer House (${order.rider_name || 'Rider'})
+                                🛵 En Route to Customer House (${escHtml(order.rider_name || 'Rider')})
                             </div>
                         `;
                     } else if (order.status === 'DELIVERED') {
@@ -3267,10 +3267,10 @@
 
                         <!-- Customer Details Card -->
                         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:16px; font-size:0.82rem; display:flex; flex-direction:column; gap:4px;">
-                            <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Customer:</span> <strong style="color:#0f172a;">${order.customer_name || 'Customer'}</strong></div>
-                            <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Phone:</span> <strong style="color:#0f172a;">${order.customer_phone || 'N/A'}</strong></div>
-                            <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Payment:</span> <strong style="color:#10b981;">${(order.payment_mode || 'COD').toUpperCase()} (${(order.payment_status || 'PENDING').toUpperCase()})</strong></div>
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start;"><span style="color:#64748b; min-width:60px;">Address:</span> <span style="color:#334155; text-align:right; font-weight:500;">${order.customer_address || ''}</span></div>
+                            <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Customer:</span> <strong style="color:#0f172a;">${escHtml(order.customer_name || 'Customer')}</strong></div>
+                            <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Phone:</span> <strong style="color:#0f172a;">${escHtml(order.customer_phone || 'N/A')}</strong></div>
+                            <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Payment:</span> <strong style="color:#10b981;">${escHtml((order.payment_mode || 'COD').toUpperCase())} (${escHtml((order.payment_status || 'PENDING').toUpperCase())})</strong></div>
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start;"><span style="color:#64748b; min-width:60px;">Address:</span> <span style="color:#334155; text-align:right; font-weight:500;">${escHtml(order.customer_address || '')}</span></div>
                         </div>
 
                         <!-- Itemized Billing Invoice Table -->
@@ -3615,7 +3615,7 @@
         window.handleVendorFileSelected = function(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
-                document.getElementById('vendor-file-name-label').innerHTML = `<strong style="color: #0284c7;">Selected:</strong> ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                document.getElementById('vendor-file-name-label').innerHTML = `<strong style="color: #0284c7;">Selected:</strong> ${escHtml(file.name)} (${(file.size / 1024).toFixed(1)} KB)`;
                 const submitBtn = document.getElementById('vendor-bulk-submit-btn');
                 submitBtn.disabled = false;
                 submitBtn.style.cursor = 'pointer';
@@ -3660,14 +3660,14 @@
                     resDiv.style.color = '#065f46';
                     let errHtml = '';
                     if (data.errors && data.errors.length > 0) {
-                        errHtml = `<div style="margin-top:8px; font-size:12px; color:#b91c1c; background: #fff5f5; padding: 8px; border-radius: 6px;"><strong>Warnings / Skipped Rows:</strong><br>${data.errors.join('<br>')}</div>`;
+                        errHtml = `<div style="margin-top:8px; font-size:12px; color:#b91c1c; background: #fff5f5; padding: 8px; border-radius: 6px;"><strong>Warnings / Skipped Rows:</strong><br>${data.errors.map(e => escHtml(e)).join('<br>')}</div>`;
                     }
                     resDiv.innerHTML = `
                         <div style="font-weight: 700; display:flex; align-items:center; gap:6px; font-size: 14px;">
                             <i data-lucide="check-circle" style="color: #10b981; width:18px; height:18px;"></i>
                             Upload Completed Successfully!
                         </div>
-                        <div style="margin-top:4px;">${data.message}</div>
+                        <div style="margin-top:4px;">${escHtml(data.message)}</div>
                         <div style="margin-top:6px; font-size:12px; color:#047857;">New Products: <strong>${data.inserted_count}</strong> | Updated: <strong>${data.updated_count}</strong> | Skipped: <strong>${data.skipped_count}</strong></div>
                         ${errHtml}
                     `;
@@ -3687,7 +3687,7 @@
                             <i data-lucide="alert-triangle" style="color: #ef4444; width:18px; height:18px;"></i>
                             Upload Failed
                         </div>
-                        <div style="margin-top:4px;">${data.error || 'Failed to process spreadsheet.'}</div>
+                        <div style="margin-top:4px;">${escHtml(data.error || 'Failed to process spreadsheet.')}</div>
                     `;
                 }
                 if (window.lucide) lucide.createIcons();
@@ -3700,7 +3700,7 @@
                 resDiv.style.background = '#fef2f2';
                 resDiv.style.border = '1px solid #fecaca';
                 resDiv.style.color = '#991b1b';
-                resDiv.innerHTML = `<strong>Error:</strong> ${err.message || 'Network error or server failed to respond.'}`;
+                resDiv.innerHTML = `<strong>Error:</strong> ${escHtml(err.message || 'Network error or server failed to respond.')}`;
                 if (window.lucide) lucide.createIcons();
             });
         };
@@ -3780,7 +3780,7 @@
                     predictions.forEach(p => {
                         const li = document.createElement("li");
                         li.style.marginBottom = "4px";
-                        li.innerHTML = `<strong style="color: var(--text-primary);">${p.name || ''}</strong> &rarr; ${p.message || ''}`;
+                        li.innerHTML = `<strong style="color: var(--text-primary);">${escHtml(p.name || '')}</strong> &rarr; ${escHtml(p.message || '')}`;
                         list.appendChild(li);
                     });
                     refreshIcons();
@@ -3834,17 +3834,17 @@
                         
                         tr.innerHTML = `
                             <td class="order-id">#PR-${item.id}</td>
-                            <td class="time-cell">${dateStr}</td>
+                            <td class="time-cell">${escHtml(dateStr)}</td>
                             <td>
                                 <div style="display:flex; flex-direction:column; gap:2px;">
-                                    <strong style="color:var(--text-primary); font-size:0.85rem;">${item.customer_name}</strong>
-                                    <span style="font-size:0.8rem; color:var(--text-secondary);"><i data-lucide="phone" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i>${item.customer_phone}</span>
-                                    <span style="font-size:0.75rem; color:var(--text-muted);"><i data-lucide="map-pin" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i>${item.customer_address}</span>
+                                    <strong style="color:var(--text-primary); font-size:0.85rem;">${escHtml(item.customer_name)}</strong>
+                                    <span style="font-size:0.8rem; color:var(--text-secondary);"><i data-lucide="phone" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i>${escHtml(item.customer_phone)}</span>
+                                    <span style="font-size:0.75rem; color:var(--text-muted);"><i data-lucide="map-pin" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i>${escHtml(item.customer_address)}</span>
                                 </div>
                             </td>
                             <td>
-                                <a href="${item.image_path}" target="_blank" title="Click to view full size image">
-                                    <img src="${item.image_path}" alt="Prescription" style="width: 80px; height: 60px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-color); box-shadow: var(--shadow-soft);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
+                                <a href="${escHtml(item.image_path)}" target="_blank" title="Click to view full size image">
+                                    <img src="${escHtml(item.image_path)}" alt="Prescription" style="width: 80px; height: 60px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-color); box-shadow: var(--shadow-soft);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
                                 </a>
                             </td>
                             <td>

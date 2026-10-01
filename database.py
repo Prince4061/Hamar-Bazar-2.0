@@ -504,10 +504,11 @@ def seed_db():
     
     # Seed Users
     _hashed_user_pass = generate_password_hash('password123')
+    # Security answers are stored hashed (same as passwords)
     users_data = [
-        ('Alice Sharma', '9876543210', 'Flat 101, Sunshine Apartments, Sector 4', _hashed_user_pass, 'What is your favorite color?', 'blue'),
-        ('Bob Verma', '8765432109', 'House 23, Green Valley Colony, Road 2', _hashed_user_pass, 'What is your childhood nickname?', 'bobby'),
-        ('Charlie Gupta', '7654321098', 'Penthouse B, Skyline Heights, Main Road', _hashed_user_pass, 'In which city were you born?', 'delhi')
+        ('Alice Sharma', '9876543210', 'Flat 101, Sunshine Apartments, Sector 4', _hashed_user_pass, 'What is your favorite color?', generate_password_hash('blue')),
+        ('Bob Verma', '8765432109', 'House 23, Green Valley Colony, Road 2', _hashed_user_pass, 'What is your childhood nickname?', generate_password_hash('bobby')),
+        ('Charlie Gupta', '7654321098', 'Penthouse B, Skyline Heights, Main Road', _hashed_user_pass, 'In which city were you born?', generate_password_hash('delhi'))
     ]
     for user in users_data:
         cursor.execute('''

@@ -62,4 +62,18 @@ To log in as a delivery boy on the `/staff-login` page (Select **Delivery Boy** 
 
 ### 4. Super Admin (Control Center)
 To log in as Admin on the `/staff-login` page (Select **Admin** role):
-* **Admin**: ID/Username: `admin` | Password: `any_password` *(No strict password validation is required for the admin account; you can use any username/password)*
+* **Admin**: ID/Username: `admin` (or `ADMIN_USERNAME`) | Password: the value of `ADMIN_PASSWORD`.
+* There are **no default admin passwords**. If `ADMIN_PASSWORD` is not set, the app generates a random one on first start, prints it in the server log and stores its hash in `.admin_password` next to the database.
+
+> **Demo accounts above are only created when `SEED_DEMO_DATA=1`** (`run.bat` / `python database.py` do this for local development). A production database starts empty: create shops and riders from the admin panel.
+
+---
+
+## 🔐 Production / Play Store checklist
+
+1. Copy `.env.example` to `.env` and set `FLASK_SECRET_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` (strong), `DATABASE_PATH`, `TUNNEL_TOKEN`. Keep `SEED_DEMO_DATA=0`.
+2. `docker compose up -d --build` — the app must be served over **HTTPS** (Cloudflare tunnel). Session cookies are `Secure` + `HttpOnly` + `SameSite=Lax`, HSTS is sent on HTTPS.
+3. Admin panel → **System** tab → Play Store: enter the Android **package name** and the **SHA-256 fingerprints** (upload key + Play App Signing key). This publishes `/.well-known/assetlinks.json` so the TWA opens full-screen.
+4. Public pages required by Google Play: `/privacy` (Privacy Policy), `/terms` and `/delete-account` (account deletion instructions). Customers can also delete their account in-app from **Profile → Delete**.
+5. In Play Console → Data safety, declare: name, phone, address, optional photo, uploaded images (prescriptions/customisation), search history and game scores; data is encrypted in transit; users can request deletion (in-app and via `/delete-account`).
+6. Change every vendor / rider password from the admin panel before going live; passwords are stored hashed and can no longer be read back from the panel.

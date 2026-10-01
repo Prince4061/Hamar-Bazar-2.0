@@ -13,6 +13,7 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - DATABASE_PATH=${DATABASE_PATH}
+      - SEED_DEMO_DATA=${SEED_DEMO_DATA:-0}
     volumes:
       - db_data:/app/data
       - uploads_data:/app/static/uploads

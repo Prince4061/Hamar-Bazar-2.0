@@ -15,12 +15,13 @@
 </style>
 <div class="legal-wrap">
   <div class="legal-head">
-    <h1>{% if page == 'privacy' %}Privacy Policy{% else %}Terms &amp; Conditions{% endif %}</h1>
+    <h1>{% if page == 'privacy' %}Privacy Policy{% elif page == 'delete' %}Account &amp; Data Deletion{% else %}Terms &amp; Conditions{% endif %}</h1>
     <p>Hamar Bazaar · Hyperlocal delivery, Takhatpur · Last updated: 26 September 2026</p>
   </div>
   <div class="legal-tabs">
     <a href="/privacy" class="{% if page == 'privacy' %}active{% endif %}">Privacy Policy</a>
     <a href="/terms" class="{% if page == 'terms' %}active{% endif %}">Terms &amp; Conditions</a>
+    <a href="/delete-account" class="{% if page == 'delete' %}active{% endif %}">Delete Account</a>
   </div>
 
   {% if page == 'privacy' %}
@@ -50,7 +51,7 @@
   <p>Passwords hashed rakhe jaate hain, sab traffic HTTPS par hota hai, aur admin access password-protected hai. Phir bhi internet par 100% security ki guarantee koi nahi de sakta; kripya apna password kisi se share na karein.</p>
 
   <h2>5. Data retention aur deletion</h2>
-  <p>Order records legal/accounting kaaran se rakhe jaate hain. Aap apna account aur data delete karwane ke liye neeche diye contact par likhein; hum 7 kaam ke dino me profile data hata denge (order history anonymised ho sakti hai).</p>
+  <p>Aap app ke andar <b>Profile &rarr; Account delete karein</b> se khud apna account turant delete kar sakte hain, ya <a href="/delete-account">is page</a> par bataye tarike se request bhej sakte hain. Delete karne par naam, phone, address, photo, security question, searches, reviews aur game scores hata diye jaate hain. Poore ho chuke orders ke records legal/accounting kaaran se anonymised roop me rakhe jaate hain.</p>
 
   <h2>6. Bachche</h2>
   <p>App 13 saal se kam umar ke bachchon ke liye nahi hai. Order dene ke liye aap 18+ hone chahiye ya kisi vayask ki dekh-rekh me hone chahiye.</p>
@@ -61,6 +62,28 @@
   <h2>8. Contact</h2>
   <p>Kisi bhi sawaal, data delete request ya shikayat ke liye: <b>Hamar Bazaar, Takhatpur</b> · Email: <b>{{ system_settings.admin_notification_email or 'support@hamarai.in' }}</b></p>
   <p>Yeh policy samay-samay par update ho sakti hai; nayi date upar dikhegi.</p>
+
+  {% elif page == 'delete' %}
+  <p>Hamar Bazaar (Takhatpur) ka account aur usse juda data delete karne ke do tarike hain. Dono me aapka personal data hamesha ke liye hat jaata hai.</p>
+
+  <h2>1. App ke andar se (turant)</h2>
+  <ul>
+    <li>Hamar Bazaar app / website me login karein.</li>
+    <li>Neeche <b>Profile</b> tab kholein aur sabse neeche <b>"Account hamesha ke liye delete karein" &rarr; Delete</b> dabayein.</li>
+    <li>Apna password confirm karein. Account turant delete ho jaata hai aur aap logout ho jaate hain.</li>
+  </ul>
+  <p>Agar koi order abhi chal raha ho (pending / out for delivery) to pehle use poora ya cancel karna hoga.</p>
+
+  <h2>2. Request bhej kar</h2>
+  <p>Agar aap app me login nahi kar paa rahe, to apne registered mobile number se hume likhein: <b>{{ system_settings.admin_notification_email or 'support@hamarai.in' }}</b> (subject: "Delete my account"). Hum 7 kaam ke dino ke andar account delete karke confirm karenge.</p>
+
+  <h2>Kya delete hota hai</h2>
+  <ul>
+    <li>Naam, mobile number, delivery address, profile photo, password aur security question/answer.</li>
+    <li>Search history, product reviews, service reviews, prescription uploads aur game (Takhatpur Surfar) scores.</li>
+  </ul>
+  <h2>Kya rakha jaata hai</h2>
+  <p>Poore ho chuke orders ka hisaab (bill amount, items, date) legal aur accounting kaaran se rakha jaata hai, lekin usse aapka naam/phone/address hata kar "Deleted User" kar diya jaata hai. Server backups se data 30 din ke andar hat jaata hai.</p>
 
   {% else %}
   <p>Hamar Bazaar app use karne se pehle yeh sharten dhyan se padhein. App use karne ka matlab hai aap in shartein se sehmat hain.</p>

@@ -3618,7 +3618,7 @@
 
                 <div class="form-group-custom">
                     <label class="form-label-custom">Password</label>
-                    <input type="text" id="modal-user-password" class="form-input-custom" style="width: 100%;">
+                    <input type="password" id="modal-user-password" class="form-input-custom" style="width: 100%;" autocomplete="new-password" placeholder="Naya password (khaali chhodein to purana rahega)">
                 </div>
                 
                 <button class="btn-custom btn-custom-primary" style="width: 100%; margin-top: 10px;" onclick="saveUserModal()">Save Changes</button>
@@ -3671,7 +3671,7 @@
 
                 <div class="form-group-custom">
                     <label class="form-label-custom">Password (Login credential)</label>
-                    <input type="password" id="modal-shop-password" class="form-input-custom" style="width: 100%;" placeholder="Enter password (e.g. password123)">
+                    <input type="password" id="modal-shop-password" class="form-input-custom" style="width: 100%;" autocomplete="new-password" placeholder="Naya password (khaali chhodein to purana rahega)">
                 </div>
 
                 <div class="form-group-custom">
@@ -3715,7 +3715,7 @@
 
                 <div class="form-group-custom">
                     <label class="form-label-custom">Password (Login credential)</label>
-                    <input type="password" id="modal-delivery-password" class="form-input-custom" style="width: 100%;" placeholder="Enter password (e.g. password123)">
+                    <input type="password" id="modal-delivery-password" class="form-input-custom" style="width: 100%;" autocomplete="new-password" placeholder="Naya password (khaali chhodein to purana rahega)">
                 </div>
             </div>
             <div class="modal-popup-footer">
@@ -4190,7 +4190,7 @@
             if (r.products.length) {
                 html += `<div class="gs-group-title">Products</div>`;
                 r.products.forEach(p => {
-                    html += `<div class="gs-item" onclick="gsGoProduct(${p.shop_id}, ${p.id}, '${gsEsc(p.name).replace(/'/g, "\\'")}')">
+                    html += `<div class="gs-item" onclick="gsGoProduct(${p.shop_id}, ${p.id}, '${gsEsc((p.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}')">
                         <div class="gs-icon" style="background:#eefbf5;color:#009c62;"><i data-lucide="package"></i></div>
                         <div class="gs-main">
                             <div class="gs-title">${gsHighlight(p.name, q)}</div>
@@ -4505,7 +4505,7 @@
                         const statusText = isPending ? "Pending" : "Added ✓";
                         const dateStr = formatDateTimeDisplay(item.created_at);
                         const custHtml = item.customer_name
-                            ? `<strong style="font-size:0.85rem;">${item.customer_name}</strong><br><span style="font-size:0.78rem; color:var(--text-secondary);">${item.customer_phone || ''}</span>`
+                            ? `<strong style="font-size:0.85rem;">${escapeHtmlAdmin(item.customer_name)}</strong><br><span style="font-size:0.78rem; color:var(--text-secondary);">${escapeHtmlAdmin(item.customer_phone || '')}</span>`
                             : `<span style="color:var(--text-muted); font-size:0.82rem;">Guest</span>`;
                         const actionBtn = isPending
                             ? `<button class="btn-custom btn-custom-primary" onclick="resolveProductRequest(${item.id})" style="margin:0 4px 4px 0;"><i data-lucide="check" style="width:12px;height:12px;"></i> Mark Added</button>`
@@ -4587,15 +4587,15 @@
                             <td style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${dateStr}</td>
                             <td>
                                 <div style="display:flex; flex-direction:column; gap:2px;">
-                                    <strong style="color:var(--text-primary); font-size:0.85rem;">${item.customer_name}</strong>
-                                    <span style="font-size:0.8rem; color:var(--text-secondary);">${item.customer_phone}</span>
+                                    <strong style="color:var(--text-primary); font-size:0.85rem;">${escapeHtmlAdmin(item.customer_name)}</strong>
+                                    <span style="font-size:0.8rem; color:var(--text-secondary);">${escapeHtmlAdmin(item.customer_phone)}</span>
                                 </div>
                             </td>
-                            <td style="font-weight:600; color:var(--text-primary);">${item.shop_name}</td>
+                            <td style="font-weight:600; color:var(--text-primary);">${escapeHtmlAdmin(item.shop_name)}</td>
                             <td style="font-weight:700; color:var(--primary-accent);">₹${item.total_amount.toFixed(2)}</td>
                             <td>
-                                <a href="${getProductImageUrl(item.payment_screenshot)}" target="_blank" title="Click to view full size image">
-                                    <img src="${getProductImageUrl(item.payment_screenshot)}" alt="Payment Screenshot" style="width: 80px; height: 60px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
+                                <a href="${escapeHtmlAdmin(getProductImageUrl(item.payment_screenshot))}" target="_blank" title="Click to view full size image">
+                                    <img src="${escapeHtmlAdmin(getProductImageUrl(item.payment_screenshot))}" alt="Payment Screenshot" style="width: 80px; height: 60px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
                                 </a>
                             </td>
                             <td>
@@ -4690,7 +4690,7 @@
                         let reasonsHtml = "";
                         if (item.suspicion_reasons) {
                             reasonsHtml = item.suspicion_reasons.split("; ").map(r => 
-                                `<span class="status-badge badge-failed" style="font-size:0.75rem; margin:2px; display:inline-block;">${r}</span>`
+                                `<span class="status-badge badge-failed" style="font-size:0.75rem; margin:2px; display:inline-block;">${escapeHtmlAdmin(r)}</span>`
                             ).join(" ");
                         } else {
                             reasonsHtml = `<span class="status-badge badge-delivered" style="font-size:0.75rem;">Clear / Investigated</span>`;
@@ -4711,10 +4711,10 @@
                         tr.innerHTML = `
                             <td style="font-weight:700;">#USR-${item.id}</td>
                             <td>
-                                <strong style="color:var(--text-primary); font-size:0.85rem;">${item.name}</strong>
+                                <strong style="color:var(--text-primary); font-size:0.85rem;">${escapeHtmlAdmin(item.name)}</strong>
                             </td>
-                            <td style="font-size:0.8rem; color:var(--text-secondary); font-weight:600;">${item.phone}</td>
-                            <td style="font-size:0.8rem; color:var(--text-secondary);">${item.address}</td>
+                            <td style="font-size:0.8rem; color:var(--text-secondary); font-weight:600;">${escapeHtmlAdmin(item.phone)}</td>
+                            <td style="font-size:0.8rem; color:var(--text-secondary);">${escapeHtmlAdmin(item.address)}</td>
                             <td style="max-width:280px; white-space:normal; line-height:1.4;">
                                 ${reasonsHtml}
                             </td>
@@ -4809,11 +4809,11 @@
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
                     <td data-label="Order ID" style="font-weight:700;">#ORD${o.id}</td>
-                    <td data-label="Customer" style="font-weight:600;">${o.customer_name}</td>
-                    <td data-label="Shop">${o.shop_name}</td>
+                    <td data-label="Customer" style="font-weight:600;">${escapeHtmlAdmin(o.customer_name)}</td>
+                    <td data-label="Shop">${escapeHtmlAdmin(o.shop_name)}</td>
                     <td data-label="Amount" style="font-weight:700;">₹${o.total_amount.toFixed(2)}</td>
                     <td data-label="Status"><span class="status-badge ${badgeClass}">${o.status.replace(/_/g, ' ')}</span></td>
-                    <td data-label="Priority"><span class="status-badge ${o.priority_type === 'URGENT' ? 'badge-priority' : 'badge-pending'}">${o.priority_type}</span></td>
+                    <td data-label="Priority"><span class="status-badge ${o.priority_type === 'URGENT' ? 'badge-priority' : 'badge-pending'}">${escapeHtmlAdmin(o.priority_type)}</span></td>
                 `;
                 container.appendChild(tr);
             });
@@ -4851,8 +4851,8 @@
                 
                 div.innerHTML = `
                     <div>
-                        <strong style="font-size:0.85rem; color:var(--text-primary);">${item.name}</strong>
-                        <span style="font-size:0.75rem; color:var(--text-muted); display:block;">${item.shop}</span>
+                        <strong style="font-size:0.85rem; color:var(--text-primary);">${escapeHtmlAdmin(item.name)}</strong>
+                        <span style="font-size:0.75rem; color:var(--text-muted); display:block;">${escapeHtmlAdmin(item.shop)}</span>
                     </div>
                     <div style="text-align:right;">
                         <span class="status-badge ${colorClass}" style="font-size:0.7rem;">${item.state}</span>
@@ -4889,16 +4889,16 @@
                   tr.innerHTML = `
                       <td data-label="Order ID" style="font-weight:700;">#ORD${o.id}</td>
                       <td data-label="Date Created" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${formatDateTimeDisplay(o.created_at)}</td>
-                      <td data-label="Customer" style="font-weight:600;">${o.customer_name}</td>
-                      <td data-label="Shop">${o.shop_name}</td>
+                      <td data-label="Customer" style="font-weight:600;">${escapeHtmlAdmin(o.customer_name)}</td>
+                      <td data-label="Shop">${escapeHtmlAdmin(o.shop_name)}</td>
                       <td data-label="Amount" style="font-weight:700; color:var(--primary-accent);">₹${o.total_amount.toFixed(2)}</td>
-                      <td data-label="Priority"><span class="status-badge ${o.priority_type === 'URGENT' ? 'badge-priority' : 'badge-pending'}">${o.priority_type}</span></td>
+                      <td data-label="Priority"><span class="status-badge ${o.priority_type === 'URGENT' ? 'badge-priority' : 'badge-pending'}">${escapeHtmlAdmin(o.priority_type)}</span></td>
                       <td data-label="Status"><span class="status-badge ${badgeClass}" title="${awaitingAdmin ? 'Vendor ko abhi nahi dikh raha — admin approval baaki' : ''}">${statusLabel}</span></td>
                       <td data-label="Handshake OTPs" style="font-family:monospace; font-weight:700; font-size:0.8rem; color:var(--text-secondary);">
                           P: ${o.pickup_otp || '--'} | D: ${o.delivery_otp || '--'}
                       </td>
                       <td data-label="System Logs">
-                          ${o.failure_reason ? `<span style="color:var(--ruby-danger); font-weight:600;"><i data-lucide="x-circle" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:3px;"></i>${o.failure_reason}</span>` : `<span style="color:var(--emerald-green); font-weight:600;"><i data-lucide="check-circle" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:3px;"></i>Handover stable</span>`}
+                          ${o.failure_reason ? `<span style="color:var(--ruby-danger); font-weight:600;"><i data-lucide="x-circle" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:3px;"></i>${escapeHtmlAdmin(o.failure_reason)}</span>` : `<span style="color:var(--emerald-green); font-weight:600;"><i data-lucide="check-circle" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:3px;"></i>Handover stable</span>`}
                       </td>
                       <td data-label="Actions">
                           <div style="display: flex; flex-direction: column; gap: 6px;">
@@ -4979,8 +4979,8 @@
                 pill.style.cssText = "display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.03);";
                 pill.innerHTML = `
                     <span style="background: var(--primary-accent); color: white; border-radius: 6px; padding: 2px 7px; font-size: 0.75rem; font-weight: 800;">#${idx + 1}</span>
-                    <img src="${getProductImageUrl(s.image_path)}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover;" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
-                    <span>${s.shop_name}</span>
+                    <img src="${escapeHtmlAdmin(getProductImageUrl(s.image_path))}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover;" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
+                    <span>${escapeHtmlAdmin(s.shop_name)}</span>
                     <div style="display: inline-flex; gap: 3px; margin-left: 4px;">
                         <button class="btn-custom btn-custom-secondary" style="padding: 2px 6px; font-weight: 800; font-size: 0.75rem; margin: 0; border-radius: 6px;" onclick="moveCategoryOrder(${s.shop_id}, 'up')" title="Move Category Up ⬆️" ${isFirst ? 'disabled style="opacity:0.3; cursor:not-allowed;"' : ''}>⬆️</button>
                         <button class="btn-custom btn-custom-secondary" style="padding: 2px 6px; font-weight: 800; font-size: 0.75rem; margin: 0; border-radius: 6px;" onclick="moveCategoryOrder(${s.shop_id}, 'down')" title="Move Category Down ⬇️" ${isLast ? 'disabled style="opacity:0.3; cursor:not-allowed;"' : ''}>⬇️</button>
@@ -5016,17 +5016,17 @@
                     </td>
                     <td data-label="Shop ID" style="font-weight:700;">#SHP${s.shop_id}</td>
                     <td data-label="Shop Name" style="font-weight:600; display:flex; align-items:center; gap:8px;">
-                        <img src="${getProductImageUrl(s.image_path)}" style="width:24px; height:24px; border-radius:4px; object-fit:cover;" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
-                        <span>${s.shop_name}</span>
+                        <img src="${escapeHtmlAdmin(getProductImageUrl(s.image_path))}" style="width:24px; height:24px; border-radius:4px; object-fit:cover;" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
+                        <span>${escapeHtmlAdmin(s.shop_name)}</span>
                     </td>
-                    <td data-label="Category"><span class="status-badge badge-pending">${s.category}</span></td>
+                    <td data-label="Category"><span class="status-badge badge-pending">${escapeHtmlAdmin(s.category)}</span></td>
                     <td data-label="App Tab">
                         <span class="status-badge ${(s.storefront || 'DAILY').toUpperCase() === 'TECH' ? 'badge-pending' : 'badge-delivered'}" style="font-weight:700;">
                             ${(s.storefront || 'DAILY').toUpperCase() === 'TECH' ? '💻 Tech Tab' : '🏠 Daily Needs'}
                         </span>
-                        ${s.display_label ? `<div style="font-size:0.72rem; color:var(--text-secondary); margin-top:3px;">"${s.display_label}"</div>` : ''}
+                        ${s.display_label ? `<div style="font-size:0.72rem; color:var(--text-secondary); margin-top:3px;">"${escapeHtmlAdmin(s.display_label)}"</div>` : ''}
                     </td>
-                    <td data-label="Password" style="font-family:monospace; font-weight:700; color:var(--text-secondary);">${s.password || 'password123'}</td>
+                    <td data-label="Password" style="font-family:monospace; font-weight:700; color:var(--text-secondary);">••••••</td>
                     <td data-label="Commission">${s.commission_pct}%</td>
                     <td data-label="Extra Delivery Charge">
                         <span class="status-badge ${s.extra_delivery_fee > 0 ? 'badge-pending' : 'badge-delivered'}" style="font-weight:700;">
@@ -5046,9 +5046,9 @@
                         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                             <input type="checkbox" id="vendor-toggle-${s.shop_id}" class="toggle-switch-input" ${s.is_active ? 'checked' : ''} onchange="handleVendorToggle(${s.shop_id}, this.checked)">
                             <label for="vendor-toggle-${s.shop_id}" class="toggle-switch-label"></label>
-                            <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="openEditShopModal(${s.shop_id}, '${(s.shop_name || '').replace(/'/g, "\\'")}', '${(s.category || '').replace(/'/g, "\\'")}', ${s.commission_pct}, '${(s.password || 'password123').replace(/'/g, "\\'")}')"><i data-lucide="edit-2" style="width:12px; height:12px;"></i> Credentials</button>
+                            <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="openEditShopModal(${s.shop_id}, '${escapeHtmlAdmin((s.shop_name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}', '${escapeHtmlAdmin((s.category || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}', ${s.commission_pct}, '')"><i data-lucide="edit-2" style="width:12px; height:12px;"></i> Credentials</button>
                             ${!s.is_active ? `
-                                <button class="btn-custom" style="padding:4px 8px; font-size:0.75rem; margin:0; background-color:#ef4444; color:white; border:none; border-radius:4px; font-weight:600; cursor:pointer;" onclick="deleteDisabledShopCategory(${s.shop_id}, '${(s.shop_name || '').replace(/'/g, "\\'")}')" title="Delete Category & Products">
+                                <button class="btn-custom" style="padding:4px 8px; font-size:0.75rem; margin:0; background-color:#ef4444; color:white; border:none; border-radius:4px; font-weight:600; cursor:pointer;" onclick="deleteDisabledShopCategory(${s.shop_id}, '${escapeHtmlAdmin((s.shop_name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}')" title="Delete Category & Products">
                                     <i data-lucide="trash-2" style="width:12px; height:12px;"></i> Delete Category
                                 </button>
                             ` : ''}
@@ -5141,9 +5141,9 @@
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
                     <td style="font-weight:700;">#RDR${r.id}</td>
-                    <td style="font-weight:600;">${r.name}</td>
-                    <td style="font-size:0.8rem; color:var(--text-secondary); font-weight:600;">${r.phone}</td>
-                    <td style="font-family:monospace; font-weight:700; color:var(--text-secondary);">${r.password || 'password123'}</td>
+                    <td style="font-weight:600;">${escapeHtmlAdmin(r.name)}</td>
+                    <td style="font-size:0.8rem; color:var(--text-secondary); font-weight:600;">${escapeHtmlAdmin(r.phone)}</td>
+                    <td style="font-family:monospace; font-weight:700; color:var(--text-secondary);">••••••</td>
                     <td><span class="status-badge ${badgeClass}">${r.availability_status}</span></td>
                     <td style="font-weight:700;">${r.active_orders} active</td>
                     <td>
@@ -5152,8 +5152,8 @@
                     <td>
                         <div style="display:flex; align-items:center; gap:8px;">
                             <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="resetRiderCooldown(${r.id})">Reset Timer</button>
-                            <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="openEditDeliveryModal(${r.id}, '${(r.name || '').replace(/'/g, "\\'")}', '${(r.phone || '').replace(/'/g, "\\'")}', '${(r.password || 'password123').replace(/'/g, "\\'")}')"><i data-lucide="edit-2" style="width:12px; height:12px;"></i> Credentials</button>
-                            <button class="btn-custom btn-custom-danger" style="padding:4px 8px; font-size:0.75rem; margin:0; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2);" onclick="deleteDeliveryPartner(${r.id}, '${(r.name || '').replace(/'/g, "\\'")}')"><i data-lucide="trash-2" style="width:12px; height:12px;"></i> Delete</button>
+                            <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="openEditDeliveryModal(${r.id}, '${escapeHtmlAdmin((r.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}', '${escapeHtmlAdmin((r.phone || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}', '')"><i data-lucide="edit-2" style="width:12px; height:12px;"></i> Credentials</button>
+                            <button class="btn-custom btn-custom-danger" style="padding:4px 8px; font-size:0.75rem; margin:0; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2);" onclick="deleteDeliveryPartner(${r.id}, '${escapeHtmlAdmin((r.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}')"><i data-lucide="trash-2" style="width:12px; height:12px;"></i> Delete</button>
                         </div>
                     </td>
                 `;
@@ -5269,8 +5269,8 @@
                 tr = document.createElement("tr");
                 tr.innerHTML = `
                     <td style="font-weight:700;">#ORD${l.order_id}</td>
-                    <td style="font-weight:600;">${l.shop_name}</td>
-                    <td style="font-weight:600;">${l.rider_name || 'Unassigned'}</td>
+                    <td style="font-weight:600;">${escapeHtmlAdmin(l.shop_name)}</td>
+                    <td style="font-weight:600;">${escapeHtmlAdmin(l.rider_name || 'Unassigned')}</td>
                     <td style="font-family:monospace; font-weight:700; color:var(--text-secondary);">${l.pickup_otp}</td>
                     <td>
                         <span class="status-badge badge-delivered"><i data-lucide="check"></i> Verified at pickup</span>
@@ -5299,8 +5299,8 @@
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
                     <td style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${log.timestamp}</td>
-                    <td style="font-weight:700;">${log.user}</td>
-                    <td style="font-family:monospace; font-weight:600;">${log.ip}</td>
+                    <td style="font-weight:700;">${escapeHtmlAdmin(log.user)}</td>
+                    <td style="font-family:monospace; font-weight:600;">${escapeHtmlAdmin(log.ip)}</td>
                     <td><span class="status-badge badge-failed">Suspicious attempt blocked</span></td>
                 `;
                 logsContainer.appendChild(tr);
@@ -5314,7 +5314,7 @@
                         const tr = document.createElement("tr");
                         tr.innerHTML = `
                             <td style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">${log.login_time}</td>
-                            <td style="font-weight:700;">${log.user_phone}</td>
+                            <td style="font-weight:700;">${escapeHtmlAdmin(log.user_phone)}</td>
                             <td><span class="status-badge badge-accepted">Success</span></td>
                         `;
                         userLogsContainer.appendChild(tr);
@@ -5333,12 +5333,12 @@
                         tr.dataset.userId = user.id; // used by global search jump-highlight
                         tr.innerHTML = `
                             <td style="font-size:0.8rem; font-weight:700;">#USR-${user.id}</td>
-                            <td style="font-weight:600; color:var(--text-primary);">${user.name}</td>
-                            <td style="font-family:monospace; font-weight:600;">${user.phone}</td>
-                            <td style="font-family:monospace; color:var(--ruby-danger); font-weight:600;">${user.password || '-'}</td>
-                            <td style="font-size:0.8rem; color:var(--text-secondary);">${user.address || '-'}</td>
+                            <td style="font-weight:600; color:var(--text-primary);">${escapeHtmlAdmin(user.name)}</td>
+                            <td style="font-family:monospace; font-weight:600;">${escapeHtmlAdmin(user.phone)}</td>
+                            <td style="font-family:monospace; color:var(--ruby-danger); font-weight:600;">••••••</td>
+                            <td style="font-size:0.8rem; color:var(--text-secondary);">${escapeHtmlAdmin(user.address || '-')}</td>
                             <td>
-                                <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="openEditUserModal(${user.id}, '${(user.name || '').replace(/'/g, "\\'")}', '${(user.phone || '').replace(/'/g, "\\'")}', '${(user.password || '').replace(/'/g, "\\'")}')"><i data-lucide="edit-2" style="width:12px; height:12px;"></i> Edit</button>
+                                <button class="btn-custom btn-custom-secondary" style="padding:4px 8px; font-size:0.75rem; margin:0;" onclick="openEditUserModal(${user.id}, '${escapeHtmlAdmin((user.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}', '${escapeHtmlAdmin((user.phone || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}', '')"><i data-lucide="edit-2" style="width:12px; height:12px;"></i> Edit</button>
                             </td>
                         `;
                         registeredUsersContainer.appendChild(tr);
@@ -5385,7 +5385,7 @@
 
                 div.innerHTML = `
                     <div class="product-image-container">
-                        ${hasImg ? `<img src="${getProductImageUrl(p.image_path)}" alt="${p.name}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">` : `<i data-lucide="package" style="width:36px; height:36px; color:var(--text-muted);"></i>`}
+                        ${hasImg ? `<img src="${escapeHtmlAdmin(getProductImageUrl(p.image_path))}" alt="${escapeHtmlAdmin(p.name)}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">` : `<i data-lucide="package" style="width:36px; height:36px; color:var(--text-muted);"></i>`}
                     </div>
                     <div class="product-title-row">
                         <span class="product-name-txt">${escAdmin(p.name)}</span>
@@ -6021,14 +6021,14 @@
                     resDiv.style.color = "#059669";
                     let errHtml = "";
                     if (data.errors && data.errors.length > 0) {
-                        errHtml = `<div style="margin-top:8px; font-size:0.78rem; color:#dc2626; background: rgba(239, 68, 68, 0.08); padding: 8px; border-radius: 6px;"><strong>Warnings / Skipped Rows:</strong><br>${data.errors.join('<br>')}</div>`;
+                        errHtml = `<div style="margin-top:8px; font-size:0.78rem; color:#dc2626; background: rgba(239, 68, 68, 0.08); padding: 8px; border-radius: 6px;"><strong>Warnings / Skipped Rows:</strong><br>${data.errors.map(x => escapeHtmlAdmin(x)).join('<br>')}</div>`;
                     }
                     resDiv.innerHTML = `
                         <div style="font-weight: 700; display:flex; align-items:center; gap:6px; font-size: 0.95rem;">
                             <i data-lucide="check-circle" style="color: #10b981; width:18px; height:18px;"></i>
                             Spreadsheet Imported Successfully!
                         </div>
-                        <div style="margin-top:4px;">${data.message}</div>
+                        <div style="margin-top:4px;">${escapeHtmlAdmin(data.message)}</div>
                         <div style="margin-top:6px; font-size:0.8rem; opacity:0.9;">New Products: <strong>${data.inserted_count}</strong> | Updated: <strong>${data.updated_count}</strong> | Skipped: <strong>${data.skipped_count}</strong></div>
                         ${errHtml}
                     `;
@@ -6047,7 +6047,7 @@
                             <i data-lucide="alert-triangle" style="color: #ef4444; width:18px; height:18px;"></i>
                             Import Failed
                         </div>
-                        <div style="margin-top:4px;">${data.error || 'Failed to process spreadsheet.'}</div>
+                        <div style="margin-top:4px;">${escapeHtmlAdmin(data.error || 'Failed to process spreadsheet.')}</div>
                     `;
                     showAestheticToast(data.error || "Failed to process spreadsheet.", "error");
                 }
@@ -6061,7 +6061,7 @@
                 resDiv.style.background = "rgba(239, 68, 68, 0.12)";
                 resDiv.style.border = "1px solid rgba(239, 68, 68, 0.35)";
                 resDiv.style.color = "#dc2626";
-                resDiv.innerHTML = `<strong>Error:</strong> ${err.message || 'Network error or server failed to respond.'}`;
+                resDiv.innerHTML = `<strong>Error:</strong> ${escapeHtmlAdmin(err.message || 'Network error or server failed to respond.')}`;
                 showAestheticToast(err.message || "Network error during upload.", "error");
                 refreshIcons();
             });
@@ -6166,9 +6166,9 @@
                         <i data-lucide="${icon}" style="width:14px; height:14px;"></i>
                     </div>
                     <div class="notif-content-group">
-                        <div class="notif-subject">${l.subject}</div>
-                        <div class="notif-desc">${l.desc}</div>
-                        <div class="notif-time-stamp">${l.time}</div>
+                        <div class="notif-subject">${escapeHtmlAdmin(l.subject)}</div>
+                        <div class="notif-desc">${escapeHtmlAdmin(l.desc)}</div>
+                        <div class="notif-time-stamp">${escapeHtmlAdmin(l.time)}</div>
                     </div>
                 `;
                 container.appendChild(div);
@@ -6420,7 +6420,7 @@
                 <div class="aesthetic-toast-icon ${type}">
                     ${iconSvg}
                 </div>
-                <div class="aesthetic-toast-content">${message}</div>
+                <div class="aesthetic-toast-content">${escapeHtmlAdmin(message)}</div>
                 <button class="aesthetic-toast-close">&times;</button>
                 <div class="aesthetic-toast-progress" style="background: ${type === 'success' ? 'var(--emerald-green)' : type === 'error' ? 'var(--ruby-danger)' : type === 'warning' ? 'var(--amber-warning)' : 'var(--primary-accent)'}"></div>
             `;
@@ -6515,7 +6515,7 @@
                                 <li style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: var(--radius-md); background: #f8fafc; border: 1px solid var(--border-color); margin-bottom: 8px;">
                                     <div style="display: flex; align-items: center; gap: 10px;">
                                         <span style="font-weight: 800; color: var(--primary-accent); width: 24px; font-family: 'Outfit', sans-serif;">#${index + 1}</span>
-                                        <span style="font-weight: 600; text-transform: capitalize; color: var(--text-primary); font-size: 0.9rem;">${item.keyword}</span>
+                                        <span style="font-weight: 600; text-transform: capitalize; color: var(--text-primary); font-size: 0.9rem;">${escapeHtmlAdmin(item.keyword)}</span>
                                     </div>
                                     <span style="background: var(--primary-light); color: var(--primary-accent); font-weight: 700; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;">
                                         ${item.count} searches
@@ -6535,7 +6535,7 @@
                                 <li onclick="viewCustomerSearchProfile(${item.id})" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: var(--radius-md); background: #f8fafc; border: 1px solid var(--border-color); margin-bottom: 8px; cursor: pointer; transition: var(--transition-fast);" onmouseover="this.style.borderColor='var(--primary-accent)'; this.style.backgroundColor='#faf5ff';" onmouseout="this.style.borderColor='var(--border-color)'; this.style.backgroundColor='#f8fafc';">
                                     <div style="display: flex; align-items: center; gap: 10px;">
                                         <span style="font-weight: 800; color: var(--emerald-green); width: 24px; font-family: 'Outfit', sans-serif;">#${index + 1}</span>
-                                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">${item.name} <span style="font-weight: 400; font-size: 0.75rem; color: var(--text-muted);">(ID: ${item.id})</span></span>
+                                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">${escapeHtmlAdmin(item.name)} <span style="font-weight: 400; font-size: 0.75rem; color: var(--text-muted);">(ID: ${item.id})</span></span>
                                     </div>
                                     <span style="background: var(--emerald-light); color: var(--emerald-green); font-weight: 700; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;">
                                         ${item.count} queries
@@ -6596,7 +6596,7 @@
                 <li style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: var(--radius-md); background: #f8fafc; border: 1px solid var(--border-color); margin-bottom: 8px;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-weight: 800; color: var(--amber-warning); width: 24px; font-family: 'Outfit', sans-serif;">#${index + 1}</span>
-                        <span style="font-weight: 600; text-transform: capitalize; color: var(--text-primary); font-size: 0.9rem;">${item.keyword}</span>
+                        <span style="font-weight: 600; text-transform: capitalize; color: var(--text-primary); font-size: 0.9rem;">${escapeHtmlAdmin(item.keyword)}</span>
                     </div>
                     <span style="font-weight: 700; color: var(--text-secondary); font-size: 0.85rem;">
                         ${item.count} hits
@@ -6640,11 +6640,11 @@
             
             tbody.innerHTML = filtered.map(c => `
                 <tr>
-                    <td style="font-weight: 700; color: var(--text-primary);">${c.name}</td>
+                    <td style="font-weight: 700; color: var(--text-primary);">${escapeHtmlAdmin(c.name)}</td>
                     <td style="color: var(--text-secondary); font-weight: 600;">#${c.id}</td>
                     <td>
                         ${c.recent_keywords && c.recent_keywords.length > 0 ? 
-                            c.recent_keywords.map(kw => `<span style="background: var(--primary-light); color: var(--primary-accent); text-transform: capitalize; font-weight: 700; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; margin-right: 4px; display: inline-block; margin-bottom: 4px;">${kw}</span>`).join('') : 
+                            c.recent_keywords.map(kw => `<span style="background: var(--primary-light); color: var(--primary-accent); text-transform: capitalize; font-weight: 700; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; margin-right: 4px; display: inline-block; margin-bottom: 4px;">${escapeHtmlAdmin(kw)}</span>`).join('') : 
                             `<span style="color: var(--text-muted);">None</span>`
                         }
                     </td>
@@ -6696,10 +6696,10 @@
                 <tr>
                     <td style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">${item.searched_at_formatted}</td>
                     <td style="font-weight: 600; color: var(--text-muted);">#${item.customer_id}</td>
-                    <td style="font-weight: 700; color: var(--text-primary);">${item.customer_name}</td>
+                    <td style="font-weight: 700; color: var(--text-primary);">${escapeHtmlAdmin(item.customer_name)}</td>
                     <td>
                         <span style="background: rgba(111, 44, 244, 0.08); color: var(--primary-accent); font-weight: 800; padding: 6px 12px; border-radius: 16px; font-size: 0.85rem; font-family: 'Outfit', sans-serif;">
-                            ${item.keyword}
+                            ${escapeHtmlAdmin(item.keyword)}
                         </span>
                     </td>
                 </tr>
@@ -6742,7 +6742,7 @@
                                 <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border-color);">
                                     <span style="font-weight: 600; text-transform: capitalize; color: var(--text-primary); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
                                         <i data-lucide="search" style="width: 14px; height: 14px; color: var(--text-muted);"></i>
-                                        ${item.keyword}
+                                        ${escapeHtmlAdmin(item.keyword)}
                                     </span>
                                     <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">${item.searched_at_formatted}</span>
                                 </li>
@@ -6791,7 +6791,7 @@
                     const cur = sounds[ev];
                     return `<tr>
                         <td data-label="Event" style="font-weight:700;">${GAME_SOUND_LABELS[ev] || ev}</td>
-                        <td data-label="Abhi">${cur ? `<audio controls preload="none" src="${cur.url}" style="height:30px; max-width:200px;"></audio><div style="font-size:0.68rem; color:var(--text-secondary);">${escAdmin(cur.name || '')} · ${Math.round((cur.size || 0) / 1024)} KB</div>` : '<span style="color:var(--text-muted); font-size:0.78rem;">Default (game ki apni awaaz)</span>'}</td>
+                        <td data-label="Abhi">${cur ? `<audio controls preload="none" src="${escapeHtmlAdmin(cur.url)}" style="height:30px; max-width:200px;"></audio><div style="font-size:0.68rem; color:var(--text-secondary);">${escAdmin(cur.name || '')} · ${Math.round((cur.size || 0) / 1024)} KB</div>` : '<span style="color:var(--text-muted); font-size:0.78rem;">Default (game ki apni awaaz)</span>'}</td>
                         <td data-label="Actions">
                             <div style="display:flex; gap:6px; flex-wrap:wrap;">
                                 <label class="btn-custom btn-custom-primary" style="margin:0; padding:5px 10px; font-size:0.75rem; cursor:pointer;">${cur ? 'Badlo' : 'Upload'} <input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg" style="display:none;" onchange="uploadGameSound('${ev}', this)"></label>
@@ -7335,18 +7335,18 @@
                             
                             let customizationHtml = '';
                             if (item.custom_text) {
-                                customizationHtml += `<div style="font-size: 0.8rem; color: #3498db; margin-top: 2px; font-weight: 500;">✒️ Print/Cake Msg: "<strong>${item.custom_text}</strong>"</div>`;
+                                customizationHtml += `<div style="font-size: 0.8rem; color: #3498db; margin-top: 2px; font-weight: 500;">✒️ Print/Cake Msg: "<strong>${escapeHtmlAdmin(item.custom_text)}</strong>"</div>`;
                             }
                             if (item.custom_instructions) {
-                                customizationHtml += `<div style="font-size: 0.8rem; color: #e67e22; margin-top: 2px;">📝 Instructions: <em>${item.custom_instructions}</em></div>`;
+                                customizationHtml += `<div style="font-size: 0.8rem; color: #e67e22; margin-top: 2px;">📝 Instructions: <em>${escapeHtmlAdmin(item.custom_instructions)}</em></div>`;
                             }
                             if (item.custom_image_path) {
-                                customizationHtml += `<div style="font-size: 0.8rem; color: #27ae60; margin-top: 2px;">🖼️ Design: <a href="${item.custom_image_path}" target="_blank" style="color: #27ae60; text-decoration: underline; font-weight: 600;">View File</a></div>`;
+                                customizationHtml += `<div style="font-size: 0.8rem; color: #27ae60; margin-top: 2px;">🖼️ Design: <a href="${escapeHtmlAdmin(item.custom_image_path)}" target="_blank" style="color: #27ae60; text-decoration: underline; font-weight: 600;">View File</a></div>`;
                             }
 
                             div.innerHTML = `
                                 <div style="display:flex; justify-content:space-between; width:100%;">
-                                    <span>${item.product_name} <strong>x${item.quantity}</strong></span>
+                                    <span>${escapeHtmlAdmin(item.product_name)} <strong>x${item.quantity}</strong></span>
                                     <span>₹${(item.price * item.quantity).toFixed(2)}</span>
                                 </div>
                                 ${customizationHtml}
@@ -7506,7 +7506,7 @@
                             <div style="display: flex; flex-direction: column; gap: 6px;">
                                 <div class="flex-between" style="align-items: flex-start; border-bottom: 1px dashed var(--border-color); padding-bottom: 8px;">
                                     <div>
-                                        <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0; line-height:1.3;">${r.product_name}</h4>
+                                        <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0; line-height:1.3;">${escapeHtmlAdmin(r.product_name)}</h4>
                                         <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">Review ID: #${r.id}</span>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 2px; background: var(--amber-light); padding: 2px 6px; border-radius: 6px; border: 1px solid #fde68a;">
@@ -7516,13 +7516,13 @@
                                 </div>
                                 
                                 <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px; margin-top: 4px;">
-                                    <div><strong>By Customer:</strong> <span style="color: var(--text-primary); font-weight: 600;">${r.reviewer_name}</span></div>
+                                    <div><strong>By Customer:</strong> <span style="color: var(--text-primary); font-weight: 600;">${escapeHtmlAdmin(r.reviewer_name)}</span></div>
                                     <div><strong>Date:</strong> <span style="font-size:0.75rem;">${r.date_formatted}</span></div>
                                 </div>
                                 
                                 <div style="background: #f8fafc; padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-top: 4px;">
                                     <p style="font-size: 0.82rem; line-height: 1.45; color: var(--text-primary); margin: 0; font-style: italic; word-break: break-word;">
-                                        "${r.comment}"
+                                        "${escapeHtmlAdmin(r.comment)}"
                                     </p>
                                 </div>
                             </div>
@@ -7601,10 +7601,10 @@
                         
                         tr.innerHTML = `
                             <td><strong style="color:var(--text-secondary);">#${s.id}</strong></td>
-                            <td><strong style="color:var(--text-primary); font-size:0.85rem;">${s.name}</strong></td>
-                            <td><span style="font-weight:750; background: var(--primary-light); color: var(--primary-accent); padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; border: 1px solid var(--primary-glow); text-transform:uppercase;">${s.service_type}</span></td>
-                            <td><span style="font-weight:600;">${s.phone}</span></td>
-                            <td><div style="max-width: 250px; font-size:0.8rem; line-height:1.4; color:var(--text-secondary); white-space:normal; word-break:break-word;">${s.description || '--'}</div></td>
+                            <td><strong style="color:var(--text-primary); font-size:0.85rem;">${escapeHtmlAdmin(s.name)}</strong></td>
+                            <td><span style="font-weight:750; background: var(--primary-light); color: var(--primary-accent); padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; border: 1px solid var(--primary-glow); text-transform:uppercase;">${escapeHtmlAdmin(s.service_type)}</span></td>
+                            <td><span style="font-weight:600;">${escapeHtmlAdmin(s.phone)}</span></td>
+                            <td><div style="max-width: 250px; font-size:0.8rem; line-height:1.4; color:var(--text-secondary); white-space:normal; word-break:break-word;">${escapeHtmlAdmin(s.description || '--')}</div></td>
                             <td>${ratingHtml}</td>
                             <td>
                                 <button onclick="deleteServiceProviderByAdmin(${s.id})" class="btn-custom" style="padding: 4px 8px; font-size: 0.72rem; margin: 0; background: var(--ruby-light); color: var(--ruby-danger); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: var(--radius-sm); font-weight: 700; display: inline-flex; align-items: center; gap: 4px; cursor:pointer;">
@@ -7754,8 +7754,8 @@
                             <div style="display: flex; flex-direction: column; gap: 6px;">
                                 <div class="flex-between" style="align-items: flex-start; border-bottom: 1px dashed var(--border-color); padding-bottom: 8px;">
                                     <div>
-                                        <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0; line-height:1.3;">${r.provider_name}</h4>
-                                        <span style="font-size: 0.7rem; font-weight: 750; background: var(--primary-light); color: var(--primary-accent); padding: 1px 6px; border-radius: 4px; text-transform:uppercase; border: 1px solid var(--primary-glow); display:inline-block; margin-top:2px;">${r.service_type}</span>
+                                        <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0; line-height:1.3;">${escapeHtmlAdmin(r.provider_name)}</h4>
+                                        <span style="font-size: 0.7rem; font-weight: 750; background: var(--primary-light); color: var(--primary-accent); padding: 1px 6px; border-radius: 4px; text-transform:uppercase; border: 1px solid var(--primary-glow); display:inline-block; margin-top:2px;">${escapeHtmlAdmin(r.service_type)}</span>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 2px; background: var(--amber-light); padding: 2px 6px; border-radius: 6px; border: 1px solid #fde68a;">
                                         <span style="font-size: 0.78rem; font-weight: 800; color: var(--amber-warning);">${r.rating}</span>
@@ -7764,13 +7764,13 @@
                                 </div>
                                 
                                 <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px; margin-top: 4px;">
-                                    <div><strong>By Customer:</strong> <span style="color: var(--text-primary); font-weight: 600;">${r.reviewer_name}</span></div>
+                                    <div><strong>By Customer:</strong> <span style="color: var(--text-primary); font-weight: 600;">${escapeHtmlAdmin(r.reviewer_name)}</span></div>
                                     <div><strong>Date:</strong> <span style="font-size:0.75rem;">${r.date_formatted}</span></div>
                                 </div>
                                 
                                 <div style="background: #f8fafc; padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-top: 4px;">
                                     <p style="font-size: 0.82rem; line-height: 1.45; color: var(--text-primary); margin: 0; font-style: italic; word-break: break-word;">
-                                        "${r.comment}"
+                                        "${escapeHtmlAdmin(r.comment)}"
                                     </p>
                                 </div>
                             </div>
@@ -7848,7 +7848,7 @@
                         row.innerHTML = `
                             <td>${b.id}</td>
                             <td>
-                                <img src="${b.image_url && (b.image_url.startsWith('http://') || b.image_url.startsWith('https://')) ? `/api/proxy-image?url=${encodeURIComponent(b.image_url)}` : (b.image_url || '/static/images/grocery_basket.png')}" style="width: 120px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-color);" alt="Banner Preview" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
+                                <img src="${escapeHtmlAdmin(b.image_url && (b.image_url.startsWith('http://') || b.image_url.startsWith('https://')) ? `/api/proxy-image?url=${encodeURIComponent(b.image_url)}` : (b.image_url || '/static/images/grocery_basket.png'))}" style="width: 120px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-color);" alt="Banner Preview" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
                             </td>
                             <td><strong>${escapeHtml(b.title || 'Untitled Banner')}</strong></td>
                             <td>${targetBadge}</td>
@@ -8602,11 +8602,11 @@
                 }
                 
                 html += `
-                    <tr class="plantation-row" data-name="${(c.customer_name + ' ' + c.customer_phone).toLowerCase()}">
+                    <tr class="plantation-row" data-name="${escapeHtmlAdmin((c.customer_name + ' ' + c.customer_phone).toLowerCase())}">
                         <td data-label="Customer Info">
-                            <div style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem;">${c.customer_name}</div>
-                            <div style="font-size: 0.8rem; color: var(--text-muted);"><i data-lucide="phone" style="width:12px; height:12px; display:inline-block; vertical-align:-2px;"></i> ${c.customer_phone}</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top:2px;">📍 ${c.customer_address.substring(0, 35)}${c.customer_address.length > 35 ? '...' : ''}</div>
+                            <div style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem;">${escapeHtmlAdmin(c.customer_name)}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);"><i data-lucide="phone" style="width:12px; height:12px; display:inline-block; vertical-align:-2px;"></i> ${escapeHtmlAdmin(c.customer_phone)}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top:2px;">📍 ${escapeHtmlAdmin(c.customer_address.substring(0, 35))}${c.customer_address.length > 35 ? '...' : ''}</div>
                         </td>
                         <td data-label="Delivered Orders">
                             <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(16, 185, 129, 0.12); color:#059669; padding:4px 10px; border-radius:12px; font-weight:800; font-size:0.95rem; border:1px solid rgba(16, 185, 129, 0.3);">

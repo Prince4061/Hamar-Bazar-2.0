@@ -35,6 +35,8 @@ import sqlite3
 import random
 import re
 from werkzeug.security import generate_password_hash, check_password_hash
+import hmac as _hmac
+import secrets as _secrets_mod
 import threading
 import smtplib
 from email.mime.text import MIMEText
@@ -67,6 +69,18 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # Security: 30 da
 app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True    # Prevent JS from reading session cookie
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF mitigation for cookies
+app.config['SESSION_COOKIE_NAME'] = 'hb_session'
+
+# Security: mark the session cookie "Secure" on every HTTPS request (production / Play Store TWA),
+# while still allowing plain-http local development (run.bat on 127.0.0.1).
+from flask.sessions import SecureCookieSessionInterface as _SCSI
+class _AdaptiveSecureSessionInterface(_SCSI):
+    def get_cookie_secure(self, app):
+        try:
+            return bool(request.is_secure) or bool(app.config.get('SESSION_COOKIE_SECURE'))
+        except Exception:
+            return bool(app.config.get('SESSION_COOKIE_SECURE'))
+app.session_interface = _AdaptiveSecureSessionInterface()
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size (supports modern smartphone photos)
 
 # Secure secret key handling for production
@@ -151,8 +165,10 @@ def add_header(response):
     # Security headers — protect against common web attacks
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    if request.is_secure:
+        # Only ever sent over HTTPS, so local http development is unaffected
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
     # Content Security Policy — allow necessary resources
     response.headers['Content-Security-Policy'] = (
@@ -224,7 +240,7 @@ def enforce_rate_limit():
     is_auth_post = request.method == 'POST' and request.endpoint in ('login', 'staff_login', 'forgot_password')
     if not request.path.startswith('/api/') and not is_auth_post:
         return
-    ip = request.headers.get('X-Forwarded-For', request.remote_addr or '0.0.0.0').split(',')[0].strip()
+    ip = (request.remote_addr or '0.0.0.0').strip()
     endpoint = request.endpoint or '_default_api'
     if not _check_rate_limit(ip, endpoint):
         return jsonify({
@@ -232,6 +248,58 @@ def enforce_rate_limit():
             'retry_after': 60
         }), 429
 # ────────────────────────────────────────────────────────────────────────────────
+
+# ─── CSRF guard: state-changing browser requests must come from this site ──────
+# The API is token-exempt (mobile/PWA clients), so cross-site request forgery is blocked by
+# (1) SameSite=Lax session cookies and (2) this Origin/Referer check. Browsers always attach an
+# Origin header to cross-site POST/PUT/DELETE requests, so a forged request from another site
+# can never match our host. Non-browser clients (voice agent with X-Agent-Token) send no Origin.
+def _host_of(url):
+    try:
+        from urllib.parse import urlsplit
+        return (urlsplit(url).netloc or '').lower()
+    except Exception:
+        return ''
+
+@app.before_request
+def enforce_same_origin_for_mutations():
+    if request.method not in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        return
+    path = request.path
+    if not (path.startswith('/api/') or path in ('/login', '/staff-login')):
+        return
+    if path.startswith('/api/agent/'):
+        return  # token-authenticated machine endpoint
+    our_host = (request.host or '').lower()
+    origin = request.headers.get('Origin')
+    if origin:
+        # "null" (sandboxed / opaque origins) is treated as foreign as well
+        if origin.lower() == 'null' or _host_of(origin) != our_host:
+            return jsonify({'error': 'Cross-site request blocked.'}), 403
+        return
+    referer = request.headers.get('Referer')
+    if referer and _host_of(referer) != our_host:
+        return jsonify({'error': 'Cross-site request blocked.'}), 403
+
+# ─── Private uploads: prescriptions / payment proofs / customisation photos are not public ──
+_PRIVATE_UPLOAD_PREFIXES = ('/static/uploads/prescriptions/', '/static/uploads/payments/', '/static/uploads/customizations/')
+
+@app.before_request
+def protect_private_uploads():
+    path = request.path
+    if not path.startswith(_PRIVATE_UPLOAD_PREFIXES):
+        return
+    role = session.get('role')
+    if role in ('admin', 'vendor', 'delivery'):
+        return
+    if role == 'customer':
+        fname = path.rsplit('/', 1)[-1]
+        cid = str(session.get('role_id') or '')
+        # Customers may open their own prescription / payment files; customisation photos are theirs too
+        if path.startswith('/static/uploads/customizations/') or fname.startswith(f'presc_{cid}_') or fname.startswith(f'pay_{cid}_'):
+            return
+    from werkzeug.exceptions import NotFound
+    raise NotFound()
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'profile_pics')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -289,32 +357,135 @@ def migrate_plain_text_passwords():
                 cursor.execute("UPDATE delivery_partners SET password = ? WHERE id = ?", (hashed, row['id']))
                 migrated += 1
         
+        # Security answers are secrets too (they reset the password): store them hashed as well
+        cursor.execute("SELECT id, security_answer FROM users WHERE security_answer IS NOT NULL AND security_answer != ''")
+        for row in cursor.fetchall():
+            ans = row['security_answer']
+            if ans and not _is_hashed_secret(ans):
+                cursor.execute("UPDATE users SET security_answer = ? WHERE id = ?", (hash_security_answer(ans), row['id']))
+                migrated += 1
+
         conn.commit()
         conn.close()
         if migrated > 0:
-            print(f"SECURITY MIGRATION: Successfully hashed {migrated} plain-text password(s) in the database.")
+            print(f"SECURITY MIGRATION: Successfully hashed {migrated} plain-text secret(s) in the database.")
         else:
             print("SECURITY: All passwords are already hashed. No migration needed.")
     except Exception as e:
         print(f"Password migration error: {e}")
 
-# Auto-initialize and seed database if it doesn't exist or is empty
+def _is_hashed_secret(value):
+    return bool(value) and (str(value).startswith('pbkdf2:') or str(value).startswith('scrypt:'))
+
+def _norm_security_answer(answer):
+    return ' '.join(str(answer or '').strip().lower().split())
+
+def hash_security_answer(answer):
+    return generate_password_hash(_norm_security_answer(answer))
+
+def check_security_answer(stored, supplied):
+    """Constant-time check of a password-reset answer. Accepts legacy plain-text rows (migrated on startup)."""
+    if not stored or supplied is None:
+        return False
+    supplied_n = _norm_security_answer(supplied)
+    if not supplied_n:
+        return False
+    if _is_hashed_secret(stored):
+        return check_password_hash(stored, supplied_n)
+    return _hmac.compare_digest(_norm_security_answer(stored).encode(), supplied_n.encode())
+
+# ─── Admin credentials ───────────────────────────────────────────────────────────
+# The admin password is NEVER hard-coded. It comes from (in order):
+#   1. ADMIN_PASSWORD env var (plain text or a werkzeug pbkdf2/scrypt hash)
+#   2. the .admin_password file next to the database (plain text or hash)
+#   3. otherwise a random password is generated on first start, its hash saved to .admin_password
+#      and the password printed ONCE in the server log so the owner can set it.
+ADMIN_USERNAME = (os.environ.get('ADMIN_USERNAME') or 'admin').strip().lower()
+_admin_pass_candidates = [
+    os.path.join(db_dir, '.admin_password') if db_dir else None,
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), '.admin_password'),
+]
+_admin_pass_candidates = [c for c in _admin_pass_candidates if c]
+
+def _load_admin_password_hash():
+    env_pass = (os.environ.get('ADMIN_PASSWORD') or '').strip()
+    if env_pass:
+        return env_pass if _is_hashed_secret(env_pass) else generate_password_hash(env_pass)
+    for path in _admin_pass_candidates:
+        if os.path.exists(path):
+            try:
+                with open(path, 'r') as f:
+                    stored = f.read().strip()
+                if stored:
+                    if _is_hashed_secret(stored):
+                        return stored
+                    # Upgrade a plain-text file to a hash on disk
+                    hashed = generate_password_hash(stored)
+                    try:
+                        with open(path, 'w') as f:
+                            f.write(hashed)
+                    except Exception:
+                        pass
+                    return hashed
+            except Exception as e:
+                print(f"WARNING: could not read {path}: {e}")
+    import secrets as _secrets
+    generated = _secrets.token_urlsafe(12)
+    hashed = generate_password_hash(generated)
+    target = _admin_pass_candidates[0]
+    try:
+        with open(target, 'w') as f:
+            f.write(hashed)
+        print("=" * 78)
+        print("SECURITY: No ADMIN_PASSWORD configured. A random admin password was generated:")
+        print(f"          username: {ADMIN_USERNAME}    password: {generated}")
+        print(f"          (hash saved to {target}; set ADMIN_PASSWORD in the environment to change it)")
+        print("=" * 78)
+    except Exception as e:
+        print(f"WARNING: could not save generated admin password ({e}); set ADMIN_PASSWORD env var. Temporary password: {generated}")
+    return hashed
+
+ADMIN_PASSWORD_HASH = _load_admin_password_hash()
+
+def _recent_failures(cursor, key, ip, minutes=15):
+    """Number of failed attempts recorded for this account key or IP in the last N minutes."""
+    since = (ist_now() - timedelta(minutes=minutes)).strftime('%Y-%m-%d %H:%M:%S')
+    try:
+        cursor.execute("SELECT COUNT(*) FROM failed_logins WHERE (username = ? OR ip_address = ?) AND timestamp >= ?", (key, ip, since))
+        return cursor.fetchone()[0] or 0
+    except Exception as e:
+        print("Failed to query failed logins:", e)
+        return 0
+
+def _record_failure(db, cursor, key, ip):
+    try:
+        cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (key, ip or ''))
+        db.commit()
+    except Exception as e:
+        print("Failed to log failed login:", e)
+
+# Auto-initialize the schema (idempotent) and, only when explicitly requested, seed demo data
 try:
+    database.init_db()
     conn = database.get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM users")
     count = cursor.fetchone()[0]
     conn.close()
     if count == 0:
-        print("Database is empty. Initializing and seeding...")
-        database.init_db()
-        database.seed_db()
-        database.seed_historical_orders()
-        database.seed_search_history()
-        try:
-            _c = database.get_db_connection(); _c.execute("UPDATE products SET admin_priced = 1"); _c.commit(); _c.close()
-        except Exception as _e:
-            print("admin_priced seed flag warning:", _e)
+        if os.environ.get('SEED_DEMO_DATA', '0') == '1':
+            # Demo accounts (all 'password123') are only created when explicitly requested (local development).
+            print("Database is empty. Seeding DEMO data (SEED_DEMO_DATA=1)...")
+            database.seed_db()
+            database.seed_historical_orders()
+            database.seed_search_history()
+            try:
+                _c = database.get_db_connection(); _c.execute("UPDATE products SET admin_priced = 1"); _c.commit(); _c.close()
+            except Exception as _e:
+                print("admin_priced seed flag warning:", _e)
+        else:
+            print("Database is empty. Schema created; no demo data seeded (set SEED_DEMO_DATA=1 for demo accounts). "
+                  "Create shops and riders from the admin panel.")
 except Exception as e:
     print("Database connection check or seeding failed:", e)
 
@@ -396,7 +567,7 @@ def optimize_and_save_image(file_stream, upload_path, filename, max_size=(800, 8
 
         if not raw_bytes:
             print("[Image Warning] Empty file bytes received.")
-            return filename
+            return None
 
         import io
         from PIL import Image, ImageOps
@@ -428,14 +599,27 @@ def optimize_and_save_image(file_stream, upload_path, filename, max_size=(800, 8
             img.save(target_path, 'WEBP', quality=quality, optimize=True)
             return webp_filename
         except Exception as pil_err:
-            print(f"[Image Optimization Fallback] PIL failed ({pil_err}), saving raw bytes safely.")
-            target_path = os.path.join(upload_path, filename)
-            with open(target_path, 'wb') as f:
-                f.write(raw_bytes)
-            return filename
+            # Security: an upload that Pillow cannot decode is not an image -> reject instead of storing raw bytes
+            print(f"[Image Upload Rejected] not a valid image ({pil_err}).")
+            return None
     except Exception as e:
         print(f"[Image Save Critical Error]: {e}")
-        return filename
+        return None
+
+def is_valid_image_upload(file_storage):
+    """Verify (without saving) that an uploaded FileStorage really contains an image Pillow can decode."""
+    try:
+        from PIL import Image
+        pos = file_storage.stream.tell()
+        raw = file_storage.stream.read()
+        file_storage.stream.seek(pos)
+        if not raw:
+            return False
+        img = Image.open(io.BytesIO(raw))
+        img.verify()
+        return True
+    except Exception:
+        return False
 
 def get_db():
     db = getattr(g, '_database', None)
@@ -866,16 +1050,21 @@ def check_user_and_shop_status():
 # -------------------------------------------------------------
 @app.route('/session/switch')
 def switch_session():
-    # Only allowed in debug mode, or if logged in as admin
-    if not app.debug and session.get('role') != 'admin':
-        return "Access denied: Session switching is disabled in production.", 403
+    # Admin-only impersonation helper (never enabled for anyone else, debug or not)
+    if session.get('role') != 'admin':
+        return "Access denied: Session switching is disabled.", 403
         
     role = request.args.get('role', 'customer')
-    role_id = request.args.get('id', '1')
+    if role not in ('customer', 'vendor', 'delivery', 'admin'):
+        return "Invalid role.", 400
+    try:
+        role_id = int(request.args.get('id', '1'))
+    except (TypeError, ValueError):
+        return "Invalid id.", 400
     
     session.permanent = True
     session['role'] = role
-    session['role_id'] = int(role_id)
+    session['role_id'] = role_id
     
     # Store additional names in session for UI greeting
     db = get_db()
@@ -1113,17 +1302,8 @@ def login():
             cursor = db.cursor()
             
             # Rate-limiting brute-force block check (max 5 failed attempts within last 15 mins)
-            fifteen_mins_ago = (ist_now() - timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
-            try:
-                cursor.execute("""
-                    SELECT COUNT(*) FROM failed_logins 
-                    WHERE (username = ? OR ip_address = ?) AND timestamp >= ?
-                """, (phone or username, request.remote_addr, fifteen_mins_ago))
-                failed_count = cursor.fetchone()[0]
-                if failed_count >= 5:
-                    return make_login_response(False, error_msg='Too many failed login attempts. Please try again after 15 minutes.')
-            except Exception as e:
-                print("Failed to query failed logins:", e)
+            if _recent_failures(cursor, phone, request.remote_addr) >= 5:
+                return make_login_response(False, error_msg='Too many failed login attempts. Please try again after 15 minutes.')
                 
             cursor.execute("SELECT * FROM users WHERE phone = ?", (phone,))
             user = cursor.fetchone()
@@ -1143,7 +1323,7 @@ def login():
                     hashed_pass = generate_password_hash(password)
                     cursor.execute(
                         "INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)",
-                        (username, phone, new_address, hashed_pass, security_question, security_answer)
+                        (username, phone, new_address, hashed_pass, security_question, hash_security_answer(security_answer))
                     )
                     db.commit()
                     new_id = cursor.lastrowid
@@ -1180,13 +1360,13 @@ def login():
                         return make_login_response(False, error_msg='Password must be between 4 and 20 characters.')
                     
                     new_address = "Sector 4, Local Area"
-                    default_question = "What is your favorite color?"
-                    default_answer = "blue"
+                    # No default security question/answer: a guessable default ("blue") would let anyone
+                    # reset the password of every auto-registered account. The user sets it in Profile.
                     try:
                         hashed_pass = generate_password_hash(password)
                         cursor.execute(
                             "INSERT INTO users (name, phone, address, password, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)",
-                            (username, phone, new_address, hashed_pass, default_question, default_answer)
+                            (username, phone, new_address, hashed_pass, None, None)
                         )
                         db.commit()
                         new_id = cursor.lastrowid
@@ -1221,11 +1401,7 @@ def login():
                     
                 # Enforce username verification
                 if user['name'] and user['name'].strip().lower() != username.strip().lower():
-                    try:
-                        cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
-                        db.commit()
-                    except Exception as e:
-                        print("Failed to log failed login:", e)
+                    _record_failure(db, cursor, phone, request.remote_addr)
                     return make_login_response(False, error_msg='Incorrect username for this mobile number.')
                     
                 # Enforce password verification
@@ -1233,11 +1409,7 @@ def login():
                     return make_login_response(False, error_msg='Account configuration error (missing password). Please contact support.')
                     
                 if not check_password_hash(user['password'], password):
-                    try:
-                        cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (username or phone, request.remote_addr))
-                        db.commit()
-                    except Exception as e:
-                        print("Failed to log failed login:", e)
+                    _record_failure(db, cursor, phone, request.remote_addr)
                     return make_login_response(False, error_msg='Incorrect password for this account.')
                     
                 # Keep credentials updated / validated
@@ -1277,12 +1449,12 @@ def check_phone():
         
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT name, security_question FROM users WHERE phone = ?", (phone,))
+    cursor.execute("SELECT security_question FROM users WHERE phone = ?", (phone,))
     row = cursor.fetchone()
     if row:
+        # Note: the account holder's name is intentionally NOT returned (no PII for unauthenticated callers)
         return jsonify({
             'exists': True,
-            'name': row['name'],
             'security_question': row['security_question'] or ""
         })
     return jsonify({'exists': False})
@@ -1311,20 +1483,30 @@ def forgot_password():
         
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT id, security_answer FROM users WHERE phone = ?", (phone,))
+    reset_key = f"reset:{phone}"
+    # Brute-force protection: max 5 wrong answers per account / IP in 15 minutes
+    if _recent_failures(cursor, reset_key, request.remote_addr) >= 5:
+        return jsonify({'success': False, 'error': 'Bahut zyada galat koshish. 15 minute baad dobara try karein.'}), 429
+    cursor.execute("SELECT id, security_answer, is_blocked FROM users WHERE phone = ?", (phone,))
     row = cursor.fetchone()
     if not row:
-        return jsonify({'success': False, 'error': 'User not found.'}), 404
+        _record_failure(db, cursor, reset_key, request.remote_addr)
+        return jsonify({'success': False, 'error': 'Incorrect security answer.'}), 400
+    if row['is_blocked']:
+        return jsonify({'success': False, 'error': 'Your account has been blocked. Please contact support.'}), 403
         
     db_answer = row['security_answer']
     if not db_answer:
         return jsonify({'success': False, 'error': 'Security question was not set for this account. Please contact Admin.'}), 400
         
-    if db_answer.strip().lower() != answer:
+    if not check_security_answer(db_answer, answer):
+        _record_failure(db, cursor, reset_key, request.remote_addr)
         return jsonify({'success': False, 'error': 'Incorrect security answer.'}), 400
         
     hashed_pass = generate_password_hash(new_password)
     cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_pass, row['id']))
+    if not _is_hashed_secret(db_answer):
+        cursor.execute("UPDATE users SET security_answer = ? WHERE id = ?", (hash_security_answer(db_answer), row['id']))
     db.commit()
     
     return jsonify({'success': True, 'message': 'Password reset successfully!'})
@@ -1347,40 +1529,21 @@ def staff_login():
                 
             db = get_db()
             cursor = db.cursor()
+
+            # Brute-force protection for every staff role (max 5 failures per account / IP in 15 minutes)
+            lock_key = f"{role}:{identifier.strip().lower()}"
+            if _recent_failures(cursor, lock_key, request.remote_addr) >= 5:
+                return make_login_response(False, error_msg='Too many failed login attempts. Please try again after 15 minutes.')
             
             if role == 'admin':
-                admin_username = os.environ.get('ADMIN_USERNAME', 'prince')
-                if identifier.strip().lower() != admin_username.strip().lower() and identifier.strip().lower() != 'admin':
-                    return make_login_response(False, error_msg='Incorrect username for Admin.')
-                
-                # Allow default passwords ('password123', 'Admin@2024!', 'admin') or check hash
-                admin_pass = os.environ.get('ADMIN_PASSWORD')
-                admin_pass_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.admin_password')
-                if not admin_pass and os.path.exists(admin_pass_path):
-                    try:
-                        with open(admin_pass_path, 'r') as f:
-                            admin_pass = f.read().strip()
-                    except Exception:
-                        admin_pass = None
-                
-                is_valid = False
-                if password in ('password123', 'Admin@2024!', 'admin'):
-                    is_valid = True
-                elif admin_pass:
-                    if admin_pass.startswith('pbkdf2:') or admin_pass.startswith('scrypt:'):
-                        is_valid = check_password_hash(admin_pass, password)
-                    else:
-                        is_valid = (admin_pass == password)
-                else:
-                    is_valid = True  # fallback default
-                
-                if not is_valid:
-                    try:
-                        cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", ('admin', request.remote_addr))
-                        db.commit()
-                    except Exception as e:
-                        print("Failed to log failed login:", e)
-                    return make_login_response(False, error_msg='Incorrect password for Admin.')
+                if identifier.strip().lower() != ADMIN_USERNAME:
+                    _record_failure(db, cursor, lock_key, request.remote_addr)
+                    return make_login_response(False, error_msg='Incorrect username or password for Admin.')
+
+                # The admin password is only ever the configured one (env / .admin_password); no defaults.
+                if not password or not ADMIN_PASSWORD_HASH or not check_password_hash(ADMIN_PASSWORD_HASH, password):
+                    _record_failure(db, cursor, lock_key, request.remote_addr)
+                    return make_login_response(False, error_msg='Incorrect username or password for Admin.')
 
                 # Admin login success
                 session.permanent = True
@@ -1421,11 +1584,7 @@ def staff_login():
                     if not shop['password']:
                         return make_login_response(False, error_msg='Vendor store configuration error (missing password). Please contact Admin.')
                     if not check_password_hash(shop['password'], password):
-                        try:
-                            cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
-                            db.commit()
-                        except Exception as e:
-                            print("Failed to log failed login:", e)
+                        _record_failure(db, cursor, lock_key, request.remote_addr)
                         return make_login_response(False, error_msg='Incorrect password for this vendor store.')
                 else:
                     return make_login_response(False, error_msg='Vendor store not registered. Please contact Admin.')
@@ -1457,11 +1616,7 @@ def staff_login():
                     if not rider['password']:
                         return make_login_response(False, error_msg='Delivery rider configuration error (missing password). Please contact Admin.')
                     if not check_password_hash(rider['password'], password):
-                        try:
-                            cursor.execute("INSERT INTO failed_logins (username, ip_address) VALUES (?, ?)", (identifier, request.remote_addr))
-                            db.commit()
-                        except Exception as e:
-                            print("Failed to log failed login:", e)
+                        _record_failure(db, cursor, lock_key, request.remote_addr)
                         return make_login_response(False, error_msg='Incorrect password for this delivery rider.')
                 else:
                     return make_login_response(False, error_msg='Delivery rider not registered. Please contact Admin.')
@@ -1488,10 +1643,15 @@ def customer_view():
         
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM users")
-    users = cursor.fetchall()
+    # Only the logged-in customer's own non-secret fields reach the page (never password hashes / security answers)
+    cursor.execute("SELECT id, name, phone, address, security_question FROM users WHERE id = ?", (session.get('role_id'),))
+    row = cursor.fetchone()
+    current_user = dict(row) if row else None
+    if not current_user:
+        session.clear()
+        return redirect('/login')
     
-    return render_template('customer.html', users=users, active_user_id=session.get('role_id'), razorpay_key_id=RAZORPAY_KEY_ID)
+    return render_template('customer.html', current_user=current_user, active_user_id=session.get('role_id'), razorpay_key_id=RAZORPAY_KEY_ID)
 
 @app.route('/vendor')
 def vendor_view():
@@ -1508,7 +1668,7 @@ def vendor_view():
         session.clear()
         return redirect('/staff-login?error=inactive')
         
-    cursor.execute("SELECT * FROM shops")
+    cursor.execute("SELECT id, shop_name, category FROM shops WHERE id = ?", (shop_id,))
     shops = cursor.fetchall()
     
     resp = make_response(render_template('vendor.html', shops=shops, active_shop_id=session.get('role_id')))
@@ -1524,10 +1684,12 @@ def delivery_view():
         
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM delivery_partners")
-    riders = cursor.fetchall()
+    cursor.execute("SELECT id FROM delivery_partners WHERE id = ?", (session.get('role_id'),))
+    if not cursor.fetchone():
+        session.clear()
+        return redirect('/staff-login')
         
-    return render_template('delivery.html', riders=riders, active_rider_id=session.get('role_id'))
+    return render_template('delivery.html', active_rider_id=session.get('role_id'))
 
 @app.route('/admin')
 def admin_view():
@@ -1550,12 +1712,29 @@ def get_shops():
     shops = [dict(row) for row in cursor.fetchall()]
     return jsonify(shops)
 
+def _is_staff_for_shop(shop_id=None):
+    """True for admin, or for the vendor session that owns shop_id (any shop when shop_id is None)."""
+    role = session.get('role')
+    if role == 'admin':
+        return True
+    if role == 'vendor':
+        return shop_id is None or session.get('role_id') == shop_id
+    return False
+
+_INTERNAL_PRODUCT_FIELDS = ('cost_price', 'admin_priced')
+
+def _strip_internal_product_fields(products):
+    for p in products:
+        for k in _INTERNAL_PRODUCT_FIELDS:
+            p.pop(k, None)
+    return products
+
 @app.route('/api/shops/<int:shop_id>/products', methods=['GET'])
 def get_shop_products(shop_id):
     db = get_db()
     cursor = db.cursor()
-    # Verify shop is active if accessed by a customer
-    is_vendor = request.args.get('view_type') == 'vendor'
+    # Vendor view (inactive shop / out-of-stock items / cost prices) only for the owning vendor or admin
+    is_vendor = request.args.get('view_type') == 'vendor' and _is_staff_for_shop(shop_id)
     if not is_vendor:
         cursor.execute("SELECT is_active FROM shops WHERE id = ?", (shop_id,))
         shop = cursor.fetchone()
@@ -1567,6 +1746,8 @@ def get_shop_products(shop_id):
     else:
         cursor.execute("SELECT * FROM products WHERE shop_id = ? AND is_available = TRUE", (shop_id,))
     products = [dict(row) for row in cursor.fetchall()]
+    if not is_vendor:
+        _strip_internal_product_fields(products)
     return jsonify(products)
 
 @app.route('/api/products/search', methods=['GET'])
@@ -1581,7 +1762,11 @@ def search_products():
     limit = request.args.get('limit', default=20, type=int)
     offset = (page - 1) * limit
     
-    include_all = request.args.get('include_all', '0') == '1'
+    include_all = request.args.get('include_all', '0') == '1' and _is_staff_for_shop(None)
+    if page < 1:
+        page = 1
+    limit = max(1, min(limit, 100))
+    offset = (page - 1) * limit
     where_clauses = []
     if not include_all:
         where_clauses.append("products.is_available = TRUE")
@@ -1621,6 +1806,8 @@ def search_products():
     select_params = params + [limit, offset]
     cursor.execute(select_sql, select_params)
     products = [dict(row) for row in cursor.fetchall()]
+    if not _is_staff_for_shop(None):
+        _strip_internal_product_fields(products)
     
     if query and not include_all:
         c_id = session.get('role_id') if session.get('role') == 'customer' else None
@@ -1679,6 +1866,29 @@ def sync_products():
     products = [dict(row) for row in cursor.fetchall()]
     return jsonify(products)
 
+def _is_public_http_url(url):
+    """Reject URLs that resolve to loopback / private / link-local / reserved addresses (SSRF protection)."""
+    try:
+        import ipaddress, socket
+        from urllib.parse import urlsplit
+        parts = urlsplit(url)
+        if parts.scheme not in ('http', 'https') or not parts.hostname:
+            return False
+        host = parts.hostname.strip('[]').lower()
+        if host in ('localhost',) or host.endswith('.localhost') or host.endswith('.internal') or host.endswith('.local'):
+            return False
+        infos = socket.getaddrinfo(host, parts.port or (443 if parts.scheme == 'https' else 80), proto=socket.IPPROTO_TCP)
+        if not infos:
+            return False
+        for info in infos:
+            ip = ipaddress.ip_address(info[4][0])
+            if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved
+                    or ip.is_unspecified or (ip.version == 6 and ip.ipv4_mapped and (ip.ipv4_mapped.is_private or ip.ipv4_mapped.is_loopback))):
+                return False
+        return True
+    except Exception:
+        return False
+
 @app.route('/api/proxy-image')
 def proxy_image():
     """
@@ -1688,11 +1898,16 @@ def proxy_image():
       - failures are negative-cached for 30 min (placeholder served instantly, no re-fetch storm)
       - successful fetches are cached on disk for 30 days
     """
-    url = request.args.get('url')
+    url = (request.args.get('url') or '').strip()
     if not url:
         return 'Missing url parameter', 400
-    if not (url.startswith('http://') or url.startswith('https://')):
+    if url.startswith('/static/') and '..' not in url:
         return redirect(url)
+    if not (url.startswith('http://') or url.startswith('https://')) or len(url) > 2000:
+        return 'Invalid url', 400
+    if not _is_public_http_url(url):
+        # SSRF guard: never fetch localhost / private networks / cloud metadata through the proxy
+        return 'URL not allowed', 400
 
     import hashlib
     url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
@@ -1745,7 +1960,7 @@ def proxy_image():
             _proxy_fail_cache[url_hash] = _time.monotonic() + 1800
         if os.path.exists(default_placeholder):
             return send_file(default_placeholder, max_age=1800)
-        return redirect(url)
+        return 'Image unavailable', 404
 
 @app.route('/api/create-order', methods=['POST'])
 def create_razorpay_order():
@@ -1762,13 +1977,21 @@ def place_order():
         data = request.json
         customer_id = data.get('customer_id')
         items = data.get('items', []) # List of {product_id, quantity}
-        priority_type = data.get('priority_type', 'NORMAL').upper()
+        priority_type = str(data.get('priority_type') or 'NORMAL').strip().upper()
+        if priority_type not in ('NORMAL', 'URGENT'):
+            priority_type = 'NORMAL'
         
-        if not customer_id or not items:
+        if not customer_id or not items or not isinstance(items, list):
             return jsonify({'error': 'Missing checkout parameters.'}), 400
+        if len(items) > 100:
+            return jsonify({'error': 'Ek order me 100 se zyada items nahi ho sakte.'}), 400
             
         # Prevent IDOR: Check that the logged-in user matches the customer_id placing the order
-        if session.get('role') != 'customer' or session.get('role_id') != int(customer_id):
+        try:
+            customer_id = int(customer_id)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid customer id.'}), 400
+        if session.get('role') != 'customer' or session.get('role_id') != customer_id:
             return jsonify({'error': 'Unauthorized: You cannot place an order for another user.'}), 403
             
         db = get_db()
@@ -1783,14 +2006,20 @@ def place_order():
                 qty = int(item.get('quantity', 0))
             except (ValueError, TypeError):
                 return jsonify({'error': 'Invalid product_id or quantity.'}), 400
-            if qty <= 0:
-                return jsonify({'error': 'Quantity must be a positive integer.'}), 400
+            if qty <= 0 or qty > 500:
+                return jsonify({'error': 'Quantity must be a positive integer (max 500).'}), 400
+            custom_text = (str(item.get('custom_text')).strip()[:300]) if item.get('custom_text') else None
+            custom_instructions = (str(item.get('custom_instructions')).strip()[:1000]) if item.get('custom_instructions') else None
+            custom_image_path = str(item.get('custom_image_path') or '').strip()
+            # Only files produced by our own customisation upload endpoint may be attached
+            if custom_image_path and (not custom_image_path.startswith('/static/uploads/customizations/') or '..' in custom_image_path):
+                custom_image_path = ''
             product_ids.append(p_id)
             item_details_map[p_id] = {
                 'quantity': qty,
-                'custom_text': item.get('custom_text'),
-                'custom_instructions': item.get('custom_instructions'),
-                'custom_image_path': item.get('custom_image_path')
+                'custom_text': custom_text,
+                'custom_instructions': custom_instructions,
+                'custom_image_path': custom_image_path or None
             }
 
         if not product_ids:
@@ -1892,9 +2121,9 @@ def place_order():
         grand_total = total_amount + delivery_fee
         gst_amount = 0.0 # GST is inclusive in item prices
         
-        # Generate OTPs
-        pickup_otp = f"{random.randint(1000, 9999)}"
-        delivery_otp = f"{random.randint(1000, 9999)}"
+        # Generate OTPs (cryptographically secure)
+        pickup_otp = f"{_secrets_mod.randbelow(9000) + 1000}"
+        delivery_otp = f"{_secrets_mod.randbelow(9000) + 1000}"
         
         # Insert Order Master record (Single order)
         now_str = ist_now_str()
@@ -1952,7 +2181,7 @@ def place_order():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': f'Internal Server Error: {str(e)}'}), 500
+        return jsonify({'error': 'Order place nahi ho paya. Thodi der baad dobara try karein.'}), 500
 
 @app.route('/api/orders/<int:order_id>', methods=['GET'])
 def get_order_details(order_id):
@@ -2044,7 +2273,8 @@ def cancel_order(order_id):
         return jsonify({'success': True, 'message': 'Order cancelled successfully.'})
     except Exception as e:
         db.rollback()
-        return jsonify({'error': f'Failed to cancel order: {str(e)}'}), 500
+        print("Cancel order error:", e)
+        return jsonify({'error': 'Failed to cancel order. Please try again.'}), 500
 
 @app.route('/api/customer/<int:customer_id>/expenses', methods=['GET'])
 def get_customer_expenses(customer_id):
@@ -2258,7 +2488,9 @@ def get_leaderboard():
 @app.route('/api/product-requests', methods=['POST'])
 def create_product_request():
     """A customer requests a product that didn't show up in search."""
-    data = request.json or {}
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Please login as customer.'}), 403
+    data = request.get_json(silent=True) or {}
     product_name = (data.get('product_name') or '').strip()
     note = (data.get('note') or '').strip()
 
@@ -2344,36 +2576,46 @@ def update_profile():
     else:
         data = request.form
     customer_id = data.get('customer_id')
-    name = data.get('name', '').strip()
-    address = data.get('address', '').strip()
-    password = data.get('password', '').strip()
-    security_question = data.get('security_question', '').strip()
-    security_answer = data.get('security_answer', '').strip().lower()
+    name = str(data.get('name', '') or '').strip()
+    address = str(data.get('address', '') or '').strip()
+    password = str(data.get('password', '') or '').strip()
+    security_question = str(data.get('security_question', '') or '').strip()
+    security_answer = str(data.get('security_answer', '') or '').strip()
     
-    if not customer_id or not name or not address or not security_question or not security_answer:
-        return jsonify({'error': 'Name, Address, Security Question, Security Answer and Customer ID are required.'}), 400
+    if not customer_id or not name or not address:
+        return jsonify({'error': 'Name, Address and Customer ID are required.'}), 400
+    if len(name) > 60 or len(address) > 500:
+        return jsonify({'error': 'Name ya address bahut lamba hai.'}), 400
+    # Security question + answer are optional, but must be changed together
+    if bool(security_question) != bool(security_answer):
+        return jsonify({'error': 'Security Question aur Answer dono saath me bharein.'}), 400
         
     if not name.replace(' ', '').isalpha():
         return jsonify({'error': 'Username must contain only letters.'}), 400
         
-    if int(customer_id) != session.get('role_id'):
-        return jsonify({'error': 'Unauthorized. Customer ID does not match session.'}), 403
+    try:
+        if int(customer_id) != session.get('role_id'):
+            return jsonify({'error': 'Unauthorized. Customer ID does not match session.'}), 403
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid customer id.'}), 400
         
     db = get_db()
     cursor = db.cursor()
     try:
+        cursor.execute("UPDATE users SET name = ?, address = ? WHERE id = ?", (name, address, int(customer_id)))
         if password:
             if len(password) < 4 or len(password) > 20:
                 return jsonify({'error': 'Password must be between 4 and 20 characters.'}), 400
-            hashed_password = generate_password_hash(password)
-            cursor.execute("UPDATE users SET name = ?, address = ?, password = ?, security_question = ?, security_answer = ? WHERE id = ?", (name, address, hashed_password, security_question, security_answer, int(customer_id)))
-        else:
-            cursor.execute("UPDATE users SET name = ?, address = ?, security_question = ?, security_answer = ? WHERE id = ?", (name, address, security_question, security_answer, int(customer_id)))
+            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (generate_password_hash(password), int(customer_id)))
+        if security_question and security_answer:
+            cursor.execute("UPDATE users SET security_question = ?, security_answer = ? WHERE id = ?",
+                           (security_question[:120], hash_security_answer(security_answer), int(customer_id)))
         db.commit()
         session['name'] = name
         return jsonify({'success': True, 'message': 'Profile updated successfully.'})
     except Exception as e:
-        return jsonify({'error': f'Failed to update profile: {str(e)}'}), 500
+        print("Profile update error:", e)
+        return jsonify({'error': 'Failed to update profile. Please try again.'}), 500
 
 
 @app.route('/api/customer/address/update', methods=['POST'])
@@ -2431,6 +2673,8 @@ def upload_avatar():
             pass
                     
         saved_filename = optimize_and_save_image(file, UPLOAD_FOLDER, f"{base_name}.jpg", max_size=(400, 400), quality=75)
+        if not saved_filename:
+            return jsonify({'error': 'Invalid image file.'}), 400
         relative_path = f"/static/uploads/profile_pics/{saved_filename}"
         
         db = get_db()
@@ -2477,6 +2721,69 @@ def remove_avatar():
         return jsonify({'success': True, 'message': 'Profile picture removed successfully.'})
     except Exception as e:
         return jsonify({'error': f'Failed to remove profile picture: {str(e)}'}), 500
+
+def _remove_static_file(rel_path, allowed_prefix='/static/uploads/'):
+    """Delete a file under static/uploads referenced by a DB path. Ignores anything outside that folder."""
+    try:
+        if not rel_path or not str(rel_path).startswith(allowed_prefix) or '..' in str(rel_path):
+            return
+        base = os.path.realpath(os.path.join(app.root_path, 'static', 'uploads'))
+        target = os.path.realpath(os.path.join(app.root_path, str(rel_path).lstrip('/')))
+        if target.startswith(base + os.sep) and os.path.isfile(target):
+            os.remove(target)
+    except Exception as e:
+        print(f"[WARN] could not remove {rel_path}: {e}")
+
+@app.route('/api/customer/account/delete', methods=['POST'])
+def delete_my_account():
+    """Customer deletes their own account (Play Store 'account deletion' requirement).
+    Personal data is erased / anonymised; completed order records are kept (anonymised) for accounting."""
+    if session.get('role') != 'customer':
+        return jsonify({'error': 'Unauthorized. Please login as customer.'}), 403
+    data = request.get_json(silent=True) or {}
+    password = str(data.get('password') or '').strip()
+    customer_id = session.get('role_id')
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, phone, password, profile_pic FROM users WHERE id = ?", (customer_id,))
+    user = cursor.fetchone()
+    if not user:
+        session.clear()
+        return jsonify({'error': 'Account not found.'}), 404
+    if user['password'] and not check_password_hash(user['password'], password):
+        _record_failure(db, cursor, user['phone'], request.remote_addr)
+        return jsonify({'error': 'Password galat hai.'}), 403
+    cursor.execute("SELECT COUNT(*) FROM orders WHERE customer_id = ? AND status IN ('PENDING','ACCEPTED','READY_FOR_PICKUP','OUT_FOR_DELIVERY')", (customer_id,))
+    if (cursor.fetchone()[0] or 0) > 0:
+        return jsonify({'error': 'Aapka ek order abhi chal raha hai. Pehle use complete ya cancel karein, phir account delete karein.'}), 400
+    try:
+        _remove_static_file(user['profile_pic'])
+        cursor.execute("SELECT image_path FROM prescription_requests WHERE customer_id = ?", (customer_id,))
+        for r in cursor.fetchall():
+            _remove_static_file(r['image_path'])
+        cursor.execute("DELETE FROM prescription_requests WHERE customer_id = ?", (customer_id,))
+        cursor.execute("DELETE FROM search_history WHERE customer_id = ?", (customer_id,))
+        cursor.execute("DELETE FROM game_scores WHERE customer_id = ?", (customer_id,))
+        cursor.execute("DELETE FROM product_reviews WHERE customer_id = ?", (customer_id,))
+        cursor.execute("DELETE FROM service_reviews WHERE customer_id = ?", (customer_id,))
+        cursor.execute("UPDATE product_requests SET customer_id = NULL WHERE customer_id = ?", (customer_id,))
+        cursor.execute("DELETE FROM user_logins WHERE user_phone = ?", (user['phone'],))
+        cursor.execute("DELETE FROM failed_logins WHERE username = ?", (user['phone'],))
+        placeholder_phone = f"deleted-{customer_id}-{int(ist_now().timestamp())}"
+        cursor.execute('''
+            UPDATE users
+            SET name = 'Deleted User', phone = ?, address = '', profile_pic = NULL, password = NULL,
+                security_question = NULL, security_answer = NULL, is_blocked = 1, is_suspicious = 0,
+                suspicion_reasons = ?
+            WHERE id = ?
+        ''', (placeholder_phone, f"Account deleted by user on {ist_now_str()}", customer_id))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print("Account deletion error:", e)
+        return jsonify({'error': 'Account delete nahi ho paya. Dobara try karein ya support se sampark karein.'}), 500
+    session.clear()
+    return jsonify({'success': True, 'message': 'Account deleted.'})
 
 # --- Vendor APIs ---
 
@@ -2611,6 +2918,8 @@ def vendor_upload_product_image():
         temp_name = f"v_prod_{int(ist_now().timestamp())}_{random.randint(1000, 9999)}.webp"
         # Aggressive mobile-optimized WebP compression (max 450x450, 65% quality -> ~15KB per image)
         webp_filename = optimize_and_save_image(file, upload_path, temp_name, max_size=(450, 450), quality=65)
+        if not webp_filename:
+            return jsonify({'error': 'Invalid image file.'}), 400
         db_path = f"/static/uploads/product_pics/{webp_filename}"
         return jsonify({'success': True, 'file_path': db_path, 'message': 'Product image uploaded successfully.'})
     return jsonify({'error': 'Invalid file type.'}), 400
@@ -3255,9 +3564,10 @@ def verify_pickup(order_id):
         return jsonify({'error': 'Invalid order status for OTP verification.'}), 400
         
     now_str = ist_now_str()
+    entered_otp = str(entered_otp or '').strip()
     
     # 1. Direct completion using Customer Delivery OTP (e.g. Admin force-allotted order)
-    if entered_otp == order['delivery_otp']:
+    if entered_otp and order['delivery_otp'] and _hmac.compare_digest(entered_otp, str(order['delivery_otp'])):
         cursor.execute("UPDATE orders SET status = 'DELIVERED', delivered_at = ? WHERE id = ?", (now_str, order_id))
         cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (int(rider_id),))
         db.commit()
@@ -3270,7 +3580,7 @@ def verify_pickup(order_id):
         return jsonify({'message': 'Customer Delivery OTP verified! Order successfully DELIVERED.', 'completed': True})
     
     # 2. Pickup verification using Vendor Pickup OTP
-    elif entered_otp == order['pickup_otp']:
+    elif entered_otp and order['pickup_otp'] and _hmac.compare_digest(entered_otp, str(order['pickup_otp'])):
         cursor.execute("UPDATE orders SET status = 'OUT_FOR_DELIVERY' WHERE id = ?", (order_id,))
         db.commit()
         trigger_webhook_async('status_changed', {
@@ -3307,7 +3617,10 @@ def verify_delivery(order_id):
         return jsonify({'error': 'Order status must be active.'}), 400
         
     now_str = ist_now_str()
-    if entered_otp == order['delivery_otp'] or entered_otp == order['pickup_otp']:
+    entered_otp = str(entered_otp or '').strip()
+    # Only the customer's delivery OTP completes the order. The vendor pickup OTP (which the rider already
+    # knows) can never be used as proof of delivery; it only moves a not-yet-picked-up order to OUT_FOR_DELIVERY.
+    if entered_otp and order['delivery_otp'] and _hmac.compare_digest(entered_otp, str(order['delivery_otp'])):
         cursor.execute("UPDATE orders SET status = 'DELIVERED', delivered_at = ? WHERE id = ?", (now_str, order_id))
         cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (int(rider_id),))
         db.commit()
@@ -3318,6 +3631,16 @@ def verify_delivery(order_id):
             'timestamp': ist_now_iso()
         })
         return jsonify({'message': 'OTP verified! Order successfully DELIVERED.', 'completed': True})
+    elif entered_otp and order['pickup_otp'] and _hmac.compare_digest(entered_otp, str(order['pickup_otp'])) and order['status'] != 'OUT_FOR_DELIVERY':
+        cursor.execute("UPDATE orders SET status = 'OUT_FOR_DELIVERY' WHERE id = ?", (order_id,))
+        db.commit()
+        trigger_webhook_async('status_changed', {
+            'order_id': order_id,
+            'new_status': 'OUT_FOR_DELIVERY',
+            'delivery_boy_id': int(rider_id),
+            'timestamp': ist_now_iso()
+        })
+        return jsonify({'message': 'Pickup OTP verified. Status changed to OUT FOR DELIVERY. Delivery ke liye customer ka OTP lein.'})
     else:
         return jsonify({'error': 'Invalid Delivery OTP. Please verify with Customer.'}), 400
 
@@ -3331,6 +3654,8 @@ def upload_payment_screenshot():
 @csrf.exempt
 def upload_customization_file():
     import uuid
+    if session.get('role') != 'customer':
+        return jsonify({'success': False, 'error': 'Unauthorized. Please login as customer.'}), 403
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': 'No file uploaded'}), 400
     file = request.files['file']
@@ -3340,6 +3665,8 @@ def upload_customization_file():
         os.makedirs(CUSTOM_UPLOAD_FOLDER, exist_ok=True)
         unique_name = f"custom_{uuid.uuid4().hex[:12]}_{int(ist_now().timestamp())}.jpg"
         saved_filename = optimize_and_save_image(file, CUSTOM_UPLOAD_FOLDER, unique_name, max_size=(800, 800), quality=75)
+        if not saved_filename:
+            return jsonify({'success': False, 'error': 'Invalid image file'}), 400
         file_path = f"/static/uploads/customizations/{saved_filename}"
         return jsonify({'success': True, 'file_path': file_path})
     return jsonify({'success': False, 'error': 'Invalid file format'}), 400
@@ -3726,14 +4053,24 @@ def unblock_user(user_id):
 def update_user_credentials(user_id):
     if session.get('role') != 'admin':
         return jsonify({'error': 'Unauthorized.'}), 403
-    data = request.json
+    data = request.get_json(silent=True) or {}
     db = get_db()
     cursor = db.cursor()
-    new_password = data.get('password')
+    name = str(data.get('name') or '').strip()
+    phone = str(data.get('phone') or '').strip().replace(' ', '').replace('-', '')
+    new_password = str(data.get('password') or '').strip()
+    if not name or not phone:
+        return jsonify({'error': 'Name and phone are required.'}), 400
+    if not phone.isdigit() or len(phone) != 10:
+        return jsonify({'error': 'Please enter a valid 10-digit phone number.'}), 400
+    cursor.execute("SELECT id FROM users WHERE phone = ? AND id != ?", (phone, user_id))
+    if cursor.fetchone():
+        return jsonify({'error': 'Another customer already uses this phone number.'}), 400
+    cursor.execute("UPDATE users SET name = ?, phone = ? WHERE id = ?", (name, phone, user_id))
     if new_password:
-        new_password = generate_password_hash(new_password)
-    cursor.execute("UPDATE users SET name = ?, phone = ?, password = ? WHERE id = ?", 
-                   (data.get('name'), data.get('phone'), new_password, user_id))
+        if len(new_password) < 4 or len(new_password) > 20:
+            return jsonify({'error': 'Password must be between 4 and 20 characters.'}), 400
+        cursor.execute("UPDATE users SET password = ? WHERE id = ?", (generate_password_hash(new_password), user_id))
     db.commit()
     return jsonify({'success': True, 'message': 'User credentials updated successfully.'})
 
@@ -3827,6 +4164,8 @@ def get_plantation_tracker():
 
 @app.route('/api/admin/analytics', methods=['GET'])
 def get_admin_analytics():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
     start_time = ist_now()
     db = get_db()
     cursor = db.cursor()
@@ -3944,7 +4283,7 @@ def get_admin_analytics():
     
     # 3. Shop-wise sales & ratings (Vendor Reputation Score, INT-010, ADMIN-001)
     cursor.execute('''
-        SELECT s.id as shop_id, s.shop_name, s.category, s.commission_pct, s.is_active, s.password, s.image_path, s.is_customizable, s.display_order, s.extra_delivery_fee, s.storefront, s.display_label,
+        SELECT s.id as shop_id, s.shop_name, s.category, s.commission_pct, s.is_active, s.image_path, s.is_customizable, s.display_order, s.extra_delivery_fee, s.storefront, s.display_label,
                COUNT(o.id) as total_orders,
                SUM(CASE WHEN o.status = 'DELIVERED' THEN o.total_amount ELSE 0 END) as sales,
                SUM(CASE WHEN o.status = 'DELIVERED' THEN 1 ELSE 0 END) as success_orders,
@@ -4276,8 +4615,10 @@ def admin_update_shop(shop_id):
     if 'shop_image' in request.files:
         file = request.files['shop_image']
         if file and file.filename != '' and allowed_file(file.filename):
+            if not is_valid_image_upload(file):
+                return jsonify({'error': 'Invalid image file.'}), 400
             ext = file.filename.rsplit('.', 1)[1].lower()
-            filename = f"category_{category.lower()}_{int(ist_now().timestamp())}.{ext}"
+            filename = f"category_{re.sub(r'[^a-z0-9_-]', '_', category.lower())}_{int(ist_now().timestamp())}.{ext}"
             upload_path = os.path.join(app.root_path, 'static', 'uploads', 'category_pics')
             os.makedirs(upload_path, exist_ok=True)
             file_path = os.path.join(upload_path, filename)
@@ -4285,12 +4626,14 @@ def admin_update_shop(shop_id):
             image_path = f"/static/uploads/category_pics/{filename}"
             
     try:
-        hashed_shop_pass = generate_password_hash(password) if password else None
         cursor.execute('''
             UPDATE shops 
-            SET shop_name = ?, category = ?, commission_pct = ?, password = ?, image_path = ?, is_customizable = ?, extra_delivery_fee = ?, storefront = ?, display_label = ?
+            SET shop_name = ?, category = ?, commission_pct = ?, image_path = ?, is_customizable = ?, extra_delivery_fee = ?, storefront = ?, display_label = ?
             WHERE id = ?
-        ''', (shop_name, category, float(commission_pct), hashed_shop_pass, image_path, is_customizable, extra_delivery_fee, storefront, display_label, shop_id))
+        ''', (shop_name, category, float(commission_pct), image_path, is_customizable, extra_delivery_fee, storefront, display_label, shop_id))
+        if password:
+            # Blank password = keep the existing one (never silently wipe a vendor's login)
+            cursor.execute("UPDATE shops SET password = ? WHERE id = ?", (generate_password_hash(password), shop_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Shop category credentials updated successfully.'})
     except Exception as e:
@@ -4353,8 +4696,8 @@ def admin_update_delivery_partner(rider_id):
     phone = data.get('phone', '').strip().replace(" ", "").replace("-", "")
     password = data.get('password', '').strip()
     
-    if not name or not phone or not password:
-        return jsonify({'error': 'Name, Phone Number, and Password are required.'}), 400
+    if not name or not phone:
+        return jsonify({'error': 'Name and Phone Number are required.'}), 400
         
     # Validate phone contains only digits and is exactly 10 digits
     if not phone.isdigit() or len(phone) != 10:
@@ -4368,12 +4711,10 @@ def admin_update_delivery_partner(rider_id):
         return jsonify({'error': f'Delivery partner with phone number "{phone}" already exists.'}), 400
         
     try:
-        hashed_rider_pass = generate_password_hash(password)
-        cursor.execute('''
-            UPDATE delivery_partners 
-            SET name = ?, phone = ?, password = ? 
-            WHERE id = ?
-        ''', (name, phone, hashed_rider_pass, rider_id))
+        cursor.execute("UPDATE delivery_partners SET name = ?, phone = ? WHERE id = ?", (name, phone, rider_id))
+        if password:
+            # Blank password = keep the existing one (never silently reset a rider's login)
+            cursor.execute("UPDATE delivery_partners SET password = ? WHERE id = ?", (generate_password_hash(password), rider_id))
         db.commit()
         return jsonify({'success': True, 'message': 'Delivery partner credentials updated successfully.'})
     except Exception as e:
@@ -4429,6 +4770,8 @@ def admin_delete_shop(shop_id):
     except Exception as e:
         db.rollback()
         print("Delete shop error:", e)
+        return jsonify({'error': 'Failed to delete shop. Please try again.'}), 500
+
 @app.route('/api/admin/shops/<int:shop_id>/move', methods=['POST'])
 def move_shop_category(shop_id):
     if session.get('role') != 'admin':
@@ -4525,8 +4868,10 @@ def admin_add_shop():
     if 'shop_image' in request.files:
         file = request.files['shop_image']
         if file and file.filename != '' and allowed_file(file.filename):
+            if not is_valid_image_upload(file):
+                return jsonify({'error': 'Invalid image file.'}), 400
             ext = file.filename.rsplit('.', 1)[1].lower()
-            filename = f"category_{category.lower()}_{int(ist_now().timestamp())}.{ext}"
+            filename = f"category_{re.sub(r'[^a-z0-9_-]', '_', category.lower())}_{int(ist_now().timestamp())}.{ext}"
             upload_path = os.path.join(app.root_path, 'static', 'uploads', 'category_pics')
             os.makedirs(upload_path, exist_ok=True)
             file_path = os.path.join(upload_path, filename)
@@ -4540,15 +4885,9 @@ def admin_add_shop():
             VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
         ''', (shop_name, category, float(commission_pct), hashed_shop_pass, image_path, is_customizable, extra_delivery_fee, storefront, display_label))
         db.commit()
-        
-        # Dynamic seeding of 3 starter products for the new shop
         shop_id = cursor.lastrowid
-        cursor.execute("INSERT INTO products (shop_id, name, price) VALUES (?, ?, ?)", (shop_id, 'Standard Product A', 100.0))
-        cursor.execute("INSERT INTO products (shop_id, name, price) VALUES (?, ?, ?)", (shop_id, 'Standard Product B', 200.0))
-        cursor.execute("INSERT INTO products (shop_id, name, price) VALUES (?, ?, ?)", (shop_id, 'Standard Product C', 350.0))
-        db.commit()
         
-        return jsonify({'success': True, 'message': 'New Shop Category added successfully with credentials and starter products.', 'shop_id': shop_id})
+        return jsonify({'success': True, 'message': 'New Shop Category added successfully.', 'shop_id': shop_id})
     except Exception as e:
         print("Admin add shop error:", e)
         return jsonify({'error': 'Failed to create shop category. Please try again.'}), 500
@@ -4571,8 +4910,14 @@ def upload_product_image():
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'product_pics')
         os.makedirs(upload_path, exist_ok=True)
         
+        try:
+            prod_id = int(prod_id)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid product id.'}), 400
         temp_name = f"product_{prod_id}_{int(ist_now().timestamp())}.webp"
         webp_filename = optimize_and_save_image(file, upload_path, temp_name)
+        if not webp_filename:
+            return jsonify({'error': 'Invalid image file.'}), 400
         
         db_path = f"/static/uploads/product_pics/{webp_filename}"
         db = get_db()
@@ -4600,6 +4945,8 @@ def upload_admin_product_image_file():
         
         temp_name = f"prod_{int(ist_now().timestamp())}_{random.randint(1000, 9999)}.webp"
         webp_filename = optimize_and_save_image(file, upload_path, temp_name)
+        if not webp_filename:
+            return jsonify({'error': 'Invalid image file.'}), 400
         
         db_path = f"/static/uploads/product_pics/{webp_filename}"
         return jsonify({'success': True, 'file_path': db_path, 'message': 'Product image uploaded and optimized successfully.'})
@@ -4844,11 +5191,12 @@ def get_system_settings():
         settings['order_admin_approval'] = '1'
     if 'vendor_alarm_sound' not in settings or settings.get('vendor_alarm_sound') is None:
         settings['vendor_alarm_sound'] = ''
-    # Security: mask SMTP password from non-admin users
+    # Security: non-admin callers only get the keys the customer / vendor apps actually need
     if session.get('role') != 'admin':
-        if settings.get('smtp_password'):
-            settings['smtp_password'] = '***HIDDEN***'
-        settings.pop('agent_api_token', None)
+        public_keys = ('about_team_image', 'admin_qr_code', 'app_logo', 'app_logo_192', 'app_logo_512',
+                       'delivery_fee_flat', 'delivery_fee_threshold', 'delivery_available', 'delivery_notice_message',
+                       'order_admin_approval', 'vendor_alarm_sound', 'game_sound_volume')
+        settings = {k: v for k, v in settings.items() if k in public_keys}
     return jsonify(settings)
 
 @app.route('/api/admin/settings/update', methods=['POST'])
@@ -4907,11 +5255,11 @@ def send_webhook_http(url, secret, payload):
 
     target_urls.append(url)
 
+    # Security: an https webhook is never retried over plain http (the payload carries customer data,
+    # OTPs and the webhook secret). Plain-http internal URLs get an https attempt as well.
     additional_urls = []
     for u in target_urls:
-        if u.startswith('https://'):
-            additional_urls.append(u.replace('https://', 'http://'))
-        elif u.startswith('http://'):
+        if u.startswith('http://'):
             additional_urls.append(u.replace('http://', 'https://'))
     target_urls.extend(additional_urls)
 
@@ -4923,7 +5271,7 @@ def send_webhook_http(url, secret, payload):
             unique_urls.append(u)
 
     data_bytes = json.dumps(payload).encode('utf-8')
-    ctx = ssl._create_unverified_context()
+    ctx = ssl.create_default_context()  # proper certificate verification
 
     last_error = None
     for target_url in unique_urls:
@@ -5130,6 +5478,8 @@ def upload_admin_banner_image():
         
         temp_name = f"banner_{int(ist_now().timestamp())}_{random.randint(1000, 9999)}.webp"
         webp_filename = optimize_and_save_image(file, upload_path, temp_name)
+        if not webp_filename:
+            return jsonify({'error': 'Invalid image file.'}), 400
         
         db_path = f"/static/uploads/banners/{webp_filename}"
         return jsonify({'success': True, 'file_path': db_path, 'message': 'Banner image uploaded and optimized successfully.'})
@@ -5147,6 +5497,8 @@ def upload_team_photo():
         return jsonify({'error': 'Empty filename'}), 400
         
     if file and allowed_file(file.filename):
+        if not is_valid_image_upload(file):
+            return jsonify({'error': 'Invalid image file.'}), 400
         ext = file.filename.rsplit('.', 1)[1].lower()
         filename = f"team_photo_{int(ist_now().timestamp())}.{ext}"
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'system')
@@ -5233,6 +5585,8 @@ def upload_qr_code():
         return jsonify({'error': 'Empty filename'}), 400
         
     if file and allowed_file(file.filename):
+        if not is_valid_image_upload(file):
+            return jsonify({'error': 'Invalid image file.'}), 400
         ext = file.filename.rsplit('.', 1)[1].lower()
         filename = f"admin_qr_{int(ist_now().timestamp())}.{ext}"
         upload_path = os.path.join(app.root_path, 'static', 'uploads', 'system')
@@ -5269,6 +5623,8 @@ def upload_app_logo():
         return jsonify({'error': 'Empty filename'}), 400
         
     if file and allowed_file(file.filename):
+        if not is_valid_image_upload(file):
+            return jsonify({'error': 'Invalid image file.'}), 400
         ext = file.filename.rsplit('.', 1)[1].lower()
         timestamp = int(ist_now().timestamp())
         filename = f"app_logo_{timestamp}.{ext}"
@@ -5424,6 +5780,8 @@ def upload_prescription():
         os.makedirs(PRESC_UPLOAD_FOLDER, exist_ok=True)
         
         saved_filename = optimize_and_save_image(file, PRESC_UPLOAD_FOLDER, f"{base_name}.jpg", max_size=(1200, 1200), quality=75)
+        if not saved_filename:
+            return jsonify({'error': 'Invalid image file.'}), 400
         relative_path = f"/static/uploads/prescriptions/{saved_filename}"
         
         db = get_db()
@@ -5929,39 +6287,55 @@ def import_database():
     if not file or file.filename == '':
         return jsonify({'error': 'No database file uploaded or empty filename.'}), 400
         
+    temp_path = DB_PATH + ".import.tmp"
     try:
-        import sqlite3
-        temp_path = DB_PATH + ".temp"
         file.save(temp_path)
         
-        # Test if it is a valid SQLite database
+        # Validate: must be a real, consistent SQLite database that contains our core tables
         try:
-            temp_conn = sqlite3.connect(temp_path)
-            temp_conn.execute("SELECT count(*) FROM sqlite_master;")
-            temp_conn.close()
-        except Exception:
+            src = sqlite3.connect(temp_path)
+            ok = src.execute("PRAGMA integrity_check").fetchone()[0]
+            if ok != 'ok':
+                raise ValueError('integrity check failed')
+            tables = {r[0] for r in src.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+            if not {'users', 'shops', 'products', 'orders'}.issubset(tables):
+                raise ValueError('missing core tables')
+        except Exception as ve:
+            try:
+                src.close()
+            except Exception:
+                pass
             if os.path.exists(temp_path):
                 os.remove(temp_path)
-            return jsonify({'error': 'Invalid database file format. Must be a valid SQLite database.'}), 400
+            return jsonify({'error': f'Invalid database file ({ve}). Must be a Hamar Bazar SQLite backup.'}), 400
             
-        # Overwrite the actual database and clean up associated WAL / SHM files to prevent corruption
+        # Copy the uploaded database INTO the live file with SQLite's online backup API. Unlike deleting and
+        # renaming the file, this keeps the other server workers' open connections valid and takes proper locks.
         close_connection(None)
-        
-        if os.path.exists(DB_PATH):
-            os.remove(DB_PATH)
-            
-        wal_path = DB_PATH + "-wal"
-        shm_path = DB_PATH + "-shm"
-        if os.path.exists(wal_path):
-            os.remove(wal_path)
-        if os.path.exists(shm_path):
-            os.remove(shm_path)
-            
-        os.rename(temp_path, DB_PATH)
+        dest = sqlite3.connect(DB_PATH, timeout=60.0)
+        try:
+            src.backup(dest)
+            dest.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+        finally:
+            dest.close()
+            src.close()
+        try:
+            os.remove(temp_path)
+        except Exception:
+            pass
+        # Re-apply schema migrations so an older backup still works with this app version
+        run_migrations()
+        migrate_plain_text_passwords()
         
         return jsonify({'success': True, 'message': 'Database imported successfully! Page will reload.'})
     except Exception as e:
-        return jsonify({'error': f'Import failed: {str(e)}'}), 500
+        print("Database import error:", e)
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+        return jsonify({'error': 'Import failed. Please check the file and try again.'}), 500
 
 # --- Product Reviews Endpoints ---
 
@@ -6283,7 +6657,6 @@ def delete_service_review(review_id):
 # ═══════════════════════════════════════════════════════════════════════════════
 # VOICE AGENT (Jarvis) API — token managed from the admin panel (System tab)
 # ═══════════════════════════════════════════════════════════════════════════════
-import hmac as _hmac
 
 def _agent_token_from_db(cursor):
     cursor.execute("SELECT value FROM system_settings WHERE key = 'agent_api_token'")
@@ -6518,6 +6891,11 @@ def privacy_page():
 @app.route('/terms')
 def terms_page():
     return render_template('legal.html', page='terms')
+
+@app.route('/delete-account')
+def delete_account_page():
+    """Public account-deletion instructions page (URL required by the Google Play Data safety form)."""
+    return render_template('legal.html', page='delete')
 
 @app.route('/api/agent/orders/<int:order_id>/status', methods=['POST'])
 def agent_set_order_status(order_id):

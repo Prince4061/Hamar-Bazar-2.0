@@ -1138,7 +1138,7 @@ html, body {
                 </div>
                 <div class="acc-field">
                     <label class="acc-label">Security Question</label>
-                    <select id="profile-question-select" class="acc-select" required>
+                    <select id="profile-question-select" class="acc-select">
                         <option value="">Select a security question</option>
                         <option value="What is your childhood nickname?">What is your childhood nickname?</option>
                         <option value="What is your favorite color?">What is your favorite color?</option>
@@ -1148,8 +1148,8 @@ html, body {
                     </select>
                 </div>
                 <div class="acc-field">
-                    <label class="acc-label">Security Answer</label>
-                    <input type="text" id="profile-answer-input" class="acc-input" placeholder="Jawab likhein" required>
+                    <label class="acc-label">Security Answer <span style="text-transform:none; font-weight:600; color:var(--text-muted);">(password bhoolne par kaam aayega; badalna ho tabhi likhein)</span></label>
+                    <input type="text" id="profile-answer-input" class="acc-input" placeholder="Naya jawab (optional)" autocomplete="off">
                 </div>
             </div>
 
@@ -1196,6 +1196,17 @@ html, body {
                 <a href="/session/logout" style="margin: 0; padding: 8px 16px; background: var(--ruby-danger); color: white; font-size: 0.8rem; border-radius: 100px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-weight:800;">
                     <i data-lucide="log-out" style="width: 13px; height: 13px;"></i> Logout
                 </a>
+            </div>
+
+            <!-- Delete account (Google Play: in-app account deletion) -->
+            <div class="acc-row" style="border-color: rgba(239, 68, 68, 0.35); background: #fff5f5; margin-bottom:16px;">
+                <div>
+                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); display:block;">Account hamesha ke liye delete karein</span>
+                    <span style="font-size: 0.72rem; color: var(--text-muted);">Profile, photo, searches aur game scores hat jayenge. <a href="/delete-account" target="_blank" style="color:var(--primary-accent); font-weight:700;">Details</a></span>
+                </div>
+                <button type="button" onclick="deleteMyAccount()" style="margin: 0; padding: 8px 14px; background: #fff; color: var(--ruby-danger); border: 1.5px solid var(--ruby-danger); font-size: 0.78rem; border-radius: 100px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; cursor:pointer;">
+                    <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i> Delete
+                </button>
             </div>
         </div>
 
@@ -1501,11 +1512,14 @@ html, body {
         return imagePath;
     }
 
+    // Global HTML escaper for untrusted (API/DB-derived) strings interpolated into innerHTML templates
+    function hbEsc(v){ return String(v === undefined || v === null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+    // Escaper for untrusted strings placed inside a JS string literal of an inline handler attribute (JS-escape first, then HTML-escape)
+    function hbJs(v){ return hbEsc(String(v === undefined || v === null ? '' : v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r/g,'\\r').replace(/\n/g,'\\n')); }
+
     let customerName = "";
     let customerPhone = "";
-    let customerPassword = "";
     let customerSecurityQuestion = "";
-    let customerSecurityAnswer = "";
     let customerProfilePic = {{ (session.get('profile_pic') or '') | tojson }};
     let currentShopId = null;
     let productsList = [];
@@ -1674,13 +1688,13 @@ html, body {
                 
                 row.innerHTML = `
                     <div class="flex-between" style="align-items: center;">
-                        <span style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary);">${r.reviewer_name}</span>
-                        <span style="font-size: 0.7rem; color: var(--text-muted);">${r.date_formatted}</span>
+                        <span style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary);">${hbEsc(r.reviewer_name)}</span>
+                        <span style="font-size: 0.7rem; color: var(--text-muted);">${hbEsc(r.date_formatted)}</span>
                     </div>
                     <div style="display: flex; gap: 2px; align-items: center; margin: 1px 0;">
                         ${starsHtml}
                     </div>
-                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0; line-height: 1.35;">${r.comment}</p>
+                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0; line-height: 1.35;">${hbEsc(r.comment)}</p>
                 `;
                 listContainer.appendChild(row);
             });
@@ -1968,7 +1982,7 @@ html, body {
             document.getElementById("profile-address-input").value = document.getElementById("sidebar-address-display").innerText.trim();
             document.getElementById("profile-password-input").value = "";
             document.getElementById("profile-question-select").value = customerSecurityQuestion;
-            document.getElementById("profile-answer-input").value = customerSecurityAnswer;
+            document.getElementById("profile-answer-input").value = "";
             loadCustomerAboutTeamPhoto();
         } else if (tabId === 'services') {
             loadLocalServices();
@@ -2240,11 +2254,11 @@ html, body {
             src = '/static/uploads/profile_pics/' + src;   // bare filename safety
         }
         if (!src) {
-            return `<div class="${cls}" style="background:${color};">${initials}</div>`;
+            return `<div class="${cls}" style="background:${color};">${hbEsc(initials)}</div>`;
         }
         return `<div class="${cls} has-pic" style="background:${color};">
             <img src="${escapeHtmlLb(src)}" alt="${escapeHtmlLb(name)}" loading="lazy" referrerpolicy="no-referrer"
-                 onerror="this.parentNode.classList.remove('has-pic'); this.parentNode.textContent='${initials}';">
+                 onerror="this.parentNode.classList.remove('has-pic'); this.parentNode.textContent='${hbJs(initials)}';">
         </div>`;
     }
 
@@ -2380,8 +2394,8 @@ html, body {
                 card.onclick = () => selectCategory(s.category, s.id);
                 const label = techCategoryLabel(s);
                 card.innerHTML = `
-                    <div class="hamar-category-title" style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.2px; line-height: 1.2;">${label}</div>
-                    <img src="${getProductImageUrl(s.image_path)}" class="hamar-category-img" alt="${label}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='/static/images/tech_category.png';">
+                    <div class="hamar-category-title" style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.2px; line-height: 1.2;">${hbEsc(label)}</div>
+                    <img src="${hbEsc(getProductImageUrl(s.image_path))}" class="hamar-category-img" alt="${hbEsc(label)}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='/static/images/tech_category.png';">
                 `;
                 grid.appendChild(card);
             });
@@ -2621,24 +2635,20 @@ html, body {
             document.getElementById("home-active-order-quickcard").style.display = "block";
         }
         
-        // Auto fill address
-        {% for u in users %}
-            {% if u.id == active_user_id %}
+        // Auto fill address (only the logged-in customer's own, non-secret profile fields are embedded)
+        {% if current_user %}
                 const addressInput = document.getElementById("address-input");
-                if (addressInput) addressInput.value = {{ u.address | tojson }};
+                if (addressInput) addressInput.value = {{ (current_user.address or '') | tojson }};
                 
                 const addressDisplay = document.getElementById("sidebar-address-display");
-                if (addressDisplay) addressDisplay.innerText = {{ u.address | tojson }};
+                if (addressDisplay) addressDisplay.innerText = {{ (current_user.address or '') | tojson }};
                 const greetAddr = document.getElementById("home-greet-address");
-                if (greetAddr) greetAddr.innerText = {{ u.address | tojson }} || "Delivery address set karein";
+                if (greetAddr) greetAddr.innerText = {{ (current_user.address or '') | tojson }} || "Delivery address set karein";
                 
-                customerName = {{ u.name | tojson }};
-                customerPhone = {{ u.phone | tojson }};
-                customerPassword = {{ (u.password or '') | tojson }};
-                customerSecurityQuestion = {{ (u.security_question or '') | tojson }};
-                customerSecurityAnswer = {{ (u.security_answer or '') | tojson }};
-            {% endif %}
-        {% endfor %}
+                customerName = {{ (current_user.name or '') | tojson }};
+                customerPhone = {{ (current_user.phone or '') | tojson }};
+                customerSecurityQuestion = {{ (current_user.security_question or '') | tojson }};
+        {% endif %}
         
         const phoneDisplay = document.getElementById("sidebar-customer-phone-display");
         if (phoneDisplay) phoneDisplay.innerText = customerPhone;
@@ -2828,8 +2838,8 @@ html, body {
                 }
                 
                 card.innerHTML = `
-                    <div class="hamar-category-title" style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.2px; line-height: 1.2;">${label}</div>
-                    <img src="${getProductImageUrl(s.image_path)}" class="hamar-category-img" alt="${label}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
+                    <div class="hamar-category-title" style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.2px; line-height: 1.2;">${hbEsc(label)}</div>
+                    <img src="${hbEsc(getProductImageUrl(s.image_path))}" class="hamar-category-img" alt="${hbEsc(label)}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
                 `;
                 grid.appendChild(card);
             });
@@ -3136,7 +3146,7 @@ html, body {
             <div onclick="showProductDetailModal(${prod.id})" style="cursor: pointer;">
                 ${prod.image_path ? 
                     `<div style="width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow: hidden; border: 1px solid var(--border-color);">
-                        <img src="${getProductImageUrl(prod.image_path)}" alt="${prod.name}" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
+                        <img src="${hbEsc(getProductImageUrl(prod.image_path))}" alt="${hbEsc(prod.name)}" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
                      </div>` : 
                     `<div style="width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: ${iconBg}; border-radius: var(--radius-md); margin-bottom: 8px; border: 1px solid var(--border-color); color: ${iconColor};">
                         <i data-lucide="package" style="width: 24px; height: 24px;"></i>
@@ -3147,7 +3157,7 @@ html, body {
                         <i data-lucide="store" style="width:11px; height:11px; flex-shrink:0;"></i>
                         <span style="overflow:hidden; text-overflow:ellipsis;">${escapeHtmlLb(prod.shop_display_label || prod.shop_name)}${prod.shop_category && (prod.shop_display_label || prod.shop_name).toUpperCase() !== prod.shop_category.toUpperCase() ? ' · ' + escapeHtmlLb(prod.shop_category) : ''}</span>
                     </div>` : ''}
-                <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${prod.name}</h5>
+                <h5 class="product-name" style="font-size:0.95rem; font-weight:700; height:36px; overflow:hidden;">${hbEsc(prod.name)}</h5>
                 <div class="product-pricing-row" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
                     <span class="product-price" style="font-weight: 800; font-size: 0.95rem; color: ${isMed ? '#e11d48' : 'var(--text-primary)'};">₹${prod.price.toFixed(2)}</span>
                     ${prod.mrp && prod.mrp > prod.price ? `
@@ -3210,11 +3220,11 @@ html, body {
                 <div onclick="showProductDetailModal(${prod.id})" style="cursor: pointer; text-align: left;">
                     <div style="height: 80px; display:flex; align-items:center; justify-content:center; background: #f8fafc; border-radius: var(--radius-md); margin-bottom: 8px; overflow:hidden; border: 1px solid var(--border-color);">
                         ${prod.image_path ? 
-                            `<img src="${getProductImageUrl(prod.image_path)}" alt="${prod.name}" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">` :
+                            `<img src="${hbEsc(getProductImageUrl(prod.image_path))}" alt="${hbEsc(prod.name)}" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">` :
                             `<i data-lucide="package" style="width:24px; height:24px; color: var(--text-muted);"></i>`
                         }
                     </div>
-                    <h5 class="product-name" style="font-size: 0.85rem; font-weight:700; color:var(--text-primary); margin-bottom:4px; height:32px; overflow:hidden;">${prod.name}</h5>
+                    <h5 class="product-name" style="font-size: 0.85rem; font-weight:700; color:var(--text-primary); margin-bottom:4px; height:32px; overflow:hidden;">${hbEsc(prod.name)}</h5>
                 </div>
                 
                 <div class="flex-between" style="margin-top:10px; align-items:center; flex-wrap:wrap; gap:4px;">
@@ -3452,18 +3462,18 @@ html, body {
 
             let customizationBadgeHtml = '';
             if (item.custom_text) {
-                customizationBadgeHtml += `<div style="font-size: 0.75rem; color: #3498db; margin-top: 2px; font-weight: 500;">✒️ Custom: "${item.custom_text}"</div>`;
+                customizationBadgeHtml += `<div style="font-size: 0.75rem; color: #3498db; margin-top: 2px; font-weight: 500;">✒️ Custom: "${hbEsc(item.custom_text)}"</div>`;
             }
             if (item.custom_instructions) {
-                customizationBadgeHtml += `<div style="font-size: 0.75rem; color: #e67e22; margin-top: 1px;">📝 Notes: ${item.custom_instructions}</div>`;
+                customizationBadgeHtml += `<div style="font-size: 0.75rem; color: #e67e22; margin-top: 1px;">📝 Notes: ${hbEsc(item.custom_instructions)}</div>`;
             }
             if (item.custom_image_path) {
-                customizationBadgeHtml += `<div style="font-size: 0.75rem; color: #27ae60; margin-top: 1px;">🖼️ Design: <a href="${item.custom_image_path}" target="_blank" style="color:#27ae60; text-decoration:underline; font-weight:600;">View File</a></div>`;
+                customizationBadgeHtml += `<div style="font-size: 0.75rem; color: #27ae60; margin-top: 1px;">🖼️ Design: <a href="${hbEsc(item.custom_image_path)}" target="_blank" style="color:#27ae60; text-decoration:underline; font-weight:600;">View File</a></div>`;
             }
 
             itemRow.innerHTML = `
                 <div style="flex: 1; min-width: 0; text-align: left; padding-right: 8px;">
-                    <div style="font-weight: 700; font-size: 0.9rem; color: ${isOutOfStock ? 'var(--ruby-danger)' : 'var(--text-primary)'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item.name}">${item.name}</div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: ${isOutOfStock ? 'var(--ruby-danger)' : 'var(--text-primary)'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${hbEsc(item.name)}">${hbEsc(item.name)}</div>
                     <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px;">₹${item.price.toFixed(0)}</div>
                     ${customizationBadgeHtml}
                     ${oosBadge}
@@ -3547,7 +3557,7 @@ html, body {
             if (extraShopDeliveryFee > 0) {
                 const baseLabel = baseDeliveryFee === 0 ? "FREE Base" : `₹${baseDeliveryFee.toFixed(0)}`;
                 const breakdownText = extraFeeBreakdowns.join(" ");
-                elFee.innerHTML = `₹${totalDeliveryFee.toFixed(2)} <span style="display:block; font-size:0.75rem; color:#d97706; font-weight:800;">(${baseLabel} ${breakdownText})</span>`;
+                elFee.innerHTML = `₹${totalDeliveryFee.toFixed(2)} <span style="display:block; font-size:0.75rem; color:#d97706; font-weight:800;">(${baseLabel} ${hbEsc(breakdownText)})</span>`;
                 elFee.style.color = "#d97706";
             } else {
                 elFee.innerText = baseDeliveryFee === 0 ? "FREE" : `₹${baseDeliveryFee.toFixed(2)}`;
@@ -3862,7 +3872,7 @@ html, body {
 
                         let itemsHtml = data.items.map(item => `
                             <div class="flex-between" style="padding: 5px 0; border-bottom: 1px dashed rgba(0,0,0,0.05);">
-                                <span>• ${item.product_name} <strong>x${item.quantity}</strong></span>
+                                <span>• ${hbEsc(item.product_name)} <strong>x${item.quantity}</strong></span>
                                 <strong>₹${(item.price * item.quantity).toFixed(0)}</strong>
                             </div>
                         `).join("");
@@ -4039,7 +4049,7 @@ html, body {
                     barsHtml += `
                         <div style="margin-bottom:12px;">
                             <div class="flex-between" style="font-size:0.82rem; margin-bottom:6px;">
-                                <span style="font-weight: 600;">${k} <span style="color:var(--text-muted); font-weight: 400;">(${c.count} orders)</span></span>
+                                <span style="font-weight: 600;">${hbEsc(k)} <span style="color:var(--text-muted); font-weight: 400;">(${c.count} orders)</span></span>
                                 <strong style="color: var(--text-primary);">₹${c.spent.toFixed(2)}</strong>
                             </div>
                             <div style="background:#e2e8f0; height:6px; border-radius:10px; overflow:hidden;">
@@ -4125,6 +4135,28 @@ html, body {
         }
     }
 
+    function deleteMyAccount() {
+        if (!confirm("Kya aap sach me apna Hamar Bazaar account delete karna chahte hain? Yeh wapas nahi ho sakta.")) return;
+        const pwd = prompt("Confirm karne ke liye apna password likhein:");
+        if (pwd === null) return;
+        fetch("/api/customer/account/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: pwd })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                try { localStorage.removeItem(`cart_${customerId}`); localStorage.removeItem(`active_order_${customerId}`); } catch (e) {}
+                alert("Aapka account delete ho gaya. Dhanyavaad, Hamar Bazaar use karne ke liye.");
+                window.location.href = "/login";
+            } else {
+                alert(data.error || "Account delete nahi ho paya. Dobara try karein.");
+            }
+        })
+        .catch(() => alert("Network error. Dobara try karein."));
+    }
+
     function saveProfile() {
         const nameInput = document.getElementById("profile-name-input").value.trim();
         const addressInput = document.getElementById("profile-address-input").value.trim();
@@ -4135,8 +4167,13 @@ html, body {
         
         errorDiv.style.display = "none";
         
-        if (!nameInput || !addressInput || !questionInput || !answerInput) {
-            errorDiv.innerText = "Name, Address, Security Question and Answer are required.";
+        if (!nameInput || !addressInput) {
+            errorDiv.innerText = "Name aur Address zaroori hain.";
+            errorDiv.style.display = "block";
+            return;
+        }
+        if ((questionInput && !answerInput) || (!questionInput && answerInput)) {
+            errorDiv.innerText = "Security Question aur Answer dono saath me bharein.";
             errorDiv.style.display = "block";
             return;
         }
@@ -4170,12 +4207,9 @@ html, body {
                 document.getElementById("sidebar-address-display").innerText = addressInput;
                 const ga2 = document.getElementById("home-greet-address"); if (ga2) ga2.innerText = addressInput;
                 document.getElementById("address-input").value = addressInput;
-                if (passwordInput) {
-                    customerPassword = passwordInput;
-                }
-                customerSecurityQuestion = questionInput;
-                customerSecurityAnswer = answerInput;
+                if (questionInput) customerSecurityQuestion = questionInput;
                 document.getElementById("profile-password-input").value = "";
+                document.getElementById("profile-answer-input").value = "";
                 alert("Profile updated successfully!");
                 refreshIcons();
             } else {
@@ -4410,7 +4444,7 @@ html, body {
             footer.innerHTML = `
                 <div style="text-align:center; margin-top:16px; padding-top:14px; border-top:1px dashed var(--border-color);">
                     <p style="font-size:0.82rem; color:var(--text-secondary); margin:0 0 8px;">Jo dhoondh rahe the woh nahi mila?</p>
-                    <button onclick="toggleProductRequestBox('${encodeURIComponent(currentSearchQuery || '')}')" class="btn-custom" style="padding:8px 18px; font-size:0.85rem; font-weight:800; border-radius:100px; margin:0;">📩 Product Request karein</button>
+                    <button onclick="toggleProductRequestBox('${hbJs(encodeURIComponent(currentSearchQuery || ''))}')" class="btn-custom" style="padding:8px 18px; font-size:0.85rem; font-weight:800; border-radius:100px; margin:0;">📩 Product Request karein</button>
                     <div id="product-request-slot" style="display:none; margin-top:12px; text-align:left;"></div>
                 </div>`;
             searchGrid.appendChild(footer);
@@ -4561,12 +4595,12 @@ html, body {
                     card.innerHTML = `
                         <div class="ord-head">
                             <div class="ord-id"><span class="ord-icon"><i data-lucide="${iconOf(o.status)}"></i></span> #${o.id}</div>
-                            <span class="ord-status ${tone}">${awaitingAdminConfirm ? 'CONFIRMING' : labelOf(o.status)}</span>
+                            <span class="ord-status ${tone}">${awaitingAdminConfirm ? 'CONFIRMING' : hbEsc(labelOf(o.status))}</span>
                         </div>
                         <p class="ord-items">${escapeHtmlLb(itemsTxt)}</p>
                         <div class="ord-meta">
                             <span><i data-lucide="store"></i>${escapeHtmlLb(o.shop_name || '')}</span>
-                            <span><i data-lucide="calendar"></i>${timeStr}</span>
+                            <span><i data-lucide="calendar"></i>${hbEsc(timeStr)}</span>
                             ${o.priority_type === 'URGENT' ? `<span style="color:var(--ruby-danger);font-weight:800;"><i data-lucide="zap"></i>Urgent</span>` : ``}
                         </div>
                         <div class="ord-foot">
@@ -4715,12 +4749,12 @@ html, body {
                     row.style = "display: flex; align-items: center; justify-content: space-between; padding: 8px; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);";
                     row.innerHTML = `
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <a href="${getProductImageUrl(item.image_path)}" target="_blank">
-                                <img src="${getProductImageUrl(item.image_path)}" alt="Prescription" style="width: 36px; height: 36px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
+                            <a href="${hbEsc(getProductImageUrl(item.image_path))}" target="_blank">
+                                <img src="${hbEsc(getProductImageUrl(item.image_path))}" alt="Prescription" style="width: 36px; height: 36px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color);" onerror="this.onerror=null; this.src='/static/images/grocery_basket.png';">
                             </a>
                             <div>
                                 <div style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary);">Req #${item.id}</div>
-                                <div style="font-size: 0.7rem; color: var(--text-muted);">${dateStr}</div>
+                                <div style="font-size: 0.7rem; color: var(--text-muted);">${hbEsc(dateStr)}</div>
                             </div>
                         </div>
                         <span class="status-badge ${badgeClass}" style="font-size:0.7rem; padding: 2px 6px;">${statusText}</span>
@@ -4882,7 +4916,7 @@ html, body {
         });
         
         if (filtered.length === 0) {
-            container.innerHTML = `<div style="text-align: center; padding: 32px 0;"><i data-lucide="wrench" style="width:36px; height:36px; color:var(--text-muted); margin-bottom:8px; display:inline-block;"></i><p style="color:var(--text-muted); font-size:0.85rem; font-weight:600;">No providers available under "${activeServiceFilter}".</p></div>`;
+            container.innerHTML = `<div style="text-align: center; padding: 32px 0;"><i data-lucide="wrench" style="width:36px; height:36px; color:var(--text-muted); margin-bottom:8px; display:inline-block;"></i><p style="color:var(--text-muted); font-size:0.85rem; font-weight:600;">No providers available under "${hbEsc(activeServiceFilter)}".</p></div>`;
             if (window.lucide) lucide.createIcons();
             return;
         }
@@ -4902,16 +4936,16 @@ html, body {
             card.innerHTML = `
                 <div class="flex-between" style="align-items: flex-start;">
                     <div>
-                        <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0;">${p.name}</h4>
-                        <span style="font-size: 0.7rem; font-weight:750; background: var(--primary-light); color: var(--primary-accent); padding: 2px 8px; border-radius: 6px; display:inline-block; margin-top:4px; text-transform: uppercase; border: 1px solid var(--primary-glow);">${p.service_type}</span>
+                        <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0;">${hbEsc(p.name)}</h4>
+                        <span style="font-size: 0.7rem; font-weight:750; background: var(--primary-light); color: var(--primary-accent); padding: 2px 8px; border-radius: 6px; display:inline-block; margin-top:4px; text-transform: uppercase; border: 1px solid var(--primary-glow);">${hbEsc(p.service_type)}</span>
                     </div>
                     ${ratingStars}
                 </div>
                 
-                <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 2px 0; line-height:1.45;">${p.description || 'No work description provided.'}</p>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 2px 0; line-height:1.45;">${hbEsc(p.description || 'No work description provided.')}</p>
                 
                 <div style="display: flex; gap: 8px; margin-top: 6px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
-                    <a href="tel:${p.phone}" class="btn" style="flex: 1; padding: 8px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0; text-decoration: none; border-radius: var(--radius-sm); margin: 0;">
+                    <a href="tel:${hbEsc(p.phone)}" class="btn" style="flex: 1; padding: 8px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0; text-decoration: none; border-radius: var(--radius-sm); margin: 0;">
                         <i data-lucide="phone" style="width: 14px; height: 14px;"></i> Call Provider
                     </a>
                     <button onclick="openServiceReviewsModal(${p.id})" class="btn" style="flex: 1; padding: 8px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: var(--primary-light); color: var(--primary-accent); border: 1px solid var(--primary-glow); border-radius: var(--radius-sm); margin: 0; cursor: pointer;">
@@ -5004,13 +5038,13 @@ html, body {
                 
                 row.innerHTML = `
                     <div class="flex-between" style="align-items: center;">
-                        <span style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary);">${r.reviewer_name}</span>
-                        <span style="font-size: 0.7rem; color: var(--text-muted);">${r.date_formatted}</span>
+                        <span style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary);">${hbEsc(r.reviewer_name)}</span>
+                        <span style="font-size: 0.7rem; color: var(--text-muted);">${hbEsc(r.date_formatted)}</span>
                     </div>
                     <div style="display: flex; gap: 2px; align-items: center; margin: 1px 0;">
                         ${starsHtml}
                     </div>
-                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0; line-height: 1.35;">${r.comment}</p>
+                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0; line-height: 1.35;">${hbEsc(r.comment)}</p>
                 `;
                 listContainer.appendChild(row);
             });
