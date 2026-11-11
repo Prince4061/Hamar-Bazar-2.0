@@ -2031,7 +2031,6 @@
                             <thead>
                                 <tr>
                                     <th>Order ID</th>
-                                    <th>Customer</th>
                                     <th>Items</th>
                                     <th>Aapko milega</th>
                                     <th>Status</th>
@@ -2154,13 +2153,13 @@
                 New Order Request!
             </div>
             <div class="modal-body">
-                <div class="modal-customer-info">
+                <div class="modal-customer-info" style="display: none;">
                     <div class="modal-customer-icon">
-                        <i data-lucide="user"></i>
+                        <i data-lucide="package"></i>
                     </div>
                     <div class="modal-customer-text">
-                        <span class="modal-customer-name" id="modal-customer-name">Customer Name</span>
-                        <span class="modal-customer-phone" id="modal-customer-phone">9999999999</span>
+                        <span class="modal-customer-name" id="modal-customer-name">Order</span>
+                        <span class="modal-customer-phone" id="modal-customer-phone"></span>
                     </div>
                 </div>
                 
@@ -2851,10 +2850,10 @@
         function showNewOrderAlert(order) {
             currentAlertingOrderId = order.id;
             const nameEl = document.getElementById("modal-customer-name");
-            if (nameEl) nameEl.innerText = order.customer_name || 'Customer';
+            if (nameEl) nameEl.innerText = 'New Order';
             
             const phoneEl = document.getElementById("modal-customer-phone");
-            if (phoneEl) phoneEl.innerText = order.customer_phone || '';
+            if (phoneEl) phoneEl.innerText = '';
 
             // Immediate summary from the list payload (vendor payout only - never app price / delivery / grand total)
             const summaryElNow = document.getElementById("modal-items-summary");
@@ -3108,7 +3107,6 @@
 
                 tr.innerHTML = `
                     <td class="order-id" data-label="Order">#ORD-${o.id}</td>
-                    <td class="customer-cell" data-label="Customer">${escHtml(o.customer_name || 'Customer')}</td>
                     <td class="items-cell" data-label="Items">
                         <span class="items-count">${itemsCountStr}</span>
                         <span class="items-list" title="${itemsSummaryStr}">${itemsSummaryStr}</span>
@@ -3265,12 +3263,10 @@
                             <span class="status-badge ${(order.status || 'pending').toLowerCase()}">${statusLabel}</span>
                         </div>
 
-                        <!-- Customer Details Card -->
+                        <!-- Order Info Card -->
                         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:16px; font-size:0.82rem; display:flex; flex-direction:column; gap:4px;">
-                            <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Customer:</span> <strong style="color:#0f172a;">${escHtml(order.customer_name || 'Customer')}</strong></div>
-                            <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Phone:</span> <strong style="color:#0f172a;">${escHtml(order.customer_phone || 'N/A')}</strong></div>
                             <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Payment:</span> <strong style="color:#10b981;">${escHtml((order.payment_mode || 'COD').toUpperCase())} (${escHtml((order.payment_status || 'PENDING').toUpperCase())})</strong></div>
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start;"><span style="color:#64748b; min-width:60px;">Address:</span> <span style="color:#334155; text-align:right; font-weight:500;">${escHtml(order.customer_address || '')}</span></div>
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start;"><span style="color:#64748b; min-width:60px;">Delivery:</span> <span style="color:#334155; text-align:right; font-weight:500;">Handed to Rider at store</span></div>
                         </div>
 
                         <!-- Itemized Billing Invoice Table -->
@@ -3837,9 +3833,8 @@
                             <td class="time-cell">${escHtml(dateStr)}</td>
                             <td>
                                 <div style="display:flex; flex-direction:column; gap:2px;">
-                                    <strong style="color:var(--text-primary); font-size:0.85rem;">${escHtml(item.customer_name)}</strong>
-                                    <span style="font-size:0.8rem; color:var(--text-secondary);"><i data-lucide="phone" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i>${escHtml(item.customer_phone)}</span>
-                                    <span style="font-size:0.75rem; color:var(--text-muted);"><i data-lucide="map-pin" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i>${escHtml(item.customer_address)}</span>
+                                    <strong style="color:var(--text-primary); font-size:0.85rem;">Prescription Request</strong>
+                                    <span style="font-size:0.75rem; color:var(--text-muted);"><i data-lucide="package" style="width:12px; height:12px; display:inline-block; vertical-align:-2px; margin-right:4px;"></i>Delivery by Platform Rider</span>
                                 </div>
                             </td>
                             <td>

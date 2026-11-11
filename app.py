@@ -1254,7 +1254,7 @@ def home():
         return redirect('/login')
     return redirect(f"/{session['role']}")
 
-def make_login_response(success, redirect_url=None, error_msg=None):
+def make_login_response(success, redirect_url=None, error_msg=None, **extra):
     if request.headers.get('HX-Request') == 'true':
         if success:
             response = make_response("")
@@ -1264,7 +1264,9 @@ def make_login_response(success, redirect_url=None, error_msg=None):
             return f'<div id="login-error-msg" class="login-error-alert" style="display: block;">{error_msg}</div>'
     else:
         if success:
-            return jsonify({'success': True, 'redirect': redirect_url})
+            data = {'success': True, 'redirect': redirect_url}
+            data.update(extra)
+            return jsonify(data)
         else:
             return jsonify({'success': False, 'error': error_msg})
 
@@ -1609,7 +1611,14 @@ def staff_login():
                 session['role'] = 'vendor'
                 session['role_id'] = shop['id']
                 session['name'] = shop['shop_name']
-                return make_login_response(True, redirect_url='/vendor')
+                return make_login_response(
+                    True,
+                    redirect_url='/vendor',
+                    role='vendor',
+                    shop_id=shop['id'],
+                    shop_name=shop['shop_name'],
+                    category=shop['category']
+                )
                 
             elif role == 'delivery':
                 rider = None
@@ -1641,7 +1650,14 @@ def staff_login():
                 session['role'] = 'delivery'
                 session['role_id'] = rider['id']
                 session['name'] = rider['name']
-                return make_login_response(True, redirect_url='/delivery')
+                return make_login_response(
+                    True,
+                    redirect_url='/delivery',
+                    role='delivery',
+                    rider_id=rider['id'],
+                    rider_name=rider['name'],
+                    phone=rider['phone']
+                )
                 
             return make_login_response(False, error_msg='Invalid role.')
         except Exception as staff_err:
@@ -2219,7 +2235,8 @@ def get_order_details(order_id):
     # Prevent IDOR: Ensure caller is authorized (Customer, Shop Vendor, Delivery Rider, or Admin)
     role = session.get('role')
     role_id = session.get('role_id')
-    
+    header_rider = request.headers.get('X-Rider-Id') or request.args.get('rider_id')
+
     is_authorized = False
     if role == 'admin':
         is_authorized = True
@@ -2227,8 +2244,15 @@ def get_order_details(order_id):
         is_authorized = True
     elif role == 'vendor' and role_id == order['shop_id']:
         is_authorized = True
-    elif role == 'delivery' and role_id == order['delivery_boy_id']:
+    elif role == 'delivery' and (role_id == order['delivery_boy_id'] or order['delivery_boy_id'] is None):
         is_authorized = True
+    elif header_rider:
+        try:
+            hr_id = int(header_rider)
+            if order['delivery_boy_id'] == hr_id or order['delivery_boy_id'] is None:
+                is_authorized = True
+        except (ValueError, TypeError):
+            pass
         
     if not is_authorized:
         return jsonify({'error': 'Forbidden: You do not have permission to view this order.'}), 403
@@ -2249,6 +2273,10 @@ def get_order_details(order_id):
         cursor.execute(VENDOR_TOTAL_SQL, (order_id,))
         vt_row = cursor.fetchone()
         order_dict['vendor_total'] = round(float(vt_row[0] or 0), 2) if vt_row else 0.0
+        if role == 'vendor':
+            # Vendor Privacy: hide customer name and phone
+            order_dict['customer_name'] = 'Customer'
+            order_dict['customer_phone'] = ''
     else:
         # Customers / riders must never see the vendor cost price or the margin
         for it in items:
@@ -2803,6 +2831,20 @@ def delete_my_account():
 
 # --- Vendor APIs ---
 
+@app.route('/api/vendor/me', methods=['GET'])
+def get_vendor_me():
+    role = session.get('role')
+    role_id = session.get('role_id')
+    if role != 'vendor' or not role_id:
+        return jsonify({'error': 'Unauthorized. Please login as vendor.'}), 401
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, shop_name, category, commission_pct, is_active, is_approved, storefront, image_path FROM shops WHERE id = ?", (role_id,))
+    shop = cursor.fetchone()
+    if not shop:
+        return jsonify({'error': 'Shop not found.'}), 404
+    return jsonify(dict(shop))
+
 @app.route('/api/vendor/orders/<int:shop_id>', methods=['GET'])
 def get_vendor_orders(shop_id):
     role = session.get('role')
@@ -2827,6 +2869,10 @@ def get_vendor_orders(shop_id):
             o.id DESC
     ''', (shop_id,))
     orders = [dict(row) for row in cursor.fetchall()]
+    # Privacy protection: vendors must never see customer personal name or mobile number
+    for o in orders:
+        o['customer_name'] = 'Customer'
+        o['customer_phone'] = ''
     return jsonify(orders)
 
 @app.route('/api/orders/<int:order_id>/accept', methods=['POST'])
@@ -2895,6 +2941,46 @@ def ready_order(order_id):
     return jsonify({
         'message': 'Order marked ready for pickup.',
         'pickup_otp': order['pickup_otp']
+    })
+
+@app.route('/api/orders/<int:order_id>/reject', methods=['POST'])
+@app.route('/api/vendor/orders/<int:order_id>/reject', methods=['POST'])
+def vendor_reject_order(order_id):
+    if session.get('role') != 'vendor':
+        return jsonify({'error': 'Unauthorized. Please login as vendor.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, status, shop_id, delivery_boy_id FROM orders WHERE id = ?", (order_id,))
+    order = cursor.fetchone()
+    if not order:
+        return jsonify({'error': 'Order not found.'}), 404
+    if order['shop_id'] != session.get('role_id'):
+        return jsonify({'error': 'Unauthorized for this shop.'}), 403
+    if order['status'] in ('DELIVERED', 'FAILED'):
+        return jsonify({'error': f"Order is already {order['status']}."}), 400
+
+    data = request.get_json(silent=True) or {}
+    reason = str(data.get('reason') or '').strip() or 'Out of stock / Stock khatam'
+    old_status = order['status']
+
+    cursor.execute("UPDATE orders SET status = 'FAILED', failure_reason = ? WHERE id = ?", (reason[:300], order_id))
+    if order['delivery_boy_id'] and old_status in ('ACCEPTED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY'):
+        cursor.execute("UPDATE delivery_partners SET active_orders = MAX(0, active_orders - 1) WHERE id = ?", (order['delivery_boy_id'],))
+    db.commit()
+    trigger_webhook_async('status_changed', {
+        'order_id': order_id,
+        'old_status': old_status,
+        'new_status': 'FAILED',
+        'failure_reason': reason,
+        'changed_by': 'vendor',
+        'shop_id': session.get('role_id'),
+        'timestamp': ist_now_iso()
+    })
+    return jsonify({
+        'success': True,
+        'message': 'Order reject kar diya gaya (Stock unavailable).',
+        'order_id': order_id,
+        'failure_reason': reason
     })
 
 @app.route('/api/vendor/products/toggle', methods=['POST'])
@@ -3476,7 +3562,8 @@ def get_low_stock_prediction(shop_id):
 
 @app.route('/api/delivery/pool', methods=['GET'])
 def get_delivery_pool():
-    if session.get('role') != 'delivery':
+    caller_rider_id = request.headers.get('X-Rider-Id') or request.args.get('rider_id') or session.get('role_id')
+    if session.get('role') != 'delivery' and not caller_rider_id and session.get('role') != 'admin':
         return jsonify({'error': 'Unauthorized. Please login as delivery partner.'}), 403
     db = get_db()
     cursor = db.cursor()
@@ -3931,6 +4018,36 @@ def admin_pending_approval_orders():
     for o in orders:
         o['vendor_total'] = round(float(o.get('vendor_total') or 0), 2)
     return jsonify({'orders': orders, 'count': len(orders)})
+
+@app.route('/api/admin/orders', methods=['GET'])
+def admin_all_orders():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(f'''
+        SELECT o.id, o.created_at, o.total_amount, COALESCE(o.delivery_fee, 0) AS delivery_fee,
+               o.priority_type, o.status, o.payment_mode, o.pickup_otp, o.delivery_otp, o.failure_reason,
+               COALESCE(o.admin_approved, 1) AS admin_approved,
+               o.shop_id, s.shop_name, s.category,
+               o.customer_id, u.name AS customer_name, u.phone AS customer_phone, u.address AS customer_address,
+               o.delivery_boy_id, dp.name AS rider_name, dp.phone AS rider_phone,
+               (SELECT COALESCE(SUM(quantity), 0) FROM order_items WHERE order_id = o.id) AS items_count,
+               (SELECT GROUP_CONCAT(quantity || 'x ' || p.name, ', ')
+                FROM order_items oi JOIN products p ON oi.product_id = p.id
+                WHERE oi.order_id = o.id) AS items_summary,
+               {VENDOR_TOTAL_SUBQUERY} AS vendor_total
+        FROM orders o
+        JOIN shops s ON o.shop_id = s.id
+        JOIN users u ON o.customer_id = u.id
+        LEFT JOIN delivery_partners dp ON o.delivery_boy_id = dp.id
+        ORDER BY o.id DESC
+        LIMIT 500
+    ''')
+    orders = [dict(row) for row in cursor.fetchall()]
+    for o in orders:
+        o['vendor_total'] = round(float(o.get('vendor_total') or 0), 2)
+    return jsonify(orders)
 
 @app.route('/api/admin/orders/<int:order_id>/approve', methods=['POST'])
 def admin_approve_order(order_id):
@@ -5699,9 +5816,209 @@ def delete_app_logo():
     return jsonify({'success': True, 'message': 'App logo deleted successfully.'})
 
 # --- Rider Active Job & Status APIs ---
+
+@app.route('/api/delivery/me', methods=['GET'])
+def get_delivery_me():
+    role = session.get('role')
+    role_id = session.get('role_id')
+    if role != 'delivery' or not role_id:
+        return jsonify({'error': 'Unauthorized. Please login as delivery partner.'}), 401
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, name, phone, availability_status, active_orders, cooldown_until, latitude, longitude, speed, battery, last_updated FROM delivery_partners WHERE id = ?", (role_id,))
+    rider = cursor.fetchone()
+    if not rider:
+        return jsonify({'error': 'Delivery partner not found.'}), 404
+    return jsonify(dict(rider))
+
+@app.route('/api/delivery/status/toggle', methods=['POST'])
+def toggle_delivery_status():
+    role = session.get('role')
+    role_id = session.get('role_id')
+    if role != 'delivery' or not role_id:
+        return jsonify({'error': 'Unauthorized. Please login as delivery partner.'}), 401
+    data = request.get_json(silent=True) or {}
+    new_status = data.get('status')
+    db = get_db()
+    cursor = db.cursor()
+    if not new_status:
+        cursor.execute("SELECT availability_status FROM delivery_partners WHERE id = ?", (role_id,))
+        curr = cursor.fetchone()
+        new_status = 'offline' if curr and curr['availability_status'] == 'online' else 'online'
+    else:
+        new_status = 'online' if str(new_status).lower() in ('online', 'true', '1') else 'offline'
+    
+    cursor.execute("UPDATE delivery_partners SET availability_status = ? WHERE id = ?", (new_status, role_id))
+    db.commit()
+    return jsonify({'success': True, 'availability_status': new_status})
+
+@app.route('/api/delivery/rider/<int:rider_id>/orders', methods=['GET'])
+def get_rider_orders_detailed(rider_id):
+    header_rider_id = request.headers.get('X-Rider-Id') or request.args.get('rider_id')
+    is_rider_auth = (session.get('role') == 'delivery' and session.get('role_id') == rider_id) or (header_rider_id and str(header_rider_id) == str(rider_id))
+    if session.get('role') != 'admin' and not is_rider_auth:
+        return jsonify({'error': 'Unauthorized.'}), 403
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('''
+        SELECT o.id, o.created_at, o.total_amount, COALESCE(o.delivery_fee, 0) as delivery_fee,
+               o.priority_type, o.status, o.payment_mode, o.payment_status,
+               o.pickup_otp, o.delivery_otp, o.failure_reason,
+               o.shop_id, s.shop_name, s.category, s.image_path as shop_image,
+               COALESCE(s.address, 'Takhatpur Market') as shop_address,
+               COALESCE(s.mobile, '') as shop_phone,
+               o.customer_id, u.name as customer_name, u.phone as customer_phone, u.address as customer_address,
+               (SELECT COALESCE(SUM(quantity), 0) FROM order_items WHERE order_id = o.id) as items_count,
+               (SELECT GROUP_CONCAT(quantity || 'x ' || p.name, ', ')
+                FROM order_items oi JOIN products p ON oi.product_id = p.id
+                WHERE oi.order_id = o.id) as items_summary
+        FROM orders o
+        JOIN shops s ON o.shop_id = s.id
+        JOIN users u ON o.customer_id = u.id
+        WHERE o.delivery_boy_id = ? AND o.status NOT IN ('DELIVERED', 'FAILED')
+        ORDER BY
+            CASE WHEN o.status = 'OUT_FOR_DELIVERY' THEN 1
+                 WHEN o.status = 'READY_FOR_PICKUP' THEN 2
+                 WHEN o.status = 'ACCEPTED' THEN 3
+                 ELSE 4 END,
+            o.id DESC
+    ''', (rider_id,))
+    orders = [dict(row) for row in cursor.fetchall()]
+    return jsonify(orders)
+
+@app.route('/api/rider/location', methods=['POST'])
+@app.route('/api/delivery/location', methods=['POST'])
+def update_delivery_location():
+    data = request.get_json(silent=True) or {}
+    rider_id = data.get('rider_id') or session.get('role_id')
+    lat = data.get('latitude')
+    lng = data.get('longitude')
+    speed = data.get('speed', 0)
+    battery = data.get('battery', 100)
+    status = data.get('status', 'online')
+
+    if not rider_id or lat is None or lng is None:
+        return jsonify({"status": "error", "message": "rider_id, latitude, and longitude are required"}), 400
+
+    try:
+        rider_id = int(rider_id)
+        lat = float(lat)
+        lng = float(lng)
+        speed = float(speed or 0)
+        battery = int(battery or 100)
+    except (ValueError, TypeError):
+        return jsonify({"status": "error", "message": "Invalid numeric values"}), 400
+
+    now_str = ist_now_str()
+
+    # 1. Update marketplace (2).db
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute('''
+            UPDATE delivery_partners
+            SET latitude = ?, longitude = ?, speed = ?, battery = ?, availability_status = ?, last_updated = ?
+            WHERE id = ?
+        ''', (lat, lng, speed, battery, status, now_str, rider_id))
+        db.commit()
+    except Exception as e:
+        print("Error updating delivery_partners location:", e)
+
+    # 2. Sync to Hamar Bazar map/hamar_bazar.db
+    try:
+        map_db_path = os.path.join(os.path.dirname(__file__), 'Hamar Bazar map', 'hamar_bazar.db')
+        if os.path.exists(map_db_path):
+            import sqlite3 as _sqlite3
+            map_conn = _sqlite3.connect(map_db_path)
+            map_cur = map_conn.cursor()
+            map_cur.execute("SELECT id FROM riders WHERE id = ?", (rider_id,))
+            if map_cur.fetchone():
+                map_cur.execute('''
+                    UPDATE riders
+                    SET latitude = ?, longitude = ?, speed = ?, battery = ?, status = ?, last_updated = ?
+                    WHERE id = ?
+                ''', (lat, lng, speed, battery, status, now_str, rider_id))
+            else:
+                rider_name = session.get('name') or f"Rider #{rider_id}"
+                rider_phone = ""
+                try:
+                    cursor.execute("SELECT name, phone FROM delivery_partners WHERE id = ?", (rider_id,))
+                    r_row = cursor.fetchone()
+                    if r_row:
+                        rider_name = r_row['name']
+                        rider_phone = r_row['phone']
+                except Exception:
+                    pass
+                map_cur.execute('''
+                    INSERT INTO riders (id, name, mobile, status, latitude, longitude, speed, battery, last_updated)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (rider_id, rider_name, rider_phone, status, lat, lng, speed, battery, now_str))
+            map_conn.commit()
+            map_conn.close()
+    except Exception as me:
+        print("Error syncing to map db:", me)
+
+    # 3. Forward to Render Live Map (https://hamar-bazar-map.onrender.com)
+    try:
+        import requests as _requests
+        render_payload = {
+            'rider_id': rider_id,
+            'latitude': lat,
+            'longitude': lng,
+            'speed': speed,
+            'battery': battery,
+            'status': status
+        }
+        _requests.post('https://hamar-bazar-map.onrender.com/api/rider/location', json=render_payload, timeout=2)
+    except Exception:
+        pass
+
+    return jsonify({"status": "success", "message": "Location updated successfully", "rider_id": rider_id})
+
+@app.route('/api/map/locations', methods=['GET'])
+def main_map_locations():
+    db = get_db()
+    cursor = db.cursor()
+    locations = []
+
+    # Active Delivery Riders with live GPS
+    cursor.execute("SELECT id, name, phone, availability_status, latitude, longitude, speed, battery, last_updated FROM delivery_partners WHERE latitude IS NOT NULL AND longitude IS NOT NULL")
+    for r in cursor.fetchall():
+        locations.append({
+            "id": r["id"],
+            "type": "rider",
+            "name": r["name"],
+            "mobile": r["phone"],
+            "vehicle_number": "Delivery Partner",
+            "status": r["availability_status"] or "online",
+            "speed": r["speed"] or 0,
+            "battery": r["battery"] or 100,
+            "last_updated": r["last_updated"],
+            "lat": r["latitude"],
+            "lng": r["longitude"]
+        })
+
+    # Also include shops
+    cursor.execute("SELECT id, shop_name, category FROM shops WHERE is_approved = 1 AND is_active = 1")
+    for s in cursor.fetchall():
+        locations.append({
+            "id": s["id"],
+            "type": "shop",
+            "name": s["shop_name"],
+            "category": s["category"],
+            "is_partner": True,
+            "partner_status": "Verified Partner",
+            "lat": 22.1448,
+            "lng": 81.8698
+        })
+
+    return jsonify(locations)
+
 @app.route('/api/delivery/rider/<int:rider_id>/active', methods=['GET'])
 def get_rider_active_order(rider_id):
-    if session.get('role') != 'delivery' or session.get('role_id') != rider_id:
+    header_rider_id = request.headers.get('X-Rider-Id') or request.args.get('rider_id')
+    is_rider_auth = (session.get('role') == 'delivery' and session.get('role_id') == rider_id) or (header_rider_id and str(header_rider_id) == str(rider_id))
+    if session.get('role') != 'admin' and not is_rider_auth:
         return jsonify({'error': 'Unauthorized.'}), 403
     db = get_db()
     cursor = db.cursor()
@@ -5889,6 +6206,10 @@ def get_vendor_prescriptions(shop_id):
         ORDER BY pr.id DESC
     ''', (shop_id,))
     rows = [dict(row) for row in cursor.fetchall()]
+    # Vendor Privacy: hide customer name and phone
+    for r in rows:
+        r['customer_name'] = 'Customer'
+        r['customer_phone'] = ''
     return jsonify(rows)
 
 @app.route('/api/vendor/prescriptions/<int:req_id>/complete', methods=['POST'])
